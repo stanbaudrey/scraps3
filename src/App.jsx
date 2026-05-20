@@ -87,65 +87,66 @@ function isValidSignal(cards) {
   return false;
 }
 // ─────────────────────────────────────────────────────────────
-// FlyingCard — animates a card traveling from source to dest rect
-// source/dest are {x,y,width,height} in viewport coords
+// FlyingCard — arc trajectory via quadratic bezier
+// arcOffset varies per card so multiple cards fly different paths
 // ─────────────────────────────────────────────────────────────
-function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone }) {
-  const startRef = useRef(performance.now());
+function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, arcOffset=0 }) {
+  const startRef = useRef(null);
   const rafRef   = useRef();
   const elRef    = useRef();
-  const DURATION = 900; // ms — smooth, half-speed
+  const DURATION = 750;
 
   useEffect(() => {
+    startRef.current = performance.now();
+    // Quadratic bezier control point — arcs above the midpoint, offset per card
+    const cpX = (fromRect.x + toRect.x) / 2 + arcOffset * 90;
+    const cpY = Math.min(fromRect.y, toRect.y) - 130 - Math.abs(arcOffset) * 50;
+
     function animate() {
       const el = elRef.current;
       if(!el) return;
       const elapsed = performance.now() - startRef.current;
       const t = Math.min(elapsed / DURATION, 1);
-      // Ease in-out cubic
-      const e = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
-      const x = fromRect.x + (toRect.x - fromRect.x) * e;
-      const y = fromRect.y + (toRect.y - fromRect.y) * e;
-      // Transition from frost → ink background as it approaches scraps
-      const scrapFrac = toIsScrap ? e : 0;
+      const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out quad
+      // Bezier position
+      const x = (1-e)*(1-e)*fromRect.x + 2*(1-e)*e*cpX + e*e*toRect.x;
+      const y = (1-e)*(1-e)*fromRect.y + 2*(1-e)*e*cpY + e*e*toRect.y;
+      // Rotation and scale during flight
+      const rot = arcOffset * 18 * Math.sin(e * Math.PI);
+      const scale = 0.88 + 0.18 * Math.sin(e * Math.PI);
       el.style.left = x + 'px';
       el.style.top  = y + 'px';
-      el.style.opacity = t > 0.85 ? String(1 - (t-0.85)*6.67) : '1';
-      // Color transition
-      if(toIsScrap) {
+      el.style.transform = `rotate(${rot}deg) scale(${scale})`;
+      el.style.opacity = t > 0.88 ? String(1-(t-0.88)*8.3) : '1';
+      // Color transition mid-flight for scraps
+      if(toIsScrap && e > 0.45) {
+        const f = Math.min((e-0.45)/0.55, 1);
         const r1=[245,245,250], r2=[26,26,46];
-        const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*scrapFrac));
+        const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*f));
         el.style.background = `rgb(${bg.join(',')})`;
-        const borderColor = card&&(card.suit==='♥'||card.suit==='♦') ? '#FF3D5A' : '#C8FF00';
-        el.style.borderColor = scrapFrac > 0.5 ? borderColor : '#1A1A2E';
+        el.style.borderColor = card&&(card.suit==='♥'||card.suit==='♦')?'#FF3D5A':'#C8FF00';
       }
-      if(t < 1) { rafRef.current = requestAnimationFrame(animate); }
-      else { onDone(); }
+      if(t < 1) rafRef.current = requestAnimationFrame(animate);
+      else onDone();
     }
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const ink  = card ? ((card.suit==='♥'||card.suit==='♦') ? '#FF3D5A' : '#1A1A2E') : '#1A1A2E';
-  const isTD = card && card.rank==='10';
-  const rk   = isTD ? 22 : 26;
+  const ink = card?((card.suit==='♥'||card.suit==='♦')?'#FF3D5A':'#1A1A2E'):'#1A1A2E';
+  const rk  = card&&card.rank==='10' ? 22 : 26;
 
   return (
     <div ref={elRef} style={{
-      position:'fixed',
-      left: fromRect.x, top: fromRect.y,
-      width: fromRect.width, height: fromRect.height,
-      zIndex:1000, pointerEvents:'none',
-      borderRadius:10, overflow:'hidden',
-      background:'#F5F5FA',
-      border:`6px solid #1A1A2E`,
-      display:'flex', flexDirection:'column',
-      justifyContent:'space-between',
+      position:'fixed', left:fromRect.x, top:fromRect.y,
+      width:fromRect.width, height:fromRect.height,
+      zIndex:1000, pointerEvents:'none', borderRadius:10,
+      background:'#F5F5FA', border:`6px solid #1A1A2E`,
+      display:'flex', flexDirection:'column', justifyContent:'space-between',
       padding:'8px 9px', boxSizing:'border-box',
-      boxShadow:'0 8px 32px rgba(0,0,0,.6)',
-      transition:'none',
+      boxShadow:'0 12px 40px rgba(0,0,0,.7)', transition:'none',
     }}>
-      {card && (
+      {card&&(
         <>
           <div style={{display:'flex',alignItems:'center',gap:1}}>
             <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
@@ -168,9 +169,9 @@ function useFlyingCards() {
   const [flights, setFlights] = useState([]); // [{id,card,fromRect,toRect,toIsScrap}]
   const nextId = useRef(0);
 
-  const launchFlight = useCallback((card, fromRect, toRect, toIsScrap=false) => {
+  const launchFlight = useCallback((card, fromRect, toRect, toIsScrap=false, arcOffset=0) => {
     const id = nextId.current++;
-    setFlights(prev => [...prev, {id, card, fromRect, toRect, toIsScrap}]);
+    setFlights(prev => [...prev, {id, card, fromRect, toRect, toIsScrap, arcOffset}]);
     return id;
   }, []);
 
@@ -180,12 +181,13 @@ function useFlyingCards() {
 
   const FlightsOverlay = useCallback(() => (
     <>
-      {flights.map(f => (
+      {flights.map((f,i) => (
         <FlyingCard key={f.id}
           card={f.card}
           fromRect={f.fromRect}
           toRect={f.toRect}
           toIsScrap={f.toIsScrap}
+          arcOffset={f.arcOffset||0}
           onDone={() => removeFlight(f.id)}
         />
       ))}
@@ -658,22 +660,42 @@ function RoundProgressIndicator({ phase }) {
 // ScoreBar
 // ─────────────────────────────────────────────────────────────
 // ScoreBar removed — scores shown inline in status bar
-function ScoreCorners({ playerScore, aiScore }) {
+function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, phase }) {
+  // Compute round progress for inline display
+  const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-player','reveal-1','replenish'];
+  const h2=['player-turn-2a','ai-turn-2a','player-turn-2b','ai-turn-2b','signal-player-2','reveal-2'];
+  const sc=['scraps-reveal','round-end'];
+  const roundLabel = sc.includes(phase)?'SCRAPS':h2.includes(phase)?'HAND 2':'HAND 1';
+  const roundDot = sc.includes(phase)?DS.ember:h2.includes(phase)?DS.voltage:DS.slate;
   return (
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
       padding:'8px 22px 4px',background:DS.dusk,
       borderBottom:`1px solid ${DS.slate}22`,flexShrink:0}}>
       <div style={{display:'flex',flexDirection:'column',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:13,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>YOU</span>
-        <span style={{fontFamily:F.display,fontSize:48,color:DS.voltage,lineHeight:1.05}}>{playerScore}</span>
+        <span style={{
+          fontFamily:F.display,fontSize:48,color:DS.voltage,lineHeight:1.05,
+          animation:playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          display:'inline-block',
+        }}>{playerScore}</span>
       </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',paddingTop:4}}>
-        <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',letterSpacing:'0.12em'}}>FIRST TO {WIN_SCORE}</span>
-        <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate+'55',letterSpacing:'0.08em'}}>WIN BY 2</span>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+        <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate+'88',letterSpacing:'0.12em'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+        <div style={{display:'flex',alignItems:'center',gap:6,
+          background:DS.duskMid,borderRadius:20,padding:'4px 14px',
+          border:`1px solid ${roundDot}66`}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:roundDot,
+            boxShadow:`0 0 6px ${roundDot}`}}/>
+          <span style={{fontFamily:F.ui,fontSize:13,fontWeight:700,color:roundDot,letterSpacing:'0.08em'}}>{roundLabel}</span>
+        </div>
       </div>
       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:13,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
-        <span style={{fontFamily:F.display,fontSize:48,color:DS.ember,lineHeight:1.05}}>{aiScore}</span>
+        <span style={{
+          fontFamily:F.display,fontSize:48,color:DS.ember,lineHeight:1.05,
+          animation:aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          display:'inline-block',
+        }}>{aiScore}</span>
       </div>
     </div>
   );
@@ -930,22 +952,39 @@ function LoseScreen({ playerScore, aiScore, onNewGame }) {
 // ─────────────────────────────────────────────────────────────
 // AceCounterModal — prompt player to counter opponent's ace
 // ─────────────────────────────────────────────────────────────
-function AceCounterModal({ onCounter, onAllow }) {
+function AceCounterModal({ onCounter, onAllow, playerScraps }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.88)',
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
-        borderRadius:16,padding:32,maxWidth:440,width:'100%',textAlign:'center',
+        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
         <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:18}}>
-          They will be able to discard any two cards from your Scraps pile.
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
+          They will remove two cards from your Scraps pile.
         </p>
-        <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:18,fontWeight:700,
-          marginBottom:28}}>You have an Ace. Do you want to counter?</p>
+        {/* Show player's scraps so they know what's at stake */}
+        {playerScraps&&playerScraps.length>0&&(
+          <div style={{margin:'0 auto 18px',background:DS.inkLight,
+            border:`2px solid ${DS.ember}66`,borderRadius:12,padding:'12px 16px',
+            display:'inline-block'}}>
+            <div style={{fontFamily:F.mono,fontSize:12,color:DS.ember,marginBottom:8,
+              letterSpacing:'0.12em'}}>YOUR SCRAPS AT STAKE</div>
+            <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
+              {playerScraps.map(c=>(
+                <PlayingCard key={c.id} card={c} size="small" isScrap={true}/>
+              ))}
+            </div>
+          </div>
+        )}
+        <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:17,fontWeight:700,
+          marginBottom:24}}>You have an Ace. Counter to cancel theirs?</p>
+        <p style={{fontFamily:F.ui,color:DS.slate,fontSize:14,marginBottom:24,lineHeight:1.5}}>
+          Countering cancels their Ace — nothing is removed. Both Aces are discarded.
+        </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
-          <Btn variant="danger" onClick={onCounter}>Counter Their Ace ⚡</Btn>
+          <Btn variant="danger" onClick={onCounter}>Counter ⚡ Cancel Their Ace</Btn>
           <Btn variant="ghost" onClick={onAllow}>Let It Happen</Btn>
         </div>
       </div>
@@ -1123,7 +1162,7 @@ function SplashScreen({ onStart }) {
     {icon:'🏆',text:'Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   const SS=`
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Righteous&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+    500;700&family=Space+Mono:wght@400;700&display=swap');
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     @keyframes letterAppear{from{opacity:0;transform:translateY(44px) scale(.65) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}}
     @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
@@ -1222,7 +1261,7 @@ function DifficultyPicker({ onChoose, onBack }) {
               letterSpacing:'0.1em',textTransform:'uppercase',color:DS.frost}}>Back</div>
         </div>
       </div>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Righteous&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:${DS.dusk}}`}</style>
+      <style>{`500;700&family=Space+Mono:wght@400;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:${DS.dusk}}`}</style>
     </div>
   );
 }
@@ -1289,6 +1328,8 @@ function GameScreen({ mode, difficulty, onExit }) {
   const [scrapsFadeIds,setScrapsFadeIds]   = useState(new Set());
   // Near-win banner
   const [showNearWin,setShowNearWin]       = useState(false);
+  const [playerScoreFlash,setPlayerScoreFlash] = useState(false);
+  const [aiScoreFlash,setAiScoreFlash]         = useState(false);
 
   const [roundNum,setRoundNum]             = useState(1);
   const [showInterstitial,setShowInterstitial] = useState(false);
@@ -1333,17 +1374,27 @@ function GameScreen({ mode, difficulty, onExit }) {
     let aiScrapsInit = deal.aiScraps;
 
     if(mode==='tutorial' && !alternate) {
-      // Guarantee player has exactly one Ace in starting hand
-      const hasAce = playerHand.some(c=>c.rank==='A');
-      if(!hasAce) {
-        // Find an Ace in remaining deck or AI hand and swap it in
-        const aceInDeck = remainingDeck.findIndex(c=>c.rank==='A');
-        if(aceInDeck >= 0) {
-          const ace = remainingDeck[aceInDeck];
-          const swapOut = playerHand[playerHand.length - 1]; // swap last card out
-          remainingDeck = [...remainingDeck.filter((_,i)=>i!==aceInDeck), swapOut];
-          playerHand = [...playerHand.slice(0, -1), ace];
-        }
+      // Tutorial: player's STARTING HAND must NOT have an Ace
+      // Remove any Aces from starting hand, put them in deck
+      const handAces = playerHand.filter(c=>c.rank==='A');
+      if(handAces.length > 0) {
+        const aceIds = new Set(handAces.map(c=>c.id));
+        playerHand = playerHand.filter(c=>!aceIds.has(c.id));
+        remainingDeck = [...handAces, ...remainingDeck];
+      }
+      // Put one Ace at position 0 of remaining deck (first card drawn on first trade)
+      const aceInDeck = remainingDeck.findIndex(c=>c.rank==='A');
+      if(aceInDeck > 0) {
+        const ace = remainingDeck[aceInDeck];
+        remainingDeck = [ace, ...remainingDeck.filter((_,i)=>i!==aceInDeck)];
+      }
+      // Pad player hand back to 5 with non-ace cards from deck if needed
+      while(playerHand.length < 5 && remainingDeck.length > 0) {
+        const next = remainingDeck.findIndex(c=>c.rank!=='A');
+        if(next >= 0) {
+          playerHand = [...playerHand, remainingDeck[next]];
+          remainingDeck = remainingDeck.filter((_,i)=>i!==next);
+        } else break;
       }
       // Set AI starting Scraps to two 5s (scripted for four-of-a-kind setup)
       // Find two 5s anywhere in the pool (remaining deck or AI scraps)
@@ -1383,26 +1434,37 @@ function GameScreen({ mode, difficulty, onExit }) {
     setAiSignaledIds(new Set()); setPendingAiAce(null);
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setCurrentTurn(1);
-    // Show interstitial before dealing
     setShowInterstitial(true);
-    // Phase stays at 'dealing' during interstitial — actual play starts after
     setPhase('dealing');
-    if(alternate) setRoundNum(r=>r+1);
-    else if(roundNum!==1) setRoundNum(r=>r+1);
+    const newRound = alternate ? roundNum + 1 : roundNum;
+    if(alternate) setRoundNum(newRound);
   }
 
   // Called when interstitial finishes — start actual play
   function onInterstitialDone() {
     setShowInterstitial(false);
-    setPhase('player-turn-1a');
-    addLog('New round dealt. Your turn.');
+    // Odd rounds (1,3,5...): Opponent is dealer → Player goes first
+    // Even rounds (2,4,6...): Player is dealer → Opponent goes first
+    setRoundNum(r => {
+      const isOddRound = r % 2 === 1;
+      if(isOddRound) {
+        setPhase('player-turn-1a');
+        addLog(`Round ${r} — Opponent deals. You go first.`);
+      } else {
+        setPhase('ai-turn-1a');
+        addLog(`Round ${r} — You deal. Opponent goes first.`);
+      }
+      return r;
+    });
   }
 
   // ── Win check after score change ──────────────────────────────
   function checkAndSetWin(nP, nA) {
+    // Flash score indicators
+    if(nP > playerScore) { setPlayerScoreFlash(true); setTimeout(()=>setPlayerScoreFlash(false),600); }
+    if(nA > aiScore) { setAiScoreFlash(true); setTimeout(()=>setAiScoreFlash(false),600); }
     const winner = checkWin(nP, nA);
     if(winner) { setGameOver(winner); return true; }
-    // Show near-win banner if either crossed threshold
     if(nP >= WIN_SCORE || nA >= WIN_SCORE) setShowNearWin(true);
     return false;
   }
@@ -1434,21 +1496,25 @@ function GameScreen({ mode, difficulty, onExit }) {
   }
 
   function executeTrade(tradeCards,drawCount) {
-    // Launch visual animation (pure visual, no state dependency)
+    // Launch one arc per card — each from its actual position in the fan
     const handEl   = playerHandRef.current;
     const scrapsEl = playerScrapsRef.current;
     if(handEl && scrapsEl) {
       const handRect   = handEl.getBoundingClientRect();
       const scrapsRect = scrapsEl.getBoundingClientRect();
       const cardW = 104, cardH = 146;
-      const fromRect = { x: handRect.left + handRect.width/2 - cardW/2,
-                         y: handRect.top  + handRect.height/2 - cardH/2,
-                         width: cardW, height: cardH };
-      const toRect   = { x: scrapsRect.left + scrapsRect.width/2 - cardW/2,
-                         y: scrapsRect.top   + 10,
-                         width: cardW, height: cardH };
+      // Spread source positions across the hand width for visual separation
+      const n = tradeCards.length;
+      const toRect = { x: scrapsRect.left + scrapsRect.width/2 - cardW/2,
+                       y: scrapsRect.top + 10,
+                       width: cardW, height: cardH };
       tradeCards.forEach((card, i) => {
-        setTimeout(() => launchFlight(card, fromRect, toRect, true), i * 100);
+        const spreadFrac = n === 1 ? 0 : (i / (n-1)) - 0.5;
+        const fromX = handRect.left + handRect.width * (0.3 + spreadFrac * 0.4);
+        const fromRect = { x: fromX, y: handRect.top + 20, width: cardW, height: cardH };
+        // Arc offsets spread cards apart in flight
+        const arcOffset = n === 1 ? 0 : (i / (n-1) - 0.5) * 1.5;
+        setTimeout(() => launchFlight(card, fromRect, toRect, true, arcOffset), i * 80);
       });
     }
     // All state updates at top level — NO nested setState calls
@@ -1492,21 +1558,23 @@ function GameScreen({ mode, difficulty, onExit }) {
 
   function confirmScrapsDiscard() {
     if(!pendingTrade||scrapsDiscard.length!==scrapsOverflow) return;
-    // Launch visual animation only
+    // Launch visual animation only — arc from scraps to discard
     const scrapsEl  = playerScrapsRef.current;
     const discardEl = discardRef.current;
     if(scrapsEl && discardEl) {
       const scrapsRect  = scrapsEl.getBoundingClientRect();
       const discardRect = discardEl.getBoundingClientRect();
       const cardW = 80, cardH = 112;
-      const fromRect = { x: scrapsRect.left + scrapsRect.width/2  - cardW/2,
-                         y: scrapsRect.top  + scrapsRect.height/2 - cardH/2,
-                         width: cardW, height: cardH };
-      const toRect   = { x: discardRect.left + discardRect.width/2  - cardW/2,
-                         y: discardRect.top  + discardRect.height/2 - cardH/2,
-                         width: cardW, height: cardH };
+      const toRect = { x: discardRect.left + discardRect.width/2 - cardW/2,
+                       y: discardRect.top  + discardRect.height/2 - cardH/2,
+                       width: cardW, height: cardH };
+      const n = scrapsDiscard.length;
       scrapsDiscard.forEach((card, i) => {
-        setTimeout(() => launchFlight(card, fromRect, toRect, false), i * 100);
+        const spreadFrac = n === 1 ? 0 : (i/(n-1)) - 0.5;
+        const fromX = scrapsRect.left + scrapsRect.width/2 - cardW/2 + spreadFrac * 20;
+        const fromRect = { x: fromX, y: scrapsRect.top + i * 15, width: cardW, height: cardH };
+        const arcOffset = n === 1 ? 0 : (i/(n-1)-0.5);
+        setTimeout(() => launchFlight(card, fromRect, toRect, false, arcOffset), i * 80);
       });
     }
     // All state updates synchronous
@@ -1594,21 +1662,15 @@ function GameScreen({ mode, difficulty, onExit }) {
     if(!pendingAiAce) return;
     const {ace: aiAce, targets} = pendingAiAce;
     const playerAce = playerHand.find(c=>c.rank==='A');
-    // Player counters: AI's targets are NOT removed; both aces discarded
-    // Player then picks 2 from opponent's scraps as counter
+    // Counter = CANCEL only. Both aces discarded. No cards removed from either Scraps.
+    // Original AI ace turn is ended. Player's turn continues normally (no turn cost).
     setPlayerHand(p=>p.filter(c=>c.id!==playerAce.id));
     setAiHand(h=>h.filter(c=>c.id!==aiAce.id));
     setDiscard(d=>[...d,playerAce,aiAce]);
     setPendingAiAce(null);
-    addLog('You counter the Ace! No Scraps removed. Both Aces discarded.');
-    // Now let player pick 2 from opponent scraps
-    if(aiScraps.length>=2){
-      setAceMode(true); setAceTargets([]);
-      addLog("Counter: Select 2 cards from opponent's Scraps to remove.");
-    } else {
-      setCurrentTurn(t=>t+1);
-      advancePlayer(); // after ace chain resolves, advance
-    }
+    addLog('You counter the Ace! Both Aces cancelled and discarded. Your turn continues.');
+    // Player's turn is NOT consumed — they still need to trade or act
+    // Phase stays at current player turn
   }
 
   function onPlayerAllowAce() {
@@ -1679,9 +1741,15 @@ function GameScreen({ mode, difficulty, onExit }) {
               const handR   = aiHandEl.getBoundingClientRect();
               const scrapsR = aiScrapsEl.getBoundingClientRect();
               const cw=104, ch=146;
-              const from = {x:handR.left+handR.width/2-cw/2, y:handR.top+handR.height/2-ch/2, width:cw, height:ch};
-              const to   = {x:scrapsR.left+scrapsR.width/2-cw/2, y:scrapsR.top+10, width:cw, height:ch};
-              action.cards.forEach((card,i) => setTimeout(()=>launchFlight(card,from,to,true), i*100));
+              const to = {x:scrapsR.left+scrapsR.width/2-cw/2, y:scrapsR.top+10, width:cw, height:ch};
+              const n = action.cards.length;
+              action.cards.forEach((card,i) => {
+                const spreadFrac = n===1?0:(i/(n-1))-0.5;
+                const fx = handR.left + handR.width*(0.3+spreadFrac*0.4);
+                const from = {x:fx, y:handR.top+20, width:cw, height:ch};
+                const arcOffset = n===1?0:(i/(n-1)-0.5)*1.5;
+                setTimeout(()=>launchFlight(card,from,to,true,arcOffset), i*80);
+              });
             }
           }, 600);
           setTimeout(()=>{
@@ -1890,7 +1958,7 @@ function GameScreen({ mode, difficulty, onExit }) {
   else if(phase==='round-end') hint='Round complete. Ready for the next round?';
 
   const GS=`
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Righteous&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+    500;700&family=Space+Mono:wght@400;700&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:${DS.dusk}}
     ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:${DS.slate}44}
@@ -1900,6 +1968,8 @@ function GameScreen({ mode, difficulty, onExit }) {
     @keyframes fullScrapPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
     @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
     @keyframes cardFadeIn{0%{opacity:0.1;transform:translateY(-12px) scale(0.92)}60%{opacity:0.9}100%{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes scorePop{0%{transform:scale(1)}40%{transform:scale(1.5)}70%{transform:scale(0.95)}100%{transform:scale(1)}}
+    @keyframes badgeFlash{0%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
     @keyframes cardShake{0%{transform:translateX(-4px) rotate(-2deg)}50%{transform:translateX(4px) rotate(2deg)}100%{transform:translateX(-4px) rotate(-2deg)}}
     @keyframes slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
     @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
@@ -1923,86 +1993,87 @@ function GameScreen({ mode, difficulty, onExit }) {
     <div style={{height:'100vh',display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'auto'}}>
       <style>{GS}</style>
-      <ScoreCorners playerScore={playerScore} aiScore={aiScore}/>
+      <ScoreCorners playerScore={playerScore} aiScore={aiScore} playerFlash={playerScoreFlash} aiFlash={aiScoreFlash} phase={phase}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
       {/* Table */}
       <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative',
         minHeight:0,overflow:'hidden',background:`radial-gradient(ellipse at 50% 40%,${DS.duskLight} 0%,${DS.dusk} 100%)`}}>
 
-        {/* OPP Scraps — upper left */}
-        <div ref={aiScrapsRef} style={{position:'absolute',top:12,left:12,zIndex:20,
-          display:'flex',flexDirection:'column',gap:5,alignItems:'center'}}>
-          <ScrapsZone cards={aiScraps} label="OPP" selectable={aceMode}
-            selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
-            isOpponent={true} glowZone={glowOppScraps}
-            shakeIds={new Set()} fadingIds={new Set()}
-            slideRight={true}/>
-          <BestHandBadge cards={aiScraps} allowFlush={false}/>
-        </div>
+        {/* NEW LAYOUT: Left side = hands, Right side = scraps stacked */}
+        <div style={{position:'relative',zIndex:1,flex:1,display:'flex',
+          flexDirection:'row',minHeight:0,overflow:'hidden'}}>
 
-        {/* Main table content */}
-        <div style={{position:'relative',zIndex:1,flex:1,
-          display:'flex',flexDirection:'column',alignItems:'center',
-          padding:'10px 155px 100px 155px',gap:4,justifyContent:'space-around',
-          minHeight:0,overflow:'hidden'}}>
+          {/* LEFT: Discard + Both Hands, shifted left of center */}
+          <div style={{flex:'1 1 0',display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'space-around',
+            padding:'12px 12px 12px 16px',gap:4,minHeight:0,overflow:'hidden'}}>
 
-          {/* Opponent hand */}
-          <div ref={aiHandRef} style={{display:'flex',justifyContent:'center'}}>
-            <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}/>
+            {/* Opponent hand — dim when not active */}
+            <div ref={aiHandRef} style={{
+              opacity:isAiThinking?1:isPlayerTurn?0.55:1,
+              transition:'opacity 0.5s',width:'100%',display:'flex',justifyContent:'center'}}>
+              <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
+                activeWiggle={isAiThinking}/>
+            </div>
+
+            {/* Discard pile — left side, below opponent hand */}
+            <div ref={discardRef} style={{opacity:0.55}}>
+              <DiscardPile count={discard.length}/>
+            </div>
+
+            {/* Player hand — bright when active */}
+            <div ref={playerHandRef} style={{
+              display:'flex',flexDirection:'column',alignItems:'center',gap:5,
+              opacity:isPlayerTurn||(isSignal&&!signalLocked)?1:0.65,
+              transition:'opacity 0.5s',width:'100%'}}>
+              <FannedHand
+                cards={playerHand}
+                selectedIds={selIds}
+                fadingInIds={fadingInIds}
+                tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
+                onCardClick={card=>{
+                  if(isScrapsDiscardMode||pendingAiAce) return;
+                  if((isPlayerTurn&&!aceMode)||(isSignal&&!signalLocked)) toggleHandCard(card);
+                }}
+                selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
+                activeWiggle={glowHand&&!pendingAiAce}
+              />
+              <BestHandBadge cards={playerHand} allowFlush={true}/>
+            </div>
           </div>
 
-          {/* Discard pile — centered between the two hands */}
-          <div ref={discardRef} style={{display:'flex',alignItems:'center',justifyContent:'center',
-            flex:'0 0 auto',margin:'0 auto'}}>
-            <DiscardPile count={discard.length}/>
+          {/* RIGHT: Scraps piles stacked vertically, side by side with hands */}
+          <div style={{width:180,flexShrink:0,display:'flex',flexDirection:'column',
+            justifyContent:'space-around',padding:'12px 12px 12px 0',gap:12}}>
+
+            {/* Opponent Scraps — top right, adjacent to opp hand */}
+            <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:5,alignItems:'center',
+              opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
+              <BestHandBadge cards={aiScraps} allowFlush={false}/>
+              <ScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
+                label="OPP" selectable={aceMode}
+                selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
+                isOpponent={true} glowZone={glowOppScraps}
+                shakeIds={new Set()} fadingIds={new Set()}
+                slideRight={true}/>
+            </div>
+
+            {/* Player Scraps — bottom right, adjacent to player hand */}
+            <div ref={playerScrapsRef} style={{display:'flex',flexDirection:'column',gap:5,alignItems:'center',
+              opacity:isScrapsDiscardMode?1:isPlayerTurn?1:0.75,transition:'opacity 0.4s'}}>
+              <BestHandBadge cards={playerScraps} allowFlush={false}/>
+              <ScrapsZone
+                cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
+                label="YOU"
+                selectable={isScrapsDiscardMode}
+                selectedIds={scrapsDiscardIds}
+                onCardClick={toggleScrapsDiscardCard}
+                discardMode={isScrapsDiscardMode}
+                glowZone={glowPlayerScraps}
+                shakeIds={new Set()} fadingIds={scrapsFadeIds}/>
+            </div>
           </div>
-
-          {/* Player hand */}
-          <div ref={playerHandRef} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-            <FannedHand
-              cards={playerHand}
-              selectedIds={selIds}
-              fadingInIds={fadingInIds}
-              tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
-              onCardClick={card=>{
-                if(isScrapsDiscardMode||pendingAiAce) return;
-                if((isPlayerTurn&&!aceMode)||(isSignal&&!signalLocked)) toggleHandCard(card);
-              }}
-              selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
-              activeWiggle={glowHand&&!pendingAiAce}
-            />
-            <BestHandBadge cards={playerHand} allowFlush={true}/>
-          </div>
-        </div>
-
-        {/* Player Scraps — lower right, flush to wall */}
-        <div ref={playerScrapsRef} style={{position:'absolute',bottom:12,right:0,zIndex:20,
-          display:'flex',flexDirection:'column',gap:5,alignItems:'center',paddingRight:12}}>
-          <BestHandBadge cards={playerScraps} allowFlush={false}/>
-          <ScrapsZone
-            cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
-            label="YOU"
-            selectable={isScrapsDiscardMode}
-            selectedIds={scrapsDiscardIds}
-            onCardClick={toggleScrapsDiscardCard}
-            discardMode={isScrapsDiscardMode}
-            glowZone={glowPlayerScraps}
-            shakeIds={new Set()} fadingIds={scrapsFadeIds}/>
-        </div>
-
-        {/* Round HUD + ? — bottom right of table */}
-        <div style={{position:'absolute',bottom:12,right:160,zIndex:30,
-          display:'flex',flexDirection:'row',alignItems:'flex-end',gap:8}}>
-          <RoundProgressIndicator phase={phase}/>
-          {mode==='jump'&&(
-            <button onClick={()=>setShowRules(true)} style={{
-              background:DS.voltage,border:'none',color:DS.ink,
-              borderRadius:'50%',width:30,height:30,cursor:'pointer',
-              fontFamily:F.ui,fontSize:15,fontWeight:900,
-              boxShadow:`0 0 12px ${DS.voltage}88`,flexShrink:0,
-              animation:'glow 3s ease-in-out infinite'}}>?</button>
-          )}
         </div>
       </div>
 
@@ -2010,21 +2081,25 @@ function GameScreen({ mode, difficulty, onExit }) {
       <div style={{background:DS.duskMid,borderTop:`1px solid ${DS.slate}22`,
         padding:'12px 20px',display:'flex',flexDirection:'column',gap:8,
         boxShadow:'0 -2px 12px rgba(0,0,0,.4)',flexShrink:0}}>
-        {/* Phase + hint */}
+        {/* Hint text — large and prominent, no phase label */}
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}>
-          <div style={{fontFamily:F.mono,fontSize:13,color:isAiThinking?DS.voltage:DS.slate,
-            letterSpacing:'0.12em',fontWeight:700,flexShrink:0,
+          <div style={{fontFamily:F.ui,fontSize:20,
+            color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
+            fontWeight:700,flex:1,
             animation:isAiThinking?'pulse 1s ease infinite':undefined}}>
-            {phase.replace(/-/g,' ').toUpperCase()}
-          </div>
-          <div style={{fontFamily:F.ui,fontSize:16,
-            color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:DS.slateLight,
-            fontWeight:isScrapsDiscardMode||pendingAiAce?700:500,flex:1,textAlign:'center'}}>
             {hint}
           </div>
           <div style={{display:'flex',gap:12,alignItems:'center',flexShrink:0}}>
             {playerSignal&&<span style={{fontFamily:F.mono,color:DS.voltage,fontSize:13}}>SIGNAL: {playerSignal}</span>}
             {aiSignal&&<span style={{fontFamily:F.mono,color:DS.ember,fontSize:13}}>OPP: {aiSignal}</span>}
+            {mode==='jump'&&(
+              <button onClick={()=>setShowRules(true)} style={{
+                background:DS.voltage,border:'none',color:DS.ink,
+                borderRadius:'50%',width:30,height:30,cursor:'pointer',
+                fontFamily:F.ui,fontSize:15,fontWeight:900,
+                boxShadow:`0 0 12px ${DS.voltage}88`,flexShrink:0,
+                animation:'glow 3s ease-in-out infinite'}}>?</button>
+            )}
           </div>
         </div>
         {/* Buttons */}
@@ -2089,6 +2164,7 @@ function GameScreen({ mode, difficulty, onExit }) {
         <AceCounterModal
           onCounter={onPlayerCounterAce}
           onAllow={onPlayerAllowAce}
+          playerScraps={playerScraps}
         />
       )}
     </div>
