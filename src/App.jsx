@@ -29,6 +29,65 @@ const F = {
 };
 const WIN_SCORE = 11;
 
+
+// ─────────────────────────────────────────────────────────────
+// Audio — Web Audio API, no external files needed
+// ─────────────────────────────────────────────────────────────
+const AudioCtx = typeof window !== 'undefined' ? { ctx: null } : null;
+
+function getAudioCtx() {
+  if(!AudioCtx) return null;
+  if(!AudioCtx.ctx) {
+    try { AudioCtx.ctx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){}
+  }
+  return AudioCtx?.ctx;
+}
+
+function playClick() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.frequency.setValueAtTime(800, ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.04);
+  g.gain.setValueAtTime(0.15, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+  o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.06);
+}
+
+function playWhoosh() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.35, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,2);
+  const src = ctx.createBufferSource();
+  const g = ctx.createGain();
+  const f = ctx.createBiquadFilter();
+  f.type='bandpass'; f.frequency.setValueAtTime(1200, ctx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(400, ctx.currentTime+0.35);
+  f.Q.value=0.8;
+  src.buffer=buf; src.connect(f); f.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(0.18, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.35);
+  src.start(ctx.currentTime); src.stop(ctx.currentTime+0.35);
+}
+
+function playCrescendo(onDone) {
+  const ctx = getAudioCtx(); if(!ctx) { setTimeout(onDone,600); return; }
+  // Rising tone sweep
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(200, ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(900, ctx.currentTime+0.5);
+  g.gain.setValueAtTime(0.001, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime+0.4);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.55);
+  o.start(ctx.currentTime); o.stop(ctx.currentTime+0.6);
+  setTimeout(onDone, 580);
+}
+
 function isRed(suit){ return suit==='♥'||suit==='♦'; }
 
 // ── Inject hover CSS into document.head ONCE, before any React render ──
@@ -527,18 +586,32 @@ function RoundInterstitial({ roundNum, onDone }) {
       opacity: phase==='out' ? 0 : 1,
       pointerEvents: phase==='out' ? 'none' : 'all',
     }}>
-      <div style={{
-        fontFamily:"'Bebas Neue', sans-serif",
-        fontSize:'clamp(52px,12vw,96px)',
-        color:'#C8FF00',
-        letterSpacing:'0.08em',
-        textShadow:`0 0 40px #C8FF0099, 0 0 80px #C8FF0055`,
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,
         opacity: phase==='in' ? 0 : 1,
         transform: phase==='in' ? 'scale(0.7) translateY(20px)' : 'scale(1) translateY(0)',
         transition:'opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.4,.64,1)',
-        whiteSpace:'nowrap',
       }}>
-        BEGIN ROUND {roundNum}
+        <div style={{
+          fontFamily:"'Bebas Neue', sans-serif",
+          fontSize:'clamp(52px,12vw,96px)',
+          color:'#C8FF00',
+          letterSpacing:'0.08em',
+          textShadow:`0 0 40px #C8FF0099, 0 0 80px #C8FF0055`,
+          whiteSpace:'nowrap',
+        }}>
+          BEGIN ROUND {roundNum}
+        </div>
+        <div style={{
+          fontFamily:"'Space Grotesk', sans-serif",
+          fontSize:'clamp(20px,4vw,36px)',
+          color:'#F5F5FA',
+          letterSpacing:'0.18em',
+          fontWeight:700,
+          textTransform:'uppercase',
+          opacity:0.85,
+        }}>
+          {roundNum%2===1 ? 'YOU GO FIRST' : 'OPPONENT GOES FIRST'}
+        </div>
       </div>
     </div>
   );
@@ -601,6 +674,69 @@ function ScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
 }
 
 // ─────────────────────────────────────────────────────────────
+// HorizontalScrapsZone — cards spread horizontally, lift on select
+// Like FannedHand but face-up scrap cards, fully visible
+// ─────────────────────────────────────────────────────────────
+function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
+  onCardClick, discardMode=false, isOpponent=false, glowZone=false,
+  slideRight=false, badgeAbove=false }) {
+
+  const sorted = sortByValue(cards);
+  const borderCol = discardMode ? DS.voltage : isOpponent ? DS.ember : DS.voltage;
+  const glowColor = isOpponent ? DS.ember : DS.voltage;
+  const count = sorted.length;
+  const cardW = 80, cardH = 112;
+  const gap = 6;
+  const totalW = Math.max(count * (cardW + gap) - gap, cardW);
+
+  return (
+    <GlowPulse active={glowZone} color={glowColor} style={{padding:glowZone?4:0}}>
+      <div style={{display:'flex',flexDirection:'column',gap:4,alignItems:'center'}}>
+        <div style={{fontFamily:F.ui,fontSize:11,fontWeight:700,
+          color:discardMode?DS.voltage:isOpponent?DS.ember:DS.voltage,
+          letterSpacing:'0.12em',textTransform:'uppercase',
+          background:DS.inkLight,borderRadius:6,padding:'3px 10px',
+          border:`1px solid ${borderCol}44`}}>
+          {label} <span style={{color:DS.slate,fontFamily:F.mono,fontWeight:400}}>{cards.length}/7</span>
+        </div>
+        <div style={{
+          display:'flex',flexDirection:'row',alignItems:'flex-end',gap:gap,
+          background:DS.inkLight, border:`2px solid ${borderCol}`,
+          borderRadius:12, padding:'8px 10px',
+          minWidth: cardW + 20, minHeight: cardH + 16,
+          boxShadow: discardMode?`0 0 22px ${DS.voltage}66`
+            :isOpponent?`0 0 10px ${DS.ember}33`:`0 0 10px ${DS.voltage}22`,
+          transition:'border-color 0.2s',
+        }}>
+          {count === 0 && (
+            <div style={{width:cardW,height:cardH,borderRadius:8,
+              border:`2px dashed ${DS.slate}33`,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              color:DS.slate+'44',fontSize:13,fontFamily:F.mono}}>—</div>
+          )}
+          {sorted.map((card,i) => {
+            const isElig = selectable;
+            const isSel = selectedIds.has(card.id);
+            return (
+              <div key={card.id} style={{
+                transform: isSel ? 'translateY(-20px) scale(1.06)' : 'translateY(0)',
+                transition:'transform 0.22s cubic-bezier(.34,1.2,.64,1)',
+                zIndex: isSel ? count+10 : i,
+                position:'relative',
+              }} onClick={()=>isElig&&onCardClick&&onCardClick(card)}>
+                <PlayingCard card={card} size="small" isScrap={true}
+                  selectable={isElig} selected={isSel}
+                  dimmed={selectable&&!isElig}/>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </GlowPulse>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // BestHandBadge
 // ─────────────────────────────────────────────────────────────
 function BestHandBadge({ cards, allowFlush=false }) {
@@ -631,25 +767,25 @@ function RoundProgressIndicator({ phase }) {
     {label:'SCRAPS',active:sc.includes(phase),done:false},
   ];
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:4,
-      background:DS.duskMid,border:`2px solid ${DS.slate}33`,
-      borderRadius:10,padding:'8px 12px',minWidth:112,
-      boxShadow:'0 2px 12px rgba(0,0,0,.4)'}}>
-      <div style={{fontFamily:F.mono,fontSize:11,color:DS.slate,
+    <div style={{display:'flex',flexDirection:'column',gap:6,
+      background:DS.duskMid,border:`2px solid ${DS.slate}44`,
+      borderRadius:14,padding:'14px 20px',minWidth:220,
+      boxShadow:'0 4px 20px rgba(0,0,0,.5)'}}>
+      <div style={{fontFamily:F.mono,fontSize:14,color:DS.slate,
         letterSpacing:'0.18em',fontWeight:700,textAlign:'center',marginBottom:2}}>ROUND</div>
       {steps.map((s,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',gap:7,
-          padding:'5px 8px',borderRadius:6,
+        <div key={i} style={{display:'flex',alignItems:'center',gap:10,
+          padding:'9px 14px',borderRadius:10,
           background:s.active?DS.voltage+'22':s.done?DS.slate+'11':'transparent',
           border:`2px solid ${s.active?DS.voltage:s.done?DS.slate+'44':DS.slate+'22'}`,
-          transition:'all 0.3s',boxShadow:s.active?`0 0 10px ${DS.voltage}55`:'none'}}>
-          <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+          transition:'all 0.3s',boxShadow:s.active?`0 0 16px ${DS.voltage}55`:'none'}}>
+          <div style={{width:14,height:14,borderRadius:'50%',flexShrink:0,
             background:s.active?DS.voltage:s.done?DS.slate:DS.slate+'33',
-            boxShadow:s.active?`0 0 6px ${DS.voltage}`:'none'}}/>
-          <span style={{fontFamily:F.ui,fontSize:14,fontWeight:700,
+            boxShadow:s.active?`0 0 10px ${DS.voltage}`:'none'}}/>
+          <span style={{fontFamily:F.ui,fontSize:20,fontWeight:700,
             color:s.active?DS.voltage:s.done?DS.slate:DS.slate+'55',
             letterSpacing:'0.05em'}}>{s.label}</span>
-          {s.done&&<span style={{marginLeft:'auto',fontSize:13,color:DS.slate}}>✓</span>}
+          {s.done&&<span style={{marginLeft:'auto',fontSize:18,color:DS.slate}}>✓</span>}
         </div>
       ))}
     </div>
@@ -674,7 +810,7 @@ function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, phase }) {
       <div style={{display:'flex',flexDirection:'column',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:13,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>YOU</span>
         <span style={{
-          fontFamily:F.display,fontSize:48,color:DS.voltage,lineHeight:1.05,
+          fontFamily:F.display,fontSize:96,color:DS.voltage,lineHeight:0.95,
           animation:playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           display:'inline-block',
         }}>{playerScore}</span>
@@ -692,7 +828,7 @@ function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, phase }) {
       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:13,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
         <span style={{
-          fontFamily:F.display,fontSize:48,color:DS.ember,lineHeight:1.05,
+          fontFamily:F.display,fontSize:96,color:DS.ember,lineHeight:0.95,
           animation:aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           display:'inline-block',
         }}>{aiScore}</span>
@@ -1038,6 +1174,32 @@ function Btn({ children, onClick, variant='primary', disabled=false, small=false
 }
 
 // ─────────────────────────────────────────────────────────────
+// TradeInBtn — prominent action button with hover effect
+// ─────────────────────────────────────────────────────────────
+function TradeInBtn({ onClick, disabled, count }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onMouseEnter={()=>setHov(true)}
+      onMouseLeave={()=>setHov(false)}
+      onClick={disabled?undefined:onClick}
+      style={{
+        border:'none',cursor:disabled?'not-allowed':'pointer',
+        fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
+        outline:'none',padding:'16px 36px',fontSize:18,borderRadius:10,
+        opacity:disabled?0.35:1,
+        background: disabled ? DS.duskMid : hov ? '#d4ff33' : DS.voltage,
+        color: DS.ink,
+        boxShadow: disabled?'none':hov?`0 0 32px ${DS.voltage},0 0 60px ${DS.voltage}55`:`0 0 20px ${DS.voltage}66`,
+        transform: hov&&!disabled ? 'scale(1.06)' : 'scale(1)',
+        transition:'background 60ms, box-shadow 60ms, transform 100ms',
+      }}>
+      Trade In{count>0?` (${count})`:''}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // GameLog
 // ─────────────────────────────────────────────────────────────
 function GameLog({ messages }) {
@@ -1161,15 +1323,7 @@ function SplashScreen({ onStart }) {
     {icon:'⚡',text:"Play an Ace to remove two of your opponent's Scraps cards. They can counter."},
     {icon:'🏆',text:'Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
-  const SS=`
-    500;700&family=Space+Mono:wght@400;700&display=swap');
-    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes letterAppear{from{opacity:0;transform:translateY(44px) scale(.65) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}}
-    @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
-    @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-    *{box-sizing:border-box;margin:0;padding:0} body{background:${DS.dusk}}
-
-  `;
+  // Styles are in index.html — no style injection needed here
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:24,position:'relative',overflow:'hidden'}}>
@@ -1223,7 +1377,7 @@ function SplashScreen({ onStart }) {
           </div>
         )}
       </div>
-      <style>{SS}</style>
+      {/* Styles in index.html */}
     </div>
   );
 }
@@ -1313,6 +1467,7 @@ function GameScreen({ mode, difficulty, onExit }) {
   const [currentTurn,setCurrentTurn]       = useState(0);
   const [revealData,setRevealData]         = useState(null);
   const [tutStep,setTutStep]               = useState(0);
+  const [revealBuilding,setRevealBuilding] = useState(false);
   const [aiSignaledIds,setAiSignaledIds]   = useState(new Set());
   // Refs for card travel animation zones
   const playerHandRef    = useRef(null);
@@ -1470,6 +1625,7 @@ function GameScreen({ mode, difficulty, onExit }) {
   }
 
   function toggleHandCard(card) {
+    playClick();
     setSelected(prev=>prev.find(c=>c.id===card.id)?prev.filter(c=>c.id!==card.id):[...prev,card]);
   }
   function toggleScrapsDiscardCard(card) {
@@ -1550,6 +1706,7 @@ function GameScreen({ mode, difficulty, onExit }) {
       return prev.slice(drawCount);
     });
     setSelected([]);
+    playWhoosh();
     addLog(`Traded ${tradeCards.length} card(s) to Scraps. Drew ${drawCount}.`);
     setCurrentTurn(t=>t+1);
     tutAdvance('trade-complete');
@@ -2051,39 +2208,37 @@ function GameScreen({ mode, difficulty, onExit }) {
             <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:5,alignItems:'center',
               opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
               <BestHandBadge cards={aiScraps} allowFlush={false}/>
-              <ScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
+              <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
                 label="OPP" selectable={aceMode}
                 selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
                 isOpponent={true} glowZone={glowOppScraps}
-                shakeIds={new Set()} fadingIds={new Set()}
                 slideRight={true}/>
             </div>
 
             {/* Player Scraps — bottom right, adjacent to player hand */}
             <div ref={playerScrapsRef} style={{display:'flex',flexDirection:'column',gap:5,alignItems:'center',
               opacity:isScrapsDiscardMode?1:isPlayerTurn?1:0.75,transition:'opacity 0.4s'}}>
-              <BestHandBadge cards={playerScraps} allowFlush={false}/>
-              <ScrapsZone
+              <HorizontalScrapsZone
                 cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
                 label="YOU"
                 selectable={isScrapsDiscardMode}
                 selectedIds={scrapsDiscardIds}
                 onCardClick={toggleScrapsDiscardCard}
                 discardMode={isScrapsDiscardMode}
-                glowZone={glowPlayerScraps}
-                shakeIds={new Set()} fadingIds={scrapsFadeIds}/>
+                glowZone={glowPlayerScraps}/>
+              <BestHandBadge cards={playerScraps} allowFlush={false}/>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Action panel — pushed down, full width */}
-      <div style={{background:DS.duskMid,borderTop:`1px solid ${DS.slate}22`,
-        padding:'12px 20px',display:'flex',flexDirection:'column',gap:8,
-        boxShadow:'0 -2px 12px rgba(0,0,0,.4)',flexShrink:0}}>
+      {/* Action panel */}
+      <div style={{background:DS.duskMid,borderTop:`2px solid ${DS.slate}33`,
+        padding:'16px 24px',display:'flex',flexDirection:'column',gap:10,
+        boxShadow:'0 -4px 24px rgba(0,0,0,.6)',flexShrink:0}}>
         {/* Hint text — large and prominent, no phase label */}
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}>
-          <div style={{fontFamily:F.ui,fontSize:20,
+          <div style={{fontFamily:F.ui,fontSize:26,
             color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
             fontWeight:700,flex:1,
             animation:isAiThinking?'pulse 1s ease infinite':undefined}}>
@@ -2116,9 +2271,7 @@ function GameScreen({ mode, difficulty, onExit }) {
             <>
               {/* In tutorial ace-force step, hide Trade In and only show Play Ace */}
               {!(tutStepData&&tutStepData.forceAce)&&(
-                <Btn onClick={doTradeIn} disabled={selected.length===0} variant="primary">
-                  Trade In{selected.length>0?` (${selected.length})`:''}
-                </Btn>
+                <TradeInBtn onClick={doTradeIn} disabled={selected.length===0} count={selected.length}/>
               )}
               {playerHasAce&&aiScraps.length>=2&&(
                 <Btn variant="danger" onClick={doPlayAce}>Play Ace ⚡</Btn>
@@ -2143,7 +2296,28 @@ function GameScreen({ mode, difficulty, onExit }) {
               Signal{selValid?` — ${selectedInHand.length} card${selectedInHand.length>1?'s':''}`:' (select a valid hand)'}
             </Btn>
           )}
-          {isReveal&&<Btn onClick={resolveSmallHand} variant="sky">Reveal Hands</Btn>}
+          {isReveal&&(
+            <button
+              onClick={()=>{
+                if(revealBuilding) return;
+                setRevealBuilding(true);
+                playCrescendo(()=>{
+                  setRevealBuilding(false);
+                  resolveSmallHand();
+                });
+              }}
+              style={{
+                border:'none',cursor:revealBuilding?'wait':'pointer',
+                fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
+                padding:'16px 36px',fontSize:18,borderRadius:10,
+                background:DS.slate,color:DS.ink,
+                animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'none',
+                boxShadow:revealBuilding?`0 0 32px ${DS.slate}`:`0 0 16px ${DS.slate}88`,
+                transition:'box-shadow 0.1s',
+              }}>
+              {revealBuilding?'▶▶▶':'Reveal Hands'}
+            </button>
+          )}
           {phase==='replenish'&&<Btn onClick={doReplenish} variant="primary">Deal Second Hand</Btn>}
           {phase==='scraps-reveal'&&<Btn onClick={resolveScrap} variant="primary">Play Scraps Hand</Btn>}
           {phase==='round-end'&&<Btn onClick={()=>startNewRound(true)} variant="primary">Next Round →</Btn>}
