@@ -1772,39 +1772,47 @@ function GameScreen({ mode, difficulty, onExit }) {
       const cardW = 104, cardH = 146;
       const n = tradeCards.length;
       // Source: centered on the player hand zone
-      const handCenterX = handRect.left + handRect.width / 2;
+      // Fan cards are centered in the viewport, not just in handEl.
+      // handEl is width:100% of the center column — its center != fan's center.
+      // Use a weighted center: fan is typically ~40% from right edge of center col
+      // since the center col has right-side scraps column. Approximate visually:
+      const colCenterX = handRect.left + handRect.width * 0.5;
       const toRect = { x: scrapsRect.left + scrapsRect.width/2 - cardW/2,
                        y: scrapsRect.top + 10,
                        width: cardW, height: cardH };
       tradeCards.forEach((card, i) => {
         const spreadFrac = n === 1 ? 0 : (i / (n-1)) - 0.5;
-        const fromX = handCenterX - cardW/2 + spreadFrac * Math.min(handRect.width * 0.5, 120);
-        const fromRect = { x: fromX, y: handRect.top + handRect.height/2 - cardH/2,
+        // Spread cards across ~200px centered on the column center
+        const fromX = colCenterX - cardW/2 + spreadFrac * 200;
+        const fromRect = { x: fromX, y: handRect.bottom - cardH - 20,
                            width: cardW, height: cardH };
         const arcOffset = n === 1 ? 0 : (i / (n-1) - 0.5) * 1.4;
         setTimeout(() => launchFlight(card, fromRect, toRect, true, arcOffset), i * 80);
       });
     }
-    // All state updates at top level — NO nested setState calls
+    // Timing:
+    // Cards leave hand immediately (visual only — hand state updates now)
+    // Cards arrive in Scraps after flight completes (~820ms)
+    // Replacement cards fade in after that (~1020ms+)
     const selIds = new Set(tradeCards.map(c=>c.id));
-    const newScrapsCards = tradeCards.map(c=>({...c, turnAdded:currentTurn, eligibleForDiscard:false}));
+    const capturedTurn = currentTurn;
+    const FLIGHT_LAND = (tradeCards.length - 1) * 80 + 820; // last card lands
 
     // 1. Remove traded cards from hand immediately
     setPlayerHand(prev => prev.filter(c => !selIds.has(c.id)));
 
-    // 2. Add traded cards to scraps immediately
-    setPlayerScraps(prev => [...prev, ...newScrapsCards]);
+    // 2. Add traded cards to scraps AFTER flight lands
+    const newScrapsCards = tradeCards.map(c=>({...c, turnAdded:capturedTurn, eligibleForDiscard:false}));
+    setTimeout(() => {
+      setPlayerScraps(prev => [...prev, ...newScrapsCards]);
+    }, FLIGHT_LAND);
 
-    // 3. Draw from deck — capture drawn cards synchronously using a ref snapshot
-    //    NEVER call setPlayerHand inside setDeck — that causes the stale-closure bug
+    // 3. Draw replacement cards from deck synchronously, show them after scraps land
     setDeck(prev => {
-      // Schedule drawn card appearances BEFORE returning — capture prev synchronously
       const drawn = prev.slice(0, drawCount);
-      // Use closure-captured drawn array for scheduled appearance
       drawn.forEach((card, i) => {
-        const delay = 950 + i * 200; // staggered, after scraps animation lands
+        const delay = FLIGHT_LAND + 100 + i * 200;
         setTimeout(() => {
-          // Top-level setState call — not nested inside another updater
           setPlayerHand(h => {
             if(h.some(c => c.id === card.id)) return h;
             return [...h, card];
@@ -1969,9 +1977,10 @@ function GameScreen({ mode, difficulty, onExit }) {
     // 3. Wave runs for 800ms
     // 4. AI selects/toggles cards
     // 5. Selected cards fly to AI scraps
-    const FLIGHT_SETTLE = 820;
-    const WAVE_DURATION = 800;
-    const ACTION_DELAY  = FLIGHT_SETTLE + WAVE_DURATION + 100;
+    const FLIGHT_SETTLE = 820;   // player cards land in scraps
+    const WAVE_DURATION = 800;   // full wave animation
+    const WAVE_BUFFER   = 500;   // extra time for last card to finish lifting+settling
+    const ACTION_DELAY  = FLIGHT_SETTLE + WAVE_DURATION + WAVE_BUFFER; // = 2120ms
 
     // Step 2: do the wave after player flight lands
     setTimeout(() => {
@@ -2428,8 +2437,7 @@ function GameScreen({ mode, difficulty, onExit }) {
               </div>
               {/* Signal indicators */}
               <div style={{display:'flex',gap:16,alignItems:'center',justifyContent:'center'}}>
-                {playerSignal&&<span style={{fontFamily:F.mono,color:DS.voltage,fontSize:13}}>YOUR SIGNAL: {playerSignal}</span>}
-                {aiSignal&&<span style={{fontFamily:F.mono,color:DS.ember,fontSize:13}}>OPP SIGNAL: {aiSignal}</span>}
+
               </div>
             </div>
 
