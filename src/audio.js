@@ -79,3 +79,55 @@ export function playCrescendo(onDone) {
   o.start(ctx.currentTime); o.stop(ctx.currentTime+0.6);
   setTimeout(onDone, 580);
 }
+
+export function playError() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  // Two-tone "denied" buzz — short, low, unmistakably negative
+  [330, 220].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'square';
+    const t = ctx.currentTime + i * 0.09;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.09, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    o.start(t); o.stop(t + 0.1);
+  });
+}
+
+export function playWinSound() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  // Bright ascending major third + fifth — pleasant, quick
+  [523, 659, 784].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sine';
+    const t = ctx.currentTime + i * 0.09;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.14, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+    o.start(t); o.stop(t + 0.3);
+  });
+}
+
+export function playLoseSound() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  // Descending minor slide — clearly negative without being harsh
+  [392, 311, 233].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'triangle';
+    const t = ctx.currentTime + i * 0.11;
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.94, t + 0.2);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+    o.start(t); o.stop(t + 0.28);
+  });
+}

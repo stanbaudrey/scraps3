@@ -11,9 +11,23 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Righteous&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
+      /* ========================================================
+         SINGLE SOURCE OF TRUTH for global CSS.
+         Everything here loads before first paint, so hover
+         classes, keyframes, and the reset are available on
+         every screen (splash, difficulty, game) with no
+         JS-injected styles and no per-component <style> tags.
+         Color values are literals (design tokens live in
+         src/styles/theme.js for JS use):
+           voltage #C8FF00 · ember #FF3D5A · slate #8A8FA8
+           dusk #1C1C28
+         ======================================================== */
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #1C1C28; overflow-x: hidden; }
-      /* Global hover classes - defined here so they work before React hydrates */
+      ::-webkit-scrollbar { width: 5px; }
+      ::-webkit-scrollbar-thumb { background: #8A8FA844; }
+
+      /* Global hover classes — defined here so they work before React hydrates */
       .menu-opt {
         cursor: pointer;
         border: 2px solid #8A8FA844;
@@ -40,6 +54,27 @@
         background: rgba(200,255,0,0.08);
         box-shadow: 0 0 20px rgba(200,255,0,0.4);
       }
+
+      /* Shared keyframes — used across splash, game screen, and overlays */
+      @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes glow{0%,100%{opacity:.45}50%{opacity:1}}
+      @keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}
+      @keyframes zonePulse{0%,100%{box-shadow:0 0 0 3px #C8FF0044,0 0 16px #C8FF0033}50%{box-shadow:0 0 0 5px #C8FF0099,0 0 30px #C8FF0066}}
+      @keyframes fullScrapPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
+      @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
+      @keyframes waveUp{0%{transform:translateY(0)}40%{transform:translateY(-22px)}80%{transform:translateY(2px)}100%{transform:translateY(0)}}
+      @keyframes cardFadeIn{0%{opacity:0.1;transform:translateY(-12px) scale(0.92)}60%{opacity:0.9}100%{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes scorePop{0%{transform:scale(1)}40%{transform:scale(1.5)}70%{transform:scale(0.95)}100%{transform:scale(1)}}
+      @keyframes badgeFlash{0%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
+      @keyframes cardShake{0%{transform:translateX(-4px) rotate(-2deg)}50%{transform:translateX(4px) rotate(2deg)}100%{transform:translateX(-4px) rotate(-2deg)}}
+      @keyframes slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes popIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+      @keyframes letterAppear{from{opacity:0;transform:translateY(44px) scale(.65) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}}
+      @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
+      @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+      /* Over-limit trade error — quick attention bounce */
+      @keyframes errBounce{0%{transform:translateY(0) scale(1)}20%{transform:translateY(-12px) scale(1.05)}45%{transform:translateY(0) scale(1)}65%{transform:translateY(-5px)}100%{transform:translateY(0)}}
     </style>
   </head>
   <body>

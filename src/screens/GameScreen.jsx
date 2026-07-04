@@ -14,21 +14,24 @@ import { useReducer, useState, useEffect, useCallback, useRef } from "react";
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
   aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, tradeInValue,
+  shouldCounterAce,
 } from "../game/engine.js";
 import {
   gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
   AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
 import { TUTORIAL_STEPS } from "../game/tutorial.js";
-import { DS, F, GS, WIN_SCORE } from "../styles/theme.js";
-import { playClick, playWhoosh, playVictoryFanfare, playCrescendo } from "../audio.js";
+import { DS, F, WIN_SCORE } from "../styles/theme.js";
+import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
+  playError, playWinSound, playLoseSound } from "../audio.js";
 import { useFlyingCards } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, BestHandBadge } from "../components/cards.jsx";
-import { ScoreCorners, RoundProgressIndicator, NearWinBanner } from "../components/hud.jsx";
+import { ScoreCorners, RoundProgressIndicator, NearWinBanner, GameLog } from "../components/hud.jsx";
 import { BigBtn, TradeInBtn } from "../components/buttons.jsx";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
   AceCounterModal, RulesModal, TutorialOverlay, SkipTurnModal,
+  OpponentAceReveal, AiCounterNotice,
 } from "../components/overlays.jsx";
 
 export function GameScreen({ mode, difficulty, onExit }) {
@@ -51,6 +54,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [scrapsDiscard, setScrapsDiscard]   = useState([]);
   const [aceMode, setAceMode]               = useState(false);
   const [aceTargets, setAceTargets]         = useState([]);
+  const [aiAceReveal, setAiAceReveal]       = useState(null); // { ace, targets } — step 2 of the opponent-Ace sequence
+  const [aiCounterNotice, setAiCounterNotice] = useState(null); // { playerAce, aiAce } — AI countered the player's Ace
   const [showRules, setShowRules]           = useState(false);
   const [tutStep, setTutStep]               = useState(0);
   const [revealData, setRevealData]         = useState(null);
@@ -64,6 +69,9 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [fadingInIds, setFadingInIds]       = useState(new Set());
   const [playerScoreFlash, setPlayerScoreFlash] = useState(false);
   const [aiScoreFlash, setAiScoreFlash]         = useState(false);
+  const [tradeError, setTradeError]             = useState(null); // over-limit trade message
+  const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
+  const tradeErrorTimer = useRef(null);
 
   // Refs for card travel animation zones
   const playerHandRef    = useRef(null);
@@ -101,6 +109,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
     dispatch({ type: 'START_ROUND', deal, alternate });
     setSelected([]); setScrapsDiscard([]);
     setAceMode(false); setAceTargets([]);
+    setAiAceReveal(null); setAiCounterNotice(null);
     setRevealData(null); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set()); setFadingInIds(new Set());
@@ -149,7 +158,15 @@ export function GameScreen({ mode, difficulty, onExit }) {
     const netHand = (playerHand.length - sel.length) + drawCount;
     const newScrapsCount = playerScraps.length + sel.length;
     if (netHand > 7) {
-      dispatch({ type: 'LOG', msg: `That trade would give you ${netHand} cards — over the 7-card limit.` });
+      // Over-limit trade: error sound + bouncing copy in the action
+      // zone (re-setting the state restarts the bounce on repeat
+      // attempts).
+      playError();
+      setTradeError(null);
+      requestAnimationFrame(() =>
+        setTradeError('This trade would place more than 7 total cards in your hand.'));
+      clearTimeout(tradeErrorTimer.current);
+      tradeErrorTimer.current = setTimeout(() => setTradeError(null), 2600);
       return;
     }
     if (newScrapsCount > 7) {
@@ -191,6 +208,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
     // 1. Cards leave hand + deck immediately; turn advances
     dispatch({ type: 'PLAYER_TRADE_TAKE', cards: tradeCards });
     setSelected([]);
+    clearTimeout(tradeErrorTimer.current);
+    setTradeError(null);
     playWhoosh();
     tutAdvance('trade-complete');
 
@@ -256,6 +275,22 @@ export function GameScreen({ mode, difficulty, onExit }) {
     if (aceTargets.length !== 2) return;
     const ace = playerHand.find(c => c.rank === 'A');
     if (!ace) return;
+
+    // The AI may counter. Hard counters every player Ace it can;
+    // Easy counters at most one per round. The counter cancels the
+    // Ace: both Aces are discarded, nothing is removed from either
+    // Scraps pile, and the player's action is consumed.
+    const s = stateRef.current;
+    if (mode !== 'tutorial' && shouldCounterAce(difficulty, s.aiHand, s.aiCountersThisRound)) {
+      const aiAce = s.aiHand.find(c => c.rank === 'A');
+      if (aiAce) {
+        setAceMode(false); setAceTargets([]); setSelected([]);
+        dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
+        setAiCounterNotice({ playerAce: ace, aiAce });
+        return;
+      }
+    }
+
     const targets = [...aceTargets];
     // Animate the targeted cards before removing
     setScrapsShakeIds(new Set(targets.map(c => c.id)));
@@ -270,26 +305,34 @@ export function GameScreen({ mode, difficulty, onExit }) {
     }, 600);
   }
 
-  // ── AI Ace → counter prompt if the player holds an Ace ─────
+  // ── Opponent-Ace feedback sequence ─────────────────────────
+  // Step 1 (only if the player holds an Ace): the counter modal
+  //   appears FIRST. The targeted cards are NOT shown — the
+  //   counter decision is blind.
+  // Step 2 (player allows, or holds no Ace): the copy "OPPONENT
+  //   plays an Ace and removes two cards from your Scraps" is
+  //   shown with the two targeted cards in the center of the
+  //   table. The player clicks OK.
+  // Step 3: the two cards animate from the center to the discard
+  //   pile, then play resumes. No silent removals ever.
   function handleAiAce(aiAce, targetCards) {
     const s = stateRef.current;
     const playerHasAceNow = s.playerHand.some(c => c.rank === 'A');
     if (playerHasAceNow && s.playerScraps.length >= 2 && mode !== 'tutorial') {
-      // Pause and ask player — don't reveal targets yet
+      // Step 1: pause and ask the player — targets stay hidden
       dispatch({ type: 'AI_ACE_PENDING', ace: aiAce, targets: targetCards });
     } else {
-      // No player ace — animate and execute immediately
-      setScrapsShakeIds(new Set(targetCards.map(c => c.id)));
-      dispatch({ type: 'LOG', msg: `Opponent Ace! Targeting ${targetCards.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
-      setTimeout(() => {
-        setScrapsFadeIds(new Set(targetCards.map(c => c.id)));
-        setTimeout(() => {
-          setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
-          dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targetCards.map(c => c.id),
-            logMsg: `Removed ${targetCards.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
-        }, 500);
-      }, 700);
+      // No Ace to counter with — skip straight to Step 2
+      openAiAceReveal(aiAce, targetCards);
     }
+  }
+
+  function openAiAceReveal(aiAce, targets) {
+    // Dim the targeted cards in the Scraps pile while their copies
+    // are shown center-table
+    setScrapsFadeIds(new Set(targets.map(c => c.id)));
+    setAiAceReveal({ ace: aiAce, targets });
+    dispatch({ type: 'LOG', msg: 'Opponent plays an Ace and removes two cards from your Scraps.' });
   }
 
   function onPlayerCounterAce() {
@@ -300,16 +343,35 @@ export function GameScreen({ mode, difficulty, onExit }) {
 
   function onPlayerAllowAce() {
     if (!pendingAiAce) return;
-    const { ace: aiAce, targets } = pendingAiAce;
-    setScrapsShakeIds(new Set(targets.map(c => c.id)));
-    setTimeout(() => {
-      setScrapsFadeIds(new Set(targets.map(c => c.id)));
-      setTimeout(() => {
-        setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
-        dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
-          logMsg: `Allowed. ${targets.map(c => c.rank + c.suit).join(', ')} removed from your Scraps.` });
-      }, 500);
-    }, 600);
+    // Step 2: reveal the targeted cards. pendingAiAce stays set
+    // (AI_ACE_APPLY clears it) but the counter modal hides while
+    // the reveal is up.
+    openAiAceReveal(pendingAiAce.ace, pendingAiAce.targets);
+  }
+
+  // Step 3: OK clicked — fly the two cards from the center of the
+  // table to the discard pile and apply the removal.
+  function onAiAceRevealOk() {
+    if (!aiAceReveal) return;
+    const { ace: aiAce, targets } = aiAceReveal;
+    const discardEl = discardRef.current;
+    if (discardEl) {
+      const discardRect = discardEl.getBoundingClientRect();
+      const cardW = 104, cardH = 146;
+      const toRect = { x: discardRect.left + discardRect.width / 2 - cardW / 2,
+                       y: discardRect.top + discardRect.height / 2 - cardH / 2,
+                       width: cardW, height: cardH };
+      const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+      targets.forEach((card, i) => {
+        const fromRect = { x: cx - cardW - 7 + i * (cardW + 14),
+                           y: cy - cardH / 2, width: cardW, height: cardH };
+        setTimeout(() => launchFlight(card, fromRect, toRect, false, i === 0 ? -0.5 : 0.5), i * 100);
+      });
+    }
+    setAiAceReveal(null);
+    setScrapsFadeIds(new Set());
+    dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
+      logMsg: `Opponent's Ace removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
   }
 
   // ── AI turn ────────────────────────────────────────────────
@@ -464,6 +526,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
     let winner = 'tie', pts = 0;
     if (res > 0) { winner = 'player'; pts = 1; }
     else if (res < 0) { winner = 'ai'; pts = 1; }
+    if (winner === 'player') playWinSound();
+    else if (winner === 'ai') playLoseSound();
     const curPhase = phase;
     setRevealData({
       playerCards: [...playerPlayed], aiCards: [...aiPlayed],
@@ -488,6 +552,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
     const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
     if (!out) { dispatch({ type: 'LOG', msg: 'Not enough cards in Scraps.' }); return; }
     const { pPts, aPts, winner, fullScrap, aiSweep, pB, aB } = out;
+    if (winner === 'player') playWinSound();
+    else if (winner === 'ai') playLoseSound();
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
     const aBestIds = new Set(getActiveHandCards(aB).map(c => c.id));
     setRevealData({
@@ -533,15 +599,15 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const mustSkip  = noLegalTrade && !forcedAce && !pendingAiAce;
 
   let hint = '';
-  if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
-  else if (isScrapsDiscardMode) hint = `Select ${scrapsOverflow} card${scrapsOverflow > 1 ? 's' : ''} to discard from your Scraps, then hit DISCARD.`;
+  if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
+  else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
+  else if (isScrapsDiscardMode) hint = `Scraps is limited to 7 cards. Select ${scrapsOverflow} card${scrapsOverflow > 1 ? 's' : ''} to discard from your Scraps pile, then hit DISCARD.`;
   else if (aceMode) hint = `Select 2 cards from opponent's Scraps to remove. (${aceTargets.length}/2 selected)`;
   else if (forcedAce) hint = 'Due to the 7-card hand limit, your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
-    const ordinal = (phase === 'player-turn-1a' || phase === 'player-turn-2a') ? 'first' : 'second';
     hint = playerHasAce && aiScraps.length >= 2
-      ? `Select cards for your ${ordinal} trade-in. Or play an Ace.`
-      : `Select cards from your hand for your ${ordinal} trade-in.`;
+      ? 'Select cards to transfer from your small hand to your Scraps pile. Or play an Ace.'
+      : 'Select cards to transfer from your small hand to your Scraps pile.';
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
   else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Toggle the cards you want to play — must be a valid poker hand. Hit SIGNAL.`;
@@ -557,7 +623,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
 
   if (gameOver) return (
     <>
-      <style>{GS}</style>
       {gameOver === 'player'
         ? <WinScreen playerScore={playerScore} aiScore={aiScore} onNewGame={() => onExit('difficulty')}/>
         : <LoseScreen playerScore={playerScore} aiScore={aiScore} onNewGame={() => onExit('difficulty')}/>
@@ -568,7 +633,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'auto'}}>
-      <style>{GS}</style>
       <ScoreCorners playerScore={playerScore} aiScore={aiScore} playerFlash={playerScoreFlash} aiFlash={aiScoreFlash} phase={phase}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
@@ -612,13 +676,21 @@ export function GameScreen({ mode, difficulty, onExit }) {
               borderTop:`1px solid ${DS.slate}22`,
               borderBottom:`1px solid ${DS.slate}22`,
             }}>
-              {/* Hint */}
-              <div style={{fontFamily:F.ui,fontSize:22,
-                color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
-                fontWeight:700,textAlign:'center',lineHeight:1.3,
-                animation:isAiThinking?'pulse 1s ease infinite':undefined}}>
-                {hint}
-              </div>
+              {/* Hint — the over-limit error takes over while active */}
+              {tradeError ? (
+                <div style={{fontFamily:F.ui,fontSize:22,color:DS.ember,
+                  fontWeight:700,textAlign:'center',lineHeight:1.3,
+                  animation:'errBounce 0.5s cubic-bezier(.34,1.4,.64,1)'}}>
+                  {tradeError}
+                </div>
+              ) : (
+                <div style={{fontFamily:F.ui,fontSize:22,
+                  color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
+                  fontWeight:700,textAlign:'center',lineHeight:1.3,
+                  animation:isAiThinking?'pulse 1s ease infinite':undefined}}>
+                  {hint}
+                </div>
+              )}
               {/* Buttons */}
               <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',justifyContent:'center'}}>
                 {isScrapsDiscardMode&&(
@@ -684,7 +756,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
                 {phase==='replenish'&&<BigBtn onClick={doReplenish} variant="primary">Deal Second Hand</BigBtn>}
                 {phase==='scraps-reveal'&&<BigBtn onClick={resolveScrap} variant="primary">Play Scraps Hand</BigBtn>}
                 {phase==='round-end'&&<BigBtn onClick={()=>startNewRound(true)} variant="primary">Next Round →</BigBtn>}
-                {pendingAiAce&&(
+                {pendingAiAce&&!aiAceReveal&&(
                   <>
                     <BigBtn variant="danger" onClick={onPlayerCounterAce}>Counter ⚡</BigBtn>
                     <BigBtn variant="ghost" onClick={onPlayerAllowAce}>Let It Happen</BigBtn>
@@ -751,14 +823,25 @@ export function GameScreen({ mode, difficulty, onExit }) {
         </div>
       </div>
 
-      {/* Bottom bar — log + ? only */}
-      <div style={{background:DS.dusk,borderTop:`1px solid ${DS.slate}22`,
-        padding:'6px 20px 8px',display:'flex',alignItems:'center',
-        justifyContent:'space-between',flexShrink:0,gap:12}}>
-        <div style={{fontFamily:F.mono,fontSize:13,color:DS.slate,
-          flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>
-          {log[log.length-1]||''}
-        </div>
+      {/* Bottom bar — tap the log line to open the full history */}
+      <div style={{position:'relative',flexShrink:0}}>
+        {showLogPanel&&(
+          <div style={{position:'absolute',bottom:'100%',left:0,right:0,
+            animation:'slideUp 0.18s ease',zIndex:60,
+            boxShadow:'0 -8px 30px rgba(0,0,0,.5)'}}>
+            <GameLog messages={log}/>
+          </div>
+        )}
+        <div style={{background:DS.dusk,borderTop:`1px solid ${DS.slate}22`,
+          padding:'6px 20px 8px',display:'flex',alignItems:'center',
+          justifyContent:'space-between',gap:12}}>
+          <div onClick={()=>setShowLogPanel(v=>!v)} title={showLogPanel?'Hide log history':'Show log history'}
+            style={{fontFamily:F.mono,fontSize:13,color:showLogPanel?DS.frost:DS.slate,
+            flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',
+            cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:10,flexShrink:0,color:DS.slate}}>{showLogPanel?'▼':'▲'}</span>
+            {log[log.length-1]||''}
+          </div>
         {mode==='jump'&&(
           <button onClick={()=>setShowRules(true)} style={{
             background:DS.voltage,border:'none',color:DS.ink,
@@ -766,6 +849,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
             fontFamily:F.ui,fontSize:13,fontWeight:900,flexShrink:0,
             boxShadow:`0 0 10px ${DS.voltage}88`}}>?</button>
         )}
+        </div>
       </div>
 
       {showRules&&<RulesModal onClose={()=>setShowRules(false)}/>}
@@ -776,14 +860,24 @@ export function GameScreen({ mode, difficulty, onExit }) {
       {showFullScrap&&<FullScrapLightbox onDone={()=>setShowFullScrap(false)}/>}
       <FlightsOverlay/>
       {showInterstitial&&<RoundInterstitial roundNum={roundNum} onDone={onInterstitialDone}/>}
-      {pendingAiAce&&(
+      {pendingAiAce&&!aiAceReveal&&(
         <AceCounterModal
           onCounter={onPlayerCounterAce}
           onAllow={onPlayerAllowAce}
           playerScraps={playerScraps}
         />
       )}
-      {mustSkip&&!revealData&&!showInterstitial&&(
+      {aiAceReveal&&(
+        <OpponentAceReveal targets={aiAceReveal.targets} onOk={onAiAceRevealOk}/>
+      )}
+      {aiCounterNotice&&(
+        <AiCounterNotice
+          playerAce={aiCounterNotice.playerAce}
+          aiAce={aiCounterNotice.aiAce}
+          onOk={()=>setAiCounterNotice(null)}
+        />
+      )}
+      {mustSkip&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
         <SkipTurnModal onOk={()=>dispatch({type:'PLAYER_SKIP'})}/>
       )}
     </div>

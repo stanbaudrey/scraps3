@@ -355,31 +355,99 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// OpponentAceReveal — step 2 of the opponent-Ace sequence.
+// Shown after the player allows the Ace (or holds no Ace to
+// counter with): the two targeted cards are revealed in the
+// center of the table. On OK they animate to the discard pile.
+// ─────────────────────────────────────────────────────────────
+export function OpponentAceReveal({ targets, onOk }) {
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
+        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
+        boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
+        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
+          letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
+          OPPONENT plays an Ace and removes two cards from your Scraps
+        </div>
+        <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:24}}>
+          {(targets||[]).map((c,i)=>(
+            <div key={c.id} style={{animation:`popIn 0.4s cubic-bezier(.34,1.6,.64,1) ${0.15+i*0.12}s both`}}>
+              <PlayingCard card={c} size="normal" isScrap={true}/>
+            </div>
+          ))}
+        </div>
+        <Btn variant="danger" onClick={onOk}>OK</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// AiCounterNotice — the AI countered the player's Ace.
+// Both Aces are shown cancelled; nothing was removed.
+// ─────────────────────────────────────────────────────────────
+export function AiCounterNotice({ playerAce, aiAce, onOk }) {
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
+        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
+        boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
+        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
+          letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
+          Opponent counters your Ace!
+        </div>
+        <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:18}}>
+          {[playerAce,aiAce].filter(Boolean).map((c,i)=>(
+            <div key={c.id} style={{position:'relative',
+              animation:`popIn 0.4s cubic-bezier(.34,1.6,.64,1) ${0.15+i*0.12}s both`}}>
+              <div style={{filter:'saturate(0.4) brightness(0.75)'}}>
+                <PlayingCard card={c} size="normal" isScrap={false}/>
+              </div>
+              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+                justifyContent:'center',fontFamily:F.display,fontSize:52,color:DS.ember,
+                textShadow:'0 0 12px rgba(0,0,0,0.8)'}}>✕</div>
+            </div>
+          ))}
+        </div>
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
+          Both Aces discarded. Nothing removed.
+        </p>
+        <Btn onClick={onOk}>OK</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // RulesModal
 // ─────────────────────────────────────────────────────────────
 export function RulesModal({ onClose }) {
   const rules=[
-    {icon:'🃏',t:`Scraps is a game of twos: Two decks. Two players. Two games of Poker happening at two speeds. First to ${WIN_SCORE} points — win by 2.`},
-    {icon:'✋',t:'Each round consists of two small hands (visible only to you) and one Scraps hand (face up for everyone).'},
-    {icon:'🔄',t:'Each turn, trade in cards from your small hand to your Scraps pile, and pick up new cards. 2–9: one card. 10–K: two. Ace: three. Max seven.'},
-    {icon:'♠', t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
-    {icon:'⚡',t:"Play an Ace to remove two of your opponent's Scraps cards. They can counter with their own Ace."},
-    {icon:'🏆',t:'Win both small hands AND the Scraps hand in one round for a FULL SCRAP — 5 points total.'},
+    {icon:'🃏',t:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:'✋',t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
+    {icon:'🔄',t:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:'⚡',t:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
+    {icon:'♠️',t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
+    {icon:'🏆',t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   return (
     <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(26,26,46,.94)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:DS.duskMid,
-        border:`2px solid ${DS.slate}44`,borderRadius:16,padding:28,
-        maxWidth:520,width:'100%',maxHeight:'84vh',overflowY:'auto'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <h2 style={{fontFamily:F.display,color:DS.voltage,fontSize:32,letterSpacing:'0.06em'}}>Rules</h2>
+        border:`2px solid ${DS.slate}44`,borderRadius:16,padding:'34px 40px',
+        maxWidth:820,width:'100%',maxHeight:'88vh',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
+          <h2 style={{fontFamily:F.display,color:DS.voltage,fontSize:40,letterSpacing:'0.06em'}}>Rules</h2>
           <Btn small variant="ghost" onClick={onClose}>Close</Btn>
         </div>
         {rules.map((r,i)=>(
-          <div key={i} style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:16}}>
-            <span style={{fontSize:22,flexShrink:0,marginTop:2}}>{r.icon}</span>
-            <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:16,lineHeight:1.65}}>{r.t}</div>
+          <div key={i} style={{display:'flex',gap:16,alignItems:'flex-start',marginBottom:18}}>
+            <span style={{fontSize:26,flexShrink:0,marginTop:1,width:38,display:'flex',
+              justifyContent:'center'}}>{r.icon}</span>
+            <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:19,lineHeight:1.6}}>{r.t}</div>
           </div>
         ))}
       </div>

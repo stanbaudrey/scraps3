@@ -364,62 +364,6 @@ function RoundInterstitial({ roundNum, onDone }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ScrapsZone
-// ─────────────────────────────────────────────────────────────
-export function ScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
-  onCardClick, discardMode=false, isOpponent=false, glowZone=false,
-  shakeIds=new Set(), fadingIds=new Set(), slideRight=false }) {
-  const sorted=sortByValue(cards);
-  const borderCol=discardMode?DS.voltage:isOpponent?DS.ember:DS.voltage;
-  const glowColor=isOpponent?DS.ember:DS.voltage;
-  return (
-    <GlowPulse active={glowZone} color={glowColor}>
-      <div style={{display:'flex',flexDirection:'column',gap:8,
-        background:DS.inkLight,border:`3px solid ${borderCol}`,
-        borderRadius:14,padding:'10px 8px',width:130,
-        transition:'border-color 0.2s',
-        boxShadow:discardMode?`0 0 22px ${DS.voltage}66`
-          :isOpponent?`0 0 14px ${DS.ember}44`:`0 0 14px ${DS.voltage}22`}}>
-        <div style={{fontFamily:F.ui,fontSize:13,fontWeight:700,
-          color:discardMode?DS.voltage:isOpponent?DS.ember:DS.voltage,
-          letterSpacing:'0.12em',textTransform:'uppercase',textAlign:'center',lineHeight:1.4}}>
-          {label}<br/>
-          <span style={{color:DS.slate,fontSize:13,fontFamily:F.mono,fontWeight:400}}>
-            {cards.length}/7
-          </span>
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:3,alignItems:'center',position:'relative'}}>
-          {cards.length===0&&(
-            <div style={{border:`2px dashed ${DS.slate}44`,borderRadius:8,width:80,height:112,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              color:DS.slate+'44',fontSize:13,fontFamily:F.mono}}>—</div>
-          )}
-          {sorted.map((card,i)=>{
-            const isElig=selectable&&card.eligibleForDiscard;
-            const isSel=selectedIds.has(card.id);
-            return (
-              <div key={card.id} style={{marginTop:i>0?-76:0,
-                zIndex:i,
-                position:'relative',
-                transform:isSel?(slideRight?'translateX(26px)':'translateX(-26px)'):'translateX(0)',
-                transition:'transform 0.44s cubic-bezier(.34,1.2,.64,1)'}}>
-                <PlayingCard card={card} size="small" isScrap={true}
-                  selectable={isElig} selected={isSel}
-                  dimmed={selectable&&!isElig}
-                  shake={shakeIds.has(card.id)}
-                  fading={fadingIds.has(card.id)}
-                  wiggle={glowZone&&!isSel}
-                  onClick={()=>isElig&&onCardClick&&onCardClick(card)}/>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </GlowPulse>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
 // HorizontalScrapsZone — cards spread horizontally, lift on select
 // Like FannedHand but face-up scrap cards, fully visible
 // ─────────────────────────────────────────────────────────────

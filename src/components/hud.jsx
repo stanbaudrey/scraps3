@@ -110,19 +110,25 @@ export function NearWinBanner({ playerScore, aiScore }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// GameLog
+// GameLog — full round-by-round history, opened by tapping the
+// bottom bar. Auto-scrolls to the newest line.
 // ─────────────────────────────────────────────────────────────
 export function GameLog({ messages }) {
   const ref=useRef();
   useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[messages]);
   return (
-    <div ref={ref} style={{height:72,overflowY:'auto',background:DS.dusk,
-      borderTop:`1px solid ${DS.slate}22`,padding:'8px 20px',flexShrink:0}}>
-      {messages.slice(-4).map((m,i,arr)=>(
-        <div key={i} style={{fontFamily:F.mono,fontSize:14,lineHeight:1.5,
+    <div ref={ref} style={{maxHeight:280,overflowY:'auto',background:DS.dusk,
+      borderTop:`1px solid ${DS.slate}44`,padding:'10px 20px'}}>
+      <div style={{fontFamily:F.mono,fontSize:11,color:DS.slate+'88',
+        letterSpacing:'0.14em',marginBottom:6}}>GAME LOG</div>
+      {messages.map((m,i,arr)=>(
+        <div key={i} style={{fontFamily:F.mono,fontSize:14,lineHeight:1.6,
           color:i===arr.length-1?DS.frost:DS.slate,
           fontWeight:i===arr.length-1?700:400}}>{m}</div>
       ))}
+      {messages.length===0&&(
+        <div style={{fontFamily:F.mono,fontSize:13,color:DS.slate+'66'}}>No log entries yet.</div>
+      )}
     </div>
   );
 }

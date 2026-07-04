@@ -12,12 +12,12 @@ import { SwirlBg, AnimatedTitle } from "../components/backdrop.jsx";
 export function SplashScreen({ onStart }) {
   const [page,setPage]=useState(0);
   const ov=[
-    {icon:'🃏',text:`Scraps is a game of twos: Two decks. Two players. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
-    {icon:'✋',text:'Each round: two private small hands and one public Scraps hand.'},
-    {icon:'🔄',text:'Trade cards from your small hand to grow your Scraps pile. Draw fresh cards. Trade-in values: 2–9 earns 1, 10–K earns 2, Ace earns 3. Max 7 cards.'},
-    {icon:'♠', text:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
-    {icon:'⚡',text:"Play an Ace to remove two of your opponent's Scraps cards. They can counter."},
-    {icon:'🏆',text:'Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
+    {icon:'🃏',text:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:'✋',text:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
+    {icon:'🔄',text:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:'⚡',text:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
+    {icon:'♠️',text:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
+    {icon:'🏆',text:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   // Styles are in index.html — no style injection needed here
   return (
@@ -43,7 +43,8 @@ export function SplashScreen({ onStart }) {
                   background:DS.duskMid,border:`1px solid ${DS.slate}33`,
                   borderRadius:10,padding:'12px 18px',
                   animation:`fadeUp .4s ease ${i*.07}s both`}}>
-                  <span style={{fontSize:24,flexShrink:0}}>{item.icon}</span>
+                  <span style={{fontSize:24,flexShrink:0,width:34,display:'flex',
+                    justifyContent:'center'}}>{item.icon}</span>
                   <span style={{fontFamily:F.ui,fontSize:17,color:DS.slateLight,
                     lineHeight:1.5,fontWeight:500}}>{item.text}</span>
                 </div>
@@ -83,8 +84,7 @@ export function SplashScreen({ onStart }) {
 // ─────────────────────────────────────────────────────────────
 export function DifficultyPicker({ onChoose, onBack }) {
   const opts=[
-    {id:'easy',  label:'EASY',   desc:'Conservative. Never uses Aces. Good for learning.'},
-    {id:'medium',label:'MEDIUM', desc:'Balanced. Uses Aces occasionally.'},
+    {id:'easy',  label:'EASY',   desc:'Conservative. Rarely uses Aces, and only to defend its Scraps.'},
     {id:'hard',  label:'HARD',   desc:'Aggressive. Will sacrifice small hands to win Scraps.'},
   ];
   return (
