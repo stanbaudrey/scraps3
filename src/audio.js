@@ -131,3 +131,103 @@ export function playLoseSound() {
     o.start(t); o.stop(t + 0.28);
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// playGrandFanfare — the game-winning fanfare. Roughly five
+// seconds: a rising C-major arpeggio, a held chord swell, then
+// a triumphant top-note flourish. Everything is scheduled on
+// the audio clock up front, so nothing blocks the win screen.
+// ─────────────────────────────────────────────────────────────
+export function playGrandFanfare() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const now = ctx.currentTime;
+
+  const note = (freq, t, dur, vol, type='sine') => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = type;
+    o.frequency.setValueAtTime(freq, now + t);
+    g.gain.setValueAtTime(0.001, now + t);
+    g.gain.exponentialRampToValueAtTime(vol, now + t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, now + t + dur);
+    o.start(now + t); o.stop(now + t + dur + 0.05);
+  };
+
+  // Phase 1 (0–1.2s): fast rising arpeggio, two octaves
+  [261, 329, 392, 523, 659, 784, 1047].forEach((f, i) => {
+    note(f, i * 0.14, 0.4, 0.16, i >= 5 ? 'triangle' : 'sine');
+  });
+
+  // Phase 2 (1.2–3.2s): sustained C-major chord swell
+  [523, 659, 784].forEach(f => note(f, 1.2, 2.0, 0.11, 'sine'));
+  note(261, 1.2, 2.0, 0.09, 'triangle'); // low root underneath
+
+  // Phase 3 (3.2–5s): flourish — three quick top notes, then a
+  // long held peak that slowly decays out
+  [784, 1047, 1319].forEach((f, i) => note(f, 3.2 + i * 0.16, 0.35, 0.15, 'triangle'));
+  note(1047, 3.8, 1.2, 0.13, 'triangle');
+  note(523, 3.8, 1.2, 0.08, 'sine');
+}
+
+// ─────────────────────────────────────────────────────────────
+// playFireworkPop — one short percussive pop per visual burst.
+// Filtered noise with a fast decay plus a tiny pitch-drop thump.
+// Kept quiet and randomized: the win screen fires one of these
+// every ~400ms, so they must layer without becoming a wall.
+// ─────────────────────────────────────────────────────────────
+export function playFireworkPop() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const now = ctx.currentTime;
+
+  // Noise crack
+  const dur = 0.12 + Math.random() * 0.06;
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,3);
+  const src = ctx.createBufferSource();
+  const f = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  f.type = 'bandpass';
+  f.frequency.setValueAtTime(1500 + Math.random() * 1500, now);
+  f.Q.value = 0.7;
+  src.buffer = buf; src.connect(f); f.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(0.07 + Math.random() * 0.03, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  src.start(now); src.stop(now + dur);
+
+  // Low thump underneath — gives the pop a body
+  const o = ctx.createOscillator();
+  const og = ctx.createGain();
+  o.connect(og); og.connect(ctx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(160 + Math.random() * 60, now);
+  o.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+  og.gain.setValueAtTime(0.06, now);
+  og.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  o.start(now); o.stop(now + 0.14);
+}
+
+// ─────────────────────────────────────────────────────────────
+// playNeutralJingle — plays once on the lose screen. Three soft
+// even-spaced tones that neither rise (celebration) nor fall
+// (sad trombone): a gentle "the round is over" chime, matching
+// the lose screen's deliberately quiet tone.
+// ─────────────────────────────────────────────────────────────
+export function playNeutralJingle() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const now = ctx.currentTime;
+  // G4 → E4 → G4: a small dip that returns home, resolving flat
+  [392, 329, 392].forEach((freq, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sine';
+    const t = now + i * 0.22;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.1, t + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    o.start(t); o.stop(t + 0.45);
+  });
+}
