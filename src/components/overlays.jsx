@@ -3,9 +3,11 @@
 // ============================================================
 import { useState, useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
+import { playGrandFanfare, playFireworkPop, playNeutralJingle } from "../audio.js";
 import { Btn } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
 import { SwirlBg } from "./backdrop.jsx";
+import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // RoundInterstitial — "BEGIN ROUND N" full-screen flash
@@ -206,15 +208,19 @@ export function FullScrapLightbox({ onDone }) {
 // ─────────────────────────────────────────────────────────────
 // WinScreen — elaborate fireworks
 // ─────────────────────────────────────────────────────────────
-export function WinScreen({ playerScore, aiScore, onNewGame }) {
+export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMargin=null, isNewRecord=false }) {
   const canvasRef=useRef();
   const [textPhase,setTextPhase]=useState(0);
   useEffect(()=>{
     const canvas=canvasRef.current; if(!canvas) return;
     const ctx=canvas.getContext('2d');
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    // Five-second fanfare starts with the screen. It's scheduled on
+    // the audio clock, so nothing below waits on it.
+    playGrandFanfare();
     const pts=[]; const cols=[DS.voltage,DS.ember,DS.frost,DS.slateLight,'#fff','#ff99cc','#ccff66','#99ccff'];
     function burst(x,y,n=120){
+      playFireworkPop(); // one pop per visual explosion
       for(let i=0;i<n;i++){
         const a=(Math.PI*2/n)*i+Math.random()*.4,s=3+Math.random()*10;
         pts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,
@@ -256,11 +262,11 @@ export function WinScreen({ playerScore, aiScore, onNewGame }) {
         justifyContent:'center',flexDirection:'column',gap:16,padding:24}}>
         {textPhase>=1&&(
           <>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
               {lines.map((l,i)=>(
                 <div key={i} style={{
                   fontFamily:F.display,
-                  fontSize:i<=1?'clamp(52px,12vw,100px)':i===2?'clamp(40px,9vw,80px)':'clamp(36px,8vw,72px)',
+                  fontSize:i<=1?'clamp(34px,7vw,64px)':i===2?'clamp(28px,6vw,52px)':'clamp(24px,5vw,46px)',
                   color:i===0||i===1?DS.voltage:i===2?DS.ember:DS.frost,
                   textShadow:`0 0 30px ${i<=1?DS.voltage:DS.ember}`,
                   letterSpacing:'0.04em',lineHeight:1,
@@ -268,9 +274,36 @@ export function WinScreen({ playerScore, aiScore, onNewGame }) {
                 }}>{l}</div>
               ))}
             </div>
-            <div style={{fontFamily:F.mono,color:DS.slate,fontSize:20,
+            {/* FINAL SCORE — the biggest text on the screen, by design */}
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
               animation:'slideUp 0.4s ease 0.7s both'}}>
-              {playerScore} — {aiScore}
+              <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
+                letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
+              <div style={{fontFamily:F.display,color:DS.voltage,lineHeight:1,
+                fontSize:'clamp(110px,22vw,220px)',letterSpacing:'0.03em',
+                textShadow:`0 0 50px ${DS.voltage}aa, 0 0 100px ${DS.voltage}55`}}>
+                {playerScore}–{aiScore}
+              </div>
+              {margin!=null&&(
+                <div style={{display:'flex',alignItems:'center',gap:14,marginTop:10,
+                  animation:'slideUp 0.4s ease 0.85s both'}}>
+                  <span style={{fontFamily:F.mono,fontSize:16,color:DS.slateLight,
+                    letterSpacing:'0.14em'}}>WON BY {margin}</span>
+                  {isNewRecord?(
+                    <span style={{display:'inline-flex',alignItems:'center',gap:8,
+                      fontFamily:F.mono,fontSize:16,fontWeight:700,color:DS.voltage,
+                      letterSpacing:'0.14em',background:DS.voltage+'18',
+                      border:`1px solid ${DS.voltage}88`,borderRadius:20,padding:'4px 16px',
+                      boxShadow:`0 0 18px ${DS.voltage}55`,
+                      animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1) 1.1s both'}}>
+                      <IconTrophy size={16}/> NEW BEST MARGIN
+                    </span>
+                  ):bestMargin!=null&&bestMargin>0&&(
+                    <span style={{fontFamily:F.mono,fontSize:16,color:DS.slate,
+                      letterSpacing:'0.14em'}}>BEST {bestMargin}</span>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{display:'flex',gap:16,animation:'slideUp 0.4s ease 0.9s both'}}>
               <button onClick={onNewGame} style={{
@@ -292,15 +325,23 @@ export function WinScreen({ playerScore, aiScore, onNewGame }) {
 // LoseScreen
 // ─────────────────────────────────────────────────────────────
 export function LoseScreen({ playerScore, aiScore, onNewGame }) {
+  // Deliberately quiet: no fireworks, no descending sad-trombone.
+  // A neutral jingle plays once, and the final score is the
+  // biggest text on the screen (matching the win screen's scale).
+  useEffect(()=>{ playNeutralJingle(); },[]);
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
       display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:28}}>
       <SwirlBg/>
       <div style={{position:'relative',zIndex:1,textAlign:'center'}}>
-        <div style={{fontFamily:F.display,fontSize:'clamp(56px,12vw,96px)',
-          color:DS.ember,marginBottom:12,letterSpacing:'0.04em'}}>YOU LOSE.</div>
-        <div style={{fontFamily:F.mono,color:DS.slate,fontSize:24,marginBottom:40}}>
-          {playerScore} — {aiScore}
+        <div style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,60px)',
+          color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
+        <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
+          letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
+        <div style={{fontFamily:F.display,color:DS.frost,lineHeight:1,
+          fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
+          marginBottom:36,textShadow:'0 0 40px rgba(245,245,250,0.25)'}}>
+          {playerScore}–{aiScore}
         </div>
         <button onClick={onNewGame} style={{background:DS.voltage,color:DS.ink,border:'none',
           padding:'15px 44px',borderRadius:10,cursor:'pointer',fontFamily:F.ui,
@@ -346,7 +387,11 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
           Countering cancels their Ace — nothing is removed. Both Aces are discarded.
         </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
-          <Btn variant="danger" onClick={onCounter}>Counter ⚡ Cancel Their Ace</Btn>
+          <Btn variant="danger" onClick={onCounter}>
+            <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+              Counter <IconBolt size={16}/> Cancel Their Ace
+            </span>
+          </Btn>
           <Btn variant="ghost" onClick={onAllow}>Let It Happen</Btn>
         </div>
       </div>
@@ -426,12 +471,12 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function RulesModal({ onClose }) {
   const rules=[
-    {icon:'🃏',t:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
-    {icon:'✋',t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
-    {icon:'🔄',t:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
-    {icon:'⚡',t:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
-    {icon:'♠️',t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
-    {icon:'🏆',t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
+    {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
+    {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
+    {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
+    {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   return (
     <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(26,26,46,.94)',
@@ -445,7 +490,7 @@ export function RulesModal({ onClose }) {
         </div>
         {rules.map((r,i)=>(
           <div key={i} style={{display:'flex',gap:16,alignItems:'flex-start',marginBottom:18}}>
-            <span style={{fontSize:26,flexShrink:0,marginTop:1,width:38,display:'flex',
+            <span style={{flexShrink:0,marginTop:3,width:38,display:'flex',
               justifyContent:'center'}}>{r.icon}</span>
             <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:19,lineHeight:1.6}}>{r.t}</div>
           </div>

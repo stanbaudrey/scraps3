@@ -1,11 +1,22 @@
 // ============================================================
-// SCRAPS — HUD: score corners, round progress, banners, log
+// SCRAPS — HUD: score corners, round progress strip, banners, log
+//
+// Design-pass notes (July 4):
+//  • The redundant round pill in the top bar is gone. Round
+//    state lives in ONE place: a slim horizontal strip that
+//    sits above the opponent's Scraps.
+//  • The strip is informational, so it speaks slate/frost —
+//    voltage is reserved for "yours / act now."
+//  • The difficulty label rides in the header so screenshots
+//    brag for you.
+//  • Log text bumped to legible sizes in the lighter slate.
 // ============================================================
 import { useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
+import { IconCheck } from "./icons.jsx";
 
 // ─────────────────────────────────────────────────────────────
-// RoundProgressIndicator
+// RoundProgressIndicator — slim horizontal three-step strip
 // ─────────────────────────────────────────────────────────────
 export function RoundProgressIndicator({ phase }) {
   const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-ai','signal-player','reveal-1','replenish'];
@@ -17,25 +28,23 @@ export function RoundProgressIndicator({ phase }) {
     {label:'SCRAPS',active:sc.includes(phase),done:false},
   ];
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:6,
-      background:DS.duskMid,border:`2px solid ${DS.slate}44`,
-      borderRadius:14,padding:'14px 20px',minWidth:220,
-      boxShadow:'0 4px 20px rgba(0,0,0,.5)'}}>
-      <div style={{fontFamily:F.mono,fontSize:14,color:DS.slate,
-        letterSpacing:'0.18em',fontWeight:700,textAlign:'center',marginBottom:2}}>ROUND</div>
+    <div style={{display:'flex',alignItems:'center',gap:6,
+      background:DS.duskMid,border:`1px solid ${DS.slate}33`,
+      borderRadius:10,padding:'5px 8px'}}>
       {steps.map((s,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',gap:10,
-          padding:'9px 14px',borderRadius:10,
-          background:s.active?DS.voltage+'22':s.done?DS.slate+'11':'transparent',
-          border:`2px solid ${s.active?DS.voltage:s.done?DS.slate+'44':DS.slate+'22'}`,
-          transition:'all 0.3s',boxShadow:s.active?`0 0 16px ${DS.voltage}55`:'none'}}>
-          <div style={{width:14,height:14,borderRadius:'50%',flexShrink:0,
-            background:s.active?DS.voltage:s.done?DS.slate:DS.slate+'33',
-            boxShadow:s.active?`0 0 10px ${DS.voltage}`:'none'}}/>
-          <span style={{fontFamily:F.ui,fontSize:20,fontWeight:700,
-            color:s.active?DS.voltage:s.done?DS.slate:DS.slate+'55',
-            letterSpacing:'0.05em'}}>{s.label}</span>
-          {s.done&&<span style={{marginLeft:'auto',fontSize:18,color:DS.slate}}>✓</span>}
+        <div key={i} style={{display:'flex',alignItems:'center',gap:6,
+          padding:'4px 10px',borderRadius:8,
+          background:s.active?DS.frost+'0e':'transparent',
+          border:`1px solid ${s.active?DS.slateLight+'88':DS.slate+'22'}`,
+          transition:'all 0.3s'}}>
+          <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+            background:s.active?DS.frost:s.done?DS.slate:DS.slate+'33',
+            boxShadow:s.active?`0 0 8px ${DS.frost}88`:'none',
+            transition:'all 0.3s'}}/>
+          <span style={{fontFamily:F.ui,fontSize:14,fontWeight:700,
+            color:s.active?DS.frost:s.done?DS.slate:DS.slate+'55',
+            letterSpacing:'0.06em',transition:'color 0.3s'}}>{s.label}</span>
+          {s.done&&<IconCheck size={12} color={DS.slate}/>}
         </div>
       ))}
     </div>
@@ -43,16 +52,11 @@ export function RoundProgressIndicator({ phase }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ScoreBar
+// ScoreCorners — scores dominate the corners; center carries
+// the win condition + the difficulty label. Round state is NOT
+// repeated here (it lives in the strip above opponent Scraps).
 // ─────────────────────────────────────────────────────────────
-// ScoreBar removed — scores shown inline in status bar
-export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, phase }) {
-  // Compute round progress for inline display
-  const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-ai','signal-player','reveal-1','replenish'];
-  const h2=['player-turn-2a','ai-turn-2a','player-turn-2b','ai-turn-2b','signal-ai-2','signal-player-2','reveal-2'];
-  const sc=['scraps-reveal','round-end'];
-  const roundLabel = sc.includes(phase)?'SCRAPS':h2.includes(phase)?'HAND 2':'HAND 1';
-  const roundDot = sc.includes(phase)?DS.ember:h2.includes(phase)?DS.voltage:DS.slate;
+export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, difficultyLabel }) {
   return (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
       padding:'8px 22px 4px',background:DS.dusk,
@@ -65,15 +69,15 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, phase
           display:'inline-block',
         }}>{playerScore}</span>
       </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-        <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate+'88',letterSpacing:'0.12em'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
-        <div style={{display:'flex',alignItems:'center',gap:6,
-          background:DS.duskMid,borderRadius:20,padding:'4px 14px',
-          border:`1px solid ${roundDot}66`}}>
-          <div style={{width:8,height:8,borderRadius:'50%',background:roundDot,
-            boxShadow:`0 0 6px ${roundDot}`}}/>
-          <span style={{fontFamily:F.ui,fontSize:13,fontWeight:700,color:roundDot,letterSpacing:'0.08em'}}>{roundLabel}</span>
-        </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+        <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',letterSpacing:'0.12em'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+        {difficultyLabel&&(
+          <span style={{fontFamily:F.mono,fontSize:13,fontWeight:700,color:DS.slate,
+            letterSpacing:'0.18em',background:DS.duskMid,borderRadius:20,
+            padding:'3px 14px',border:`1px solid ${DS.slate}44`}}>
+            {difficultyLabel}
+          </span>
+        )}
       </div>
       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
@@ -111,7 +115,9 @@ export function NearWinBanner({ playerScore, aiScore }) {
 
 // ─────────────────────────────────────────────────────────────
 // GameLog — full round-by-round history, opened by tapping the
-// bottom bar. Auto-scrolls to the newest line.
+// bottom bar. Auto-scrolls to the newest line. The log is the
+// only record of what the opponent just did — it earns legible
+// sizes in the lighter slate.
 // ─────────────────────────────────────────────────────────────
 export function GameLog({ messages }) {
   const ref=useRef();
@@ -119,15 +125,15 @@ export function GameLog({ messages }) {
   return (
     <div ref={ref} style={{maxHeight:280,overflowY:'auto',background:DS.dusk,
       borderTop:`1px solid ${DS.slate}44`,padding:'10px 20px'}}>
-      <div style={{fontFamily:F.mono,fontSize:11,color:DS.slate+'88',
+      <div style={{fontFamily:F.mono,fontSize:12,color:DS.slate,
         letterSpacing:'0.14em',marginBottom:6}}>GAME LOG</div>
       {messages.map((m,i,arr)=>(
-        <div key={i} style={{fontFamily:F.mono,fontSize:14,lineHeight:1.6,
-          color:i===arr.length-1?DS.frost:DS.slate,
+        <div key={i} style={{fontFamily:F.mono,fontSize:15,lineHeight:1.6,
+          color:i===arr.length-1?DS.frost:DS.slateLight,
           fontWeight:i===arr.length-1?700:400}}>{m}</div>
       ))}
       {messages.length===0&&(
-        <div style={{fontFamily:F.mono,fontSize:13,color:DS.slate+'66'}}>No log entries yet.</div>
+        <div style={{fontFamily:F.mono,fontSize:14,color:DS.slate}}>No log entries yet.</div>
       )}
     </div>
   );

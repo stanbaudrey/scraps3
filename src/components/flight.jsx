@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // FlyingCard — arc trajectory via quadratic bezier
 // arcOffset varies per card so multiple cards fly different paths
 // ─────────────────────────────────────────────────────────────
-export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, arcOffset=0 }) {
+export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, arcOffset=0, faceDown=false }) {
   const startRef = useRef(null);
   const rafRef   = useRef();
   const elRef    = useRef();
@@ -36,7 +36,7 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
       el.style.transform = `rotate(${rot}deg) scale(${scale})`;
       el.style.opacity = t > 0.88 ? String(1-(t-0.88)*8.3) : '1';
       // Color transition mid-flight for scraps
-      if(toIsScrap && e > 0.45) {
+      if(toIsScrap && !faceDown && e > 0.45) {
         const f = Math.min((e-0.45)/0.55, 1);
         const r1=[245,245,250], r2=[26,26,46];
         const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*f));
@@ -51,29 +51,29 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
   }, []);
 
   const ink = card?((card.suit==='♥'||card.suit==='♦')?'#FF3D5A':'#1A1A2E'):'#1A1A2E';
-  const rk  = card&&card.rank==='10' ? 22 : 26;
+  const rk  = card&&card.rank==='10' ? 24 : 29;
 
   return (
     <div ref={elRef} style={{
       position:'fixed', left:fromRect.x, top:fromRect.y,
       width:fromRect.width, height:fromRect.height,
       zIndex:1000, pointerEvents:'none', borderRadius:10,
-      background:'#F5F5FA', border:`6px solid #1A1A2E`,
-      display:'flex', flexDirection:'column', justifyContent:'space-between',
+      background:faceDown?'#1A1A2E':'#F5F5FA',
+      border:faceDown?'3px solid #8A8FA855':`6px solid #1A1A2E`,
+      display:'flex', flexDirection:'column',
+      justifyContent:faceDown?'center':'flex-start',
+      alignItems:faceDown?'center':'stretch',
       padding:'8px 9px', boxSizing:'border-box',
       boxShadow:'0 12px 40px rgba(0,0,0,.7)', transition:'none',
     }}>
-      {card&&(
-        <>
-          <div style={{display:'flex',alignItems:'center',gap:1}}>
-            <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
-            <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:1,alignSelf:'flex-end',transform:'rotate(180deg)'}}>
-            <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
-            <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
-          </div>
-        </>
+      {faceDown?(
+        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,
+          color:'#F5F5FA',opacity:0.12,letterSpacing:'0.1em'}}>S</span>
+      ):card&&(
+        <div style={{display:'flex',alignItems:'center',gap:1}}>
+          <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
+          <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
+        </div>
       )}
     </div>
   );
@@ -86,9 +86,9 @@ export function useFlyingCards() {
   const [flights, setFlights] = useState([]); // [{id,card,fromRect,toRect,toIsScrap}]
   const nextId = useRef(0);
 
-  const launchFlight = useCallback((card, fromRect, toRect, toIsScrap=false, arcOffset=0) => {
+  const launchFlight = useCallback((card, fromRect, toRect, toIsScrap=false, arcOffset=0, faceDown=false) => {
     const id = nextId.current++;
-    setFlights(prev => [...prev, {id, card, fromRect, toRect, toIsScrap, arcOffset}]);
+    setFlights(prev => [...prev, {id, card, fromRect, toRect, toIsScrap, arcOffset, faceDown}]);
     return id;
   }, []);
 
@@ -105,6 +105,7 @@ export function useFlyingCards() {
           toRect={f.toRect}
           toIsScrap={f.toIsScrap}
           arcOffset={f.arcOffset||0}
+          faceDown={f.faceDown||false}
           onDone={() => removeFlight(f.id)}
         />
       ))}

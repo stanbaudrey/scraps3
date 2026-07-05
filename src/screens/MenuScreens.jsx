@@ -5,6 +5,8 @@ import { useState } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { Btn } from "../components/buttons.jsx";
 import { SwirlBg, AnimatedTitle } from "../components/backdrop.jsx";
+import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "../components/icons.jsx";
+import { loadStats } from "../game/stats.js";
 
 // ─────────────────────────────────────────────────────────────
 // SplashScreen
@@ -12,12 +14,12 @@ import { SwirlBg, AnimatedTitle } from "../components/backdrop.jsx";
 export function SplashScreen({ onStart }) {
   const [page,setPage]=useState(0);
   const ov=[
-    {icon:'🃏',text:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
-    {icon:'✋',text:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
-    {icon:'🔄',text:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
-    {icon:'⚡',text:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
-    {icon:'♠️',text:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
-    {icon:'🏆',text:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
+    {icon:<IconCards size={22} color={DS.voltage}/>,text:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:<IconFan size={22} color={DS.voltage}/>,text:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
+    {icon:<IconCycle size={22} color={DS.voltage}/>,text:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:<IconBolt size={22} color={DS.ember}/>,text:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
+    {icon:<IconSpade size={22} color={DS.voltage}/>,text:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
+    {icon:<IconTrophy size={22} color={DS.voltage}/>,text:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   // Styles are in index.html — no style injection needed here
   return (
@@ -43,7 +45,7 @@ export function SplashScreen({ onStart }) {
                   background:DS.duskMid,border:`1px solid ${DS.slate}33`,
                   borderRadius:10,padding:'12px 18px',
                   animation:`fadeUp .4s ease ${i*.07}s both`}}>
-                  <span style={{fontSize:24,flexShrink:0,width:34,display:'flex',
+                  <span style={{flexShrink:0,width:34,display:'flex',marginTop:2,
                     justifyContent:'center'}}>{item.icon}</span>
                   <span style={{fontFamily:F.ui,fontSize:17,color:DS.slateLight,
                     lineHeight:1.5,fontWeight:500}}>{item.text}</span>
@@ -83,6 +85,7 @@ export function SplashScreen({ onStart }) {
 // DifficultyPicker
 // ─────────────────────────────────────────────────────────────
 export function DifficultyPicker({ onChoose, onBack }) {
+  const stats=loadStats();
   const opts=[
     {id:'easy',  label:'EASY',   desc:'Conservative. Rarely uses Aces, and only to defend its Scraps.'},
     {id:'hard',  label:'HARD',   desc:'Aggressive. Will sacrifice small hands to win Scraps.'},
@@ -97,12 +100,22 @@ export function DifficultyPicker({ onChoose, onBack }) {
         <p style={{fontFamily:F.ui,color:DS.slate,fontSize:17,textAlign:'center',
           marginBottom:26,fontWeight:500}}>Affects how the opponent thinks — not the rules.</p>
         <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:22}}>
-          {opts.map(o=>(
-            <div key={o.id} className="diff-opt" onClick={()=>onChoose(o.id)}>
-              <div style={{fontFamily:F.ui,color:DS.voltage,fontWeight:700,fontSize:18,marginBottom:5,letterSpacing:'0.06em'}}>{o.label}</div>
-              <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:16,fontWeight:500}}>{o.desc}</div>
-            </div>
-          ))}
+          {opts.map(o=>{
+            const rec=stats[o.id];
+            return (
+              <div key={o.id} className="diff-opt" onClick={()=>onChoose(o.id)}>
+                <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:12,marginBottom:5}}>
+                  <span style={{fontFamily:F.ui,color:DS.voltage,fontWeight:700,fontSize:18,letterSpacing:'0.06em'}}>{o.label}</span>
+                  {rec&&(rec.w>0||rec.l>0)&&(
+                    <span style={{fontFamily:F.mono,color:DS.slate,fontSize:13,letterSpacing:'0.1em'}}>
+                      {rec.w}W · {rec.l}L{rec.bestMargin>0?` · BEST +${rec.bestMargin}`:''}
+                    </span>
+                  )}
+                </div>
+                <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:16,fontWeight:500}}>{o.desc}</div>
+              </div>
+            );
+          })}
         </div>
         <div style={{textAlign:'center'}}>
           <div className="diff-opt" onClick={onBack}
