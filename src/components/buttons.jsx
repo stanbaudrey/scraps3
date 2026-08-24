@@ -24,9 +24,9 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
   const hIn=(e)=>{
     if(disabled) return;
     const el=e.currentTarget; el.style.transform='scale(1.05)';
-    if(variant==='primary'){el.style.background='#d4ff33';el.style.boxShadow=`0 0 28px ${DS.voltage}`;}
+    if(variant==='primary'){el.style.background=DS.voltageHover;el.style.boxShadow=`0 0 28px ${DS.voltage}`;}
     if(variant==='ghost'){el.style.background=DS.slate+'22';}
-    if(variant==='danger'){el.style.background='#ff6070';el.style.boxShadow=`0 0 24px ${DS.ember}`;}
+    if(variant==='danger'){el.style.background=DS.emberHover;el.style.boxShadow=`0 0 24px ${DS.ember}`;}
     if(variant==='green'){el.style.background=DS.voltage+'22';el.style.boxShadow=`0 0 20px ${DS.voltage}66`;}
     if(variant==='sky'){el.style.background=DS.slateLight;}
     if(variant==='warning'){el.style.background=DS.voltage+'33';}
@@ -65,9 +65,9 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
   const hIn = (e) => {
     if(disabled) return;
     const el=e.currentTarget; el.style.transform='scale(1.06)';
-    if(variant==='primary'){el.style.background='#d4ff33';el.style.boxShadow=`0 0 40px ${DS.voltage},0 6px 20px rgba(0,0,0,.5)`;}
+    if(variant==='primary'){el.style.background=DS.voltageHover;el.style.boxShadow=`0 0 40px ${DS.voltage},0 6px 20px rgba(0,0,0,.5)`;}
     if(variant==='ghost'){el.style.background=DS.slate+'33';}
-    if(variant==='danger'){el.style.background='#ff6070';el.style.boxShadow=`0 0 40px ${DS.ember},0 6px 20px rgba(0,0,0,.5)`;}
+    if(variant==='danger'){el.style.background=DS.emberHover;el.style.boxShadow=`0 0 40px ${DS.ember},0 6px 20px rgba(0,0,0,.5)`;}
     if(variant==='green'){el.style.background=DS.voltage+'33';el.style.boxShadow=`0 0 30px ${DS.voltage}88`;}
     if(variant==='warning'){el.style.background=DS.voltage+'44';}
     if(variant==='sky'){el.style.background=DS.slateLight;}
@@ -92,7 +92,7 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
 export function TradeInBtn({ onClick, disabled, count }) {
   const hIn = (e) => {
     if(disabled) return;
-    e.currentTarget.style.background='#d4ff33';
+    e.currentTarget.style.background=DS.voltageHover;
     e.currentTarget.style.boxShadow=`0 0 32px ${DS.voltage},0 0 60px ${DS.voltage}55`;
     e.currentTarget.style.transform='scale(1.06)';
   };

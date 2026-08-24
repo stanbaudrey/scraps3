@@ -17,6 +17,8 @@ export const DS = {
   duskMid:   '#2a2a40',
   slateLight:'#c8cce0',
   inkLight:  '#2e2e4a',
+  voltageHover: '#d4ff33',
+  emberHover:   '#ff6070',
 };
 export const F = {
   display: "'Bebas Neue', sans-serif",

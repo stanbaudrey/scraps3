@@ -37,7 +37,7 @@ export function CardBackSVG({ w, h }) {
       diamonds.push(
         <rect key={`${r}-${x}`} x={x} y={y} width="10" height="10" rx="1"
           transform={`rotate(45 ${x+5} ${y+5})`}
-          fill="#8A8FA8" opacity={r % 2 === 0 ? 0.2 : 0.14}/>
+          fill={DS.slate} opacity={r % 2 === 0 ? 0.2 : 0.14}/>
       );
     }
   }
@@ -45,11 +45,11 @@ export function CardBackSVG({ w, h }) {
     <svg width={w} height={h} viewBox="0 0 120 178" preserveAspectRatio="xMidYMid slice"
       xmlns="http://www.w3.org/2000/svg"
       style={{position:'absolute',inset:0,borderRadius:12,display:'block'}}>
-      <rect width="120" height="178" fill="#1A1A2E"/>
+      <rect width="120" height="178" fill={DS.ink}/>
       {diamonds}
       <text x="60" y="92" textAnchor="middle" dominantBaseline="middle"
         fontFamily="'Bebas Neue', sans-serif" fontSize="56"
-        fill="#F5F5FA" opacity="0.06" letterSpacing="2">S</text>
+        fill={DS.frost} opacity="0.06" letterSpacing="2">S</text>
     </svg>
   );
 }

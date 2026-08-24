@@ -39,9 +39,9 @@ export function RoundInterstitial({ roundNum, onDone }) {
         <div style={{
           fontFamily:"'Bebas Neue', sans-serif",
           fontSize:'clamp(52px,12vw,96px)',
-          color:'#C8FF00',
+          color:DS.voltage,
           letterSpacing:'0.08em',
-          textShadow:`0 0 40px #C8FF0099, 0 0 80px #C8FF0055`,
+          textShadow:`0 0 40px ${DS.voltage}99, 0 0 80px ${DS.voltage}55`,
           whiteSpace:'nowrap',
         }}>
           BEGIN ROUND {roundNum}
@@ -49,7 +49,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
         <div style={{
           fontFamily:"'Space Grotesk', sans-serif",
           fontSize:'clamp(20px,4vw,36px)',
-          color:'#F5F5FA',
+          color:DS.frost,
           letterSpacing:'0.18em',
           fontWeight:700,
           textTransform:'uppercase',

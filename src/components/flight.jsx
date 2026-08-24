@@ -2,6 +2,7 @@
 // SCRAPS — Flying card animation system
 // ============================================================
 import { useState, useEffect, useCallback, useRef } from "react";
+import { DS } from "../styles/theme.js";
 
 // ─────────────────────────────────────────────────────────────
 // FlyingCard — arc trajectory via quadratic bezier
@@ -41,7 +42,7 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
         const r1=[245,245,250], r2=[26,26,46];
         const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*f));
         el.style.background = `rgb(${bg.join(',')})`;
-        el.style.borderColor = card&&(card.suit==='♥'||card.suit==='♦')?'#FF3D5A':'#C8FF00';
+        el.style.borderColor = card&&(card.suit==='♥'||card.suit==='♦')?DS.ember:DS.voltage;
       }
       if(t < 1) rafRef.current = requestAnimationFrame(animate);
       else onDone();
@@ -50,7 +51,7 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const ink = card?((card.suit==='♥'||card.suit==='♦')?'#FF3D5A':'#1A1A2E'):'#1A1A2E';
+  const ink = card?((card.suit==='♥'||card.suit==='♦')?DS.ember:DS.ink):DS.ink;
   const rk  = card&&card.rank==='10' ? 24 : 29;
 
   return (
@@ -58,8 +59,8 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
       position:'fixed', left:fromRect.x, top:fromRect.y,
       width:fromRect.width, height:fromRect.height,
       zIndex:1000, pointerEvents:'none', borderRadius:10,
-      background:faceDown?'#1A1A2E':'#F5F5FA',
-      border:faceDown?'3px solid #8A8FA855':`6px solid #1A1A2E`,
+      background:faceDown?DS.ink:DS.frost,
+      border:faceDown?`3px solid ${DS.slate}55`:`6px solid ${DS.ink}`,
       display:'flex', flexDirection:'column',
       justifyContent:faceDown?'center':'flex-start',
       alignItems:faceDown?'center':'stretch',
@@ -68,7 +69,7 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
     }}>
       {faceDown?(
         <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,
-          color:'#F5F5FA',opacity:0.12,letterSpacing:'0.1em'}}>S</span>
+          color:DS.frost,opacity:0.12,letterSpacing:'0.1em'}}>S</span>
       ):card&&(
         <div style={{display:'flex',alignItems:'center',gap:1}}>
           <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>

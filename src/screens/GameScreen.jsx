@@ -766,7 +766,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
 
         <div style={{position:'relative',zIndex:1,flex:1,display:'flex',
           flexDirection:'column',justifyContent:'space-around',
-          minHeight:0,overflow:'hidden',padding:'8px 14px',gap:4}}>
+          minHeight:0,overflowY:'auto',overflowX:'hidden',padding:'8px 14px',gap:4}}>
 
           {/* ── TOP BAND: opponent hand, with their Scraps beside it ── */}
           <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>

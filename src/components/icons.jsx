@@ -3,6 +3,7 @@
 // Every icon: 24x24 viewBox, tinted via the `color` prop
 // (defaults to currentColor so it inherits button text color).
 // ============================================================
+import { DS } from "../styles/theme.js";
 
 function Svg({ size, color, children, style }) {
   return (
@@ -73,7 +74,7 @@ export function IconFan({ size=18, color='currentColor', style }) {
         stroke="currentColor" strokeWidth="2" transform="rotate(-18 12.5 10) translate(-4 2)"/>
       <rect x="8.5" y="4" width="8" height="12" rx="1.5" fill="none"
         stroke="currentColor" strokeWidth="2" transform="rotate(18 12.5 10) translate(4 2)"/>
-      <rect x="8" y="3" width="8" height="12" rx="1.5" fill="#1C1C28"
+      <rect x="8" y="3" width="8" height="12" rx="1.5" fill={DS.dusk}
         stroke="currentColor" strokeWidth="2"/>
     </Svg>
   );
