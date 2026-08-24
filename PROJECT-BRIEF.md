@@ -474,7 +474,40 @@ sequenced so the balance question gets settled before the polish work
 builds on top of it, and mobile/design/sound work each get real room
 instead of being squeezed into a single QA pass.
 
-### Session 1 — Fix what's actually broken
+### Session 1 — Fix what's actually broken ✅ Done (2026-08-24)
+
+**Notes:** the clipping bug turned out to be one level deeper than the root
+`100vh` div — that already had `overflow: auto` from an earlier partial fix,
+but the actual table-content wrapper two levels in was still
+`overflow: hidden` with no scroll fallback, so the player's hand and bottom
+Scraps pile were genuinely unreachable below ~750px of viewport height
+(confirmed live: at 1280×650 the hand was cut off entirely). Fixed by making
+that wrapper scroll instead of clip. This is a working fix, not a full
+responsive redesign — even at 1280×720 the content is still ~86px taller
+than the viewport, so there's a small scroll to reach the bottom row rather
+than everything fitting flush. Actually resizing the table to fit different
+heights is Session 3's job (mobile/responsive QA); this session's bar was
+"nothing gets permanently lost," which it now clears.
+
+Colors: consolidated further than the brief's four named files. A full grep
+turned up stray hardcoded hex in `cards.jsx`, `icons.jsx`, and `overlays.jsx`
+too, so those got fixed as well. `theme.js` is now the real single source
+for every JS-side color. `index.html` can't import a JS module and still be
+ready before first paint, so it keeps one `:root` CSS-variable block instead
+— color-mix() derives every alpha variant from the three base vars, so
+there's exactly one hex value per color across the whole file. Left the
+fireworks confetti palette (`#ff99cc`, `#ccff66`, `#99ccff`, `#fff`) alone —
+those are deliberate decorative extras for the Full Scrap celebration, not
+brand tokens, so folding them into `DS` would misrepresent them.
+
+Also created `.claude/launch.json` — CLAUDE.md documented a dev server
+pinned to port 5193, but no config for that existed anywhere. It does now.
+
+All 37 tests pass, production build succeeds, verified live at 1280×720 and
+1280×650 in-browser (card selection, trade-in flight animation, and the
+Begin Round interstitial all render with the consolidated colors correctly).
+Committed to `dev` — not yet previewed or published.
+
 **Goal:** the game works everywhere and the color system is real, not
 aspirational.
 **Bring:** this brief, CLAUDE.md.
@@ -615,7 +648,7 @@ Show HN posts are live using the drafted copy.
 
 | # | Session | Status |
 |---|---|---|
-| 1 | Fix what's actually broken (clipping, color tokens) | Not started |
+| 1 | Fix what's actually broken (clipping, color tokens) | Done |
 | 2 | Game balance discussion | Not started |
 | 3 | Mobile and responsive QA | Not started |
 | 4 | Sound identity | Not started |
