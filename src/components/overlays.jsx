@@ -24,7 +24,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
   return (
     <div style={{
       position:'fixed', inset:0, zIndex:500,
-      background: phase==='out' ? 'transparent' : `rgba(10,10,20,${phase==='hold'?0.92:0.6})`,
+      background: phase==='out' ? 'transparent' : `rgba(20,31,25,${phase==='hold'?0.92:0.6})`,
       display:'flex', alignItems:'center', justifyContent:'center',
       flexDirection:'column', gap:16,
       transition: phase==='out' ? 'background 0.5s ease, opacity 0.5s ease' : 'background 0.35s ease',
@@ -37,7 +37,8 @@ export function RoundInterstitial({ roundNum, onDone }) {
         transition:'opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.4,.64,1)',
       }}>
         <div style={{
-          fontFamily:"'Bebas Neue', sans-serif",
+          fontFamily:"'Spectral', serif",
+          fontWeight:700,
           fontSize:'clamp(52px,12vw,96px)',
           color:DS.voltage,
           letterSpacing:'0.08em',
@@ -47,7 +48,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
           BEGIN ROUND {roundNum}
         </div>
         <div style={{
-          fontFamily:"'Space Grotesk', sans-serif",
+          fontFamily:"'Work Sans', sans-serif",
           fontSize:'clamp(20px,4vw,36px)',
           color:DS.frost,
           letterSpacing:'0.18em',
@@ -69,7 +70,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
   const [vis,setVis]=useState(false);
   useEffect(()=>{setTimeout(()=>setVis(true),50);},[]);
   return (
-    <div style={{position:'fixed',inset:0,zIndex:80,background:'rgba(26,26,46,0.94)',
+    <div style={{position:'fixed',inset:0,zIndex:80,background:'rgba(20,31,25,0.94)',
       display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
       gap:20,padding:20,opacity:vis?1:0,transition:'opacity 0.3s',overflowY:'auto'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
@@ -83,14 +84,14 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             </div>
           ))}
         </div>
-        <div style={{fontFamily:F.display,fontSize:26,color:winner==='ai'?DS.ember:DS.slate,letterSpacing:'0.06em'}}>{aiHandName}</div>
+        <div style={{fontFamily:F.display,fontWeight:600,fontSize:26,color:winner==='ai'?DS.ember:DS.slate,letterSpacing:'0.06em'}}>{aiHandName}</div>
       </div>
       <div style={{padding:'16px 40px',borderRadius:12,textAlign:'center',
         background:winner==='player'?DS.voltage+'18':winner==='ai'?DS.ember+'18':DS.slate+'18',
         border:`3px solid ${winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}`,
         boxShadow:winner==='player'?`0 0 32px ${DS.voltage}66`:winner==='ai'?`0 0 32px ${DS.ember}55`:'none',
         animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1)'}}>
-        <div style={{fontFamily:F.display,fontSize:42,letterSpacing:'0.04em',
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:42,letterSpacing:'0.04em',
           color:winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}}>
           {winner==='player'?'YOU WIN!':winner==='ai'?'OPPONENT WINS.':'TIE'}
         </div>
@@ -111,7 +112,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             </div>
           ))}
         </div>
-        <div style={{fontFamily:F.display,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
+        <div style={{fontFamily:F.display,fontWeight:600,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
         <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>YOU</div>
       </div>
       <button onClick={onDismiss} style={{background:DS.voltage,color:DS.ink,border:'none',
@@ -132,7 +133,7 @@ export function FullScrapLightbox({ onDone }) {
     const canvas=canvasRef.current; if(!canvas) return;
     const ctx=canvas.getContext('2d');
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-    const pts=[]; const cols=[DS.voltage,DS.ember,DS.frost,DS.slateLight,'#fff','#ff99cc','#ccff66'];
+    const pts=[]; const cols=[DS.gold,DS.ember,DS.frost,DS.canopy,'#fff','#F2A68C','#D9CB6B'];
     function burst(x,y,n=100){
       for(let i=0;i<n;i++){
         const a=(Math.PI*2/n)*i+Math.random()*.4,s=3+Math.random()*9;
@@ -146,7 +147,7 @@ export function FullScrapLightbox({ onDone }) {
     setTimeout(()=>setPhase(1),600);
     let raf;
     function draw(){
-      ctx.fillStyle='rgba(28,28,40,0.1)';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='rgba(20,31,25,0.1)';ctx.fillRect(0,0,canvas.width,canvas.height);
       for(let i=pts.length-1;i>=0;i--){
         const p=pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.life-=p.decay;
         if(p.life<=0){pts.splice(i,1);continue;}
@@ -168,35 +169,36 @@ export function FullScrapLightbox({ onDone }) {
           justifyContent:'center',flexDirection:'column',gap:20,padding:24}}>
           <div style={{
             fontFamily:F.display,
+            fontWeight:700,
             fontSize:'clamp(56px,13vw,112px)',
-            color:DS.voltage,
-            textShadow:`0 0 40px ${DS.voltage},0 0 80px ${DS.voltage}88`,
+            color:DS.gold,
+            textShadow:`0 0 40px ${DS.gold},0 0 80px ${DS.gold}88`,
             animation:'fullScrapPop 0.5s cubic-bezier(.34,1.8,.64,1)',
             letterSpacing:'0.04em',whiteSpace:'nowrap',textAlign:'center',
           }}>FULL SCRAP!</div>
           <div style={{
-            background:DS.inkLight,border:`3px solid ${DS.voltage}`,
+            background:DS.inkLight,border:`3px solid ${DS.gold}`,
             borderRadius:16,padding:'24px 40px',textAlign:'center',
-            boxShadow:`0 0 40px ${DS.voltage}55`,
+            boxShadow:`0 0 40px ${DS.gold}55`,
             animation:'slideUp 0.4s ease 0.2s both',
           }}>
             <div style={{fontFamily:F.ui,color:DS.frost,fontSize:22,fontWeight:700,lineHeight:1.6}}>
               You won both small hands<br/>and the Scraps hand!
             </div>
-            <div style={{fontFamily:F.display,color:DS.voltage,fontSize:36,
+            <div style={{fontFamily:F.display,fontWeight:700,color:DS.gold,fontSize:36,
               letterSpacing:'0.08em',marginTop:12}}>
               ENJOY THIS BONUS POINT!
             </div>
-            <div style={{fontFamily:F.mono,color:DS.voltage,fontSize:28,marginTop:6}}>
+            <div style={{fontFamily:F.mono,color:DS.gold,fontSize:28,marginTop:6}}>
               +5 TOTAL
             </div>
           </div>
           <button onClick={onDone} style={{
-            background:DS.voltage,color:DS.ink,border:'none',
+            background:DS.gold,color:DS.ink,border:'none',
             padding:'16px 52px',borderRadius:10,cursor:'pointer',
             fontFamily:F.ui,fontWeight:700,fontSize:19,
             letterSpacing:'0.1em',textTransform:'uppercase',
-            boxShadow:`0 0 28px ${DS.voltage}88`,
+            boxShadow:`0 0 28px ${DS.gold}88`,
             animation:'slideUp 0.4s ease 0.4s both',
           }}>Let's Go! →</button>
         </div>
@@ -218,7 +220,7 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
     // Five-second fanfare starts with the screen. It's scheduled on
     // the audio clock, so nothing below waits on it.
     playGrandFanfare();
-    const pts=[]; const cols=[DS.voltage,DS.ember,DS.frost,DS.slateLight,'#fff','#ff99cc','#ccff66','#99ccff'];
+    const pts=[]; const cols=[DS.gold,DS.ember,DS.frost,DS.canopy,'#fff','#F2A68C','#D9CB6B','#B8874A'];
     function burst(x,y,n=120){
       playFireworkPop(); // one pop per visual explosion
       for(let i=0;i<n;i++){
@@ -239,7 +241,7 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
     setTimeout(()=>setTextPhase(1),500);
     let raf;
     function draw(){
-      ctx.fillStyle='rgba(28,28,40,0.08)';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='rgba(20,31,25,0.08)';ctx.fillRect(0,0,canvas.width,canvas.height);
       for(let i=pts.length-1;i>=0;i--){
         const p=pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life-=p.decay;
         if(p.life<=0){pts.splice(i,1);continue;}
@@ -266,9 +268,10 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
               {lines.map((l,i)=>(
                 <div key={i} style={{
                   fontFamily:F.display,
+                  fontWeight:700,
                   fontSize:i<=1?'clamp(34px,7vw,64px)':i===2?'clamp(28px,6vw,52px)':'clamp(24px,5vw,46px)',
-                  color:i===0||i===1?DS.voltage:i===2?DS.ember:DS.frost,
-                  textShadow:`0 0 30px ${i<=1?DS.voltage:DS.ember}`,
+                  color:i===0||i===1?DS.gold:i===2?DS.ember:DS.frost,
+                  textShadow:`0 0 30px ${i<=1?DS.gold:DS.ember}`,
                   letterSpacing:'0.04em',lineHeight:1,
                   animation:`letterAppear 0.5s cubic-bezier(.34,1.6,.64,1) ${i*.12}s both`,
                 }}>{l}</div>
@@ -279,9 +282,9 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
               animation:'slideUp 0.4s ease 0.7s both'}}>
               <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
                 letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-              <div style={{fontFamily:F.display,color:DS.voltage,lineHeight:1,
+              <div style={{fontFamily:F.display,fontWeight:700,color:DS.gold,lineHeight:1,
                 fontSize:'clamp(110px,22vw,220px)',letterSpacing:'0.03em',
-                textShadow:`0 0 50px ${DS.voltage}aa, 0 0 100px ${DS.voltage}55`}}>
+                textShadow:`0 0 50px ${DS.gold}aa, 0 0 100px ${DS.gold}55`}}>
                 {playerScore}–{aiScore}
               </div>
               {margin!=null&&(
@@ -291,10 +294,10 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
                     letterSpacing:'0.14em'}}>WON BY {margin}</span>
                   {isNewRecord?(
                     <span style={{display:'inline-flex',alignItems:'center',gap:8,
-                      fontFamily:F.mono,fontSize:16,fontWeight:700,color:DS.voltage,
-                      letterSpacing:'0.14em',background:DS.voltage+'18',
-                      border:`1px solid ${DS.voltage}88`,borderRadius:20,padding:'4px 16px',
-                      boxShadow:`0 0 18px ${DS.voltage}55`,
+                      fontFamily:F.mono,fontSize:16,fontWeight:700,color:DS.gold,
+                      letterSpacing:'0.14em',background:DS.gold+'18',
+                      border:`1px solid ${DS.gold}88`,borderRadius:20,padding:'4px 16px',
+                      boxShadow:`0 0 18px ${DS.gold}55`,
                       animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1) 1.1s both'}}>
                       <IconTrophy size={16}/> NEW BEST MARGIN
                     </span>
@@ -307,11 +310,11 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
             </div>
             <div style={{display:'flex',gap:16,animation:'slideUp 0.4s ease 0.9s both'}}>
               <button onClick={onNewGame} style={{
-                background:DS.voltage,color:DS.ink,border:'none',
+                background:DS.gold,color:DS.ink,border:'none',
                 padding:'16px 48px',borderRadius:10,cursor:'pointer',
                 fontFamily:F.ui,fontWeight:700,fontSize:18,
                 letterSpacing:'0.1em',textTransform:'uppercase',
-                boxShadow:`0 0 28px ${DS.voltage}88`,
+                boxShadow:`0 0 28px ${DS.gold}88`,
               }}>NEW GAME</button>
             </div>
           </>
@@ -334,13 +337,13 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
       display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:28}}>
       <SwirlBg/>
       <div style={{position:'relative',zIndex:1,textAlign:'center'}}>
-        <div style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,60px)',
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:'clamp(34px,7vw,60px)',
           color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
         <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
           letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-        <div style={{fontFamily:F.display,color:DS.frost,lineHeight:1,
+        <div style={{fontFamily:F.display,fontWeight:700,color:DS.frost,lineHeight:1,
           fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
-          marginBottom:36,textShadow:'0 0 40px rgba(245,245,250,0.25)'}}>
+          marginBottom:36,textShadow:'0 0 40px rgba(237,227,208,0.25)'}}>
           {playerScore}–{aiScore}
         </div>
         <button onClick={onNewGame} style={{background:DS.voltage,color:DS.ink,border:'none',
@@ -357,12 +360,12 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 // ─────────────────────────────────────────────────────────────
 export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
-        <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
           They will remove two cards from your Scraps pile.
@@ -407,12 +410,12 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
 // ─────────────────────────────────────────────────────────────
 export function OpponentAceReveal({ targets, onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
-        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           OPPONENT plays an Ace and removes two cards from your Scraps
         </div>
@@ -435,12 +438,12 @@ export function OpponentAceReveal({ targets, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function AiCounterNotice({ playerAce, aiAce, onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
-        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           Opponent counters your Ace!
         </div>
@@ -479,13 +482,13 @@ export function RulesModal({ onClose }) {
     {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
   return (
-    <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(26,26,46,.94)',
+    <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(20,31,25,.94)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:DS.duskMid,
         border:`2px solid ${DS.slate}44`,borderRadius:16,padding:'34px 40px',
         maxWidth:820,width:'100%',maxHeight:'88vh',overflowY:'auto'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
-          <h2 style={{fontFamily:F.display,color:DS.voltage,fontSize:40,letterSpacing:'0.06em'}}>Rules</h2>
+          <h2 style={{fontFamily:F.display,fontWeight:700,color:DS.voltage,fontSize:40,letterSpacing:'0.06em'}}>Rules</h2>
           <Btn small variant="ghost" onClick={onClose}>Close</Btn>
         </div>
         {rules.map((r,i)=>(
@@ -528,12 +531,12 @@ export function TutorialOverlay({ step, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function SkipTurnModal({ onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(26,26,46,.92)',
+    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.slate}`,
         borderRadius:16,padding:32,maxWidth:520,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.slate}44`}}>
-        <div style={{fontFamily:F.display,fontSize:34,color:DS.frost,
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:34,color:DS.frost,
           letterSpacing:'0.06em',marginBottom:14}}>NO LEGAL TRADES</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
           You have no legal trades available. Your trade is skipped.

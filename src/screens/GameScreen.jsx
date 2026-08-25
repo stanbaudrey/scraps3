@@ -805,7 +805,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
               flexShrink:1, flexBasis:760, maxWidth:760,
               display:'flex',flexDirection:'column',alignItems:'center',gap:10,
               padding:'14px 20px',
-              background:`rgba(26,26,40,0.7)`,
+              background:`rgba(20,31,25,0.7)`,
               border:`1px solid ${DS.slate}22`,
               borderRadius:14,
             }}>
@@ -843,7 +843,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
                       <TradeInBtn onClick={doTradeIn} disabled={selected.length===0} count={selected.length}/>
                     )}
                     {playerHasAce&&aiScraps.length>=2&&(
-                      <BigBtn variant="danger" onClick={doPlayAce}>
+                      <BigBtn variant="gold" onClick={doPlayAce}>
                         <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
                           Play Ace <IconBolt size={18}/>
                         </span>
@@ -858,7 +858,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
                 )}
                 {aceMode&&(
                   <>
-                    <BigBtn variant="danger" onClick={confirmAce} disabled={aceTargets.length!==2}>
+                    <BigBtn variant="gold" onClick={confirmAce} disabled={aceTargets.length!==2}>
                       Remove ({aceTargets.length}/2)
                     </BigBtn>
                     <BigBtn variant="ghost" onClick={()=>{setAceMode(false);setAceTargets([]);}}>Cancel</BigBtn>

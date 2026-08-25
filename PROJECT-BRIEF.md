@@ -537,6 +537,69 @@ aspirational.
 **Done when:** the game is fully playable (hand visible, no clipping) at
 1280×720 and smaller, and a color change only needs editing one file.
 
+### Unplanned session — Forest/national-park brand reskin ✅ Done (2026-08-25)
+
+**Not one of the seven planned sessions above — a full visual identity
+pivot Stan asked for directly, done between Session 1 and Session 2.** Two
+brand directions were explored in chat first (a "gzhel" Russian-porcelain
+direction, then this one); this session executed the forest direction only.
+The gzhel exploration was never implemented in code — it's preserved as a
+portable, project-agnostic style guide at
+`~/Projects/.claude/styles/gzhel.md` for a future project, not part of this
+repo.
+
+**What changed:** every `DS` color token in `theme.js` was reassigned from
+the neon-arcade palette (`voltage` acid green, `ember` hot pink, `dusk`
+navy, `slate` cool grey) to a warm "Forest Dusk" palette — deep pine
+backgrounds, a warm parchment `frost`, `ember` recolored to a warm orange
+(opponent/red-suits/danger), `voltage` recolored to a bright leaf green
+(yours/active), plus three new tokens: `gold` (reserved strictly for
+milestones — Full Scrap, the win screen, and playing your own Ace, never
+general UI), `goldHover`, and `canopy` (decorative pine green for
+illustration only, not UI chrome). **Token names are unchanged** — every
+consuming component picked up the new palette automatically — but every
+specific hex value Session 1's notes reference above is now stale.
+
+Fonts changed too: Bebas Neue/Righteous/Space Grotesk/Space Mono →
+Spectral (display + card, semibold/bold, italic for the wordmark) / Work
+Sans (UI) / IBM Plex Mono (mono), still loaded from Google Fonts —
+**Session 6's opening prompt still names the old four font files; it needs
+updating to self-host Spectral/Work Sans/IBM Plex Mono instead** before
+that session runs.
+
+Beyond the token swap: `CardBackSVG` in `cards.jsx` was redrawn from a
+diamond-pattern back into a layered ridge-line/pine-canopy scene with a low
+gold glow; `SwirlBg` in `backdrop.jsx` was redrawn from three neon radial
+gradients into a soft warm dawn/dusk wash; a new `gold` button variant was
+added to `Btn`/`BigBtn` and wired to the player's own "Play Ace"/"confirm
+Ace" actions specifically (the opponent-plays-ace threat modals stay in the
+ember/danger register — that split was a deliberate call, not an oversight,
+since the two events have opposite narrative framing: playing your own Ace
+is a milestone, an opponent's Ace against you is a threat). Full Scrap and
+Win screen recolored from `voltage` to `gold` throughout, including their
+fireworks palettes, which Session 1 explicitly left alone as "deliberate
+decorative extras" — that call is superseded here, since keeping neon
+pink/lime/sky-blue confetti against a warm palette would have looked wrong.
+Several hardcoded `rgba()` literals matching the old navy (modal scrims,
+canvas fade trails, one text-shadow) were also found and updated to match —
+these had slipped through Session 1's consolidation because they were raw
+RGB arithmetic, not `DS.token` references, so a token-only grep wouldn't
+catch them.
+
+**Confirmed working:** all 37 tests pass, production build succeeds.
+Verified live in-browser: splash screen, rules panel, difficulty picker,
+the main game table, the fanned hand (both face-up and the new card-back
+scene face-down), card selection glow, and the hint banner. **Not verified
+live** — reasoned through the code but not clicked through in a real
+playthrough: the Full Scrap celebration, the Win/Lose screens, and the
+three Ace modals. Worth a look before this goes to preview.
+
+**Not touched this session:** balance (Session 2), mobile/responsive
+(Session 3), sound (Session 4), the accessibility/UX audit (Session 5,
+though the menu-`<div>` and contrast issues it flags still apply unchanged
+under the new palette), and font self-hosting (Session 6, now pointed at
+the wrong font names — see above). Not yet pushed to preview or production.
+
 ### Session 2 — Game balance discussion
 **Goal:** decide together whether and how to even out the Scraps hand's
 odds, grounded in the actual draw/trade logic, not just a hunch.
@@ -661,6 +724,7 @@ Show HN posts are live using the drafted copy.
 | # | Session | Status |
 |---|---|---|
 | 1 | Fix what's actually broken (clipping, color tokens) | Done |
+| — | *Unplanned:* Forest/national-park brand reskin | Done |
 | 2 | Game balance discussion | Not started |
 | 3 | Mobile and responsive QA | Not started |
 | 4 | Sound identity | Not started |

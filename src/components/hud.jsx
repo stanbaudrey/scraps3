@@ -64,7 +64,7 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
       <div style={{display:'flex',flexDirection:'column',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>YOU</span>
         <span style={{
-          fontFamily:F.display,fontSize:96,color:DS.voltage,lineHeight:0.95,
+          fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.voltage,lineHeight:0.95,
           animation:playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           display:'inline-block',
         }}>{playerScore}</span>
@@ -82,7 +82,7 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1}}>
         <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
         <span style={{
-          fontFamily:F.display,fontSize:96,color:DS.ember,lineHeight:0.95,
+          fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.ember,lineHeight:0.95,
           animation:aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           display:'inline-block',
         }}>{aiScore}</span>

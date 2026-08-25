@@ -15,11 +15,12 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
   const V={
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}55`},
     ghost:{background:'transparent',color:DS.frost,border:`2px solid ${DS.slate}`,boxShadow:'none'},
-    danger:{background:DS.ember,color:DS.frost,boxShadow:disabled?'none':`0 0 20px ${DS.ember}55`},
+    danger:{background:DS.ember,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.ember}55`},
     muted:{background:DS.duskMid,color:DS.slate,border:`1px solid ${DS.slate}44`},
     green:{background:'transparent',color:DS.voltage,border:`2px solid ${DS.voltage}`,boxShadow:disabled?'none':`0 0 14px ${DS.voltage}33`},
     sky:{background:DS.slate,color:DS.ink,boxShadow:'none'},
     warning:{background:'transparent',color:DS.voltage,border:`2px solid ${DS.voltage}88`,boxShadow:'none'},
+    gold:{background:DS.gold,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.gold}66`},
   };
   const hIn=(e)=>{
     if(disabled) return;
@@ -30,6 +31,7 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     if(variant==='green'){el.style.background=DS.voltage+'22';el.style.boxShadow=`0 0 20px ${DS.voltage}66`;}
     if(variant==='sky'){el.style.background=DS.slateLight;}
     if(variant==='warning'){el.style.background=DS.voltage+'33';}
+    if(variant==='gold'){el.style.background=DS.goldHover;el.style.boxShadow=`0 0 28px ${DS.gold}`;}
   };
   const hOut=(e)=>{
     const el=e.currentTarget; el.style.transform='scale(1)';
@@ -39,6 +41,7 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     if(variant==='green'){el.style.background='transparent';el.style.boxShadow=disabled?'none':`0 0 14px ${DS.voltage}33`;}
     if(variant==='sky'){el.style.background=DS.slate;}
     if(variant==='warning'){el.style.background='transparent';}
+    if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
   return <button style={{...base,...V[variant]}}
     onMouseEnter={hIn} onMouseLeave={hOut}
@@ -57,10 +60,11 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
   const V = {
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}66`},
     ghost:{background:'transparent',color:DS.frost,border:`2px solid ${DS.slate}`,boxShadow:'none'},
-    danger:{background:DS.ember,color:DS.frost,boxShadow:disabled?'none':`0 0 20px ${DS.ember}66`},
+    danger:{background:DS.ember,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.ember}66`},
     green:{background:'transparent',color:DS.voltage,border:`2px solid ${DS.voltage}`,boxShadow:`0 0 14px ${DS.voltage}44`},
     warning:{background:'transparent',color:DS.voltage,border:`2px solid ${DS.voltage}88`,boxShadow:'none'},
     sky:{background:DS.slate,color:DS.ink,boxShadow:'none'},
+    gold:{background:DS.gold,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.gold}66`},
   };
   const hIn = (e) => {
     if(disabled) return;
@@ -71,6 +75,7 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
     if(variant==='green'){el.style.background=DS.voltage+'33';el.style.boxShadow=`0 0 30px ${DS.voltage}88`;}
     if(variant==='warning'){el.style.background=DS.voltage+'44';}
     if(variant==='sky'){el.style.background=DS.slateLight;}
+    if(variant==='gold'){el.style.background=DS.goldHover;el.style.boxShadow=`0 0 40px ${DS.gold},0 6px 20px rgba(0,0,0,.5)`;}
   };
   const hOut = (e) => {
     const el=e.currentTarget; el.style.transform='scale(1)';
@@ -80,6 +85,7 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
     if(variant==='green'){el.style.background='transparent';el.style.boxShadow=`0 0 14px ${DS.voltage}44`;}
     if(variant==='warning'){el.style.background='transparent';}
     if(variant==='sky'){el.style.background=DS.slate;}
+    if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
   return <button style={{...base,...V[variant]}}
     onMouseEnter={hIn} onMouseLeave={hOut}

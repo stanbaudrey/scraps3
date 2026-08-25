@@ -23,33 +23,33 @@ function cardInk(suit,isScrap){ return isScrap?(isRed(suit)?DS.ember:DS.voltage)
 export function sortByValue(cards){ return [...cards].sort((a,b)=>a.value-b.value); }
 
 // ─────────────────────────────────────────────────────────────
-// CardBackSVG — NEUTRAL back: ink field, slate diamonds.
-// Rows are generated in a loop (the old file hard-coded ~100
-// rects). Deliberately quiet so the player's own hand and the
-// action zone stay the brightest things on the table.
+// CardBackSVG — NEUTRAL back: a quiet dusk ridgeline scene.
+// Three soft, hand-drawn hill layers recede into a warm haze,
+// with a low gold glow standing in for the sun. Deliberately
+// quiet so the player's own hand and the action zone stay the
+// brightest things on the table — no framing device, no crest.
 // ─────────────────────────────────────────────────────────────
 export function CardBackSVG({ w, h }) {
-  const diamonds = [];
-  for (let r = 0; r < 15; r++) {
-    const y = -6 + r * 12;
-    const xStart = r % 2 === 0 ? -5 : 5;
-    for (let x = xStart; x <= 115; x += 20) {
-      diamonds.push(
-        <rect key={`${r}-${x}`} x={x} y={y} width="10" height="10" rx="1"
-          transform={`rotate(45 ${x+5} ${y+5})`}
-          fill={DS.slate} opacity={r % 2 === 0 ? 0.2 : 0.14}/>
-      );
-    }
-  }
   return (
     <svg width={w} height={h} viewBox="0 0 120 178" preserveAspectRatio="xMidYMid slice"
       xmlns="http://www.w3.org/2000/svg"
       style={{position:'absolute',inset:0,borderRadius:12,display:'block'}}>
-      <rect width="120" height="178" fill={DS.ink}/>
-      {diamonds}
-      <text x="60" y="92" textAnchor="middle" dominantBaseline="middle"
-        fontFamily="'Bebas Neue', sans-serif" fontSize="56"
-        fill={DS.frost} opacity="0.06" letterSpacing="2">S</text>
+      <rect width="120" height="178" fill={DS.dusk}/>
+      {/* low sun / moon glow */}
+      <circle cx="60" cy="46" r="20" fill={DS.gold} opacity="0.10"/>
+      <circle cx="60" cy="46" r="10" fill={DS.gold} opacity="0.22"/>
+      {/* back ridge — furthest, faintest */}
+      <path d="M0,118 C18,100 38,112 60,96 C82,80 100,106 120,90 L120,178 L0,178 Z"
+        fill={DS.canopy} opacity="0.28"/>
+      {/* mid ridge */}
+      <path d="M0,140 C16,120 36,134 58,116 C80,98 98,128 120,112 L120,178 L0,178 Z"
+        fill={DS.canopy} opacity="0.5"/>
+      {/* near ridge — darkest, nearly opaque */}
+      <path d="M0,160 C20,138 44,152 66,130 C86,110 102,140 120,126 L120,178 L0,178 Z"
+        fill={DS.ink} opacity="0.92"/>
+      {/* winding river, low opacity */}
+      <path d="M0,172 C24,166 30,176 52,170 C74,164 82,174 120,168"
+        fill="none" stroke={DS.gold} strokeWidth="1.4" opacity="0.22" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -121,8 +121,8 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
       )}
       {!faceDown&&card&&(
         <div style={{display:'flex',alignItems:'center',gap:1,lineHeight:1,zIndex:1}}>
-          <span style={{fontFamily:F.card,fontSize:rankFs,color:ink,lineHeight:1}}>{card.rank}</span>
-          <span style={{fontFamily:F.card,fontSize:d.suit,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
+          <span style={{fontFamily:F.card,fontWeight:600,fontSize:rankFs,color:ink,lineHeight:1}}>{card.rank}</span>
+          <span style={{fontFamily:F.card,fontWeight:600,fontSize:d.suit,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
         </div>
       )}
     </div>

@@ -39,7 +39,7 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
       // Color transition mid-flight for scraps
       if(toIsScrap && !faceDown && e > 0.45) {
         const f = Math.min((e-0.45)/0.55, 1);
-        const r1=[245,245,250], r2=[26,26,46];
+        const r1=[237,227,208], r2=[36,28,20];
         const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*f));
         el.style.background = `rgb(${bg.join(',')})`;
         el.style.borderColor = card&&(card.suit==='♥'||card.suit==='♦')?DS.ember:DS.voltage;
@@ -68,12 +68,12 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
       boxShadow:'0 12px 40px rgba(0,0,0,.7)', transition:'none',
     }}>
       {faceDown?(
-        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:30,
+        <span style={{fontFamily:"'Spectral',serif",fontWeight:700,fontSize:30,
           color:DS.frost,opacity:0.12,letterSpacing:'0.1em'}}>S</span>
       ):card&&(
         <div style={{display:'flex',alignItems:'center',gap:1}}>
-          <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
-          <span style={{fontFamily:"'Righteous',sans-serif",fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
+          <span style={{fontFamily:"'Spectral',serif",fontWeight:600,fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
+          <span style={{fontFamily:"'Spectral',serif",fontWeight:600,fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
         </div>
       )}
     </div>

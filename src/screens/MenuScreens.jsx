@@ -29,7 +29,7 @@ export function SplashScreen({ onStart }) {
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         {page===0&&(
           <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-            <div style={{fontFamily:F.display,fontSize:64,color:DS.slate,letterSpacing:'0.18em',
+            <div style={{fontFamily:F.display,fontWeight:600,fontSize:64,color:DS.slate,letterSpacing:'0.18em',
               marginBottom:10}}>♠ ♥ ♦ ♣</div>
             <AnimatedTitle/>
             <Btn onClick={()=>setPage(1)}>Rules</Btn>
@@ -37,7 +37,7 @@ export function SplashScreen({ onStart }) {
         )}
         {page===1&&(
           <div style={{animation:'fadeUp .4s ease'}}>
-            <h2 style={{fontFamily:F.display,fontSize:44,color:DS.frost,marginBottom:22,
+            <h2 style={{fontFamily:F.display,fontWeight:700,fontSize:44,color:DS.frost,marginBottom:22,
               textAlign:'center',letterSpacing:'0.06em'}}>RULES</h2>
             <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:28}}>
               {ov.map((item,i)=>(
@@ -60,7 +60,7 @@ export function SplashScreen({ onStart }) {
         )}
         {page===2&&(
           <div style={{animation:'fadeUp .4s ease',textAlign:'center'}}>
-            <h2 style={{fontFamily:F.display,fontSize:44,color:DS.frost,marginBottom:10,letterSpacing:'0.06em'}}>READY?</h2>
+            <h2 style={{fontFamily:F.display,fontWeight:700,fontSize:44,color:DS.frost,marginBottom:10,letterSpacing:'0.06em'}}>READY?</h2>
             <p style={{fontFamily:F.ui,color:DS.slate,fontSize:18,marginBottom:28,fontWeight:500}}>Choose your path</p>
             <div style={{display:'flex',flexDirection:'column',gap:14,maxWidth:400,margin:'0 auto'}}>
               {[
@@ -95,7 +95,7 @@ export function DifficultyPicker({ onChoose, onBack }) {
       justifyContent:'center',background:DS.dusk,padding:24,position:'relative',overflow:'hidden'}}>
       <SwirlBg/>
       <div style={{maxWidth:460,width:'100%',position:'relative',zIndex:1}}>
-        <h2 style={{fontFamily:F.display,fontSize:44,color:DS.frost,marginBottom:10,
+        <h2 style={{fontFamily:F.display,fontWeight:700,fontSize:44,color:DS.frost,marginBottom:10,
           textAlign:'center',letterSpacing:'0.06em'}}>DIFFICULTY</h2>
         <p style={{fontFamily:F.ui,color:DS.slate,fontSize:17,textAlign:'center',
           marginBottom:26,fontWeight:500}}>Affects how the opponent thinks — not the rules.</p>
