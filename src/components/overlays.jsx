@@ -471,7 +471,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function RulesModal({ onClose }) {
   const rules=[
-    {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two decks. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
     {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
     {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
     {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},

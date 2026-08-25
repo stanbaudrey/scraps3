@@ -23,11 +23,9 @@ export const SCRAPS_LIMIT = 7;
 export function createDeck() {
   const deck = [];
   let id = 0;
-  for (let d = 0; d < 2; d++) {
-    for (const suit of SUITS) {
-      for (const rank of RANKS) {
-        deck.push({ id: id++, rank, suit, value: RANK_VALUES[rank] });
-      }
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      deck.push({ id: id++, rank, suit, value: RANK_VALUES[rank] });
     }
   }
   return deck;

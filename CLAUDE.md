@@ -52,9 +52,10 @@ looks broken locally, it is not a missing-secret problem.
 
 ## Where things live
 
-- **`src/game/engine.js`** (742 lines) — pure game rules. Deck (two full
-  52-card decks, 104 cards), shuffling, hand evaluation, signal validation,
-  trade legality, and the AI's decision-making. No React, no side effects.
+- **`src/game/engine.js`** (~750 lines) — pure game rules. Deck (a single
+  52-card deck — see Session 2's balance fix in PROJECT-BRIEF.md), shuffling,
+  hand evaluation, signal validation, trade legality, and the AI's
+  decision-making. No React, no side effects.
 - **`src/game/reducer.js`** (565 lines) — the state machine. One pure reducer
   owns all game state: cards, scores, signals, and the phase. Turn order is
   dealer-aware and the dealer alternates each round; the non-dealer acts
@@ -86,9 +87,14 @@ looks broken locally, it is not a missing-secret problem.
 
 ## Gotchas
 
-- **Two decks, not one.** `createDeck()` builds 104 cards, so duplicate cards
-  are normal and expected. Anything that assumes card uniqueness by
-  rank+suit is wrong; cards carry a unique `id` for that reason.
+- **One deck now, not two.** `createDeck()` used to build two full 52-card
+  decks (104 cards, 8 copies of every rank) — deliberate at the time, but it
+  turned out to be why four-of-a-kind Scraps hands came up far more than a
+  normal deck would produce (confirmed by simulation in Session 2: quads in
+  2.8% of rounds at two decks vs. 0.7% at one). Session 2 switched it back to
+  a single 52-card deck to fix that. Cards still carry a unique `id` — no
+  longer load-bearing for uniqueness now that rank+suit is unique again, but
+  nothing assumes otherwise, so it was left in place rather than ripped out.
 - **The reducer is pure on purpose.** Its header notes it replaced an older
   pattern of `setState` nested inside other `setState` updaters, which
   double-fired under React StrictMode and duplicated AI draws and log lines.

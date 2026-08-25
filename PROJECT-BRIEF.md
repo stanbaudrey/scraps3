@@ -537,7 +537,58 @@ aspirational.
 **Done when:** the game is fully playable (hand visible, no clipping) at
 1280×720 and smaller, and a color change only needs editing one file.
 
-### Session 2 — Game balance discussion
+### Session 2 — Game balance discussion ✅ Done (2026-08-25)
+
+**Notes:** simulated the actual draw/trade/Ace logic in `engine.js` (20,000
+AI-vs-AI rounds on 'hard' difficulty, both sides playing full trade and
+Ace strategy) rather than deriving odds by hand. Real numbers, two decks
+(the code as it stood): Quads appeared in 1.4% of individual Scraps hands,
+and at least one player ended a round with Quads 2.8% of the time (2 of
+20,000 rounds had both players with Quads simultaneously). Full House ran
+5.3%. Re-ran the identical simulation against a hypothetical single
+52-card deck: Quads dropped to 0.4% of hands / 0.7% of rounds — roughly a
+4x drop — with Full House also down to 3.5%. Confirms Stan's hunch and
+the brief's own hypothesis: the two-deck design (8 copies of every rank
+instead of 4) was structurally inflating quad frequency.
+
+Also checked deck-exhaustion risk before recommending single-deck as safe:
+simulated per-round card consumption (dealing plus every trade's draw) —
+two decks averaged 24.9 cards consumed/round with 78 minimum remaining
+seen across 20,000 rounds; one deck averaged 25.1 consumed with 26 minimum
+remaining seen, and never ran dry in any trial. A single 52-card deck has
+enough slack for a full round every time.
+
+Stan picked **switch to a single 52-card deck** (of the four options in
+Section 4) over trade-legality changes, scoring rebalance, or a cooldown.
+Implemented in `createDeck()` (`engine.js`) — one loop instead of two.
+`id` stays on each card for compatibility even though rank+suit is unique
+again; nothing needed it removed.
+
+Found and fixed one regression from the deck-size change while verifying:
+the tutorial's rigged deal (`buildRoundDeal` in `reducer.js`) seeds the
+AI's starting Scraps with two 5s to force a four-of-a-kind setup. It only
+pooled 5s from `remainingDeck`/`aiScraps`, which was safe with 8 copies of
+each rank in the shoe but wasn't reliable with only 4 — simulation showed
+the guarantee drop from 100% (two decks) to 95.8% (one deck) before the
+fix. Fixed by pooling every 5 currently in play (hand, scraps, and deck,
+for both players) and backfilling any slot that loses one with a
+substitute card — verified back to 100% across 5,000 simulated tutorial
+deals. Separately noticed, but did **not** fix (pre-existing, unrelated to
+deck size, unaffected by this fix): the AI's actual first tutorial trade
+(`GameScreen.jsx`, the `ai-turn-1a` script override) only plays the seeded
+5s if they land naturally in the AI's dealt hand, which simulation shows
+happens ~4% of the time regardless of deck size — the rest of the time it
+silently falls back to generic trade logic while still logging "Opponent
+trades in two 5s." Worth a look in a future session; out of scope here.
+
+Also updated the "game of twos" rules blurb in `MenuScreens.jsx` and
+`overlays.jsx`, which explicitly said "Two decks" — changed to "Two
+hands" so the in-app rules text doesn't contradict the new engine. Updated
+CLAUDE.md's two-deck gotcha to describe the current single-deck reality
+and this session's reasoning.
+
+All 37 tests pass, production build succeeds.
+
 **Goal:** decide together whether and how to even out the Scraps hand's
 odds, grounded in the actual draw/trade logic, not just a hunch.
 **Bring:** this brief (Section 4), CLAUDE.md's gotcha about the two-deck
@@ -661,7 +712,7 @@ Show HN posts are live using the drafted copy.
 | # | Session | Status |
 |---|---|---|
 | 1 | Fix what's actually broken (clipping, color tokens) | Done |
-| 2 | Game balance discussion | Not started |
+| 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Not started |
 | 4 | Sound identity | Not started |
 | 5 | Design and UX audit | Not started |
