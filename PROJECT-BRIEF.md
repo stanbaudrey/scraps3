@@ -506,7 +506,19 @@ pinned to port 5193, but no config for that existed anywhere. It does now.
 All 37 tests pass, production build succeeds, verified live at 1280×720 and
 1280×650 in-browser (card selection, trade-in flight animation, and the
 Begin Round interstitial all render with the consolidated colors correctly).
-Committed to `dev` — not yet previewed or published.
+Previewed, then published to `main` — live at
+[scraps3.vercel.app](https://scraps3.vercel.app).
+
+An `/impeccable critique` ran on `GameScreen.jsx` before the merge (required
+on every publish, not just the first): **29/40, Good**. Nothing it found
+blocks this session's actual changes — the P1s (no skip/undo on chained
+animations, bounce easing used even on error states, card selection has zero
+keyboard path — a gap bigger than the already-tracked menu-`<div>` issue)
+are all pre-existing and already fall inside Session 5's planned
+design/UX/accessibility audit, so they're not new debt from this session.
+Full report: `.impeccable/critique/2026-08-25T00-02-56Z__src-screens-gamescreen-jsx.md`.
+Worth reading before Session 5 starts — it's more specific than this brief's
+existing accessibility notes about how deep the keyboard gap actually goes.
 
 **Goal:** the game works everywhere and the color system is real, not
 aspirational.
