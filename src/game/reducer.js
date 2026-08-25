@@ -135,28 +135,39 @@ export function buildRoundDeal(mode, alternate) {
         remainingDeck = remainingDeck.filter((_, i) => i !== next);
       } else break;
     }
-    // Set AI starting Scraps to two 5s (scripted for four-of-a-kind setup)
+    // Set AI starting Scraps to two 5s (scripted for four-of-a-kind setup).
+    // A single 52-card deck has only four 5s total (vs eight with the old
+    // two-deck shoe), so this pools every 5 currently in play — not just
+    // whatever landed in remainingDeck/aiScraps — and backfills any hand
+    // or scraps slot that loses one with a substitute card. Without this,
+    // a 5 dealt into the player's hand/scraps or the AI's hand would be
+    // unreachable and the rigged setup could fall short of two 5s.
+    const splitFives = (arr) => ({
+      fives: arr.filter(c => c.rank === '5'),
+      rest: arr.filter(c => c.rank !== '5'),
+    });
+    const pHandSplit = splitFives(playerHand);
+    const aHandSplit = splitFives(aiHand);
+    const pScrapsSplit = splitFives(playerScrapsInit);
+    const aScrapsSplit = splitFives(aiScrapsInit);
+    const deckSplit = splitFives(remainingDeck);
     const allFives = [
-      ...remainingDeck.filter(c => c.rank === '5'),
-      ...aiScrapsInit.filter(c => c.rank === '5'),
+      ...pHandSplit.fives, ...aHandSplit.fives,
+      ...pScrapsSplit.fives, ...aScrapsSplit.fives,
+      ...deckSplit.fives,
     ];
     if (allFives.length >= 2) {
-      const fivesToUse = allFives.slice(0, 2);
-      const fiveIds = new Set(fivesToUse.map(c => c.id));
-      const origAiScraps = aiScrapsInit.filter(c => !fiveIds.has(c.id));
-      remainingDeck = remainingDeck.filter(c => !fiveIds.has(c.id));
-      remainingDeck = [...origAiScraps, ...remainingDeck];
-      aiScrapsInit = fivesToUse;
-      // Also put 2 more 5s at top of AI's hand pool: seed them into the
-      // AI hand so the scripted first AI turn can trade them in
-      const moreFives = remainingDeck.filter(c => c.rank === '5').slice(0, 2);
-      if (moreFives.length === 2) {
-        const moreFiveIds = new Set(moreFives.map(c => c.id));
-        remainingDeck = [
-          ...moreFives,
-          ...remainingDeck.filter(c => !moreFiveIds.has(c.id)),
-        ];
-      }
+      let nonFiveDeck = deckSplit.rest;
+      const take = (n) => { const t = nonFiveDeck.slice(0, n); nonFiveDeck = nonFiveDeck.slice(n); return t; };
+      playerHand = [...pHandSplit.rest, ...take(pHandSplit.fives.length)];
+      aiHand = [...aHandSplit.rest, ...take(aHandSplit.fives.length)];
+      playerScrapsInit = [...pScrapsSplit.rest, ...take(pScrapsSplit.fives.length)];
+
+      aiScrapsInit = allFives.slice(0, 2);
+      // Any remaining 5s (up to 2) go to the top of the deck so the
+      // scripted first AI turn can trade them in for the quad.
+      const moreFives = allFives.slice(2, 4);
+      remainingDeck = [...moreFives, ...nonFiveDeck];
     }
   }
 
