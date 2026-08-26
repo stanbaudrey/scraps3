@@ -447,20 +447,26 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
       <div style={{
         width: innerW + 20,
         background:DS.inkLight, border:`2px solid ${borderCol}`,
-        borderRadius:12, padding:'8px 10px 10px',
+        borderRadius:12, padding:'8px 10px 6px',
         boxShadow: discardMode?`0 0 22px ${DS.voltage}66`
           :isOpponent?`0 0 10px ${DS.ember}33`:`0 0 10px ${DS.voltage}22`,
         transition:'border-color 0.2s', flexShrink:0,
       }}>
-        {/* In-zone header: ownership label left, best-hand badge right */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-          gap:10,marginBottom:6,padding:'0 2px'}}>
+        {/* Header carries the ownership label alone. The best-hand
+            badge used to share this row, but both are nowrap and a
+            260px zone cannot hold "YOUR SCRAPS 5/7" and "FOUR OF A
+            KIND" side by side — measured overflow past the border was
+            17px on FULL HOUSE and 61px on THREE OF A KIND, with HIGH
+            CARD already touching it. The badge moved below the cards,
+            where it gets the zone's full width and matches
+            HandUpgradeBadge's placement under the small hand. */}
+        <div style={{display:'flex',alignItems:'center',
+          marginBottom:5,padding:'0 2px'}}>
           <span style={{fontFamily:F.mono,fontSize:13,fontWeight:700,
             color:discardMode?DS.voltage:isOpponent?DS.ember:DS.voltage,
             letterSpacing:'0.14em',textTransform:'uppercase',whiteSpace:'nowrap'}}>
             {label} <span style={{color:DS.slate,fontWeight:400}}>{cards.length}/7</span>
           </span>
-          <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'}/>
         </div>
         <div style={{position:'relative',width:'100%',height:cardH+22}}>
           {count === 0 && (
@@ -507,6 +513,13 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
               </div>
             );
           })}
+        </div>
+        {/* Best hand, under its own pile — same relationship the small
+            hand's badge has to the fan. Centred and full-width, so no
+            hand name can reach the border. */}
+        <div style={{display:'flex',justifyContent:'center',minHeight:18,
+          alignItems:'center',marginTop:2}}>
+          <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'}/>
         </div>
       </div>
     </GlowPulse>

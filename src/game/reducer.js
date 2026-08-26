@@ -183,8 +183,8 @@ export function gameReducer(state, action) {
     case 'INTERSTITIAL_DONE': {
       const first = firstActorForRound(state.roundNum);
       const msg = first === 'player'
-        ? `Round ${state.roundNum} — Opponent deals. You go first.`
-        : `Round ${state.roundNum} — You deal. Opponent goes first.`;
+        ? `Round ${state.roundNum} - Opponent dealt. You go first.`
+        : `Round ${state.roundNum} - You dealt. Opponent goes first.`;
       return {
         ...state,
         phase: `${first}-turn-1a`,

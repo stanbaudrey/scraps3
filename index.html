@@ -199,6 +199,11 @@
         display: inline-block;
         will-change: transform;
         user-select: none;
+        /* Carries the letter home when the riffle is removed on hover.
+           Per the transitions spec the before-change style includes a
+           running animation's effect, so dropping titleRiffle mid-pass
+           transitions out of the tilt rather than snapping out of it. */
+        transition: transform 260ms cubic-bezier(.2,.8,.3,1);
       }
       .scraps-kinetic {
         display: inline-block;
@@ -229,6 +234,13 @@
          row every frame. Rotation off a pivot below the baseline gets
          the same "giving way" read for free. */
       @media (hover: hover) and (pointer: fine) {
+        /* !important is load-bearing, not laziness: each letter's
+           animation is declared INLINE in backdrop.jsx because the
+           riffle's stagger is per-letter, and an inline declaration
+           outranks a stylesheet rule. Without this the riffle keeps
+           running underneath the fan, which is the exact thing the
+           rule exists to stop. */
+        .scraps-title:hover .scraps-letter { animation-name: letterAppear, none !important; }
         .scraps-title:hover .scraps-letter:nth-child(1) .scraps-kinetic { transform: rotate(-13deg) translateY(.03em); }
         .scraps-title:hover .scraps-letter:nth-child(2) .scraps-kinetic { transform: rotate(-8deg)  translateY(.012em); }
         .scraps-title:hover .scraps-letter:nth-child(3) .scraps-kinetic { transform: rotate(-3deg); }
