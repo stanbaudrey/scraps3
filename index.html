@@ -30,7 +30,7 @@
       :root {
         --voltage: #A3D85A;
         --slate: #A7B0A1;
-        --gold: #F4C771;
+        --frost: #EDE3D0;
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -155,10 +155,20 @@
         display: inline-block;
         transition: padding 380ms cubic-bezier(.2,.8,.3,1);
         will-change: transform;
+        /* Six one-letter boxes, each with a second face carrying the same
+           glyph: selecting the wordmark would otherwise hand over
+           "SSCCRRAAPPSS". aria-hidden fixes the a11y tree but not the text
+           layer, so the back face's glyph moved into ::after (below) and
+           selection is off here. */
+        user-select: none;
       }
       .scraps-kinetic {
         display: inline-block;
-        perspective: 900px;
+        /* Relative to the letter, not a fixed px: depth is 0.5em, so a fixed
+           900px made the barrel roll a 3% ratio at the 54px mobile wordmark
+           against 8% on desktop — it read as a vertical squash on exactly
+           the devices the flip was built for. */
+        perspective: 5em;
         transition: transform 380ms cubic-bezier(.2,.8,.3,1),
                     filter 380ms ease;
       }
@@ -204,37 +214,55 @@
       .t3d-face { display: block; backface-visibility: hidden; }
       .t3d-front { transform: translateZ(0.5em); }
       .t3d-back { position: absolute; inset: 0; transform: rotateX(90deg) translateZ(0.5em); }
+      .t3d-back::after { content: attr(data-char); }
       .t3d.flipping { animation: t3dFlip 560ms cubic-bezier(.3,.85,.35,1) both; }
       @keyframes t3dFlip {
         from { transform: translateZ(-0.5em) rotateX(0deg); }
         to   { transform: translateZ(-0.5em) rotateX(-90deg); }
       }
 
-      /* Shine border — the Magic UI mask-composite trick: a gradient
-         ring is painted over the box, then everything but a
-         border-width frame is masked out, and the gradient (sized
-         300%) is what travels. */
+      /* Shine border. The Magic UI original slides `background-position`
+         on a masked ring, but that is a paint property: two rings would
+         repaint every frame, forever. backdrop.jsx's own header records
+         that exact bug class causing real hover lag here before. So the
+         mask stays static and a conic gradient ROTATES behind it —
+         transform is compositor-only, and a rotating sweep actually
+         travels around the border instead of pooling in the corners.
+         Gold is deliberately absent: theme.js reserves it for milestones
+         (Full Scrap, the win screen, your own Ace), never general UI. */
       .shiny { position: relative; }
-      .shiny::before {
-        content: '';
+      .shine-ring {
         position: absolute;
         inset: 0;
         border-radius: inherit;
         padding: 2px;
         pointer-events: none;
-        background-image: radial-gradient(transparent, transparent, var(--voltage), var(--gold), transparent, transparent);
-        background-size: 300% 300%;
+        overflow: hidden;
         -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         -webkit-mask-composite: xor;
         mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
         mask-composite: exclude;
-        animation: shine 8s linear infinite;
-        will-change: background-position;
       }
-      @keyframes shine {
-        0%   { background-position: 0% 0%; }
-        50%  { background-position: 100% 100%; }
-        100% { background-position: 0% 0%; }
+      .shine-ring::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 190%;
+        aspect-ratio: 1;
+        background: conic-gradient(from 0turn,
+          transparent 0turn,
+          color-mix(in srgb, var(--voltage) 70%, transparent) 0.10turn,
+          var(--frost) 0.15turn,
+          color-mix(in srgb, var(--voltage) 70%, transparent) 0.20turn,
+          transparent 0.30turn,
+          transparent 1turn);
+        animation: shineSpin 8s linear infinite;
+        will-change: transform;
+      }
+      @keyframes shineSpin {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to   { transform: translate(-50%, -50%) rotate(360deg); }
       }
 
       /* Scoped, not global — a full reduced-motion pass over every
@@ -249,7 +277,7 @@
            input lock is a JS timer, so it still arms on schedule. */
         .wt-wiggle { animation: none !important; }
         .pick-box, .pick-box.armed { animation: none !important; }
-        .shiny::before { animation: none !important; }
+        .shine-ring { display: none !important; }
         /* Kills the wordmark's entrance and its breathe together.
            Safe: letterAppear only fills in opacity/transform it
            already returns to, so with no animation the letters just

@@ -31,11 +31,11 @@ export function SplashScreen({ onStart }) {
       <SwirlBg/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-          <div style={{fontFamily:F.display,fontWeight:600,fontSize:'clamp(34px,9vw,64px)',
+          <div style={{fontFamily:F.display,fontWeight:600,fontSize:'clamp(28px,min(9vw,8vh),64px)',
             color:DS.slate,letterSpacing:'0.18em',marginBottom:10,whiteSpace:'nowrap'}}>♠ ♥ ♦ ♣</div>
           <AnimatedTitle/>
           <p style={{fontFamily:F.display,fontSize:'clamp(17px,2.4vw,22px)',color:DS.slateLight,
-            letterSpacing:'0.04em',marginBottom:30,animation:'fadeUp .5s ease .7s both'}}>{SUBTITLE}</p>
+            letterSpacing:'0.04em',marginBottom:'clamp(10px,3.5vh,30px)',animation:'fadeUp .5s ease .7s both'}}>{SUBTITLE}</p>
           <Btn onClick={onStart}>Play</Btn>
         </div>
       </div>
@@ -87,6 +87,7 @@ export function DifficultyPicker({ onChoose }) {
               className={`pick-box${armed ? ' armed shiny' : ''}`}
               onClick={armed ? () => onChoose(o.id) : undefined}
               style={{animationDelay:`${i * 150}ms`}}>
+              {armed ? <span className="shine-ring" aria-hidden="true"/> : null}
               <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
                 <span style={{fontFamily:F.display,fontSize:'clamp(38px,6vw,54px)',
                   color:DS.voltage,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>

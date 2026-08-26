@@ -70,12 +70,12 @@ export function AnimatedTitle() {
   }, [isTouch, flip]);
 
   return (
-    <div className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}
+    <div className="scraps-title" style={{marginBottom:'clamp(14px,4.5vh,36px)'}}
       onClick={isTouch ? flip : undefined}>
       {LETTERS.map((l,i)=>(
         <span key={i} className="scraps-letter"
           style={{fontFamily:F.title,
-            fontSize:'clamp(44px,14.5vw,148px)',lineHeight:1,
+            fontSize:'clamp(44px,min(14.5vw,26vh),148px)',lineHeight:1,
             color:l==='A'?DS.voltage:DS.frost,
             textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,
             animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i*.09}s both,`+
@@ -84,7 +84,7 @@ export function AnimatedTitle() {
             <span className={`t3d${flipping?' flipping':''}`}
               style={{animationDelay:`${i*FLIP_STAGGER}s`}}>
               <span className="t3d-face t3d-front">{l}</span>
-              <span className="t3d-face t3d-back" aria-hidden="true">{l}</span>
+              <span className="t3d-face t3d-back" data-char={l} aria-hidden="true"/>
             </span>
           </span>
         </span>
