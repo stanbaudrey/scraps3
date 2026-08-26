@@ -30,6 +30,7 @@
       :root {
         --voltage: #A3D85A;
         --slate: #A7B0A1;
+        --gold: #F4C771;
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -136,6 +137,106 @@
       @keyframes swirlFlowA{0%,100%{opacity:.55;transform:translate(0,0) scale(1)}50%{opacity:.9;transform:translate(3%,-2%) scale(1.1)}}
       @keyframes swirlFlowB{0%,100%{opacity:.5;transform:translate(0,0) scale(1)}50%{opacity:.85;transform:translate(-2%,3%) scale(1.08)}}
       @keyframes swirlFlowC{0%,100%{opacity:.45;transform:translate(0,0) scale(1)}50%{opacity:.8;transform:translate(2%,2%) scale(1.06)}}
+
+      /* ========================================================
+         SCRAPS wordmark — three nested layers per letter, because
+         three separate things want to own `transform` at once and
+         the last animation to run would otherwise win:
+           .scraps-letter   entrance + the perpetual breathe
+           .scraps-kinetic  desktop hover ripple (transition only)
+           .t3d             the mobile 3D flip (its own 3D context)
+         Perspective sits on .scraps-kinetic, the direct parent of
+         the flip box: an ancestor with its own transform flattens
+         perspective inherited from further up, so putting it on the
+         row would silently do nothing.
+         ======================================================== */
+      .scraps-title { display: flex; justify-content: center; gap: 4px; }
+      .scraps-letter {
+        display: inline-block;
+        transition: padding 380ms cubic-bezier(.2,.8,.3,1);
+        will-change: transform;
+      }
+      .scraps-kinetic {
+        display: inline-block;
+        perspective: 900px;
+        transition: transform 380ms cubic-bezier(.2,.8,.3,1),
+                    filter 380ms ease;
+      }
+      /* Gentle rise and fall, one letter after another. Deliberately
+         has NO fill mode: it is listed alongside the entrance
+         animation, and with no fill it stays inert until its delay
+         elapses, letting letterAppear own the transform first. */
+      @keyframes titleBreathe {
+        0%,100% { transform: translateY(0) scale(1); }
+        50%     { transform: translateY(-9px) scale(1.035); }
+      }
+
+      /* Kinetic hover, desktop only. Magic UI's version interpolates
+         font-weight; the wordmark face (Bungee Shade) ships a single
+         weight, so weight would be a no-op. The behaviour that makes
+         the effect read — one letter swells, its neighbours give way
+         by a decreasing amount — is carried here by scale + the
+         inline padding push instead. */
+      @media (hover: hover) and (pointer: fine) {
+        .scraps-letter:hover { padding-inline: .055em; }
+        .scraps-letter:hover + .scraps-letter,
+        .scraps-letter:has(+ .scraps-letter:hover) { padding-inline: .028em; }
+        .scraps-letter:hover > .scraps-kinetic {
+          transform: scale(1.2) translateY(-8px);
+          filter: drop-shadow(0 6px 14px rgba(0,0,0,.45));
+        }
+        .scraps-letter:hover + .scraps-letter > .scraps-kinetic,
+        .scraps-letter:has(+ .scraps-letter:hover) > .scraps-kinetic {
+          transform: scale(1.1) translateY(-4px);
+        }
+        .scraps-letter:hover + .scraps-letter + .scraps-letter > .scraps-kinetic,
+        .scraps-letter:has(+ .scraps-letter + .scraps-letter:hover) > .scraps-kinetic {
+          transform: scale(1.04) translateY(-1px);
+        }
+      }
+
+      /* 3D flip box. Both faces carry the same letter, so ending the
+         animation at -90deg and snapping back to 0 is invisible —
+         that is what lets one keyframe stand in for a full barrel
+         roll. Depth is 0.5em, i.e. half the letter box, which is
+         uniform across letters even though their widths are not. */
+      .t3d { display: inline-block; position: relative; transform-style: preserve-3d; }
+      .t3d-face { display: block; backface-visibility: hidden; }
+      .t3d-front { transform: translateZ(0.5em); }
+      .t3d-back { position: absolute; inset: 0; transform: rotateX(90deg) translateZ(0.5em); }
+      .t3d.flipping { animation: t3dFlip 560ms cubic-bezier(.3,.85,.35,1) both; }
+      @keyframes t3dFlip {
+        from { transform: translateZ(-0.5em) rotateX(0deg); }
+        to   { transform: translateZ(-0.5em) rotateX(-90deg); }
+      }
+
+      /* Shine border — the Magic UI mask-composite trick: a gradient
+         ring is painted over the box, then everything but a
+         border-width frame is masked out, and the gradient (sized
+         300%) is what travels. */
+      .shiny { position: relative; }
+      .shiny::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 2px;
+        pointer-events: none;
+        background-image: radial-gradient(transparent, transparent, var(--voltage), var(--gold), transparent, transparent);
+        background-size: 300% 300%;
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+        animation: shine 8s linear infinite;
+        will-change: background-position;
+      }
+      @keyframes shine {
+        0%   { background-position: 0% 0%; }
+        50%  { background-position: 100% 100%; }
+        100% { background-position: 0% 0%; }
+      }
+
       /* Scoped, not global — a full reduced-motion pass over every
          animation in the game is Session 5's job. This only stops the
          one new perpetual decorative loop, which carries no state or
@@ -148,6 +249,12 @@
            input lock is a JS timer, so it still arms on schedule. */
         .wt-wiggle { animation: none !important; }
         .pick-box, .pick-box.armed { animation: none !important; }
+        .shiny::before { animation: none !important; }
+        /* Kills the wordmark's entrance and its breathe together.
+           Safe: letterAppear only fills in opacity/transform it
+           already returns to, so with no animation the letters just
+           render settled. */
+        .scraps-letter, .t3d.flipping { animation: none !important; }
       }
     </style>
   </head>

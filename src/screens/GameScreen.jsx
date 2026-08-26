@@ -723,7 +723,10 @@ export function GameScreen({ difficulty, onExit }) {
   }, [phase]);
 
   let hint = '';
-  if (settling) hint = 'Your cards are on the move. Click anywhere to skip.';
+  // Settling keeps its own branch with an empty string on purpose:
+  // dropping the branch entirely would let the next condition fill the
+  // hint line while cards are still mid-flight. Silent, not absent.
+  if (settling) hint = '';
   else if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
   else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
   else if (isScrapsDiscardMode) {

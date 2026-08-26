@@ -1067,6 +1067,132 @@ player's, and Play Ace only appears attached to an actual Ace in hand.
 
 ---
 
+### Unplanned session — Splash identity: subtitle and animated wordmark ✅ Done (2026-08-26)
+
+**Not a planned session.** Stan asked for a subtitle line on the intro
+screen, a PLAY button, more character in the SCRAPS wordmark, the Magic UI
+*text-3d-flip* effect on mobile and *kinetic-text* on desktop hover, and
+*shine-border* on the difficulty options. Nothing was committed or
+published — the work sits in the working tree.
+
+**Read this first if you are picking up a session here: the local checkout
+was four commits behind `origin/main`.** Session 8 and the onboarding
+rebuild were both already pushed, but a local `main` sitting at `0789449`
+made it look like neither had happened — the tracker in this file said
+Session 8 "Not started" while Notion said Done, which is what surfaced it.
+That drift was Notion being *right* and the local file being *stale*, the
+opposite of the usual direction. This session's first real work was
+stashing, fast-forwarding to `331dd5e`, and re-applying everything onto
+the newer code. **Run `git fetch` and check `git log HEAD..origin/main`
+before starting anything here, not after.** Two of the five requests
+looked different once the newer code was in view: the title button was
+already **PLAY** (the onboarding rebuild had cut the RULES wall and made
+the splash one screen with one button), so that request was already
+satisfied, and the difficulty picker's class is now `.pick-box`, not the
+`.diff-opt` the older code used.
+
+**What changed**
+
+- **`src/components/backdrop.jsx` — `AnimatedTitle` rebuilt.** Each letter
+  is three nested spans, because three behaviours all want `transform` and
+  the last one declared would otherwise win: `.scraps-letter` (entrance +
+  the perpetual breathe), `.scraps-kinetic` (desktop hover ripple,
+  transition-driven), `.t3d` (the 3D flip, its own 3D context).
+  `perspective` sits on `.scraps-kinetic` specifically — an ancestor with
+  its own transform flattens perspective inherited from further up, so
+  putting it on the row would silently do nothing.
+- **The breathe** (`titleBreathe`) is a 3.4s rise-and-fall staggered 0.16s
+  per letter. It deliberately has **no fill mode**: it shares the
+  `animation` shorthand with the existing `letterAppear` entrance, and with
+  no fill it stays inert until its delay elapses, letting the entrance own
+  the transform first. Give it `both` and the entrance breaks.
+- **Mobile 3D flip.** Hand-rolled in CSS — no `motion` dependency, so the
+  repo is still zero-runtime-deps beyond React. Two faces per letter
+  carrying the same glyph; the container animates `rotateX(0 → -90deg)`
+  and the class is dropped afterwards, so the snap back to 0 is invisible.
+  Depth is `0.5em`, half the letter box, which is uniform across letters
+  even though their widths are not. Triggered by `(hover: none), (pointer:
+  coarse)`, once 1.4s after mount and again on every tap; hover means
+  nothing there, so without its own trigger nobody would ever see it.
+- **Desktop kinetic hover.** *Deviation, flagged:* Magic UI's kinetic-text
+  interpolates `font-weight`, and Bungee Shade (the wordmark face) ships a
+  single weight, so weight animation is a literal no-op on this font. The
+  behaviour that makes the effect read — one letter swells while its
+  neighbours give way by a decreasing amount — is carried by scale plus an
+  inline-padding push instead, three rings deep (1.2 / 1.1 / 1.04),
+  measured live: hovering "R" gave 8.1px / 4.1px / 0px of padding pushed
+  outward, symmetric on both sides. Getting the real weight-morph would
+  mean re-picking the wordmark face for a variable font — an identity
+  change, not done.
+- **Shine border** on the two difficulty boxes, the Magic UI
+  mask-composite trick reimplemented in plain CSS: a 300%-sized radial
+  gradient ring, everything but a 2px frame masked out, gradient position
+  animated 8s linear. Applied as a separate `.shiny` class and only while
+  the box is `armed` — an inert panel should not be advertising itself,
+  and the 720ms arming lock is load-bearing (see the picker's own note).
+- **`index.html`** gained all of the above CSS plus a `--gold` custom
+  property, and its reduced-motion block now also stops the shine and the
+  wordmark animations.
+- **Splash copy.** New `SUBTITLE` constant in `MenuScreens.jsx`, currently
+  *"Your discard pile is next round's hand."* Swapping it is a one-line
+  change; the 30 candidates are listed below.
+- **Two pre-existing mobile bugs, found while testing this, not caused by
+  it:** the wordmark's `clamp(80px, 17vw, 148px)` had a floor wider than a
+  phone — at 375px the letters ran off both edges. Now `clamp(44px,
+  14.5vw, 148px)`, measured at 327px wide inside a 375px viewport. And the
+  `♠ ♥ ♦ ♣` row was a fixed 64px, which wrapped 3-and-1 on mobile; now
+  clamped and `nowrap`. Both are on Session 3's turf and neither was in
+  its notes.
+
+**Verified in the browser** (dev server on 5193, desktop and 375px), not
+from the code: six breathe animations running with staggered delays; the
+hover ripple measured on the live DOM at 1.2 / 1.1 / 1.04 scale with the
+padding push symmetric; the flip animation confirmed reaching
+`rotateX(-90deg)`, and a frozen -45° frame screenshotted to confirm it
+reads as a barrel roll rather than a glitch; both shine borders animating
+(seeked to a mid-cycle frame to watch the highlight travel); no console
+errors; 37/37 tests and `npm run build` green.
+
+**Watch out next time:** the Browser pane reports itself hidden, which
+throttles animations into bursts — `animationstart` never fired and
+`currentTime` sat at 0 for 700ms before jumping to finished. Two separate
+JS round-trips are also slower than a 1s animation, so sampling a class
+before-and-after across two calls misses the whole thing and looks exactly
+like a broken trigger. The fixes: sample inside one call with a
+`setTimeout` chain, or freeze a frame and screenshot it.
+
+**Still open:** the subtitle is unpicked, nothing is committed, and none
+of it has been seen on a preview URL.
+
+**The 30 subtitle candidates**
+
+*Two hands:* Build two hands at once. · Poker at two speeds. · Two hands
+in the dark, one in the light. · Two quick hands, one slow one. · Half
+your hand is public knowledge. · Your best hand is the one they can see.
+
+*The discard economy:* Your discard pile is next round's hand. · What you
+throw away is what you play. · Feed the pile. The pile pays. · Nothing
+gets wasted. That's the trap. · Every discard is a bet. · Trade what's
+hidden for what's fresh. · Give up a card to get a card. Choose well. ·
+The trash is the point.
+
+*Aces:* Aces aren't cards. They're ammunition. · Spend an Ace, take two of
+theirs. · Aces attack. Aces defend. Aces run out. · Someone always has one
+Ace left.
+
+*Tone:* Slow-build poker with a knife in it. · Build in the open. Get
+robbed in the open. · Everyone sees it coming. Nobody can stop it. ·
+Patience, then violence. · A long build and a short fuse. · Watch the pile
+grow. Wonder what's under it.
+
+*Rules flavour:* No flushes. Not ever. Don't ask. · Five cards, no
+flushes, no mercy. · Win both small hands and the big one for a FULL
+SCRAP. · Three hands a round. Only one is public.
+
+*Shortest:* Poker, but you build it in public. · Discard with intent.
+
+---
+
 ## Session tracker
 
 | # | Session | Status |
@@ -1081,3 +1207,4 @@ player's, and Play Ace only appears attached to an actual Ace in hand.
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
+| — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
