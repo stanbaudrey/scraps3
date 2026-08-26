@@ -681,6 +681,27 @@ Scrap/Win/Ace modals in their current (brighter, re-fonted) state — worth
 a look before this goes to preview for real review, alongside everything
 already listed as pending under Sessions 3, 5, and 8.
 
+**Published to production (2026-08-26), separate session.** A third
+pre-merge critique ran (final gate, per the publish process — not a new
+audit, just confirming the last fix landed clean): go/no-go was go, no
+regressions, 37/37 tests and build both green. `dev` fast-forward merged
+into `main` and pushed — production is now this reskin's finished state,
+live at [scraps3.vercel.app](https://scraps3.vercel.app). The
+RevealOverlay/Full Scrap/Win/Ace verification gap above is still open;
+publishing didn't close it, it just means that gap is now live rather
+than on preview.
+
+**Retro note, not written up as a rule change (Stan's call — kept as a
+mental note only):** the card back's reserved-token bug (voltage/gold
+used on a neutral surface) happened twice in one session, on the same
+component, because nothing automated checks a reserved-token rule once
+it's documented — it only surfaced because a critique happened to look
+for it both times. And the original reskin went straight from a written
+direction doc to a full build with no `/impeccable shape` pass first,
+which is likely why the first version read "bland" and needed a whole
+follow-up round. Worth remembering next time a visual identity swing this
+large comes up — not acted on now.
+
 ### Session 2 — Game balance discussion ✅ Done (2026-08-25)
 
 **Notes:** simulated the actual draw/trade/Ace logic in `engine.js` (20,000
