@@ -33,7 +33,28 @@
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: var(--dusk); overflow-x: hidden; }
+
+      /* The game fits the viewport, always — see src/ui/viewport.js.
+         So the document itself never scrolls, and saying so here is
+         what stops an iOS rubber-band bounce from making a fitted
+         screen feel like a broken one. */
+      html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+      body { background: var(--dusk); }
+      #root { height: 100%; }
+
+      /* 100dvh where it exists, 100vh where it does not. Two
+         declarations of the same property is the only way to write
+         that fallback, which a React inline style object cannot do
+         — hence a class. dvh matters on phones specifically: with
+         vh, the layout is sized for a URL bar that has already
+         scrolled away, and the bottom of the table goes with it. */
+      .app-vh { height: 100vh; height: 100dvh; }
+      .app-min-vh { min-height: 100vh; min-height: 100dvh; }
+
+      /* No 300ms tap delay, no double-tap zoom on a control. Cards
+         carry role=button, so they are covered too. Pinch zoom on
+         the page is deliberately left alone. */
+      button, [role="button"] { touch-action: manipulation; }
       /* Wider, higher-contrast scrollbar than the original 5px/27% —
          a clipped/overflowing panel needs a visible cue that more
          content is reachable, not just a hidden native scrollbar. */
@@ -63,10 +84,20 @@
         background: transparent;
         transition: border-color 80ms, background 80ms, box-shadow 80ms;
       }
-      .menu-opt:hover {
+      /* Hover is gated on a device that HAS hover. Without the
+         query a phone latches the hover look onto whatever was
+         tapped last and never lets go. The :active rule below is
+         the touch equivalent — same feedback, tied to the press. */
+      @media (hover: hover) and (pointer: fine) {
+        .menu-opt:hover {
+          border-color: var(--voltage);
+          background: color-mix(in srgb, var(--voltage) 8%, transparent);
+          box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
+        }
+      }
+      .menu-opt:active {
         border-color: var(--voltage);
-        background: color-mix(in srgb, var(--voltage) 8%, transparent);
-        box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
+        background: color-mix(in srgb, var(--voltage) 14%, transparent);
       }
       .diff-opt {
         cursor: pointer;
@@ -76,10 +107,16 @@
         background: transparent;
         transition: border-color 80ms, background 80ms, box-shadow 80ms;
       }
-      .diff-opt:hover {
+      @media (hover: hover) and (pointer: fine) {
+        .diff-opt:hover {
+          border-color: var(--voltage);
+          background: color-mix(in srgb, var(--voltage) 8%, transparent);
+          box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
+        }
+      }
+      .diff-opt:active {
         border-color: var(--voltage);
-        background: color-mix(in srgb, var(--voltage) 8%, transparent);
-        box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
+        background: color-mix(in srgb, var(--voltage) 14%, transparent);
       }
 
       /* Difficulty picker — the two big boxes. They unfold from a
@@ -92,6 +129,7 @@
         /* A real <button> now, not a div, so the UA's own font, colour,
            centring and width have to be unset for the panel to look
            exactly as it did. */
+        min-height: 44px;
         appearance: none;
         -webkit-appearance: none;
         font: inherit;
@@ -118,11 +156,23 @@
          for HARD) so the two options differ by more than their words.
          Falls back to voltage, which is what every other .pick-box in
          the project would want. */
-      .pick-box.armed:hover {
+      @media (hover: hover) and (pointer: fine) {
+        .pick-box.armed:hover {
+          border-color: var(--accent, var(--voltage));
+          background: color-mix(in srgb, var(--accent, var(--voltage)) 10%, transparent);
+          box-shadow: 0 0 26px color-mix(in srgb, var(--accent, var(--voltage)) 45%, transparent);
+          transform: scale(1.015);
+        }
+      }
+      /* Touch gets the same answer, on the press instead of the
+         hover. It is the louder half of the hover rule deliberately:
+         a finger covers the box it is pressing, so the cue has to
+         survive being partly hidden. */
+      .pick-box.armed:active {
         border-color: var(--accent, var(--voltage));
-        background: color-mix(in srgb, var(--accent, var(--voltage)) 10%, transparent);
+        background: color-mix(in srgb, var(--accent, var(--voltage)) 16%, transparent);
         box-shadow: 0 0 26px color-mix(in srgb, var(--accent, var(--voltage)) 45%, transparent);
-        transform: scale(1.015);
+        transform: scale(0.985);
       }
 
       /* Storyboard walkthrough — the ONLY motion on those screens.

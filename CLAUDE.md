@@ -44,6 +44,19 @@ npm test          # vitest, 37 tests, runs in under a second
 npm run build     # production bundle into dist/
 ```
 
+`tools/responsive-qa.mjs` walks the real app in a headless browser at six
+viewports and asserts the Session 3 rule — no document scroll, no inner
+scrollers, nothing painted outside the viewport — plus touch-target sizes.
+It is **not** part of `npm test`: Playwright is not a dependency of this
+project and adding it would be the largest devDependency in the tree by an
+order of magnitude. Run it by hand against a dev server, with Playwright
+available (a global install is fine):
+
+```bash
+npm run dev -- --port 5193 --strictPort
+node tools/responsive-qa.mjs after   # screenshots into tools/shots/after/
+```
+
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
 `process.env`. The `.env.local` file that appeared during setup holds only a
@@ -81,6 +94,13 @@ looks broken locally, it is not a missing-secret problem.
   screens, modals, fireworks), `hud.jsx` (scores, round progress, game log),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
   `flight.jsx` (card motion), `backdrop.jsx`.
+- **`src/ui/viewport.jsx`** — the responsive layer, added in Session 3.
+  `useViewport()` is one shared window-size subscription;
+  `layoutMode()` picks between the `wide` table (hand centred, Scraps
+  beside it) and the `stack`ed one (hand above its own Scraps, full
+  width); `<FitBox>` measures what the chosen layout wants and scales
+  it to fit. **Nothing in the game scrolls, on any screen** — read the
+  file's header before changing any of it.
 - **Card motion is FLIP** (`flight.jsx`). Nothing predicts where a card
   is or will be: the state change is committed atomically first, then
   each card's real `getBoundingClientRect` at both ends drives a ghost
@@ -130,7 +150,28 @@ looks broken locally, it is not a missing-secret problem.
   its animation. It returns an element now.
 - **Timers read state through a ref** (`stateRef` in `GameScreen.jsx`) so a
   timeout scheduled seconds earlier never acts on a stale snapshot. Follow
-  that pattern for any new delayed action.
+  that pattern for any new delayed action. Card *sizes* ride the same
+  pattern (`szRef`), because a rotation can land between a timer being
+  scheduled and it firing.
+- **Arrangement and size are two different questions.** `GameScreen`
+  derives `stack` (which arrangement) and `tight` (which card sizes and
+  how compact the chrome). They usually agree; a landscape phone is the
+  case where they don't — it keeps the width-hungry, height-thrifty
+  `wide` arrangement *and* the small cards, because 390px of height is
+  390px however the bands are ordered.
+- **A `<FitBox>` measures its content wrapper, not itself.** The inner
+  box is `min-height:100%` so a table with room to spare still spreads
+  out, which means its own box never changes size and a ResizeObserver
+  on it never fires. Observe the thing that grows.
+- **Nothing may depend on hover.** Touch browsers synthesise a
+  `mouseenter` on tap and never send the matching `mouseleave`, so the
+  last thing tapped keeps its hover look forever. Every JS hover in
+  `buttons.jsx` goes through `pressStyles()`, and every CSS `:hover` in
+  `index.html` is inside `@media (hover: hover)` with an `:active`
+  partner. Use those, don't add a bare `onMouseEnter`.
+- **Controls are `TOUCH_MIN` (44px) on their short axis**, or
+  `TOUCH_MIN_COMPACT` (54px) in the stacked layout — deliberately
+  larger, because that layout is often scaled and 44 × 0.73 is 32.
 - **Menu options are `<div>`s, not `<button>`s.** They work with a mouse but
   are not keyboard-focusable and screen readers won't announce them as
   controls. Browser automation can't find them by role either.
@@ -163,10 +204,13 @@ versions and should not be deployed to.
   at `unclescrunch/scraps3` — GitHub's rename redirect is what keeps pushes
   working. It works today, silently, and would break if that redirect is ever
   reclaimed. Worth repointing the remote.
-- **`GameScreen.jsx` is ~940 lines** and mixes three concerns: UI state, the
+- **`GameScreen.jsx` is ~1100 lines** and mixes three concerns: UI state, the
   animation timer choreography, and the rendering of the whole table. Unlike
   the engine and reducer, nothing in the file claims this is deliberate. The
-  animation scheduling is the natural first thing to lift out.
+  animation scheduling is the natural first thing to lift out. (Session 3
+  split the table's markup into named pieces — `oppHandEl`, `actionEl`,
+  `playerHandEl` and so on — composed two ways, which makes that lift
+  easier than it was.)
 - **The color palette exists in three places.** `src/styles/theme.js` has the
   `DS` tokens; `index.html` repeats the same hex values as CSS literals; and
   `src/components/flight.jsx` hardcodes all of them again (`#FF3D5A`,
@@ -174,11 +218,14 @@ versions and should not be deployed to.
   all. `buttons.jsx` also introduces two hover tints (`#d4ff33`, `#ff6070`)
   that aren't tokens anywhere. Changing a brand color today means editing at
   least three files and hoping you found them all.
-- **The table clips on short screens.** The game root is `height: 100vh` with
-  `overflow: hidden` and no scroll fallback, so below roughly 800px of
-  viewport height the player's own hand is cut off the bottom of the screen
-  with no way to reach it. On a 1280×720 laptop the game is unplayable. This
-  is the most user-visible problem in the project.
+- **Landscape on a phone is playable but small.** Session 3's rule is
+  that everything fits with no scrolling, and on a 844×390 landscape
+  phone there is ~300px of height for two hands, two piles and the
+  control panel — so `FitBox` scales the table to about 0.57 and a 54px
+  button renders at ~31. Nothing is clipped or unreachable, but portrait
+  is the intended orientation and a 375×667 iPhone SE (scale ~0.73,
+  buttons ~40px) is the smallest screen the layout is really sized for.
+  Anything below 375 wide scales rather than reflowing again.
 - **npm audit**: five vulnerabilities remain, all one chain — esbuild, pulled
   in by Vite 5 and Vitest. It's a dev-server-only issue where a malicious
   webpage could read responses from your local dev server while it's running;

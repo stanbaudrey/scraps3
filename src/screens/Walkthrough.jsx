@@ -25,7 +25,9 @@ import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard } from "../components/cards.jsx";
 import { SwirlBg } from "../components/backdrop.jsx";
 import { IconBolt } from "../components/icons.jsx";
+import { TOUCH_MIN } from "../components/buttons.jsx";
 import { playClick } from "../audio.js";
+import { FitBox } from "../ui/viewport.jsx";
 
 // ── Sample cards ─────────────────────────────────────────────
 const C = (rank, suit, value) => ({ id: `wt-${rank}${suit}`, rank, suit, value });
@@ -108,10 +110,16 @@ function BeatTrade() {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:14,alignItems:'center'}}>
       {DRAW_TIERS.map((tier, r) => (
-        <div key={tier.label} style={{display:'flex',alignItems:'center',gap:18,
+        // The row used to be two fixed widths (264 + 190) plus an
+        // arrow, which is ~510px and simply does not fit a 375px
+        // phone. Both are elastic now: the cards keep their natural
+        // width, and the label takes what is left and wraps under
+        // them when there is not enough.
+        <div key={tier.label} style={{display:'flex',alignItems:'center',gap:14,
           background:DS.duskMid,border:`2px solid ${tier.tone}44`,borderRadius:14,
-          padding:'12px 20px',justifyContent:'space-between'}}>
-          <div style={{display:'flex',gap:8,width:264,flexShrink:0}}>
+          padding:'12px 16px',justifyContent:'space-between',flexWrap:'wrap',
+          maxWidth:'100%'}}>
+          <div style={{display:'flex',gap:8,flexShrink:0}}>
             {tier.cards.map((c, i) => (
               <Wig key={c.id} delay={r * 140 + i * 110}>
                 <PlayingCard card={c} size="tiny" liftTransform={false}/>
@@ -120,7 +128,7 @@ function BeatTrade() {
           </div>
           <span style={{fontFamily:F.display,fontSize:20,color:DS.slate}}>→</span>
           <span style={{fontFamily:F.display,fontSize:24,color:tier.tone,letterSpacing:'0.06em',
-            whiteSpace:'nowrap',width:190,textAlign:'right'}}>{tier.label}</span>
+            whiteSpace:'nowrap',flex:'1 1 auto',minWidth:0,textAlign:'right'}}>{tier.label}</span>
         </div>
       ))}
     </div>
@@ -166,9 +174,12 @@ function BeatAce() {
       {/* The selection modal, mid-choice */}
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
         <div style={{background:DS.duskMid,border:`2px solid ${DS.ember}88`,borderRadius:14,
-          padding:'16px 18px',boxShadow:`0 0 26px ${DS.ember}33`}}>
+          padding:'14px 12px',boxShadow:`0 0 26px ${DS.ember}33`,maxWidth:'100%'}}>
           <Caption color={DS.ember}>Opponent’s Scraps</Caption>
-          <div style={{display:'flex',gap:7,justifyContent:'center',alignItems:'flex-end'}}>
+          {/* Five tiny cards plus the panel's own padding is the
+              widest thing on any beat; at gap 7 and 18px padding it
+              came to 364px, nine past what a 375px phone can show. */}
+          <div style={{display:'flex',gap:6,justifyContent:'center',alignItems:'flex-end'}}>
             {OPP_SCRAPS.map((c, i) => {
               const hit = OPP_TARGET_IDS.has(c.id);
               if (!hit) {
@@ -310,41 +321,49 @@ export function Walkthrough({ onDone }) {
   });
 
   return (
-    <div onClick={advance} style={{position:'fixed',inset:0,background:DS.dusk,
+    <div onClick={advance} className="app-vh" style={{position:'fixed',inset:0,background:DS.dusk,
       display:'flex',flexDirection:'column',cursor:'pointer',overflow:'hidden',userSelect:'none'}}>
       <SwirlBg/>
 
-      {/* Beat body. Scrolls rather than clipping on short screens. */}
-      <div style={{position:'relative',zIndex:1,flex:1,minHeight:0,overflowY:'auto',
-        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-        gap:26,padding:'32px 20px 130px'}}>
+      {/* Beat body. It used to scroll on a short screen and eat
+          130px of padding to clear a pinned rail; now the rail is
+          in the flow below and FitBox scales a beat that will not
+          fit, so a storyboard about how the game works is never
+          itself something to scroll through. */}
+      <FitBox modeMinW={340} style={{zIndex:1,padding:'16px 10px 0'}}>
+        <div style={{flex:'1 0 auto',
+          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+          gap:'clamp(14px,3vh,26px)'}}>
 
-        <p style={{fontFamily:F.ui,fontSize:'clamp(19px,2.4vw,27px)',lineHeight:1.45,
-          fontWeight:500,color:DS.slateLight,textAlign:'center',maxWidth:800}}>
-          {beat.copy}
-        </p>
-
-        {beat.visual}
-
-        {beat.below && (
-          <p style={{fontFamily:F.ui,fontSize:18,fontWeight:600,color:DS.frost,textAlign:'center'}}>
-            {beat.below}
+          <p style={{fontFamily:F.ui,fontSize:'clamp(18px,2.4vw,27px)',lineHeight:1.45,
+            fontWeight:500,color:DS.slateLight,textAlign:'center',maxWidth:800}}>
+            {beat.copy}
           </p>
-        )}
 
-        {beat.cta && (
-          <button onClick={advance} style={{background:DS.voltage,color:DS.ink,border:'none',
-            padding:'17px 46px',borderRadius:12,cursor:'pointer',fontFamily:F.ui,fontWeight:700,
-            fontSize:20,letterSpacing:'0.1em',textTransform:'uppercase',
-            boxShadow:`0 0 28px ${DS.voltage}88`}}>{beat.cta}</button>
-        )}
-      </div>
+          {beat.visual}
 
-      {/* Bottom rail — pinned to the viewport, never scrolls away */}
-      <div style={{position:'fixed',left:0,right:0,bottom:0,zIndex:2,
+          {beat.below && (
+            <p style={{fontFamily:F.ui,fontSize:18,fontWeight:600,color:DS.frost,textAlign:'center'}}>
+              {beat.below}
+            </p>
+          )}
+
+          {beat.cta && (
+            <button onClick={advance} style={{background:DS.voltage,color:DS.ink,border:'none',
+              padding:'17px 46px',borderRadius:12,cursor:'pointer',fontFamily:F.ui,fontWeight:700,
+              fontSize:20,minHeight:TOUCH_MIN,letterSpacing:'0.1em',textTransform:'uppercase',
+              boxShadow:`0 0 28px ${DS.voltage}88`}}>{beat.cta}</button>
+          )}
+        </div>
+      </FitBox>
+
+      {/* Bottom rail — in the flow, so the beat above is laid out
+          against the space actually left over rather than against a
+          padding figure that guesses at it. */}
+      <div style={{position:'relative',zIndex:2,flexShrink:0,
         background:`linear-gradient(transparent,${DS.dusk} 42%)`,
-        padding:'26px 20px 18px',display:'flex',flexDirection:'column',
-        alignItems:'center',gap:12,pointerEvents:'none'}}>
+        padding:'10px 20px 12px',display:'flex',flexDirection:'column',
+        alignItems:'center',gap:8,pointerEvents:'none'}}>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           {BEATS.map((_, n) => (
             <span key={n} style={{width:n === i ? 26 : 8,height:8,borderRadius:4,
@@ -357,7 +376,8 @@ export function Walkthrough({ onDone }) {
         )}
         <button onClick={skip} style={{pointerEvents:'auto',background:'transparent',
           border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
-          padding:'9px 26px',cursor:'pointer',fontFamily:F.ui,fontWeight:700,fontSize:14,
+          padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',
+          fontFamily:F.ui,fontWeight:700,fontSize:14,
           letterSpacing:'0.14em',textTransform:'uppercase'}}>Skip</button>
       </div>
     </div>

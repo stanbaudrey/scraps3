@@ -26,19 +26,36 @@ import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
-import { BigBtn, TradeInBtn, AceTag } from "../components/buttons.jsx";
+import { BigBtn, TradeInBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { recordGame } from "../game/stats.js";
+import { useViewport, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
   AceCounterModal, RulesModal, SkipTurnModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
 
-// A card is 'normal' in a hand and 'small' in a Scraps pile or on
-// a pile marker. Ghosts cross-fade between the two on the way.
-const HAND_SZ = 'normal';
-const PILE_SZ = 'small';
+// ─────────────────────────────────────────────────────────────
+// Card sizes. A card is one size in a hand and a smaller one in a
+// Scraps pile or on a pile marker; ghosts cross-fade between the
+// two on the way.
+//
+// The set is chosen by how much room there is, which is NOT the
+// same question as which arrangement to use: a landscape phone
+// keeps the side-by-side arrangement (it is the height-thrifty
+// one) but wants the small cards, because 390px of screen height
+// is 390px however the bands are ordered.
+//
+// The opponent's hand gets its own entry because it is the one
+// thing on the table that can afford to shrink furthest: it is
+// face down, so it carries a count and nothing else, and the row
+// it saves is a row the player's own hand gets to keep.
+// ─────────────────────────────────────────────────────────────
+const SIZES = {
+  roomy:   { hand:'normal', oppHand:'normal', pile:'small' },
+  compact: { hand:'small',  oppHand:'tiny',   pile:'tiny'  },
+};
 
 export function GameScreen({ difficulty, onExit }) {
   // ── Game state machine ─────────────────────────────────────
@@ -94,6 +111,38 @@ export function GameScreen({ difficulty, onExit }) {
   const aiScrapsRef      = useRef(null);
   const { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay } = useCardMotion();
 
+  // ── Layout ─────────────────────────────────────────────────
+  // 'wide'  — hand centred, that side's Scraps beside it.
+  // 'stack' — hand above its own Scraps, both full width.
+  // The mode is chosen on whichever axis is scarce, not on device
+  // class; see src/ui/viewport.js. Everything that has to know a
+  // pixel size — card sizes, fan spread, zone widths, bar chrome —
+  // is derived from it here rather than guessed at in a media query.
+  const vp = useViewport();
+  const mode = layoutMode(vp);
+  // `stack` is about ARRANGEMENT, `tight` about SIZE. They agree on a
+  // phone and disagree at both ends of the range: a landscape phone
+  // gets the wide arrangement AND the small cards, and a portrait
+  // tablet gets the stacked arrangement AND the big ones, because
+  // 768 x 1024 has room for full-size cards and looked half empty
+  // without them.
+  const stack = mode === 'stack';
+  const tight = vp.w < 700 || vp.h <= SHORT_MAX_H;
+  const SZ = SIZES[tight ? 'compact' : 'roomy'];
+  // The width the table is actually laid out at. FitBox lays its
+  // children out at max(available, mode minimum) and scales the
+  // result, so anything that needs a number rather than a
+  // percentage — the Scraps overlap maths, the fan's spread — has
+  // to use the same figure FitBox will.
+  const layoutW = Math.max(vp.w, MODE_MIN_W[mode]);
+  const railW = layoutW - 20;
+  // Timers and flight builders run long after the render that made
+  // them, and a rotation can land between the two. They read sizes
+  // through a ref for the same reason every other delayed action in
+  // this file reads state through one.
+  const szRef = useRef(SZ);
+  szRef.current = SZ;
+
   // ── Round setup ────────────────────────────────────────────
   const startNewRound = useCallback((alternate) => {
     const deal = buildRoundDeal();
@@ -127,12 +176,12 @@ export function GameScreen({ difficulty, onExit }) {
     const moves = [];
     pSorted.forEach((card, i) => moves.push({
       card, fromRect: deckRect, toId: card.id,
-      fromSize: PILE_SZ, toSize: HAND_SZ,
+      fromSize: szRef.current.pile, toSize: szRef.current.hand,
       arc: ((i % 3) - 1) * 0.5, delay: i * STEP,
     }));
     aiCards.forEach((card, i) => moves.push({
       card: null, faceDown: true, fromRect: deckRect, toId: card.id,
-      fromSize: PILE_SZ, toSize: HAND_SZ,
+      fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
       arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
     }));
     fly(moves);
@@ -248,14 +297,14 @@ export function GameScreen({ difficulty, onExit }) {
       .filter(f => f.rect)
       .map((f, i) => ({
         card: f.card, fromRect: f.rect, toId: f.card.id,
-        fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+        fromSize: szRef.current.hand, toSize: szRef.current.pile, toScrap: true,
         arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
         delay: i * STEP,
       }));
     if (deckRect) {
       drawn.forEach((card, i) => moves.push({
         card, fromRect: deckRect, toId: card.id,
-        fromSize: PILE_SZ, toSize: HAND_SZ,
+        fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
       }));
     }
@@ -284,20 +333,20 @@ export function GameScreen({ difficulty, onExit }) {
     if (discardRect) {
       leaving.filter(f => f.rect).forEach((f, i) => moves.push({
         card: f.card, fromRect: f.rect, toRect: discardRect,
-        fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
         arc: i === 0 ? -0.5 : 0.5,
       }));
     }
     entering.filter(f => f.rect).forEach((f, i) => moves.push({
       card: f.card, fromRect: f.rect, toId: f.card.id,
-      fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+      fromSize: szRef.current.hand, toSize: szRef.current.pile, toScrap: true,
       arc: 0.35, delay: 160 + i * 90,
     }));
     const LAND = 160 + Math.max(0, entering.length - 1) * 90 + 320;
     if (deckRect) {
       drawn.forEach((card, i) => moves.push({
         card, fromRect: deckRect, toId: card.id,
-        fromSize: PILE_SZ, toSize: HAND_SZ,
+        fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
       }));
     }
@@ -358,13 +407,13 @@ export function GameScreen({ difficulty, onExit }) {
       if (discardRect) {
         const moves = first.filter(f => f.rect).map((f, i) => ({
           card: f.card, fromRect: f.rect, toRect: discardRect,
-          fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+          fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
           arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
         }));
         // The spent Ace goes to the discard too, so the cost of the
         // strike is visible rather than silent.
         if (aceRect) moves.push({ card: ace, fromRect: aceRect, toRect: discardRect,
-          fromSize: HAND_SZ, toSize: PILE_SZ, arc: 0.4 });
+          fromSize: szRef.current.hand, toSize: szRef.current.pile, arc: 0.4 });
         fly(moves);
       }
     }, 520);
@@ -432,7 +481,7 @@ export function GameScreen({ difficulty, onExit }) {
     if (discardRect) {
       fly(first.filter(f => f.rect).map((f, i) => ({
         card: f.card, fromRect: f.rect, toRect: discardRect,
-        fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
         arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
       })));
     }
@@ -499,7 +548,7 @@ export function GameScreen({ difficulty, onExit }) {
           const STEP = 90;
           const moves = first.filter(f => f.rect).map((f, i) => ({
             card: f.card, faceDown: true, fromRect: f.rect, toId: f.card.id,
-            fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+            fromSize: szRef.current.oppHand, toSize: szRef.current.pile, toScrap: true,
             arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
             delay: i * STEP,
           }));
@@ -509,7 +558,7 @@ export function GameScreen({ difficulty, onExit }) {
           if (deckRect) {
             drawn.forEach((card, i) => moves.push({
               card: null, faceDown: true, fromRect: deckRect, toId: card.id,
-              fromSize: PILE_SZ, toSize: HAND_SZ,
+              fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
               arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
             }));
           }
@@ -672,8 +721,9 @@ export function GameScreen({ difficulty, onExit }) {
   const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce;
   const aceSlot = useCallback((card, width) => {
     if (!canOfferAce || card.rank !== 'A') return null;
-    return <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2} width={width}/>;
-  }, [canOfferAce, aiScraps.length]);
+    return <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2}
+      width={width} compact={tight}/>;
+  }, [canOfferAce, aiScraps.length, tight]);
   const glowPlayerScraps = isScrapsDiscardMode;
   const glowOppScraps = aceMode;
 
@@ -773,208 +823,289 @@ export function GameScreen({ difficulty, onExit }) {
     </>
   );
 
+  // ── Table pieces ───────────────────────────────────────────
+  // Each piece is built once and composed two ways below. Every
+  // ref the motion system measures rides on the piece itself, so
+  // a layout change carries each anchor with the thing it anchors
+  // and a card in flight during a rotation still lands on its
+  // real destination.
+  const oppHandEl = (
+    <div ref={aiHandRef} style={{
+      opacity:isAiThinking?1:isPlayerTurn?0.5:1,
+      transition:'opacity 0.5s',display:'flex',justifyContent:'center',
+      flexShrink:0}}>
+      <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
+        activeWiggle={isAiThinking} waveIds={waveIds}
+        registerEl={registerCard} hiddenIds={hiddenIds}
+        size={SZ.oppHand} maxWidth={stack?Math.max(120,railW-152):null}/>
+    </div>
+  );
+
+  const oppScrapsEl = (
+    <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:8,flexShrink:0,
+      alignItems:stack?'stretch':'flex-start',
+      opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
+      {!stack&&<RoundProgressIndicator phase={phase} compact={tight}/>}
+      <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
+        label="Opp Scraps" selectable={aceMode}
+        selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
+        registerEl={registerCard} hiddenIds={hiddenIds}
+        isOpponent={true} glowZone={glowOppScraps}
+        size={SZ.pile} width={stack?railW:340} fill={stack}/>
+    </div>
+  );
+
+  const pilesEl = (
+    <div style={{display:'flex',justifyContent:'center',
+      alignItems:'flex-start',gap:stack?10:22,flexShrink:0}}>
+      <div ref={deckRef}><DeckPile count={deck.length} size={SZ.pile}/></div>
+      <div ref={discardRef}><DiscardPile count={discard.length} size={SZ.pile}/></div>
+    </div>
+  );
+
+  // ACTION ZONE — the game's narrator. In the wide layout it is a
+  // fixed-width panel in the middle of the table; stacked, it is
+  // a full-width band, because there is nothing to sit beside it.
+  const actionEl = (
+    <div style={{
+      ...(stack
+        ? {width:'100%', flexShrink:0}
+        : {flexShrink:1, flexBasis:760, maxWidth:760}),
+      display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
+      padding:stack?'10px 12px':'14px 20px',
+      background:`rgba(20,31,25,0.7)`,
+      border:`1px solid ${DS.slate}22`,
+      borderRadius:14,
+    }}>
+      {/* Hint — the game's narrator owns this band (item 6).
+          The over-limit error takes over while active. */}
+      {tradeError ? (
+        <div style={{fontFamily:F.ui,fontSize:tight?17:25,color:DS.ember,
+          fontWeight:700,textAlign:'center',lineHeight:1.3,
+          animation:'errBounce 0.5s cubic-bezier(.34,1.4,.64,1)'}}>
+          {tradeError}
+        </div>
+      ) : (
+        <div key={phase} style={{fontFamily:F.ui,fontSize:tight?17:25,
+          color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
+          fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
+          maxWidth:720,
+          animation:isAiThinking?'pulse 1s ease infinite'
+            :(isSignal&&!signalLocked)?'popIn 0.45s cubic-bezier(.34,1.6,.64,1)':undefined}}>
+          {hint}
+        </div>
+      )}
+      {isSignal&&!signalLocked&&(
+        <SignalLegalityStrip hand={playerHand} selectedCount={selectedInHand.length} compact={tight}/>
+      )}
+      {/* Buttons */}
+      <div style={{display:'flex',flexWrap:'wrap',gap:stack?8:12,alignItems:'center',justifyContent:'center'}}>
+        {isScrapsDiscardMode&&(
+          <>
+            <BigBtn variant="warning" compact={tight} onClick={confirmScrapsDiscard} disabled={scrapsDiscard.length!==scrapsOverflow}>
+              Discard ({scrapsDiscard.length}/{scrapsOverflow})
+            </BigBtn>
+            <BigBtn variant="ghost" compact={tight} onClick={cancelScrapsDiscard}>Cancel</BigBtn>
+          </>
+        )}
+        {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&(
+          <>
+            {!forcedAce&&(
+              <TradeInBtn onClick={doTradeIn} disabled={selectedInHand.length===0} compact={tight}
+                count={selectedInHand.length} drawCount={tradeDraw}
+                projectedHand={tradeNetHand} overLimit={tradeOverLimit}/>
+            )}
+            {/* Play Ace is NOT in this row any more. It rides on
+                top of its own Ace in the hand (see aceSlot), so an
+                optional strike stops reading as the expected next
+                move and names the card it would spend. */}
+          </>
+        )}
+        {aceMode&&(
+          <>
+            <BigBtn variant="gold" compact={tight} onClick={confirmAce} disabled={aceTargets.length!==2}>
+              Remove ({aceTargets.length}/2)
+            </BigBtn>
+            <BigBtn variant="ghost" compact={tight} onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
+          </>
+        )}
+        {isSignal&&!signalLocked&&(
+          <BigBtn onClick={doSignal} disabled={!selValid} variant="green" compact={tight}>
+            Signal{selValid?` — ${selectedInHand.length} card${selectedInHand.length>1?'s':''}`:' (select a valid hand)'}
+          </BigBtn>
+        )}
+        {isReveal&&(
+          <button
+            {...pressStyles(
+              el=>{if(!revealBuilding){el.style.background=DS.slateLight;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.slateLight}`;}},
+              el=>{el.style.background=DS.slate;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.slate}88`;}
+            )}
+            onClick={()=>{
+              if(revealBuilding) return;
+              setRevealBuilding(true);
+              playCrescendo(()=>{
+                setRevealBuilding(false);
+                resolveSmallHand();
+              });
+            }}
+            style={{
+              border:'none',cursor:revealBuilding?'wait':'pointer',
+              fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
+              padding:stack?'14px 30px':'18px 44px',fontSize:stack?17:22,
+              minHeight:TOUCH_MIN,borderRadius:12,
+              background:DS.slate,color:DS.ink,
+              animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'none',
+              boxShadow:revealBuilding?`0 0 40px ${DS.slate}`:`0 0 20px ${DS.slate}88`,
+              transition:'background 60ms, transform 60ms, box-shadow 60ms',
+            }}>
+            {revealBuilding?'▶▶▶':'Reveal Hands'}
+          </button>
+        )}
+        {phase==='replenish'&&<BigBtn onClick={doReplenish} variant="primary" compact={tight}>Deal Second Hand</BigBtn>}
+        {phase==='scraps-reveal'&&<BigBtn onClick={resolveScrap} variant="primary" compact={tight}>Play Scraps Hand</BigBtn>}
+        {phase==='round-end'&&<BigBtn onClick={()=>startNewRound(true)} variant="primary" compact={tight}>Next Round →</BigBtn>}
+        {pendingAiAce&&!aiAceReveal&&(
+          <>
+            <BigBtn variant="danger" compact={tight} onClick={onPlayerCounterAce}>
+              <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+                Counter <IconBolt size={18}/>
+              </span>
+            </BigBtn>
+            <BigBtn variant="ghost" compact={tight} onClick={onPlayerAllowAce}>Let It Happen</BigBtn>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const playerHandEl = (
+    <div ref={playerHandRef} style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:stack?2:5,
+      opacity:isPlayerTurn||settling||(isSignal&&!signalLocked)?1:0.6,
+      transition:'opacity 0.5s',flexShrink:0}}>
+      <FannedHand
+        cards={playerHand}
+        selectedIds={selIds}
+        registerEl={registerCard}
+        hiddenIds={hiddenIds}
+        waveIds={waveIds}
+        tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
+        onCardClick={card=>{
+          if(isScrapsDiscardMode||pendingAiAce) return;
+          if((isPlayerTurn&&!aceMode)||(isSignal&&!signalLocked)) toggleHandCard(card);
+        }}
+        selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
+        activeWiggle={glowHand&&!pendingAiAce}
+        cardSlot={aceSlot}
+        size={SZ.hand} maxWidth={stack?railW:null}
+      />
+      <HandUpgradeBadge cards={playerHand} fontSize={stack?13:15}/>
+    </div>
+  );
+
+  const playerScrapsEl = (
+    <div ref={playerScrapsRef} style={{flexShrink:0,
+      opacity:isScrapsDiscardMode||isPlayerTurn||settling?1:0.75,transition:'opacity 0.4s'}}>
+      <HorizontalScrapsZone
+        cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
+        label="Your Scraps"
+        selectable={isScrapsDiscardMode}
+        selectedIds={scrapsDiscardIds}
+        onCardClick={toggleScrapsDiscardCard}
+        discardMode={isScrapsDiscardMode}
+        registerEl={registerCard} hiddenIds={hiddenIds}
+        glowZone={glowPlayerScraps}
+        size={SZ.pile} width={stack?railW:340} fill={stack}/>
+    </div>
+  );
+
   return (
-    <div style={{height:'100vh',display:'flex',flexDirection:'column',
-      background:DS.dusk,userSelect:'none',overflow:'auto'}}>
+    <div className="app-vh" style={{display:'flex',flexDirection:'column',
+      background:DS.dusk,userSelect:'none',overflow:'hidden'}}>
       <OpponentBar aiScore={aiScore} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
-        difficultyLabel={(difficulty||'').toUpperCase()}/>
+        difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
-      {/* Table — three horizontal bands. Ownership mapping is
-          absolute: top of screen = opponent's stuff, bottom =
-          yours, everywhere, no exceptions. Each side's Scraps
-          sits directly beside its hand. The deck + discard live
-          on the table, center-left, as the physical origin of
-          every deal and draw. */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',position:'relative',
-        minHeight:0,overflow:'hidden',background:`radial-gradient(ellipse at 50% 40%,${DS.duskLight} 0%,${DS.dusk} 100%)`}}>
+      {/* Table. Ownership mapping is absolute in BOTH layouts: top
+          of screen = opponent's stuff, bottom = yours, everywhere,
+          no exceptions. What changes between them is only where a
+          side's Scraps sits relative to its hand — beside it when
+          there is width to spare, under it when there is not.
 
-        <div style={{position:'relative',zIndex:1,flex:1,display:'flex',
-          flexDirection:'column',justifyContent:'space-around',
-          minHeight:0,overflowY:'auto',overflowX:'auto',padding:'8px 14px',gap:4}}>
+          FitBox owns the promise that this never scrolls: it lays
+          the bands out at a definite width and scales whatever
+          comes back to fit. The `overflow:auto` that used to be on
+          the game root and the `overflowX:auto` on this band stack
+          were the interim fallbacks from Session 1 and the forest
+          reskin; they are gone, and nothing replaces them, because
+          there is no longer a case where the table does not fit. */}
+      <FitBox modeMinW={MODE_MIN_W[mode]}
+        style={{background:`radial-gradient(ellipse at 50% 40%,${DS.duskLight} 0%,${DS.dusk} 100%)`}}>
+        <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
+          justifyContent:'space-evenly',
+          padding:stack?'5px 10px':'8px 14px',gap:stack?5:4}}>
 
-          {/* ── TOP BAND: opponent hand, with their Scraps beside it ── */}
-          <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>
-            <div style={{flex:'1 1 0',minWidth:0}}/>
-            <div ref={aiHandRef} style={{
-              opacity:isAiThinking?1:isPlayerTurn?0.5:1,
-              transition:'opacity 0.5s',display:'flex',justifyContent:'center',
-              flexShrink:0}}>
-              <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
-                activeWiggle={isAiThinking} waveIds={waveIds}
-                registerEl={registerCard} hiddenIds={hiddenIds}/>
-            </div>
-            <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
-              <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:8,
-                alignItems:'flex-start',
-                opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
-                <RoundProgressIndicator phase={phase}/>
-                <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
-                  label="Opp Scraps" selectable={aceMode}
-                  selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
-                  registerEl={registerCard} hiddenIds={hiddenIds}
-                  isOpponent={true} glowZone={glowOppScraps}/>
+          {stack ? (
+            <>
+              {/* The round strip gets its own row. It was tried
+                  stacked over the piles to save one — but the strip
+                  is ~240px of nowrap pills and the opponent's fan
+                  needs the rest, which is more than a 375px rail
+                  has, and the third pill ran off the edge. On its
+                  own row it costs 8px net, because the row it used
+                  to share was as tall as the strip and the piles
+                  together anyway. */}
+              <div style={{display:'flex',justifyContent:'center',flexShrink:0}}>
+                <RoundProgressIndicator phase={phase} compact/>
               </div>
-            </div>
-          </div>
-
-          {/* ── MIDDLE BAND: deck + discard center-left, action zone center ── */}
-          <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0,minHeight:150}}>
-            <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'center',
-              alignItems:'center',gap:22}}>
-              <div ref={deckRef}><DeckPile count={deck.length}/></div>
-              <div ref={discardRef}><DiscardPile count={discard.length}/></div>
-            </div>
-
-            {/* ACTION ZONE — center of the table */}
-            <div style={{
-              flexShrink:1, flexBasis:760, maxWidth:760,
-              display:'flex',flexDirection:'column',alignItems:'center',gap:10,
-              padding:'14px 20px',
-              background:`rgba(20,31,25,0.7)`,
-              border:`1px solid ${DS.slate}22`,
-              borderRadius:14,
-            }}>
-              {/* Hint — the game's narrator owns this band (item 6).
-                  The over-limit error takes over while active. */}
-              {tradeError ? (
-                <div style={{fontFamily:F.ui,fontSize:25,color:DS.ember,
-                  fontWeight:700,textAlign:'center',lineHeight:1.3,
-                  animation:'errBounce 0.5s cubic-bezier(.34,1.4,.64,1)'}}>
-                  {tradeError}
+              {/* The opponent's face-down hand and the table
+                  furniture share a row: neither is something the
+                  player acts on, and between them they cost one row
+                  instead of two. */}
+              <div style={{display:'flex',alignItems:'flex-end',flexShrink:0,
+                justifyContent:'space-between',gap:10}}>
+                {oppHandEl}
+                {pilesEl}
+              </div>
+              {oppScrapsEl}
+              {actionEl}
+              {playerScrapsEl}
+              <div style={{display:'flex',justifyContent:'center',flexShrink:0}}>{playerHandEl}</div>
+            </>
+          ) : (
+            <>
+              {/* ── TOP BAND: opponent hand, with their Scraps beside it ── */}
+              <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>
+                <div style={{flex:'1 1 0',minWidth:0}}/>
+                {oppHandEl}
+                <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
+                  {oppScrapsEl}
                 </div>
-              ) : (
-                <div key={phase} style={{fontFamily:F.ui,fontSize:25,
-                  color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
-                  fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
-                  maxWidth:720,
-                  animation:isAiThinking?'pulse 1s ease infinite'
-                    :(isSignal&&!signalLocked)?'popIn 0.45s cubic-bezier(.34,1.6,.64,1)':undefined}}>
-                  {hint}
-                </div>
-              )}
-              {isSignal&&!signalLocked&&(
-                <SignalLegalityStrip hand={playerHand} selectedCount={selectedInHand.length}/>
-              )}
-              {/* Buttons */}
-              <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',justifyContent:'center'}}>
-                {isScrapsDiscardMode&&(
-                  <>
-                    <BigBtn variant="warning" onClick={confirmScrapsDiscard} disabled={scrapsDiscard.length!==scrapsOverflow}>
-                      Discard ({scrapsDiscard.length}/{scrapsOverflow})
-                    </BigBtn>
-                    <BigBtn variant="ghost" onClick={cancelScrapsDiscard}>Cancel</BigBtn>
-                  </>
-                )}
-                {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&(
-                  <>
-                    {!forcedAce&&(
-                      <TradeInBtn onClick={doTradeIn} disabled={selectedInHand.length===0}
-                        count={selectedInHand.length} drawCount={tradeDraw}
-                        projectedHand={tradeNetHand} overLimit={tradeOverLimit}/>
-                    )}
-                    {/* Play Ace is NOT in this row any more. It rides on
-                        top of its own Ace in the hand (see aceSlot), so an
-                        optional strike stops reading as the expected next
-                        move and names the card it would spend. */}
-                  </>
-                )}
-                {aceMode&&(
-                  <>
-                    <BigBtn variant="gold" onClick={confirmAce} disabled={aceTargets.length!==2}>
-                      Remove ({aceTargets.length}/2)
-                    </BigBtn>
-                    <BigBtn variant="ghost" onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
-                  </>
-                )}
-                {isSignal&&!signalLocked&&(
-                  <BigBtn onClick={doSignal} disabled={!selValid} variant="green">
-                    Signal{selValid?` — ${selectedInHand.length} card${selectedInHand.length>1?'s':''}`:' (select a valid hand)'}
-                  </BigBtn>
-                )}
-                {isReveal&&(
-                  <button
-                    onMouseEnter={e=>{if(!revealBuilding){e.currentTarget.style.background=DS.slateLight;e.currentTarget.style.transform='scale(1.05)';e.currentTarget.style.boxShadow=`0 0 40px ${DS.slateLight}`;} }}
-                    onMouseLeave={e=>{e.currentTarget.style.background=DS.slate;e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow=`0 0 20px ${DS.slate}88`;}}
-                    onClick={()=>{
-                      if(revealBuilding) return;
-                      setRevealBuilding(true);
-                      playCrescendo(()=>{
-                        setRevealBuilding(false);
-                        resolveSmallHand();
-                      });
-                    }}
-                    style={{
-                      border:'none',cursor:revealBuilding?'wait':'pointer',
-                      fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
-                      padding:'18px 44px',fontSize:22,borderRadius:12,
-                      background:DS.slate,color:DS.ink,
-                      animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'none',
-                      boxShadow:revealBuilding?`0 0 40px ${DS.slate}`:`0 0 20px ${DS.slate}88`,
-                      transition:'background 60ms, transform 60ms, box-shadow 60ms',
-                    }}>
-                    {revealBuilding?'▶▶▶':'Reveal Hands'}
-                  </button>
-                )}
-                {phase==='replenish'&&<BigBtn onClick={doReplenish} variant="primary">Deal Second Hand</BigBtn>}
-                {phase==='scraps-reveal'&&<BigBtn onClick={resolveScrap} variant="primary">Play Scraps Hand</BigBtn>}
-                {phase==='round-end'&&<BigBtn onClick={()=>startNewRound(true)} variant="primary">Next Round →</BigBtn>}
-                {pendingAiAce&&!aiAceReveal&&(
-                  <>
-                    <BigBtn variant="danger" onClick={onPlayerCounterAce}>
-                      <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
-                        Counter <IconBolt size={18}/>
-                      </span>
-                    </BigBtn>
-                    <BigBtn variant="ghost" onClick={onPlayerAllowAce}>Let It Happen</BigBtn>
-                  </>
-                )}
               </div>
-            </div>
-            <div style={{flex:'1 1 0',minWidth:0}}/>
-          </div>
 
-          {/* ── BOTTOM BAND: player hand, with YOUR Scraps beside it ── */}
-          <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>
-            <div style={{flex:'1 1 0',minWidth:0}}/>
-            <div ref={playerHandRef} style={{
-              display:'flex',flexDirection:'column',alignItems:'center',gap:5,
-              opacity:isPlayerTurn||settling||(isSignal&&!signalLocked)?1:0.6,
-              transition:'opacity 0.5s',flexShrink:0}}>
-              <FannedHand
-                cards={playerHand}
-                selectedIds={selIds}
-                registerEl={registerCard}
-                hiddenIds={hiddenIds}
-                waveIds={waveIds}
-                tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
-                onCardClick={card=>{
-                  if(isScrapsDiscardMode||pendingAiAce) return;
-                  if((isPlayerTurn&&!aceMode)||(isSignal&&!signalLocked)) toggleHandCard(card);
-                }}
-                selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
-                activeWiggle={glowHand&&!pendingAiAce}
-                cardSlot={aceSlot}
-              />
-              <HandUpgradeBadge cards={playerHand}/>
-            </div>
-            <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
-              <div ref={playerScrapsRef} style={{
-                opacity:isScrapsDiscardMode||isPlayerTurn||settling?1:0.75,transition:'opacity 0.4s'}}>
-                <HorizontalScrapsZone
-                  cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
-                  label="Your Scraps"
-                  selectable={isScrapsDiscardMode}
-                  selectedIds={scrapsDiscardIds}
-                  onCardClick={toggleScrapsDiscardCard}
-                  discardMode={isScrapsDiscardMode}
-                  registerEl={registerCard} hiddenIds={hiddenIds}
-                  glowZone={glowPlayerScraps}/>
+              {/* ── MIDDLE BAND: deck + discard center-left, action zone center ── */}
+              <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0,
+                minHeight:tight?0:150}}>
+                <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'center',
+                  alignItems:'center'}}>
+                  {pilesEl}
+                </div>
+                {actionEl}
+                <div style={{flex:'1 1 0',minWidth:0}}/>
               </div>
-            </div>
-          </div>
+
+              {/* ── BOTTOM BAND: player hand, with YOUR Scraps beside it ── */}
+              <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>
+                <div style={{flex:'1 1 0',minWidth:0}}/>
+                {playerHandEl}
+                <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
+                  {playerScrapsEl}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      </FitBox>
 
       {/* Bottom bar — tap the log line to open the full history */}
       <div style={{position:'relative',flexShrink:0}}>
@@ -986,7 +1117,7 @@ export function GameScreen({ difficulty, onExit }) {
           </div>
         )}
         <PlayerBar playerScore={playerScore} playerFlash={playerScoreFlash}
-          roundEndPulse={roundEndPulse}>
+          roundEndPulse={roundEndPulse} compact={tight}>
           {/* The log is the ONLY record of what the opponent did while
               an animation was playing, and a truncated line behind a
               small chevron reads as decoration. The label sits there
@@ -996,8 +1127,9 @@ export function GameScreen({ difficulty, onExit }) {
             title={showLogPanel?'Hide log history':'Show log history'}
             aria-expanded={showLogPanel}
             aria-label={showLogPanel?'Hide log history':'Show log history'}
-            style={{fontFamily:F.mono,fontSize:15,color:showLogPanel?DS.frost:DS.slateLight,
+            style={{fontFamily:F.mono,fontSize:stack?13:15,color:showLogPanel?DS.frost:DS.slateLight,
             flex:1,minWidth:0,cursor:'pointer',display:'flex',alignItems:'center',gap:8,
+            minHeight:TOUCH_MIN,
             background:'transparent',border:'none',padding:0,textAlign:'left'}}>
             <IconChevron size={14} color={DS.slate} up={!showLogPanel}/>
             {!logEverOpened&&(
@@ -1009,10 +1141,20 @@ export function GameScreen({ difficulty, onExit }) {
               {log[log.length-1]||''}
             </span>
           </button>
-          <button onClick={()=>setShowRules(true)} title="Rules" style={{
-            background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
-            borderRadius:'50%',width:28,height:28,cursor:'pointer',
-            fontFamily:F.ui,fontSize:14,fontWeight:900,flexShrink:0}}>?</button>
+          {/* The rules button was a 28px circle — fine under a
+              cursor, half a fingertip on a phone. The disc still
+              reads at 30px; the BUTTON around it is 44. */}
+          <button onClick={()=>setShowRules(true)} title="Rules"
+            aria-label="Rules" style={{
+            background:'transparent',border:'none',color:DS.slateLight,
+            width:TOUCH_MIN,height:TOUCH_MIN,cursor:'pointer',flexShrink:0,
+            display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
+            <span aria-hidden="true" style={{
+              display:'flex',alignItems:'center',justifyContent:'center',
+              width:30,height:30,borderRadius:'50%',
+              background:DS.duskMid,border:`1px solid ${DS.slate}66`,
+              fontFamily:F.ui,fontSize:15,fontWeight:900}}>?</span>
+          </button>
         </PlayerBar>
       </div>
 

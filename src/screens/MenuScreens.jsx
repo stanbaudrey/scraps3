@@ -26,15 +26,17 @@ const SUBTITLE = "Build two hands at once.";
 // ─────────────────────────────────────────────────────────────
 export function SplashScreen({ onStart }) {
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',
-      justifyContent:'center',background:DS.dusk,padding:24,position:'relative',overflow:'hidden'}}>
+    <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
+      justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
+      position:'relative',overflow:'hidden'}}>
       <SwirlBg/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-          <div style={{fontFamily:F.display,fontWeight:600,fontSize:'clamp(28px,min(9vw,8vh),64px)',
-            color:DS.slate,letterSpacing:'0.18em',marginBottom:10,whiteSpace:'nowrap'}}>♠ ♥ ♦ ♣</div>
+          <div style={{fontFamily:F.display,fontWeight:600,fontSize:'clamp(24px,min(9vw,7vh),64px)',
+            color:DS.slate,letterSpacing:'0.18em',marginBottom:'clamp(4px,1.4vh,10px)',
+            whiteSpace:'nowrap'}}>♠ ♥ ♦ ♣</div>
           <AnimatedTitle/>
-          <p style={{fontFamily:F.display,fontSize:'clamp(17px,2.4vw,22px)',color:DS.slateLight,
+          <p style={{fontFamily:F.display,fontSize:'clamp(15px,min(4.4vw,2.6vh),22px)',color:DS.slateLight,
             letterSpacing:'0.04em',marginBottom:'clamp(10px,3.5vh,30px)',animation:'fadeUp .5s ease .7s both'}}>{SUBTITLE}</p>
           <Btn onClick={onStart}>Play</Btn>
         </div>
@@ -81,11 +83,15 @@ export function DifficultyPicker({ onChoose }) {
   ];
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',
-      justifyContent:'center',background:DS.dusk,padding:24,position:'relative',overflow:'hidden'}}>
+    <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
+      justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
+      position:'relative',overflow:'hidden'}}>
       <SwirlBg/>
+      {/* Gaps and box padding are viewport-relative so the two
+          panels stay whole on a short screen instead of the second
+          one running off the bottom. */}
       <div style={{maxWidth:620,width:'100%',position:'relative',zIndex:1,
-        display:'flex',flexDirection:'column',gap:22}}>
+        display:'flex',flexDirection:'column',gap:'clamp(12px,3vh,22px)'}}>
         {opts.map((o, i) => {
           const rec = stats[o.id];
           return (
@@ -98,9 +104,10 @@ export function DifficultyPicker({ onChoose }) {
               className={`pick-box${armed ? ' armed' : ''}`}
               disabled={!armed}
               onClick={armed ? () => onChoose(o.id) : undefined}
-              style={{animationDelay:`${i * 150}ms`, '--accent':o.tone}}>
+              style={{animationDelay:`${i * 150}ms`, '--accent':o.tone,
+                padding:'clamp(14px,3.2vh,26px) clamp(18px,4vw,30px)'}}>
               <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
-                <span style={{fontFamily:F.display,fontSize:'clamp(38px,6vw,54px)',
+                <span style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
                   color:o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
                 {rec && (rec.w > 0 || rec.l > 0) && (
                   <span style={{fontFamily:F.mono,color:DS.slate,fontSize:13,letterSpacing:'0.1em',
@@ -110,8 +117,8 @@ export function DifficultyPicker({ onChoose }) {
                 )}
               </span>
               <span style={{display:'block',fontFamily:F.ui,color:DS.slateLight,
-                fontSize:'clamp(16px,2vw,20px)',
-                fontWeight:500,marginTop:8,lineHeight:1.4}}>{o.desc}</span>
+                fontSize:'clamp(14px,min(3.8vw,2.2vh),20px)',
+                fontWeight:500,marginTop:'clamp(4px,1vh,8px)',lineHeight:1.4}}>{o.desc}</span>
             </button>
           );
         })}

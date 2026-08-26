@@ -1,16 +1,63 @@
 // ============================================================
-// SCRAPS — Buttons (DOM-mutation hover, zero re-renders)
+// SCRAPS — Buttons (DOM-mutation press states, zero re-renders)
 // ============================================================
 import { DS, F } from "../styles/theme.js";
 
+// The smallest a control is allowed to be on its short axis.
+// 44px is the figure both Apple's and Google's guidance land on
+// for a fingertip, and several controls here — the rules "?", the
+// log line, the Play Ace tag — were built to a cursor's tolerance
+// and came in at 20-28px.
+export const TOUCH_MIN = 44;
+
+// What a control asks for in the STACKED layout, where the table is
+// often scaled to fit a short phone. 44 CSS px at a 0.78 scale is
+// 34 real ones, which is back under the bar the constant exists to
+// clear — so a compact control is deliberately taller than a
+// desktop one. It costs a few px of layout height, and because a
+// button row is a small share of the table's total, asking for the
+// extra buys back more in rendered size than it gives away in
+// scale. Measured on a 375x667 iPhone SE: 44 -> 34 real px, 54 ->
+// 42.
+export const TOUCH_MIN_COMPACT = 54;
+
 // ─────────────────────────────────────────────────────────────
-// Btn — DOM mutation hover (zero React re-renders on hover)
+// pressStyles — pointer-driven visual states.
+//
+// Every button in this project used onMouseEnter/onMouseLeave,
+// which is a hover contract, and a phone has no hover. The
+// failure is not just "no effect on touch": touch browsers
+// synthesise a mouseenter on tap and never send the matching
+// mouseleave, so a tapped button KEPT its hover look afterwards —
+// on a phone, the last thing you touched stayed lit.
+//
+// Pointer events answer both halves. enter/leave still drive the
+// mouse case and filter touch out of it; a press pair
+// (down / up / cancel) gives touch the immediate feedback that
+// hover used to provide, and ends it when the finger lifts.
+//
+// Handlers take the ELEMENT, not the event, so the same pair can
+// be reused by callers that already hold a node.
+// ─────────────────────────────────────────────────────────────
+export function pressStyles(applyIn, applyOut) {
+  return {
+    onPointerEnter: (e) => { if (e.pointerType !== 'touch') applyIn(e.currentTarget); },
+    onPointerLeave: (e) => applyOut(e.currentTarget),
+    onPointerDown:  (e) => applyIn(e.currentTarget),
+    onPointerUp:    (e) => { if (e.pointerType === 'touch') applyOut(e.currentTarget); },
+    onPointerCancel:(e) => applyOut(e.currentTarget),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Btn — DOM-mutation press states (zero React re-renders)
 // ─────────────────────────────────────────────────────────────
 export function Btn({ children, onClick, variant='primary', disabled=false, small=false }) {
   const base={border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
     padding:small?'10px 20px':'14px 28px',
     fontSize:small?15:17,borderRadius:8,opacity:disabled?0.35:1,
+    minHeight:TOUCH_MIN,
     transition:'transform 60ms,box-shadow 60ms,background 60ms'};
   const V={
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}55`},
@@ -22,9 +69,9 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     warning:{background:'transparent',color:DS.voltage,border:`2px solid ${DS.voltage}88`,boxShadow:'none'},
     gold:{background:DS.gold,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.gold}66`},
   };
-  const hIn=(e)=>{
+  const hIn=(el)=>{
     if(disabled) return;
-    const el=e.currentTarget; el.style.transform='scale(1.05)';
+    el.style.transform='scale(1.05)';
     if(variant==='primary'){el.style.background=DS.voltageHover;el.style.boxShadow=`0 0 28px ${DS.voltage}`;}
     if(variant==='ghost'){el.style.background=DS.slate+'22';}
     if(variant==='danger'){el.style.background=DS.emberHover;el.style.boxShadow=`0 0 24px ${DS.ember}`;}
@@ -33,8 +80,8 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     if(variant==='warning'){el.style.background=DS.voltage+'33';}
     if(variant==='gold'){el.style.background=DS.goldHover;el.style.boxShadow=`0 0 28px ${DS.gold}`;}
   };
-  const hOut=(e)=>{
-    const el=e.currentTarget; el.style.transform='scale(1)';
+  const hOut=(el)=>{
+    el.style.transform='scale(1)';
     if(variant==='primary'){el.style.background=DS.voltage;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.voltage}55`;}
     if(variant==='ghost'){el.style.background='transparent';}
     if(variant==='danger'){el.style.background=DS.ember;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.ember}55`;}
@@ -44,18 +91,21 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
   return <button style={{...base,...V[variant]}}
-    onMouseEnter={hIn} onMouseLeave={hOut}
+    {...pressStyles(hIn,hOut)}
     onClick={disabled?undefined:onClick}>{children}</button>;
 }
 
 // ─────────────────────────────────────────────────────────────
-// BigBtn — 50% larger action buttons, prominent and satisfying
+// BigBtn — 50% larger action buttons, prominent and satisfying.
+// `compact` is the stacked layout's size, not a smaller one — see
+// TOUCH_MIN_COMPACT above for why it is TALLER than the default.
 // ─────────────────────────────────────────────────────────────
-export function BigBtn({ children, onClick, variant='primary', disabled=false }) {
+export function BigBtn({ children, onClick, variant='primary', disabled=false, compact=false }) {
   const base = {border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
-    padding:'18px 36px',fontSize:20,borderRadius:12,
+    padding:compact?'15px 20px':'18px 36px',fontSize:compact?16:20,borderRadius:12,
     opacity:disabled?0.35:1,
+    minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
     transition:'transform 60ms, box-shadow 60ms, background 60ms'};
   const V = {
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}66`},
@@ -66,9 +116,9 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
     sky:{background:DS.slate,color:DS.ink,boxShadow:'none'},
     gold:{background:DS.gold,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.gold}66`},
   };
-  const hIn = (e) => {
+  const hIn = (el) => {
     if(disabled) return;
-    const el=e.currentTarget; el.style.transform='scale(1.06)';
+    el.style.transform='scale(1.06)';
     if(variant==='primary'){el.style.background=DS.voltageHover;el.style.boxShadow=`0 0 40px ${DS.voltage},0 6px 20px rgba(0,0,0,.5)`;}
     if(variant==='ghost'){el.style.background=DS.slate+'33';}
     if(variant==='danger'){el.style.background=DS.emberHover;el.style.boxShadow=`0 0 40px ${DS.ember},0 6px 20px rgba(0,0,0,.5)`;}
@@ -77,8 +127,8 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
     if(variant==='sky'){el.style.background=DS.slateLight;}
     if(variant==='gold'){el.style.background=DS.goldHover;el.style.boxShadow=`0 0 40px ${DS.gold},0 6px 20px rgba(0,0,0,.5)`;}
   };
-  const hOut = (e) => {
-    const el=e.currentTarget; el.style.transform='scale(1)';
+  const hOut = (el) => {
+    el.style.transform='scale(1)';
     if(variant==='primary'){el.style.background=DS.voltage;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.voltage}66`;}
     if(variant==='ghost'){el.style.background='transparent';}
     if(variant==='danger'){el.style.background=DS.ember;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.ember}66`;}
@@ -88,7 +138,7 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
     if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
   return <button style={{...base,...V[variant]}}
-    onMouseEnter={hIn} onMouseLeave={hOut}
+    {...pressStyles(hIn,hOut)}
     onClick={disabled?undefined:onClick}>{children}</button>;
 }
 
@@ -107,33 +157,34 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
 // sound, which is how the rule gets taught rather than merely
 // enforced.
 // ─────────────────────────────────────────────────────────────
-export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false }) {
+export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
   const blocked = overLimit && !disabled;
   const fill = disabled ? DS.duskMid : blocked ? DS.ember : DS.voltage;
   const fillHover = blocked ? DS.emberHover : DS.voltageHover;
   const glow = blocked ? DS.ember : DS.voltage;
-  const hIn = (e) => {
+  const hIn = (el) => {
     if(disabled) return;
-    e.currentTarget.style.background=fillHover;
-    e.currentTarget.style.boxShadow=`0 0 32px ${glow},0 0 60px ${glow}55`;
-    e.currentTarget.style.transform='scale(1.06)';
+    el.style.background=fillHover;
+    el.style.boxShadow=`0 0 32px ${glow},0 0 60px ${glow}55`;
+    el.style.transform='scale(1.06)';
   };
-  const hOut = (e) => {
-    e.currentTarget.style.background=fill;
-    e.currentTarget.style.boxShadow=disabled?'none':`0 0 20px ${glow}66`;
-    e.currentTarget.style.transform='scale(1)';
+  const hOut = (el) => {
+    el.style.background=fill;
+    el.style.boxShadow=disabled?'none':`0 0 20px ${glow}66`;
+    el.style.transform='scale(1)';
   };
   let label;
   if (count === 0) label = 'Trade In';
   else if (blocked) label = `Hand would be ${projectedHand}/7`;
   else label = `Trade ${count} \u2192 Draw ${drawCount}`;
   return (
-    <button onMouseEnter={hIn} onMouseLeave={hOut}
+    <button {...pressStyles(hIn,hOut)}
       onClick={disabled?undefined:onClick}
       style={{
         border:'none',cursor:disabled?'not-allowed':'pointer',
         fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
-        padding:'16px 36px',fontSize:18,borderRadius:10,
+        padding:compact?'14px 20px':'16px 36px',fontSize:compact?15:18,borderRadius:10,
+        minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
         opacity:disabled?0.35:1,
         background:fill,
         color:DS.ink,
@@ -159,17 +210,17 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
 // which is what the You've-Drawn-an-Ace lightbox shows so the
 // player learns the shape before meeting it on the table.
 // ─────────────────────────────────────────────────────────────
-export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
+export function AceTag({ onClick, disabled=false, live=true, width=104, compact=false }) {
   const interactive = live && !disabled;
-  const hIn = (e) => {
+  const hIn = (el) => {
     if (!interactive) return;
-    e.currentTarget.style.background = DS.goldHover;
-    e.currentTarget.style.boxShadow = `0 0 24px ${DS.gold}`;
+    el.style.background = DS.goldHover;
+    el.style.boxShadow = `0 0 24px ${DS.gold}`;
   };
-  const hOut = (e) => {
+  const hOut = (el) => {
     if (!interactive) return;
-    e.currentTarget.style.background = DS.gold;
-    e.currentTarget.style.boxShadow = `0 0 14px ${DS.gold}88`;
+    el.style.background = DS.gold;
+    el.style.boxShadow = `0 0 14px ${DS.gold}88`;
   };
   // A real <button> when it is live: this is the Ace strike, one of the
   // two most consequential moves in the game, and it used to be a div.
@@ -181,7 +232,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
       {...(live ? { type:'button', disabled, 'aria-label': disabled
         ? 'Play Ace — unavailable until their Scraps has 2 or more cards'
         : 'Play Ace to strike their Scraps' } : { 'aria-hidden': true })}
-      onMouseEnter={hIn} onMouseLeave={hOut}
+      {...pressStyles(hIn,hOut)}
       onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
       title={disabled ? "Their Scraps needs 2+ cards before an Ace can strike" : undefined}
       style={{
@@ -189,7 +240,9 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         background: disabled ? DS.duskMid : DS.gold,
         color: disabled ? DS.slate : DS.ink,
         border: disabled ? `1px solid ${DS.slate}55` : 'none',
-        borderRadius:8, padding:'5px 4px',
+        borderRadius:8, padding:'6px 4px',
+        minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
+        display:'flex', flexDirection:'column', justifyContent:'center',
         fontFamily:F.ui, fontWeight:700, fontSize:13, lineHeight:1.12,
         letterSpacing:'0.08em', textTransform:'uppercase', textAlign:'center',
         boxShadow: disabled ? 'none' : `0 0 14px ${DS.gold}88`,
@@ -198,7 +251,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         userSelect:'none',
         transition:'background 80ms, box-shadow 80ms',
       }}>
-      Play<br/>Ace
+      <span>Play<br/>Ace</span>
     </Tag>
   );
 }

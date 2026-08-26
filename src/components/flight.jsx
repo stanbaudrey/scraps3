@@ -35,7 +35,7 @@
 // and the board is already correct.
 // ============================================================
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
-import { PlayingCard } from "./cards.jsx";
+import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 
 const DURATION = 620;
 const prefersReducedMotion = () => {
@@ -52,16 +52,33 @@ const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) /
 // It carries BOTH looks (source and destination) stacked, and
 // cross-fades between them mid-flight, so a card leaving the
 // hand for the Scraps pile visibly becomes a Scraps card on the
-// way instead of switching at either end. Size is handled the
-// same way: the wrapper scales from the source box to the
-// destination box, so a 104px hand card arrives as an 80px
-// Scraps card without a step change.
+// way instead of switching at either end. Size rides along with
+// that cross-fade — the two looks are drawn at their own natural
+// sizes, so a 104px hand card becomes an 80px Scraps card as the
+// fade crosses over, with no step change.
 //
 // The arc is perpendicular to the actual travel direction and
 // scales with distance, so a short hop bows gently and a long
 // cross-table throw bows more. The old version always arced
 // 130px "up", which pushed downward moves through a pointless
 // loop.
+//
+// SCALE is derived from each end's MEASURED box against the
+// natural size of the card being drawn there, never from the two
+// boxes against each other. Same reasoning as the FLIP rule
+// above, applied to size instead of position: the ghost draws a
+// `fromSize` card, so the scale that makes it match the real card
+// it left is from.width / (natural width of fromSize) — and the
+// scale that makes it match the card it is becoming is
+// to.width / (natural width of toSize).
+//
+// The old `from.width / to.width` compared the two ends to each
+// other and drew the source card at it, so a hand→Scraps flight
+// (104 → 80) launched a 104px card at 1.3x — 135px, a third
+// larger than the card it was supposedly leaving. It also had no
+// way to be right once the table itself is scaled to fit the
+// viewport: both ends measure k times their natural size, and
+// this form lands on k at both ends automatically.
 // ─────────────────────────────────────────────────────────────
 function Ghost({ flight, onDone }) {
   const { from, to, card, faceDown, fromScrap, toScrap, fromSize, toSize, arc, delay } = flight;
@@ -73,7 +90,9 @@ function Ghost({ flight, onDone }) {
 
   const a = useMemo(() => centerOf(from), []);
   const b = useMemo(() => centerOf(to), []);
-  const scale0 = to.width ? from.width / to.width : 1;
+  const natW = (sz) => (CARD_DIMS[sz] || CARD_DIMS.small).w;
+  const scale0 = from.width ? from.width / natW(fromSize) : 1;
+  const scale1 = to.width   ? to.width   / natW(toSize)   : 1;
 
   useEffect(() => {
     if (prefersReducedMotion()) { doneRef.current(); return; }
@@ -93,7 +112,7 @@ function Ghost({ flight, onDone }) {
       const e = easeInOut(t);
       const x = (1 - e) * (1 - e) * a.x + 2 * (1 - e) * e * cp.x + e * e * b.x;
       const y = (1 - e) * (1 - e) * a.y + 2 * (1 - e) * e * cp.y + e * e * b.y;
-      const s = scale0 + (1 - scale0) * e;
+      const s = scale0 + (scale1 - scale0) * e;
       const rot = arc * 9 * Math.sin(e * Math.PI);
       el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${s})`;
       if (toRef.current) {

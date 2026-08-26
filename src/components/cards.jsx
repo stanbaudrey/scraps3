@@ -18,6 +18,28 @@ import { DS, F } from "../styles/theme.js";
 import { playClick } from "../audio.js";
 import { evaluateBestHand } from "../game/engine.js";
 
+// ─────────────────────────────────────────────────────────────
+// CARD_DIMS — the four card sizes, exported because two other
+// modules need the same numbers:
+//   • the layout picks a size per band from the viewport mode
+//     (src/ui/viewport.js) and has to know how wide the result
+//     will be before it can lay a fan out;
+//   • flight.jsx derives a ghost's start and end scale from a
+//     card's MEASURED box against its natural one, which is the
+//     only way a flight stays correct when the table is scaled.
+//
+// `tiny` carries a smaller index than the others on purpose: it
+// is the compact-layout Scraps card, where cards overlap far
+// enough that only the top-left corner shows, and a 23px rank
+// beside a 24px suit did not fit in the sliver left exposed.
+// ─────────────────────────────────────────────────────────────
+export const CARD_DIMS = {
+  tiny:  {w:60, h:84,  rank:20,suit:21,pad:5},
+  small: {w:80, h:112, rank:29,suit:31,pad:7},
+  normal:{w:104,h:146, rank:37,suit:39,pad:9},
+  large: {w:124,h:174, rank:44,suit:46,pad:11},
+};
+
 export function isRed(suit){ return suit==='♥'||suit==='♦'; }
 function cardInk(suit,isScrap){ return isScrap?(isRed(suit)?DS.ember:DS.voltage):(isRed(suit)?DS.ember:DS.ink); }
 // Spoken names for the four glyphs. A screen reader hands "♠" to the
@@ -119,13 +141,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
     return () => registerEl(card.id, null, el);
   }, [registerEl, card && card.id]);
 
-  const dims={
-    tiny:  {w:60, h:84,  rank:23,suit:24,pad:5},
-    small: {w:80, h:112, rank:29,suit:31,pad:7},
-    normal:{w:104,h:146, rank:37,suit:39,pad:9},
-    large: {w:124,h:174, rank:44,suit:46,pad:11},
-  };
-  const d=dims[size]||dims.normal;
+  const d=CARD_DIMS[size]||CARD_DIMS.normal;
   const ink=card?cardInk(card.suit,isScrap):DS.ink;
   const isTwoDigit=card&&card.rank==='10';
   const rankFs=isTwoDigit?d.rank*.82:d.rank;
@@ -203,31 +219,73 @@ export function GlowPulse({ active, color=DS.voltage, children, style:extStyle={
 // ─────────────────────────────────────────────────────────────
 // FannedHand
 // ─────────────────────────────────────────────────────────────
+// How far a selected (or opponent-signalled) card lifts out of the
+// fan, as a share of the card's height. It was a flat 28px, which
+// is a fifth of a full-size card and a THIRD of a tiny one — the
+// compact layout paid for a lift nobody asked for on the one row
+// that could least afford the height.
+const LIFT_RATIO = 0.19;
+// A hand carrying the Play Ace tag has to clear it: the tag is a
+// real touch target now (it used to be a 39px cursor target) plus
+// its offset above the card. Sized for the taller compact tag, so
+// the reservation is the same in both layouts and an orientation
+// change does not move the fan under the player's thumb.
+const SLOT_ROOM = 59;
+// A card never shows less of itself than this fraction of its
+// width, however tight the fan gets: below it the rank in the
+// top-left corner starts disappearing under the next card and the
+// fan stops being readable at all.
+//
+// A FACE-DOWN fan has no rank to protect. All it has to say is how
+// many cards are there, so it is allowed to close up far tighter —
+// which is what lets the opponent's seven-card hand share a row
+// with the deck and discard on a 375px screen.
+const MIN_EXPOSED = { up: 0.34, down: 0.13 };
+
 export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new Set(),
   onCardClick, faceDown=false, selectable=false,
   wiggleIds=new Set(), glowZone=false, activeWiggle=false, aiSignaledIds=new Set(),
   shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set(),
-  registerEl=null, hiddenIds=new Set(), cardSlot=null }) {
+  registerEl=null, hiddenIds=new Set(), cardSlot=null,
+  size='normal', maxWidth=null }) {
 
   const sorted=faceDown?cards:sortByValue(cards);
   const count=sorted.length;
-  const spread=Math.min(42,Math.max(22,240/Math.max(count,1)));
-  const W=104; const H=160;
+  const d=CARD_DIMS[size]||CARD_DIMS.normal;
+  const W=d.w;
+  // Step between neighbouring cards. The open-hand default is the
+  // old `spread*2`, restated as the distance it always was; when a
+  // maxWidth is given the fan closes up to honour it, never past
+  // MIN_EXPOSED.
+  const openStep=Math.min(84,Math.max(44,480/Math.max(count,1)))*(W/104);
+  const room=maxWidth!=null&&count>1?(maxWidth-W)/(count-1):Infinity;
+  const step=Math.max(W*(faceDown?MIN_EXPOSED.down:MIN_EXPOSED.up),Math.min(openStep,room));
+  // The container used to be `count*step + W` wide, which is a full
+  // card-and-a-bit wider than the fan it holds — the outermost card
+  // sits at (count-1)/2 steps from centre, not count/2. That dead
+  // margin on both sides is most of why the table needed a
+  // horizontal scrollbar below ~900px.
+  const span=(count-1)*step+W;
+  const lift=Math.round(d.h*LIFT_RATIO);
+  const head=faceDown?lift+4:Math.max(lift+4,SLOT_ROOM);
+  // Cards fan DOWNWARD as well (ty below), so the box owes them a
+  // little floor too.
+  const foot=Math.ceil(Math.max(0,(count-1)/2)*3)+6;
 
   return (
     <div style={{padding:0}}>
-      <div style={{position:'relative',height:H+32,
-        width:Math.max(count*spread*2+W,W+40),
+      <div style={{position:'relative',height:d.h+head+foot,
+        width:Math.max(span,W),
         display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
         {count===0&&(
-          <div style={{border:`2px dashed ${DS.slate}44`,borderRadius:12,width:W,height:H,
+          <div style={{border:`2px dashed ${DS.slate}44`,borderRadius:12,width:W,height:d.h,
             display:'flex',alignItems:'center',justifyContent:'center',
             color:DS.slate+'66',fontSize:16,fontFamily:F.mono}}>empty</div>
         )}
         {sorted.map((card,i)=>{
           const offset=count===1?0:(i-(count-1)/2);
           const rot=offset*(count<=3?4:2.8);
-          const tx=offset*spread*2;
+          const tx=offset*step;
           const ty=Math.abs(offset)*3;
           const isSel=selectedIds.has(card.id);
           const isTradeSel=tradeSelectedIds.has(card.id);
@@ -239,14 +297,14 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
           // Slot width is the card's exposed share of the fan, not the
           // full card width: two Aces sitting next to each other would
           // otherwise overlap their tags by the fan's overlap amount.
-          const slotW=Math.min(W,Math.round(spread*2));
+          const slotW=Math.min(W,Math.round(step));
           const slot=cardSlot?cardSlot(card,slotW):null;
           // A slot (today: the Play Ace button) has to move with its
           // card, wiggle included. So when one is present the wiggle
           // moves up to a wrapper around BOTH, and the card itself
           // stops wiggling — otherwise the two would lean out of sync.
           const body=(
-            <PlayingCard card={card} faceDown={faceDown} isScrap={false}
+            <PlayingCard card={card} faceDown={faceDown} isScrap={false} size={size}
               selected={isSel} selectable={selectable&&!faceDown} liftTransform={false}
               registerEl={registerEl} hidden={hiddenIds.has(card.id)}
               fadingIn={fadingInIds&&fadingInIds.has(card.id)}
@@ -266,9 +324,9 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                 onKeyDown: buttonKeys(() => onCardClick(card)),
               } : {})}
               style={{
-              position:'absolute',bottom:0,left:'50%',
+              position:'absolute',bottom:foot,left:'50%',
               transform:isSel||isAiSig
-                ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-28}px) rotate(${rot}deg)`
+                ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-lift}px) rotate(${rot}deg)`
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
               transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
               zIndex:slot?count+5:i,
@@ -278,7 +336,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                 <div style={{position:'relative',
                   animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
                   <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
-                    marginBottom:7,display:'flex',justifyContent:'center'}}>{slot}</div>
+                    marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
                   {body}
                 </div>
               ):body}
@@ -294,13 +352,16 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
 // DeckPile — the draw deck, live on the table. Gives the
 // dealing wave and every trade draw a physical origin point.
 // ─────────────────────────────────────────────────────────────
-export function DeckPile({ count }) {
+export function DeckPile({ count, size='small' }) {
+  const d=CARD_DIMS[size]||CARD_DIMS.small;
+  const fs=size==='tiny'?10:13;
   const layers = count === 0 ? 0 : Math.min(4, 1 + Math.floor(count / 14));
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-      <div style={{position:'relative',width:80,height:112}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+      minWidth:d.w}}>
+      <div style={{position:'relative',width:d.w,height:d.h}}>
         {layers===0?(
-          <div style={{width:80,height:112,borderRadius:10,
+          <div style={{width:d.w,height:d.h,borderRadius:10,
             border:`2px dashed ${DS.slate}33`,
             display:'flex',alignItems:'center',justifyContent:'center'}}>
             <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'55'}}>—</span>
@@ -309,13 +370,13 @@ export function DeckPile({ count }) {
           Array.from({length:layers},(_,i)=>(
             <div key={i} style={{position:'absolute',top:0,left:0,
               transform:`translate(${-i*1.5}px,${-i*2}px)`,zIndex:i}}>
-              <PlayingCard card={null} faceDown={true} size="small"/>
+              <PlayingCard card={null} faceDown={true} size={size}/>
             </div>
           ))
         )}
       </div>
-      <span style={{fontFamily:F.mono,fontSize:13,color:DS.slate,
-        letterSpacing:'0.12em'}}>DECK · {count}</span>
+      <span style={{fontFamily:F.mono,fontSize:fs,color:DS.slate,
+        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>DECK · {count}</span>
     </div>
   );
 }
@@ -325,14 +386,17 @@ export function DeckPile({ count }) {
 // instead of orphaned in its own column. Label bumped to
 // legible size + full slate.
 // ─────────────────────────────────────────────────────────────
-export function DiscardPile({ count }) {
+export function DiscardPile({ count, size='small' }) {
+  const d=CARD_DIMS[size]||CARD_DIMS.small;
+  const fs=size==='tiny'?10:13;
   const layers=Math.min(count,4);
   const rots=[-11,6,-4,1];
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,opacity:0.8}}>
-      <div style={{position:'relative',width:80,height:112}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,opacity:0.8,
+      minWidth:d.w}}>
+      <div style={{position:'relative',width:d.w,height:d.h}}>
         {count===0?(
-          <div style={{width:80,height:112,borderRadius:10,
+          <div style={{width:d.w,height:d.h,borderRadius:10,
             border:`2px dashed ${DS.slate}22`,
             display:'flex',alignItems:'center',justifyContent:'center'}}>
             <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'44'}}>—</span>
@@ -342,13 +406,13 @@ export function DiscardPile({ count }) {
             <div key={i} style={{position:'absolute',top:0,left:0,
               transform:`rotate(${rots[i]||0}deg) translate(${i*1.5-2}px,${i-1}px)`,
               zIndex:i,opacity:0.6}}>
-              <PlayingCard card={null} faceDown={true} size="small"/>
+              <PlayingCard card={null} faceDown={true} size={size}/>
             </div>
           ))
         )}
       </div>
-      <span style={{fontFamily:F.mono,fontSize:13,color:DS.slate,
-        letterSpacing:'0.12em'}}>DISCARD · {count}</span>
+      <span style={{fontFamily:F.mono,fontSize:fs,color:DS.slate,
+        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>{size==='tiny'?'DISC':'DISCARD'} · {count}</span>
     </div>
   );
 }
@@ -380,7 +444,7 @@ function useBestHand(cards) {
 // Compact badge that lives INSIDE a Scraps zone header. Owner
 // determines the color story: player = voltage by strength,
 // opponent = ember when threatening, slate otherwise.
-function ZoneBadge({ cards, owner }) {
+function ZoneBadge({ cards, owner, fontSize=13 }) {
   const { best, flash } = useBestHand(cards);
   let col;
   if (!best) col = DS.slate + '55';
@@ -388,8 +452,10 @@ function ZoneBadge({ cards, owner }) {
   else col = best.rank>=5?DS.ember:DS.slate;
   return (
     <span style={{
-      fontFamily:F.mono,fontSize:13,fontWeight:700,color:col,
+      fontFamily:F.mono,fontSize:fontSize,fontWeight:700,color:col,
       letterSpacing:'0.08em',whiteSpace:'nowrap',
+      overflow:'hidden',textOverflow:'ellipsis',display:'inline-block',maxWidth:'100%',
+      verticalAlign:'bottom',
       textShadow:flash?`0 0 14px ${col}`:'none',
       animation:flash?'badgeFlash 0.6s ease':'none',
       transition:'color 0.3s, text-shadow 0.3s'}}>
@@ -403,14 +469,14 @@ function ZoneBadge({ cards, owner }) {
 // turns voltage and flashes only when the best hand upgrades,
 // so it works as feedback instead of wallpaper.
 // ─────────────────────────────────────────────────────────────
-export function HandUpgradeBadge({ cards }) {
+export function HandUpgradeBadge({ cards, fontSize=15 }) {
   const { best, flash } = useBestHand(cards);
   return (
     <div style={{
-      fontFamily:F.mono,fontSize:15,fontWeight:700,
+      fontFamily:F.mono,fontSize:fontSize,fontWeight:700,
       color:flash?DS.voltage:DS.slate,
       letterSpacing:'0.1em',textAlign:'center',
-      minHeight:22,padding:'2px 14px',borderRadius:8,
+      minHeight:fontSize+6,padding:'2px 14px',borderRadius:8,
       background:flash?DS.voltage+'14':'transparent',
       boxShadow:flash?`0 0 20px ${DS.voltage}66`:'none',
       animation:flash?'badgeFlash 0.6s ease':'none',
@@ -428,47 +494,75 @@ export function HandUpgradeBadge({ cards }) {
 // ─────────────────────────────────────────────────────────────
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
   onCardClick, discardMode=false, isOpponent=false, glowZone=false,
-  registerEl=null, hiddenIds=new Set() }) {
+  registerEl=null, hiddenIds=new Set(),
+  size='small', width=340, fill=false }) {
 
   const sorted = sortByValue(cards);
   const borderCol = discardMode ? DS.voltage : isOpponent ? DS.ember : DS.voltage;
   const glowColor = isOpponent ? DS.ember : DS.voltage;
   const count = sorted.length;
-  const cardW = 80, cardH = 112;
+  const d = CARD_DIMS[size] || CARD_DIMS.small;
+  const cardW = d.w, cardH = d.h;
+  // `fill` means "you have been handed the whole rail" — the stacked
+  // layout. It decides both the header shape and whether the zone
+  // keeps its full width when it is nearly empty. It is a prop and
+  // not inferred from the card size, because a tablet gets the
+  // stacked ARRANGEMENT with the roomy CARDS and needs both halves
+  // of this to follow the arrangement.
+  const oneRowHeader = fill;
+  const fs = fill && size === 'tiny' ? 11 : 13;
   // Fan overlap: compress as cards grow so the pile always fits
-  const maxContainerW = 320;
+  const maxContainerW = width - 20;
   const naturalW = count * cardW;
   const overlap = count <= 1 ? 0 : Math.max(0, (naturalW - maxContainerW) / (count - 1));
   const step = cardW - overlap;
-  const innerW = Math.max(240, Math.min(naturalW, maxContainerW));
+  // Stacked, the zone owns the whole rail whatever it holds: a pile
+  // that grows from 2 cards to 7 must not resize the column under it
+  // every turn. Side by side it keeps the old behaviour, where a
+  // narrow zone earns its width back for the hand beside it.
+  const innerW = fill
+    ? maxContainerW
+    : Math.max(Math.min(cardW * 3, maxContainerW), Math.min(naturalW, maxContainerW));
 
   return (
     <GlowPulse active={glowZone} color={glowColor} style={{padding:glowZone?4:0}}>
       <div style={{
-        width: innerW + 20,
+        width: innerW + 20, maxWidth:'100%',
         background:DS.inkLight, border:`2px solid ${borderCol}`,
-        borderRadius:12, padding:'8px 10px 6px',
+        borderRadius:12, padding:size==='tiny'?'5px 8px 4px':'8px 10px 6px',
         boxShadow: discardMode?`0 0 22px ${DS.voltage}66`
           :isOpponent?`0 0 10px ${DS.ember}33`:`0 0 10px ${DS.voltage}22`,
         transition:'border-color 0.2s', flexShrink:0,
       }}>
-        {/* Header carries the ownership label alone. The best-hand
-            badge used to share this row, but both are nowrap and a
-            260px zone cannot hold "YOUR SCRAPS 5/7" and "FOUR OF A
-            KIND" side by side — measured overflow past the border was
-            17px on FULL HOUSE and 61px on THREE OF A KIND, with HIGH
-            CARD already touching it. The badge moved below the cards,
-            where it gets the zone's full width and matches
-            HandUpgradeBadge's placement under the small hand. */}
-        <div style={{display:'flex',alignItems:'center',
-          marginBottom:5,padding:'0 2px'}}>
-          <span style={{fontFamily:F.mono,fontSize:13,fontWeight:700,
+        {/* Header carries the ownership label. The best-hand badge
+            sits BELOW the cards in the side-by-side layout, because
+            both are nowrap and a 260px zone cannot hold "YOUR SCRAPS
+            5/7" and "FOUR OF A KIND" side by side — measured overflow
+            past the border was 17px on FULL HOUSE and 61px on THREE OF
+            A KIND, with HIGH CARD already touching it.
+
+            In the stacked layout the zone is the full width of the
+            screen (~355px at 375) and the type is a notch smaller, so
+            the pair measures ~205px and shares one row comfortably —
+            which buys back a whole 20px row per zone, twice over, on
+            the screen that has the least height to spare. The badge
+            can still truncate rather than push the label out. */}
+        <div style={{display:'flex',alignItems:'baseline',gap:8,
+          marginBottom:oneRowHeader?3:5,padding:'0 2px'}}>
+          <span style={{fontFamily:F.mono,fontSize:fs,fontWeight:700,
             color:discardMode?DS.voltage:isOpponent?DS.ember:DS.voltage,
-            letterSpacing:'0.14em',textTransform:'uppercase',whiteSpace:'nowrap'}}>
+            letterSpacing:'0.14em',textTransform:'uppercase',whiteSpace:'nowrap',flexShrink:0}}>
             {label} <span style={{color:DS.slate,fontWeight:400}}>{cards.length}/7</span>
           </span>
+          {oneRowHeader&&(
+            <span style={{flex:1,minWidth:0,overflow:'hidden',textAlign:'right'}}>
+              <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'} fontSize={fs}/>
+            </span>
+          )}
         </div>
-        <div style={{position:'relative',width:'100%',height:cardH+22}}>
+        {/* The extra height over a card is room for the select
+            lift, which scales with the card like the fan's does. */}
+        <div style={{position:'relative',width:'100%',height:cardH+(size==='tiny'?12:22)}}>
           {count === 0 && (
             <div style={{width:cardW,height:cardH,borderRadius:8,
               border:`2px dashed ${DS.slate}33`,
@@ -494,8 +588,8 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
               <div key={card.id} style={{
                 position:'absolute',
                 left: i * step,
-                top: 8,
-                transform: isSel ? 'translateY(-18px)' : 'translateY(0)',
+                top: size==='tiny'?6:8,
+                transform: isSel ? `translateY(${-Math.round(cardH*0.16)}px)` : 'translateY(0)',
                 transition:'transform 0.22s cubic-bezier(.34,1.2,.64,1), left 0.3s ease',
                 zIndex: i,
               }}
@@ -506,7 +600,7 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                   onKeyDown: buttonKeys(() => { playClick(); onCardClick(card); }),
                 } : {})}
                 onClick={()=>{ if(isElig){ playClick(); onCardClick&&onCardClick(card); }}}>
-                <PlayingCard card={card} size="small" isScrap={true}
+                <PlayingCard card={card} size={size} isScrap={true}
                   selectable={isElig} selected={isSel} liftTransform={false}
                   registerEl={registerEl} hidden={hiddenIds.has(card.id)}
                   dimmed={selectable&&!isElig}/>
@@ -517,10 +611,12 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
         {/* Best hand, under its own pile — same relationship the small
             hand's badge has to the fan. Centred and full-width, so no
             hand name can reach the border. */}
-        <div style={{display:'flex',justifyContent:'center',minHeight:18,
-          alignItems:'center',marginTop:2}}>
-          <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'}/>
-        </div>
+        {!oneRowHeader&&(
+          <div style={{display:'flex',justifyContent:'center',minHeight:18,
+            alignItems:'center',marginTop:2}}>
+            <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'}/>
+          </div>
+        )}
       </div>
     </GlowPulse>
   );

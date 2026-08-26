@@ -773,7 +773,7 @@ design.
 and agreed on either a specific change or that the current balance is
 actually fine.
 
-### Session 3 — Mobile and responsive QA
+### Session 3 — Mobile and responsive QA ✅ Done (2026-08-26)
 **Goal:** SCRAPS is genuinely playable on a phone, not just non-broken.
 **Bring:** this brief (Section 6), Session 1's preview.
 **Updated bar (2026-08-25):** Stan tightened this from "responsive" to
@@ -800,6 +800,150 @@ replace them with a real reactive layout that never needs to scroll.
 and on desktop with zero scrolling anywhere, touch targets are
 appropriately sized, and nothing depends on a hover state that doesn't
 exist on touch.
+
+**Notes:** the layout is two mechanisms now, in this order, and the order
+is the point. The new module is `src/ui/viewport.jsx`.
+
+**1. Reflow.** `layoutMode()` picks between the `wide` table (hand centred,
+that side's Scraps beside it) and a `stack`ed one (hand above its own
+Scraps, both full width). The choice is not "is this a phone" — it is
+"which axis is scarce here". Side-by-side is width-hungry and
+height-thrifty; stacked is the reverse. So a landscape phone, 844×390,
+gets the *wide* layout despite being unambiguously a phone, and that alone
+buys it a fifth more room. Card size is a second, separate question:
+`stack` decides the arrangement, `tight` decides the sizes and how compact
+the bar chrome is. They agree on a phone and disagree at both ends — a
+landscape phone wants the wide bands *and* the small cards, and a portrait
+iPad wants the stacked bands *and* the full-size ones, because 768×1024
+has the room and looked half-empty without them.
+
+**2. Fit.** `<FitBox>` lays the chosen layout out at a definite width,
+measures what came back, and scales it if it still doesn't fit. This is
+what makes "never scrolls" a guarantee rather than a hope: hand size, hint
+length and button wrapping all vary at runtime, so no hand-tuned CSS can
+promise a fit for every board state. Both interim scroll fallbacks are
+gone — `overflow:auto` on the game root (Session 1) and `overflowX:auto`
+on the Scraps band (the forest-reskin critique pass) — and nothing
+replaces them. `html, body { overflow: hidden }` now says so out loud,
+which also kills the iOS rubber-band bounce that makes a fitted screen
+feel broken.
+
+Two things about FitBox are worth knowing before touching it. Its inner
+box is `min-height:100%`, so a table with room to spare still fills the
+space and spreads out (which is what the desktop table has always done) —
+and that means its own box never changes size, so the first version's
+`ResizeObserver` on it never fired again after the first frame. The scale
+froze at whatever the empty table measured, the bands got squeezed by
+flexbox instead, and the player's hand was clipped off the bottom of an
+iPhone anyway. It observes the content *wrapper* now, which is
+`flex:1 0 auto` — it fills the box when content is short and grows past it
+when content is tall, which is both the honest number and an observable
+change. Second: it lays out at `max(available, mode minimum)` rather than
+at 100%, because the scale depends on the content's height, the height
+depends on the width it wraps at, and a width that followed the scale
+never settles.
+
+**Measured, on the real app driven headless through a full turn** (natural
+content height → available height → scale):
+
+| Viewport | Layout | Scale | Was |
+|---|---|---|---|
+| 1920×1080 | wide | 1.00, table fills the height | clipped |
+| 1280×720 | wide | 0.89 | clipped 79px |
+| 768×1024 iPad | stack, roomy cards | 0.91 | 238px of horizontal scroll |
+| 390×844 iPhone | stack | 0.96 | 200×376 off-screen |
+| 375×667 iPhone SE | stack | 0.73 | 200×376 off-screen |
+| 844×390 landscape | wide, small cards | 0.57 | 200×376 off-screen |
+
+Zero document scroll, zero inner scrollers and zero clipped elements on
+every one of those, across splash, all four storyboard beats, the
+difficulty picker, the table before and after a trade, and the rules
+panel. The harness that checks it is `tools/responsive-qa.mjs`, committed
+so the claim stays reproducible: it drives the real app through that whole
+path and asserts all three, plus touch-target sizes. It is deliberately
+not part of `npm test` — Playwright would be the largest devDependency in
+the tree by an order of magnitude — so it runs by hand against a dev
+server with Playwright available.
+
+**Card motion survived intact, and got a bug fixed on the way.** Ghosts
+derive their start and end scale from each end's *measured* box against
+the natural size of the card drawn there, rather than from the two boxes
+against each other — the same reasoning FLIP already applied to position,
+applied to size. The old `from.width / to.width` drew a `fromSize` card at
+that ratio, so a hand→Scraps flight (104 → 80) launched a 104px card at
+1.3×: 135px, a third larger than the card it was supposedly leaving. The
+new form lands on the table's own scale at both ends automatically, which
+is what makes flights correct under FitBox at all.
+
+**Hover.** Every JS hover in `buttons.jsx` was `onMouseEnter`/
+`onMouseLeave`. The failure on touch is worse than "no effect": touch
+browsers synthesise a `mouseenter` on tap and never send the matching
+`mouseleave`, so the last thing tapped stayed lit until something else
+was. It is `pressStyles()` now — pointer events, with touch filtered out
+of enter/leave and given a press pair (down/up/cancel) instead, so a
+finger gets feedback that ends when it lifts. The three CSS hover classes
+in `index.html` are inside `@media (hover: hover)` with `:active`
+partners, and `touch-action: manipulation` removes the 300ms tap delay
+and double-tap zoom on controls.
+
+**Touch targets.** 44px on the short axis everywhere (`TOUCH_MIN`). The
+rules "?" was a 28px circle — the disc still reads at 30, the button
+around it is 44. The log line, the Play Ace tag, the walkthrough's Skip
+and every overlay's dismiss button were all under. In the stacked layout
+controls ask for 54 (`TOUCH_MIN_COMPACT`) rather than 44, deliberately:
+that layout is often scaled, 44 × 0.73 is 32, and because a button row is
+a small share of the table's height, asking for the extra buys back more
+in rendered size than it costs in scale — measured, 44 → 34 real px on an
+SE, 54 → 40.
+
+**Everything else that had to move.** The card fan's container was
+`count × step + W` wide, a full card-and-a-bit wider than the fan inside
+it; the outermost card sits at `(count-1)/2` steps from centre, not
+`count/2`. That dead margin on both sides was most of why the table needed
+a horizontal scrollbar below 900px, and it is 70px back at full size. A
+face-down fan may close up much tighter than a face-up one (13% exposed
+vs 34%) because it has no rank to protect — all it says is how many cards
+there are, and that is what lets a seven-card opponent hand share a row
+with the deck and discard on a 375px rail. The selection lift scales with
+the card instead of being a flat 28px, which is a fifth of a full card and
+a third of a tiny one. Stacked, a Scraps zone owns the whole rail whatever
+it holds, so a pile growing from 2 cards to 7 no longer resizes the column
+under it every turn, and its label and best-hand badge share one row —
+which is only safe *because* it has the full rail; side by side, at 260px,
+those two collide, which is why the badge sits under the cards there. The
+storyboard's bottom rail is in the flow instead of pinned over 130px of
+guessed padding, so a beat is laid out against the space actually left.
+Six near-identical modal shells became one `Shell`, which is where the
+no-scroll rule reaches them: centring alone is fine until a card is taller
+than the screen, and then half of it is above the top edge where it cannot
+be reached — true of the Ace lightbox and the rules panel on a 375×667
+phone. The rules panel is the one overlay that keeps a scrollbar, because
+scaling a wall of reference text to fit a phone defeats the only thing the
+panel is for.
+
+**What Stan should check on a real phone, before this is signed off:**
+- **Portrait first.** The layout is sized for portrait. Landscape works
+  and clips nothing, but 390px of height minus two bars leaves ~300 for
+  two hands, two piles and the control panel, so it scales to 0.57 and a
+  54px button renders at ~31. If landscape matters, it needs its own
+  arrangement, not a tighter version of this one — say so and it becomes
+  its own session.
+- **The iPhone SE end.** 0.73 scale is the floor of comfortable. Cards are
+  60×85 and buttons ~40px. Everything is reachable and legible in the
+  simulator; a thumb is the test.
+- **`dvh` and the URL bar.** `.app-vh` is `100dvh` with a `100vh`
+  fallback, which is the fix for the bottom of the table living under a
+  URL bar that has already scrolled away. Worth a scroll-up/scroll-down
+  on Safari specifically.
+- **Tap-and-hold.** Press feedback now ends on `pointerup`. Confirm a
+  card or a button doesn't stay lit after a tap, which was the old bug.
+
+**Found, not fixed (out of scope):** CLAUDE.md's Stack section still names
+the four fonts as Bebas Neue / Righteous / Space Grotesk / Space Mono, and
+`index.html` has loaded Bungee Shade / Fjalla One / Baloo 2 / Work Sans /
+IBM Plex Mono since the forest reskin. Session 6's opening prompt repeats
+the stale four, so both want correcting together rather than one of them
+quietly.
 
 ### Session 4 — Sound identity
 **Goal:** SCRAPS has one cohesive, recognizable sound, not ten disconnected
@@ -1451,7 +1595,7 @@ SCRAP. · Three hands a round. Only one is public.
 | 1 | Fix what's actually broken (clipping, color tokens) | Done |
 | — | *Unplanned:* Forest/national-park brand reskin | Done |
 | 2 | Game balance discussion | Done |
-| 3 | Mobile and responsive QA | Not started |
+| 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Not started |
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |

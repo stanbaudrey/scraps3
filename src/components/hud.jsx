@@ -19,7 +19,7 @@ import { getValidSignals } from "../game/engine.js";
 // ─────────────────────────────────────────────────────────────
 // RoundProgressIndicator — slim horizontal three-step strip
 // ─────────────────────────────────────────────────────────────
-export function RoundProgressIndicator({ phase }) {
+export function RoundProgressIndicator({ phase, compact=false }) {
   const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-ai','signal-player','reveal-1','replenish'];
   const h2=['player-turn-2a','ai-turn-2a','player-turn-2b','ai-turn-2b','signal-ai-2','signal-player-2','reveal-2'];
   const sc=['scraps-reveal','round-end'];
@@ -34,10 +34,10 @@ export function RoundProgressIndicator({ phase }) {
   return (
     <div style={{display:'flex',alignItems:'center',gap:3,
       background:DS.duskMid,border:`1px solid ${DS.slate}33`,
-      borderRadius:10,padding:'4px 6px',maxWidth:'100%'}}>
+      borderRadius:10,padding:compact?'2px 4px':'4px 6px',maxWidth:'100%'}}>
       {steps.map((s,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',gap:5,
-          padding:'3px 7px',borderRadius:8,whiteSpace:'nowrap',
+        <div key={i} style={{display:'flex',alignItems:'center',gap:compact?4:5,
+          padding:compact?'2px 5px':'3px 7px',borderRadius:8,whiteSpace:'nowrap',
           background:s.active?DS.frost+'0e':'transparent',
           border:`1px solid ${s.active?DS.slateLight+'88':DS.slate+'22'}`,
           transition:'all 0.3s'}}>
@@ -45,7 +45,7 @@ export function RoundProgressIndicator({ phase }) {
             background:s.active?DS.frost:s.done?DS.slate:DS.slate+'33',
             boxShadow:s.active?`0 0 8px ${DS.frost}88`:'none',
             transition:'all 0.3s'}}/>
-          <span style={{fontFamily:F.ui,fontSize:13,fontWeight:700,
+          <span style={{fontFamily:F.ui,fontSize:compact?12:13,fontWeight:700,
             color:s.active?DS.frost:s.done?DS.slate:DS.slate+'55',
             letterSpacing:'0.04em',transition:'color 0.3s'}}>{s.label}</span>
           <span style={{fontFamily:F.mono,fontSize:10,fontWeight:700,
@@ -83,15 +83,15 @@ const BAR = {
   position:'relative', zIndex:40,
 };
 
-function Score({ label, value, color, flash, pulse, align }) {
+function Score({ label, value, color, flash, pulse, align, compact=false }) {
   return (
-    <div style={{display:'flex',alignItems:'baseline',gap:10,lineHeight:1,
+    <div style={{display:'flex',alignItems:'baseline',gap:compact?7:10,lineHeight:1,
       flexShrink:0,whiteSpace:'nowrap',
       flexDirection:align==='right'?'row-reverse':'row'}}>
-      <span style={{fontFamily:F.ui,fontSize:17,color:DS.slate,
+      <span style={{fontFamily:F.ui,fontSize:compact?13:17,color:DS.slate,
         letterSpacing:'0.18em',fontWeight:700}}>{label}</span>
       <span style={{
-        fontFamily:F.display,fontWeight:700,fontSize:60,color,lineHeight:0.9,
+        fontFamily:F.display,fontWeight:700,fontSize:compact?34:60,color,lineHeight:0.9,
         animation:pulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
           :flash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
         textShadow:pulse?'0 0 30px currentColor':'none',
@@ -106,18 +106,24 @@ function Score({ label, value, color, flash, pulse, align }) {
 }
 
 // Top bar — the opponent's score, and the match conditions.
-export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel }) {
+export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel, compact=false }) {
   return (
-    <div style={{...BAR, padding:'6px 22px', borderBottom:`1px solid ${DS.slate}22`}}>
+    <div style={{...BAR, padding:compact?'3px 12px':'6px 22px', gap:compact?8:16,
+      borderBottom:`1px solid ${DS.slate}22`}}>
       <Score label="OPP" value={aiScore} color={DS.ember}
-        flash={aiFlash} pulse={roundEndPulse} align="left"/>
+        flash={aiFlash} pulse={roundEndPulse} align="left" compact={compact}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',
-          letterSpacing:'0.12em',whiteSpace:'nowrap'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+        {/* The match condition is reference, not action. Stacked, it
+            is the first thing to go: the rules panel still carries
+            it, and the row it frees goes to the table. */}
+        {!compact&&(
+          <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',
+            letterSpacing:'0.12em',whiteSpace:'nowrap'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+        )}
         {difficultyLabel&&(
-          <span style={{fontFamily:F.mono,fontSize:13,fontWeight:700,color:DS.slate,
+          <span style={{fontFamily:F.mono,fontSize:compact?11:13,fontWeight:700,color:DS.slate,
             letterSpacing:'0.18em',background:DS.duskMid,borderRadius:20,
-            padding:'3px 14px',border:`1px solid ${DS.slate}44`,whiteSpace:'nowrap'}}>
+            padding:compact?'2px 10px':'3px 14px',border:`1px solid ${DS.slate}44`,whiteSpace:'nowrap'}}>
             {difficultyLabel}
           </span>
         )}
@@ -127,12 +133,13 @@ export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel }
 }
 
 // Bottom bar — the log on the left, your score in the corner.
-export function PlayerBar({ playerScore, playerFlash, roundEndPulse, children }) {
+export function PlayerBar({ playerScore, playerFlash, roundEndPulse, children, compact=false }) {
   return (
-    <div style={{...BAR, padding:'4px 22px 6px', borderTop:`1px solid ${DS.slate}22`}}>
-      <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:12}}>{children}</div>
+    <div style={{...BAR, padding:compact?'2px 10px':'4px 22px 6px',
+      gap:compact?8:16, borderTop:`1px solid ${DS.slate}22`}}>
+      <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:compact?6:12}}>{children}</div>
       <Score label="YOU" value={playerScore} color={DS.voltage}
-        flash={playerFlash} pulse={roundEndPulse} align="right"/>
+        flash={playerFlash} pulse={roundEndPulse} align="right" compact={compact}/>
     </div>
   );
 }
@@ -150,10 +157,10 @@ export function NearWinBanner({ playerScore, aiScore }) {
   else if(playerOver) msg=`You've hit ${WIN_SCORE}! Win by 2 to claim victory.`;
   else msg=`Opponent hit ${WIN_SCORE}. Win by 2 — no letting up!`;
   return (
-    <div style={{padding:'6px 20px',background:DS.voltage+'22',
+    <div style={{padding:'5px 16px',background:DS.voltage+'22',
       border:`1px solid ${DS.voltage}66`,textAlign:'center',
-      fontFamily:F.ui,fontSize:14,color:DS.voltage,fontWeight:700,
-      letterSpacing:'0.06em',flexShrink:0}}>
+      fontFamily:F.ui,fontSize:13,color:DS.voltage,fontWeight:700,
+      letterSpacing:'0.06em',flexShrink:0,lineHeight:1.3}}>
       {msg}
     </div>
   );
@@ -169,7 +176,7 @@ export function GameLog({ messages }) {
   const ref=useRef();
   useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[messages]);
   return (
-    <div ref={ref} style={{maxHeight:280,overflowY:'auto',background:DS.dusk,
+    <div ref={ref} style={{maxHeight:'min(280px, 40vh)',overflowY:'auto',background:DS.dusk,
       borderTop:`1px solid ${DS.slate}44`,padding:'10px 20px'}}>
       <div style={{fontFamily:F.mono,fontSize:12,color:DS.slate,
         letterSpacing:'0.14em',marginBottom:6}}>GAME LOG</div>
@@ -207,12 +214,12 @@ const SIGNAL_SHAPES = [
   { n:5, name:'STRAIGHT+' },
 ];
 
-export function SignalLegalityStrip({ hand, selectedCount=0 }) {
+export function SignalLegalityStrip({ hand, selectedCount=0, compact=false }) {
   const valid = new Set(getValidSignals(hand));
   return (
-    <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',
+    <div style={{display:'flex',alignItems:'center',gap:compact?4:6,flexWrap:'wrap',
       justifyContent:'center',background:DS.duskMid,
-      border:`1px solid ${DS.slate}33`,borderRadius:10,padding:'6px 10px'}}>
+      border:`1px solid ${DS.slate}33`,borderRadius:10,padding:compact?'4px 7px':'6px 10px'}}>
       <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate,
         letterSpacing:'0.14em',marginRight:2}}>PLAYABLE</span>
       {SIGNAL_SHAPES.map(sh=>{
@@ -220,8 +227,8 @@ export function SignalLegalityStrip({ hand, selectedCount=0 }) {
         const on=ok&&selectedCount===sh.n;
         return (
           <span key={sh.n} style={{
-            fontFamily:F.mono,fontSize:12,fontWeight:700,letterSpacing:'0.06em',
-            padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',
+            fontFamily:F.mono,fontSize:compact?11:12,fontWeight:700,letterSpacing:'0.06em',
+            padding:compact?'2px 6px':'3px 8px',borderRadius:6,whiteSpace:'nowrap',
             color:on?DS.ink:ok?DS.voltage:DS.slate+'66',
             background:on?DS.voltage:ok?DS.voltage+'18':'transparent',
             border:`1px solid ${on?DS.voltage:ok?DS.voltage+'55':DS.slate+'22'}`,

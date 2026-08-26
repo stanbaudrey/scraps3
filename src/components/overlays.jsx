@@ -7,7 +7,44 @@ import { playGrandFanfare, playFireworkPop, playNeutralJingle } from "../audio.j
 import { Btn, AceTag } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
 import { SwirlBg } from "./backdrop.jsx";
+import { FitBox } from "../ui/viewport.jsx";
+import { useViewport } from "../ui/viewport.jsx";
 import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
+
+// ─────────────────────────────────────────────────────────────
+// Shell — the frame every full-screen overlay in this file
+// shares, and the one place the "never scrolls" rule is applied
+// to them.
+//
+// The six modals below were all the same thing written six
+// times: a fixed backdrop, centred, with 24px of padding around
+// a max-width card. Centring alone is fine until the card is
+// taller than the screen — then half of it is above the top
+// edge, unreachable, and on a 375x667 phone that was true of the
+// Ace lightbox and the rules panel both.
+//
+// A column flex parent gives FitBox a definite height to measure
+// against (an `align-items:center` row does not — the box would
+// be exactly as tall as its content and always "fit"), and
+// FitBox scales anything that still comes up too tall.
+// ─────────────────────────────────────────────────────────────
+function Shell({ children, zIndex, background, onClick, pad = 16, style = {} }) {
+  return (
+    <div onClick={onClick} style={{position:'fixed',inset:0,zIndex,background,
+      display:'flex',flexDirection:'column',padding:pad,...style}}>
+      <FitBox modeMinW={300}>
+        <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'center'}}>
+          {children}
+        </div>
+      </FitBox>
+    </div>
+  );
+}
+
+// Card padding shrinks with the viewport: 32px of inset around a
+// modal is a third of a phone's width.
+const CARD_PAD = 'clamp(18px,5vw,32px)';
 
 // ─────────────────────────────────────────────────────────────
 // RoundInterstitial — "BEGIN ROUND N" full-screen flash
@@ -39,7 +76,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
         <div style={{
           fontFamily:F.display,
           fontWeight:700,
-          fontSize:'clamp(52px,12vw,96px)',
+          fontSize:'clamp(34px,11vw,96px)',
           color:DS.voltage,
           letterSpacing:'0.08em',
           textShadow:`0 0 40px ${DS.voltage}99, 0 0 80px ${DS.voltage}55`,
@@ -49,7 +86,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
         </div>
         <div style={{
           fontFamily:F.ui,
-          fontSize:'clamp(20px,4vw,36px)',
+          fontSize:'clamp(15px,3.6vw,36px)',
           color:DS.frost,
           letterSpacing:'0.18em',
           fontWeight:700,
@@ -68,11 +105,18 @@ export function RoundInterstitial({ roundNum, onDone }) {
 // ─────────────────────────────────────────────────────────────
 export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName, winner, points, onDismiss, playerBestIds=null, aiBestIds=null, bonusLine=null }) {
   const [vis,setVis]=useState(false);
+  const { w } = useViewport();
+  // Two five-card hands, a verdict and two labels do not fit a
+  // phone at 'normal'. Dropping a size keeps the pips crisp; the
+  // Shell's scaling is the fallback under that, not the first
+  // answer.
+  const cardSize = w < 700 ? 'small' : 'normal';
   useEffect(()=>{setTimeout(()=>setVis(true),50);},[]);
   return (
-    <div style={{position:'fixed',inset:0,zIndex:80,background:'rgba(20,31,25,0.94)',
-      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-      gap:20,padding:20,opacity:vis?1:0,transition:'opacity 0.3s',overflowY:'auto'}}>
+    <Shell zIndex={80} background="rgba(20,31,25,0.94)" pad={14}
+      style={{opacity:vis?1:0,transition:'opacity 0.3s'}}>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',
+        gap:'clamp(10px,2.4vh,20px)'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
         <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>OPPONENT</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}>
@@ -80,7 +124,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             <div key={c.id} style={{animation:`slideDown 0.3s ease ${i*.07}s both`,
               filter:aiBestIds&&!aiBestIds.has(c.id)?'brightness(0.35) saturate(0.3)':'',
               transition:'filter 0.4s'}}>
-              <PlayingCard card={c} size="normal" isScrap={false}/>
+              <PlayingCard card={c} size={cardSize} isScrap={false}/>
             </div>
           ))}
         </div>
@@ -108,7 +152,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             <div key={c.id} style={{animation:`slideUp 0.3s ease ${i*.07}s both`,
               filter:playerBestIds&&!playerBestIds.has(c.id)?'brightness(0.35) saturate(0.3)':'',
               transition:'filter 0.4s'}}>
-              <PlayingCard card={c} size="normal" isScrap={false} wiggle={winner==='player'&&(!playerBestIds||playerBestIds.has(c.id))}/>
+              <PlayingCard card={c} size={cardSize} isScrap={false} wiggle={winner==='player'&&(!playerBestIds||playerBestIds.has(c.id))}/>
             </div>
           ))}
         </div>
@@ -116,10 +160,11 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
         <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>YOU</div>
       </div>
       <button onClick={onDismiss} style={{background:DS.voltage,color:DS.ink,border:'none',
-        padding:'13px 40px',borderRadius:8,cursor:'pointer',fontFamily:F.ui,
+        padding:'13px 40px',minHeight:44,borderRadius:8,cursor:'pointer',fontFamily:F.ui,
         fontWeight:700,fontSize:17,letterSpacing:'0.1em',textTransform:'uppercase',
         boxShadow:`0 0 20px ${DS.voltage}88`}}>Continue →</button>
-    </div>
+      </div>
+    </Shell>
   );
 }
 
@@ -165,12 +210,14 @@ export function FullScrapLightbox({ onDone }) {
     <div style={{position:'fixed',inset:0,zIndex:200}}>
       <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
       {phase===1&&(
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
-          justifyContent:'center',flexDirection:'column',gap:20,padding:24}}>
+        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:16}}>
+          <FitBox modeMinW={300}>
+          <div style={{flex:'1 0 auto',display:'flex',alignItems:'center',
+            justifyContent:'center',flexDirection:'column',gap:'clamp(12px,2.6vh,20px)'}}>
           <div style={{
             fontFamily:F.display,
             fontWeight:700,
-            fontSize:'clamp(56px,13vw,112px)',
+            fontSize:'clamp(40px,12vw,112px)',
             color:DS.gold,
             textShadow:`0 0 40px ${DS.gold},0 0 80px ${DS.gold}88`,
             animation:'fullScrapPop 0.5s cubic-bezier(.34,1.8,.64,1)',
@@ -197,10 +244,12 @@ export function FullScrapLightbox({ onDone }) {
             background:DS.gold,color:DS.ink,border:'none',
             padding:'16px 52px',borderRadius:10,cursor:'pointer',
             fontFamily:F.ui,fontWeight:700,fontSize:19,
-            letterSpacing:'0.1em',textTransform:'uppercase',
+            letterSpacing:'0.1em',textTransform:'uppercase',minHeight:44,
             boxShadow:`0 0 28px ${DS.gold}88`,
             animation:'slideUp 0.4s ease 0.4s both',
           }}>Let's Go! →</button>
+          </div>
+          </FitBox>
         </div>
       )}
     </div>
@@ -260,8 +309,10 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk}}>
       <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
-      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
-        justifyContent:'center',flexDirection:'column',gap:16,padding:24}}>
+      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:16}}>
+        <FitBox modeMinW={300}>
+        <div style={{flex:'1 0 auto',display:'flex',alignItems:'center',
+          justifyContent:'center',flexDirection:'column',gap:'clamp(10px,2vh,16px)'}}>
         {textPhase>=1&&(
           <>
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
@@ -313,12 +364,14 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
                 background:DS.gold,color:DS.ink,border:'none',
                 padding:'16px 48px',borderRadius:10,cursor:'pointer',
                 fontFamily:F.ui,fontWeight:700,fontSize:18,
-                letterSpacing:'0.1em',textTransform:'uppercase',
+                letterSpacing:'0.1em',textTransform:'uppercase',minHeight:44,
                 boxShadow:`0 0 28px ${DS.gold}88`,
               }}>NEW GAME</button>
             </div>
           </>
         )}
+        </div>
+        </FitBox>
       </div>
     </div>
   );
@@ -334,23 +387,26 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
   useEffect(()=>{ playNeutralJingle(); },[]);
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
-      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:28}}>
+      display:'flex',flexDirection:'column',padding:16}}>
       <SwirlBg/>
-      <div style={{position:'relative',zIndex:1,textAlign:'center'}}>
+      <FitBox modeMinW={300} style={{zIndex:1}}>
+      <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',textAlign:'center'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:'clamp(34px,7vw,60px)',
           color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
         <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
           letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
         <div style={{fontFamily:F.display,fontWeight:700,color:DS.frost,lineHeight:1,
           fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
-          marginBottom:36,textShadow:'0 0 40px rgba(237,227,208,0.25)'}}>
+          marginBottom:'clamp(18px,4vh,36px)',textShadow:'0 0 40px rgba(237,227,208,0.25)'}}>
           {playerScore}–{aiScore}
         </div>
         <button onClick={onNewGame} style={{background:DS.voltage,color:DS.ink,border:'none',
-          padding:'15px 44px',borderRadius:10,cursor:'pointer',fontFamily:F.ui,
+          padding:'15px 44px',minHeight:44,borderRadius:10,cursor:'pointer',fontFamily:F.ui,
           fontWeight:700,fontSize:17,letterSpacing:'0.1em',textTransform:'uppercase',
           boxShadow:`0 0 24px ${DS.voltage}88`}}>NEW GAME</button>
       </div>
+      </FitBox>
     </div>
   );
 }
@@ -369,10 +425,9 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 // ─────────────────────────────────────────────────────────────
 export function AceDrawnLightbox({ ace, onDismiss }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:95,background:'rgba(20,31,25,.92)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+    <Shell zIndex={95} background="rgba(20,31,25,.92)">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
-        borderRadius:16,padding:32,maxWidth:480,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.gold,
           letterSpacing:'0.06em',marginBottom:24}}>You've drawn an Ace!</div>
@@ -402,7 +457,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           Okay
         </button>
       </div>
-    </div>
+    </Shell>
   );
 }
 
@@ -411,10 +466,9 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
 // ─────────────────────────────────────────────────────────────
 export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+    <Shell zIndex={90} background="rgba(20,31,25,.92)">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
-        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
@@ -451,7 +505,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
           <Btn variant="ghost" onClick={onAllow}>Let It Happen</Btn>
         </div>
       </div>
-    </div>
+    </Shell>
   );
 }
 
@@ -463,10 +517,9 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
 // ─────────────────────────────────────────────────────────────
 export function OpponentAceReveal({ targets, onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+    <Shell zIndex={90} background="rgba(20,31,25,.92)">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
-        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
@@ -481,7 +534,7 @@ export function OpponentAceReveal({ targets, onOk }) {
         </div>
         <Btn variant="danger" onClick={onOk}>OK</Btn>
       </div>
-    </div>
+    </Shell>
   );
 }
 
@@ -491,10 +544,9 @@ export function OpponentAceReveal({ targets, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function AiCounterNotice({ playerAce, aiAce, onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+    <Shell zIndex={90} background="rgba(20,31,25,.92)">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
-        borderRadius:16,padding:32,maxWidth:560,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
@@ -505,7 +557,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
             <div key={c.id} style={{position:'relative',
               animation:`popIn 0.4s cubic-bezier(.34,1.6,.64,1) ${0.15+i*0.12}s both`}}>
               <div style={{filter:'saturate(0.4) brightness(0.75)'}}>
-                <PlayingCard card={c} size="normal" isScrap={false}/>
+                <PlayingCard card={c} size={cardSize} isScrap={false}/>
               </div>
               <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
                 justifyContent:'center',fontFamily:F.display,fontSize:52,color:DS.ember,
@@ -518,7 +570,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
         </p>
         <Btn onClick={onOk}>OK</Btn>
       </div>
-    </div>
+    </Shell>
   );
 }
 
@@ -542,14 +594,21 @@ export function RulesModal({ onClose }) {
     {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
     {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];
+  // The rules panel is the ONE overlay that keeps a scrollbar. It
+  // is a wall of reference text, and the alternative — scaling it
+  // to fit a phone — would leave it too small to read, which
+  // defeats the only thing the panel is for. Every other overlay
+  // here is a short message and gets scaled instead.
   return (
     <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(20,31,25,.94)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      display:'flex',alignItems:'center',justifyContent:'center',padding:12}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:DS.duskMid,
-        border:`2px solid ${DS.slate}44`,borderRadius:16,padding:'34px 40px',
-        maxWidth:820,width:'100%',maxHeight:'88vh',overflowY:'auto'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24}}>
-          <h2 style={{fontFamily:F.display,fontWeight:700,color:DS.voltage,fontSize:40,letterSpacing:'0.06em'}}>Rules</h2>
+        border:`2px solid ${DS.slate}44`,borderRadius:16,padding:'clamp(20px,5vw,34px) clamp(16px,5vw,40px)',
+        maxWidth:820,width:'100%',maxHeight:'min(88vh, 88dvh)',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+          gap:12,marginBottom:20}}>
+          <h2 style={{fontFamily:F.display,fontWeight:700,color:DS.voltage,
+            fontSize:'clamp(28px,6vw,40px)',letterSpacing:'0.06em'}}>Rules</h2>
           <Btn small variant="ghost" onClick={onClose}>Close</Btn>
         </div>
         {rules.map((r,i)=>(
@@ -569,10 +628,9 @@ export function RulesModal({ onClose }) {
 // ─────────────────────────────────────────────────────────────
 export function SkipTurnModal({ onOk }) {
   return (
-    <div style={{position:'fixed',inset:0,zIndex:90,background:'rgba(20,31,25,.92)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+    <Shell zIndex={90} background="rgba(20,31,25,.92)">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.slate}`,
-        borderRadius:16,padding:32,maxWidth:520,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:520,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.slate}44`}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:34,color:DS.frost,
           letterSpacing:'0.06em',marginBottom:14}}>NO LEGAL TRADES</div>
@@ -583,6 +641,6 @@ export function SkipTurnModal({ onOk }) {
         </p>
         <Btn onClick={onOk}>OK</Btn>
       </div>
-    </div>
+    </Shell>
   );
 }
