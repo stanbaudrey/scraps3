@@ -25,9 +25,14 @@ export function sortByValue(cards){ return [...cards].sort((a,b)=>a.value-b.valu
 // ─────────────────────────────────────────────────────────────
 // CardBackSVG — NEUTRAL back: a quiet dusk ridgeline scene.
 // Three soft, hand-drawn hill layers recede into a warm haze,
-// with a low gold glow standing in for the sun. Deliberately
+// with a low ember glow standing in for the sun. Deliberately
 // quiet so the player's own hand and the action zone stay the
 // brightest things on the table — no framing device, no crest.
+// Uses ember (not gold) and slate (not voltage) on purpose: this
+// renders on every face-down card regardless of owner, including
+// the opponent's hand, and gold/voltage are reserved tokens
+// ("milestone only" and "yours / act now") that must never appear
+// on a neutral, owner-agnostic surface.
 // ─────────────────────────────────────────────────────────────
 export function CardBackSVG({ w, h }) {
   return (
@@ -36,8 +41,8 @@ export function CardBackSVG({ w, h }) {
       style={{position:'absolute',inset:0,borderRadius:12,display:'block'}}>
       <rect width="120" height="178" fill={DS.dusk}/>
       {/* low sun / moon glow — brighter, more saturated */}
-      <circle cx="60" cy="46" r="22" fill={DS.gold} opacity="0.20"/>
-      <circle cx="60" cy="46" r="11" fill={DS.gold} opacity="0.42"/>
+      <circle cx="60" cy="46" r="22" fill={DS.ember} opacity="0.20"/>
+      <circle cx="60" cy="46" r="11" fill={DS.ember} opacity="0.42"/>
       {/* a few stars for extra texture */}
       <circle cx="22" cy="22" r="1.4" fill={DS.frost} opacity="0.4"/>
       <circle cx="96" cy="16" r="1.1" fill={DS.frost} opacity="0.32"/>
@@ -51,12 +56,13 @@ export function CardBackSVG({ w, h }) {
       {/* near ridge — darkest, fully opaque */}
       <path d="M0,160 C20,138 44,152 66,130 C86,110 102,140 120,126 L120,178 L0,178 Z"
         fill={DS.ink}/>
-      {/* winding river, brighter gold */}
+      {/* winding river, brighter ember */}
       <path d="M0,172 C24,166 30,176 52,170 C74,164 82,174 120,168"
-        fill="none" stroke={DS.gold} strokeWidth="1.8" opacity="0.4" strokeLinecap="round"/>
-      {/* pronounced frame so backs stand out against each other and the table */}
+        fill="none" stroke={DS.ember} strokeWidth="1.8" opacity="0.4" strokeLinecap="round"/>
+      {/* pronounced frame so backs stand out against each other and the table —
+          slate, matching PlayingCard's own face-down border, not a single extra ring */}
       <rect x="3" y="3" width="114" height="172" rx="9" fill="none"
-        stroke={DS.voltage} strokeWidth="2.5" opacity="0.6"/>
+        stroke={DS.slate} strokeWidth="2.5" opacity="0.7"/>
     </svg>
   );
 }

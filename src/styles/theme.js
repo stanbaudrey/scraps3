@@ -22,10 +22,14 @@
 //   illustration (card back, backdrop), not UI chrome.
 //
 // Colors pushed brighter + past AA into AAA territory (2026-08-25
-// pass): fern/ember/gold all clear 6.1:1+ against dusk, most clear
-// 9-10.7:1; slate (the muted/secondary tone) raised to ~6.5-7.6:1
-// depending on background, up from a bare-AA ~3.9-4.5:1. ink-on-fern
-// and ink-on-gold both exceed 9:1.
+// pass), verified by a live in-DOM contrast check, not just computed
+// by hand: voltage/gold both clear 10:1+ against dusk (AAA); ember
+// is the one accent that clears AA comfortably (6.71:1) but falls
+// short of AAA's 7:1 — a hue-brightness tradeoff, not an oversight.
+// slate (muted/secondary) ranges 5.48:1 (against duskLight, the
+// hardest pairing) to 7.55:1 (against dusk) — AA-clear everywhere,
+// AAA on the two easier backgrounds only. ink-on-fern and ink-on-gold
+// both exceed 9:1.
 //
 // Type, finalized 2026-08-25 after the specimen review: F.title is
 // the SCRAPS wordmark ONLY (AnimatedTitle) — everything else that
@@ -52,7 +56,7 @@ export const DS = {
   canopy:     '#3E5C46',
 };
 export const F = {
-  title:   "'Londrina Sketch', sans-serif",
+  title:   "'Bungee Shade', sans-serif",
   display: "'Fjalla One', sans-serif",
   card:    "'Baloo 2', sans-serif",
   ui:      "'Work Sans', sans-serif",

@@ -37,7 +37,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
         transition:'opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.4,.64,1)',
       }}>
         <div style={{
-          fontFamily:"'Fjalla One', sans-serif",
+          fontFamily:F.display,
           fontWeight:700,
           fontSize:'clamp(52px,12vw,96px)',
           color:DS.voltage,
@@ -48,7 +48,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
           BEGIN ROUND {roundNum}
         </div>
         <div style={{
-          fontFamily:"'Work Sans', sans-serif",
+          fontFamily:F.ui,
           fontSize:'clamp(20px,4vw,36px)',
           color:DS.frost,
           letterSpacing:'0.18em',
