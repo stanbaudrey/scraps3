@@ -19,7 +19,7 @@ const cards = (...specs) => specs.map(s => Array.isArray(s) ? c(s[0], s[1]) : c(
 function freshRound(roundNum) {
   let s = createInitialState();
   for (let r = 1; r <= roundNum; r++) {
-    s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal('jump', r > 1), alternate: r > 1 });
+    s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal(), alternate: r > 1 });
   }
   return gameReducer(s, { type: 'INTERSTITIAL_DONE' });
 }
@@ -221,7 +221,7 @@ describe('discard pile resets every round', () => {
     s = gameReducer(s, { type: 'SMALL_HAND_SCORED', winner: 'player', pts: 1, pName: 'High Card', aName: '', fromPhase: 'reveal-1' });
     expect(s.discard.length).toBeGreaterThan(0);
     // Next round: discard pile must be empty
-    s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal('jump', true), alternate: true });
+    s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal(), alternate: true });
     expect(s.discard).toHaveLength(0);
     expect(s.roundNum).toBe(2);
   });

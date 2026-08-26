@@ -20,7 +20,6 @@ import {
   gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
   AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
-import { TUTORIAL_STEPS } from "../game/tutorial.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
   playError, playWinSound, playLoseSound } from "../audio.js";
@@ -32,11 +31,11 @@ import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { recordGame } from "../game/stats.js";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
-  AceCounterModal, RulesModal, TutorialOverlay, SkipTurnModal,
+  AceCounterModal, RulesModal, SkipTurnModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
 
-export function GameScreen({ mode, difficulty, onExit }) {
+export function GameScreen({ difficulty, onExit }) {
   // ── Game state machine ─────────────────────────────────────
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
   const {
@@ -59,7 +58,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [aiAceReveal, setAiAceReveal]       = useState(null); // { ace, targets } — step 2 of the opponent-Ace sequence
   const [aiCounterNotice, setAiCounterNotice] = useState(null); // { playerAce, aiAce } — AI countered the player's Ace
   const [showRules, setShowRules]           = useState(false);
-  const [tutStep, setTutStep]               = useState(0);
   const [revealData, setRevealData]         = useState(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
   const [showFullScrap, setShowFullScrap]   = useState(false);
@@ -75,8 +73,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
   const tradeErrorTimer = useRef(null);
 
-  // First-time-per-game hint (regular play only — the tutorial
-  // already scripts its own explanation of this).
+  // First-time-per-game hint: fires once, the first time an Ace
+  // lands in the player's hand.
   const [aceDrawnCard, setAceDrawnCard]         = useState(null);
   const aceHintShownRef = useRef(false);
   const [roundEndPulse, setRoundEndPulse]       = useState(false);
@@ -91,31 +89,9 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const aiScrapsRef      = useRef(null);
   const { launchFlight, FlightsOverlay } = useFlyingCards();
 
-  const tutStepData = mode === 'tutorial' ? TUTORIAL_STEPS[tutStep] : null;
-
-  // ── Tutorial step advancement ──────────────────────────────
-  const tutAdvance = useCallback((trigger) => {
-    if (mode !== 'tutorial') return;
-    setTutStep(prev => {
-      const next = TUTORIAL_STEPS.findIndex((s, i) => i > prev && s.autoAdvanceOn === trigger);
-      if (next !== -1) return next;
-      return prev;
-    });
-  }, [mode]);
-
-  // Phase-based tutorial step sync: when phase changes, find matching step
-  useEffect(() => {
-    if (mode !== 'tutorial') return;
-    setTutStep(prev => {
-      const next = TUTORIAL_STEPS.findIndex((s, i) => i >= prev && s.phase === phase);
-      if (next !== -1 && next !== prev) return next;
-      return prev;
-    });
-  }, [phase, mode]);
-
   // ── Round setup ────────────────────────────────────────────
   const startNewRound = useCallback((alternate) => {
-    const deal = buildRoundDeal(mode, alternate);
+    const deal = buildRoundDeal();
     dispatch({ type: 'START_ROUND', deal, alternate });
     // Keep the fresh hands hidden while the BEGIN ROUND
     // interstitial plays — the dealing wave reveals them after.
@@ -127,7 +103,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set()); setFadingInIds(new Set());
     setShowInterstitial(true);
-  }, [mode]);
+  }, []);
 
   useEffect(() => { startNewRound(false); }, []);
 
@@ -204,12 +180,12 @@ export function GameScreen({ mode, difficulty, onExit }) {
   }, [playerScore, aiScore]);
 
   // ── Persistent stats (item 10) ─────────────────────────────
-  // On game over, record the result once (tutorial games don't
-  // count). The win screen shows the margin and best-ever margin.
+  // On game over, record the result once. The win screen shows
+  // the margin and best-ever margin.
   const recordedRef = useRef(false);
   const [winStats, setWinStats] = useState(null);
   useEffect(() => {
-    if (!gameOver || recordedRef.current || mode === 'tutorial') return;
+    if (!gameOver || recordedRef.current) return;
     recordedRef.current = true;
     const won = gameOver === 'player';
     const margin = Math.abs(playerScore - aiScore);
@@ -290,7 +266,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
     clearTimeout(tradeErrorTimer.current);
     setTradeError(null);
     playWhoosh();
-    tutAdvance('trade-complete');
 
     // 2. Traded cards land in Scraps AFTER the flight
     setTimeout(() => dispatch({ type: 'PLAYER_SCRAPS_ARRIVE' }), FLIGHT_LAND);
@@ -345,7 +320,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
     }
     dispatch({ type: 'PLAYER_TRADE_WITH_DISCARD', discardCards: [...scrapsDiscard] });
     setScrapsDiscard([]); setSelected([]);
-    tutAdvance('trade-complete');
   }
 
   function cancelScrapsDiscard() {
@@ -374,7 +348,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
     // Ace: both Aces are discarded, nothing is removed from either
     // Scraps pile, and the player's action is consumed.
     const s = stateRef.current;
-    if (mode !== 'tutorial' && shouldCounterAce(difficulty, s.aiHand, s.aiCountersThisRound)) {
+    if (shouldCounterAce(difficulty, s.aiHand, s.aiCountersThisRound)) {
       const aiAce = s.aiHand.find(c => c.rank === 'A');
       if (aiAce) {
         setAceMode(false); setAceTargets([]); setSelected([]);
@@ -393,7 +367,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
         setAceMode(false); setAceTargets([]); setSelected([]);
         setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
         dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
-        tutAdvance('ace-played');
       }, 500);
     }, 600);
   }
@@ -411,7 +384,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
   function handleAiAce(aiAce, targetCards) {
     const s = stateRef.current;
     const playerHasAceNow = s.playerHand.some(c => c.rank === 'A');
-    if (playerHasAceNow && s.playerScraps.length >= 2 && mode !== 'tutorial') {
+    if (playerHasAceNow && s.playerScraps.length >= 2) {
       // Step 1: pause and ask the player — targets stay hidden
       dispatch({ type: 'AI_ACE_PENDING', ace: aiAce, targets: targetCards });
     } else {
@@ -496,27 +469,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
       const s = stateRef.current;
       if (s.phase !== phase || s.gameOver) return;
 
-      // Tutorial script override: on ai-turn-1a, trade the seeded 5s
-      if (mode === 'tutorial' && phase === 'ai-turn-1a') {
-        const fivesInHand = s.aiHand.filter(c => c.rank === '5').slice(0, 2);
-        const fallback = aiDecide(s.aiHand, s.aiScraps, s.playerScraps, s.deck, difficulty, phase, s.aiScore, s.playerScore);
-        const fivesToTrade = fivesInHand.length >= 2 ? fivesInHand
-          : (fallback.type === 'trade' ? fallback.cards : []);
-        if (fivesToTrade.length > 0) {
-          setAiSignaledIds(new Set(fivesToTrade.map(c => c.id)));
-          T(() => {
-            setAiSignaledIds(new Set());
-            dispatch({ type: 'AI_TRADE_APPLY', cards: fivesToTrade,
-              logMsg: 'Opponent trades in two 5s — now has Four of a Kind!' });
-          }, 800);
-        }
-        T(() => {
-          tutAdvance('ai-turn-complete');
-          dispatch({ type: 'ADVANCE_FROM', phase });
-        }, 1600);
-        return;
-      }
-
       const action = aiDecide(s.aiHand, s.aiScraps, s.playerScraps, s.deck, difficulty, phase, s.aiScore, s.playerScore);
 
       if (action.type === 'trade' && action.cards.length > 0) {
@@ -571,7 +523,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
       }
 
       T(() => {
-        tutAdvance('ai-turn-complete');
         dispatch({ type: 'ADVANCE_FROM', phase });
       }, 1400);
     }, 800);
@@ -605,7 +556,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
     if (aiSignal != null) {
       // AI already signaled first — both signals are in
       setTimeout(() => {
-        tutAdvance('signal-complete');
         dispatch({ type: 'GO_REVEAL' });
       }, 700);
     } else {
@@ -617,7 +567,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
         setAiSignaledIds(new Set(aiCards.map(c => c.id)));
         // Keep aiSignaledIds set — cards stay toggled until reveal
         setTimeout(() => {
-          tutAdvance('signal-complete');
           dispatch({ type: 'AI_RESPOND_SIGNAL', signal: aiSig, cards: aiCards, playerSig: sig });
         }, 1000);
       }, 700);
@@ -715,13 +664,13 @@ export function GameScreen({ mode, difficulty, onExit }) {
 
   // ── First-time-per-game hint (regular play only) ────────────
   useEffect(() => {
-    if (mode === 'tutorial' || aceHintShownRef.current) return;
+    if (aceHintShownRef.current) return;
     if (showInterstitial || pendingAiAce || aiAceReveal || aceMode) return;
     if (playerHasAce) {
       aceHintShownRef.current = true;
       setAceDrawnCard(playerHand.find(c => c.rank === 'A'));
     }
-  }, [playerHasAce, mode, showInterstitial, pendingAiAce, aiAceReveal, aceMode]);
+  }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode]);
 
   useEffect(() => {
     if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
@@ -777,7 +726,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
       background:DS.dusk,userSelect:'none',overflow:'auto'}}>
       <ScoreCorners playerScore={playerScore} aiScore={aiScore}
         playerFlash={playerScoreFlash} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
-        difficultyLabel={mode==='tutorial'?'TUTORIAL':(difficulty||'').toUpperCase()}/>
+        difficultyLabel={(difficulty||'').toUpperCase()}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
       {/* Table — three horizontal bands. Ownership mapping is
@@ -864,7 +813,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
                 )}
                 {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&(
                   <>
-                    {!forcedAce&&!(tutStepData&&tutStepData.forceAce)&&(
+                    {!forcedAce&&(
                       <TradeInBtn onClick={doTradeIn} disabled={selected.length===0} count={selected.length}/>
                     )}
                     {playerHasAce&&aiScraps.length>=2&&(
@@ -873,11 +822,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
                           Play Ace <IconBolt size={18}/>
                         </span>
                       </BigBtn>
-                    )}
-                    {tutStepData&&tutStepData.forceAce&&!playerHasAce&&(
-                      <span style={{fontFamily:F.ui,color:DS.ember,fontSize:15,fontWeight:700}}>
-                        No Ace in hand — trade active
-                      </span>
                     )}
                   </>
                 )}
@@ -995,17 +939,14 @@ export function GameScreen({ mode, difficulty, onExit }) {
             <IconChevron size={14} color={DS.slate} up={!showLogPanel}/>
             {log[log.length-1]||''}
           </div>
-        {mode==='jump'&&(
-          <button onClick={()=>setShowRules(true)} style={{
-            background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
-            borderRadius:'50%',width:28,height:28,cursor:'pointer',
-            fontFamily:F.ui,fontSize:14,fontWeight:900,flexShrink:0}}>?</button>
-        )}
+        <button onClick={()=>setShowRules(true)} title="Rules" style={{
+          background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
+          borderRadius:'50%',width:28,height:28,cursor:'pointer',
+          fontFamily:F.ui,fontSize:14,fontWeight:900,flexShrink:0}}>?</button>
         </div>
       </div>
 
       {showRules&&<RulesModal onClose={()=>setShowRules(false)}/>}
-      {mode==='tutorial'&&tutStepData&&<TutorialOverlay step={tutStepData} onOk={()=>setTutStep(i=>i+1)}/>}
       {revealData&&<RevealOverlay {...revealData} onDismiss={revealData.onContinue}
         playerBestIds={revealData.playerBestIds||null}
         aiBestIds={revealData.aiBestIds||null}/>}

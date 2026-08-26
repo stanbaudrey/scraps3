@@ -69,6 +69,45 @@
         box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
       }
 
+      /* Difficulty picker — the two big boxes. They unfold from a
+         hairline and are INERT until .armed lands (see ARM_MS in
+         MenuScreens.jsx): pointer-events off, muted border, so a
+         click-streak carried over from the storyboard can't pick a
+         difficulty by accident. .armed is the visual "now listening"
+         cue — border snaps to voltage and the box pulses once. */
+      .pick-box {
+        border: 2px solid color-mix(in srgb, var(--slate) 27%, transparent);
+        border-radius: 14px;
+        padding: 26px 30px;
+        background: color-mix(in srgb, var(--dusk) 90%, var(--slate));
+        cursor: default;
+        pointer-events: none;
+        animation: panelUnfold 420ms cubic-bezier(.22,1,.36,1) both;
+        transition: border-color 140ms, background 140ms, box-shadow 140ms, transform 140ms;
+      }
+      .pick-box.armed {
+        cursor: pointer;
+        pointer-events: auto;
+        border-color: color-mix(in srgb, var(--voltage) 70%, transparent);
+        animation: panelUnfold 420ms cubic-bezier(.22,1,.36,1) both, armFlash 620ms ease-out;
+      }
+      .pick-box.armed:hover {
+        border-color: var(--voltage);
+        background: color-mix(in srgb, var(--voltage) 10%, transparent);
+        box-shadow: 0 0 26px color-mix(in srgb, var(--voltage) 45%, transparent);
+        transform: scale(1.015);
+      }
+
+      /* Storyboard walkthrough — the ONLY motion on those screens.
+         A slow lean applied to a wrapper, never to the card itself,
+         so PlayingCard's own transform/transition stays untouched
+         and the reduced-motion rule below has one thing to switch
+         off. Per-element animation-delay is set inline. */
+      .wt-wiggle {
+        animation: wtWiggle 1.1s ease-in-out infinite alternate;
+        transform-origin: 50% 88%;
+      }
+
       /* Shared keyframes — used across splash, game screen, and overlays */
       @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
       @keyframes glow{0%,100%{opacity:.45}50%{opacity:1}}
@@ -88,6 +127,9 @@
       @keyframes letterAppear{from{opacity:0;transform:translateY(44px) scale(.65) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}}
       @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
       @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+      @keyframes wtWiggle{0%{transform:rotate(-2.2deg) translateY(0)}100%{transform:rotate(2.2deg) translateY(-5px)}}
+      @keyframes panelUnfold{0%{opacity:0;clip-path:inset(48% 0 48% 0);transform:scaleY(.82)}55%{opacity:1}100%{opacity:1;clip-path:inset(0 0 0 0);transform:scaleY(1)}}
+      @keyframes armFlash{0%{box-shadow:0 0 0 0 transparent}35%{box-shadow:0 0 0 4px color-mix(in srgb, var(--voltage) 42%, transparent),0 0 30px color-mix(in srgb, var(--voltage) 34%, transparent)}100%{box-shadow:0 0 0 0 transparent}}
       /* Over-limit trade error — quick attention bounce */
       @keyframes errBounce{0%{transform:translateY(0) scale(1)}20%{transform:translateY(-12px) scale(1.05)}45%{transform:translateY(0) scale(1)}65%{transform:translateY(-5px)}100%{transform:translateY(0)}}
       /* SwirlBg flowing color swaths — opacity + transform only, compositor-safe */
@@ -100,6 +142,12 @@
          feedback, so freezing it loses nothing. */
       @media (prefers-reduced-motion: reduce) {
         div[style*="swirlFlow"] { animation: none !important; }
+        /* Both are decorative-only and carry no state: the storyboard
+           wiggle is emphasis, the picker unfold is a reveal. Killing
+           them leaves the final rendered state, and the picker's
+           input lock is a JS timer, so it still arms on schedule. */
+        .wt-wiggle { animation: none !important; }
+        .pick-box, .pick-box.armed { animation: none !important; }
       }
     </style>
   </head>

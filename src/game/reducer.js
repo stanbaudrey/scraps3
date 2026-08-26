@@ -100,76 +100,16 @@ export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins) {
 
 // ── Round setup (impure: shuffles) ───────────────────────────
 // Called by the UI, never by the reducer, so the reducer stays
-// pure. Handles the tutorial's scripted deal: no Aces in the
-// player's starting hand, an Ace as the first drawn card, and the
-// opponent seeded with 5s for the four-of-a-kind setup.
-export function buildRoundDeal(mode, alternate) {
+// pure. Deals a straight, unrigged round: five cards to each
+// hand, two to each Scraps pile, rest to the deck.
+export function buildRoundDeal() {
   const d = shuffle(createDeck());
   const deal = dealRound(d);
-  let remainingDeck = deal.remainingDeck;
-  let playerHand = deal.playerHand;
-  let aiHand = deal.aiHand;
-  let playerScrapsInit = deal.playerScraps;
-  let aiScrapsInit = deal.aiScraps;
-
-  if (mode === 'tutorial' && !alternate) {
-    // Tutorial: player's STARTING HAND must NOT have an Ace
-    // Remove any Aces from starting hand, put them in deck
-    const handAces = playerHand.filter(c => c.rank === 'A');
-    if (handAces.length > 0) {
-      const aceIds = new Set(handAces.map(c => c.id));
-      playerHand = playerHand.filter(c => !aceIds.has(c.id));
-      remainingDeck = [...handAces, ...remainingDeck];
-    }
-    // Put one Ace at position 0 of remaining deck (first card drawn on first trade)
-    const aceInDeck = remainingDeck.findIndex(c => c.rank === 'A');
-    if (aceInDeck > 0) {
-      const ace = remainingDeck[aceInDeck];
-      remainingDeck = [ace, ...remainingDeck.filter((_, i) => i !== aceInDeck)];
-    }
-    // Pad player hand back to 5 with non-ace cards from deck if needed
-    while (playerHand.length < 5 && remainingDeck.length > 0) {
-      const next = remainingDeck.findIndex(c => c.rank !== 'A');
-      if (next >= 0) {
-        playerHand = [...playerHand, remainingDeck[next]];
-        remainingDeck = remainingDeck.filter((_, i) => i !== next);
-      } else break;
-    }
-    // Set AI starting Scraps to two 5s (scripted for four-of-a-kind setup).
-    // A single 52-card deck has only four 5s total (vs eight with the old
-    // two-deck shoe), so this pools every 5 currently in play — not just
-    // whatever landed in remainingDeck/aiScraps — and backfills any hand
-    // or scraps slot that loses one with a substitute card. Without this,
-    // a 5 dealt into the player's hand/scraps or the AI's hand would be
-    // unreachable and the rigged setup could fall short of two 5s.
-    const splitFives = (arr) => ({
-      fives: arr.filter(c => c.rank === '5'),
-      rest: arr.filter(c => c.rank !== '5'),
-    });
-    const pHandSplit = splitFives(playerHand);
-    const aHandSplit = splitFives(aiHand);
-    const pScrapsSplit = splitFives(playerScrapsInit);
-    const aScrapsSplit = splitFives(aiScrapsInit);
-    const deckSplit = splitFives(remainingDeck);
-    const allFives = [
-      ...pHandSplit.fives, ...aHandSplit.fives,
-      ...pScrapsSplit.fives, ...aScrapsSplit.fives,
-      ...deckSplit.fives,
-    ];
-    if (allFives.length >= 2) {
-      let nonFiveDeck = deckSplit.rest;
-      const take = (n) => { const t = nonFiveDeck.slice(0, n); nonFiveDeck = nonFiveDeck.slice(n); return t; };
-      playerHand = [...pHandSplit.rest, ...take(pHandSplit.fives.length)];
-      aiHand = [...aHandSplit.rest, ...take(aHandSplit.fives.length)];
-      playerScrapsInit = [...pScrapsSplit.rest, ...take(pScrapsSplit.fives.length)];
-
-      aiScrapsInit = allFives.slice(0, 2);
-      // Any remaining 5s (up to 2) go to the top of the deck so the
-      // scripted first AI turn can trade them in for the quad.
-      const moreFives = allFives.slice(2, 4);
-      remainingDeck = [...moreFives, ...nonFiveDeck];
-    }
-  }
+  const remainingDeck = deal.remainingDeck;
+  const playerHand = deal.playerHand;
+  const aiHand = deal.aiHand;
+  const playerScrapsInit = deal.playerScraps;
+  const aiScrapsInit = deal.aiScraps;
 
   return {
     deck: remainingDeck,

@@ -56,24 +56,31 @@ looks broken locally, it is not a missing-secret problem.
   52-card deck — see Session 2's balance fix in PROJECT-BRIEF.md), shuffling,
   hand evaluation, signal validation, trade legality, and the AI's
   decision-making. No React, no side effects.
-- **`src/game/reducer.js`** (565 lines) — the state machine. One pure reducer
+- **`src/game/reducer.js`** (~515 lines) — the state machine. One pure reducer
   owns all game state: cards, scores, signals, and the phase. Turn order is
   dealer-aware and the dealer alternates each round; the non-dealer acts
   first. This file's header comment explains the phase vocabulary — read it
   before touching turn flow.
-- **`src/screens/GameScreen.jsx`** (1,012 lines) — the table. Holds only
+- **`src/screens/GameScreen.jsx`** (~980 lines) — the table. Holds only
   UI-local state (selections, animation flags, overlays), schedules the
   timers that dispatch actions, and renders. See Known Issues.
-- **`src/screens/MenuScreens.jsx`** — splash, the six-panel rules overview,
-  and the difficulty picker.
+- **`src/screens/MenuScreens.jsx`** — the splash (one button) and the
+  difficulty picker. The picker's two panels are inert for `ARM_MS`
+  (720ms) after mount so a click-streak carried over from the
+  walkthrough can't pick a difficulty by accident.
+- **`src/screens/Walkthrough.jsx`** — the four-beat first-run storyboard
+  shown between PLAY and the difficulty picker, once per browser session
+  (`sessionStorage` key `scraps-walkthrough-seen-v1`, gated in
+  `App.jsx`). Static beats; the only motion is the `.wt-wiggle` lean on
+  the cards each beat is talking about. There is no scripted tutorial
+  mode any more — `src/game/tutorial.js` and every `mode === 'tutorial'`
+  branch were removed with it, so `buildRoundDeal()` now takes no
+  arguments and always deals a straight round.
 - **`src/components/`** — `cards.jsx` (fanned hand, Scraps zone, deck and
   discard piles), `overlays.jsx` (round interstitials, reveal, win/lose
   screens, modals, fireworks), `hud.jsx` (scores, round progress, game log),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
   `flight.jsx` (the card-flying-across-the-table animation), `backdrop.jsx`.
-- **`src/game/tutorial.js`** — the scripted tutorial, a fixed sequence of
-  steps with a rigged deal (the opponent is dealt into four-of-a-kind so the
-  player is forced to learn the Ace play).
 - **`src/game/stats.js`** — win/loss record and best margin per difficulty,
   in `localStorage` under the key `scraps-stats-v1`. All access is
   try/caught, so private-browsing degrades to zeroed stats rather than
@@ -135,7 +142,7 @@ versions and should not be deployed to.
   at `unclescrunch/scraps3` — GitHub's rename redirect is what keeps pushes
   working. It works today, silently, and would break if that redirect is ever
   reclaimed. Worth repointing the remote.
-- **`GameScreen.jsx` is 1,012 lines** and mixes three concerns: UI state, the
+- **`GameScreen.jsx` is ~940 lines** and mixes three concerns: UI state, the
   animation timer choreography, and the rendering of the whole table. Unlike
   the engine and reducer, nothing in the file claims this is deliberate. The
   animation scheduling is the natural first thing to lift out.

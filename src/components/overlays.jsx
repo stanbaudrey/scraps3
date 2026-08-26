@@ -545,29 +545,6 @@ export function RulesModal({ onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// TutorialOverlay
-// ─────────────────────────────────────────────────────────────
-export function TutorialOverlay({ step, onOk }) {
-  if(!step) return null;
-  return (
-    <div style={{position:'fixed',top:0,left:0,right:0,zIndex:50,
-      background:`linear-gradient(${DS.dusk} 82%,transparent)`,
-      padding:'10px 18px 26px',pointerEvents:'none'}}>
-      <div style={{maxWidth:680,margin:'0 auto',background:DS.duskMid,
-        border:`2px solid ${DS.voltage}88`,borderRadius:12,
-        padding:'16px 24px',pointerEvents:'all',
-        boxShadow:`0 0 28px ${DS.voltage}33`}}>
-        <div style={{fontFamily:F.ui,color:DS.voltage,fontSize:13,
-          letterSpacing:'0.16em',marginBottom:8,fontWeight:700}}>{step.title.toUpperCase()}</div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:16,
-          lineHeight:1.65,marginBottom:step.waitForOk?14:0}}>{step.instruction}</p>
-        {step.waitForOk&&<Btn small onClick={onOk}>Got it →</Btn>}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
 // SkipTurnModal — shown when the player has no legal trade
 // ─────────────────────────────────────────────────────────────
 export function SkipTurnModal({ onOk }) {
