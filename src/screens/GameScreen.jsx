@@ -33,7 +33,7 @@ import { recordGame } from "../game/stats.js";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
   AceCounterModal, RulesModal, TutorialOverlay, SkipTurnModal,
-  OpponentAceReveal, AiCounterNotice, TransferHintArrow, AceDrawnLightbox,
+  OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
 
 export function GameScreen({ mode, difficulty, onExit }) {
@@ -75,10 +75,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
   const tradeErrorTimer = useRef(null);
 
-  // First-time-per-game hints (regular play only — the tutorial
-  // already scripts its own explanation of both of these).
-  const [showTransferHint, setShowTransferHint] = useState(false);
-  const transferHintShownRef = useRef(false);
+  // First-time-per-game hint (regular play only — the tutorial
+  // already scripts its own explanation of this).
   const [aceDrawnCard, setAceDrawnCard]         = useState(null);
   const aceHintShownRef = useRef(false);
   const [roundEndPulse, setRoundEndPulse]       = useState(false);
@@ -222,7 +220,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
   // ── Card selection ─────────────────────────────────────────
   function toggleHandCard(card) {
     playClick();
-    if (showTransferHint) setShowTransferHint(false);
     setSelected(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : [...prev, card]);
   }
   function toggleScrapsDiscardCard(card) {
@@ -716,18 +713,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const forcedAce = noLegalTrade && playerHasAce && aiScraps.length >= 2;
   const mustSkip  = noLegalTrade && !forcedAce && !pendingAiAce;
 
-  // ── First-time-per-game hints (regular play only) ───────────
-  useEffect(() => {
-    if (mode === 'tutorial' || transferHintShownRef.current) return;
-    if (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !showInterstitial) {
-      transferHintShownRef.current = true;
-      setShowTransferHint(true);
-    }
-  }, [isPlayerTurn, aceMode, isScrapsDiscardMode, pendingAiAce, showInterstitial, mode]);
-  useEffect(() => {
-    if (showTransferHint && !isPlayerTurn) setShowTransferHint(false);
-  }, [isPlayerTurn]);
-
+  // ── First-time-per-game hint (regular play only) ────────────
   useEffect(() => {
     if (mode === 'tutorial' || aceHintShownRef.current) return;
     if (showInterstitial || pendingAiAce || aiAceReveal || aceMode) return;
@@ -1046,7 +1032,6 @@ export function GameScreen({ mode, difficulty, onExit }) {
       {mustSkip&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
         <SkipTurnModal onOk={()=>dispatch({type:'PLAYER_SKIP'})}/>
       )}
-      {showTransferHint&&<TransferHintArrow fromRef={playerHandRef} toRef={playerScrapsRef}/>}
       {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}
     </div>
   );
