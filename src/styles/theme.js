@@ -27,7 +27,7 @@ export const DS = {
   frost:      '#EDE3D0',
   ember:      '#E2793B',
   voltage:    '#8FBF4D',
-  slate:      '#7C8873',
+  slate:      '#98A290',
   dusk:       '#141F19',
   duskLight:  '#26392F',
   duskMid:    '#1E2C24',

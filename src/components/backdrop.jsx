@@ -29,8 +29,8 @@ export function AnimatedTitle() {
       {'SCRAPS'.split('').map((l,i)=>(
         <span key={i} style={{fontFamily:F.display,fontWeight:700,fontStyle:'italic',
           fontSize:'clamp(80px,17vw,148px)',lineHeight:1,
-          display:'inline-block',color:l==='A'?DS.gold:DS.frost,
-          textShadow:l==='A'?`0 0 30px ${DS.gold}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,
+          display:'inline-block',color:l==='A'?DS.voltage:DS.frost,
+          textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,
           animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i*.09}s both`}}>
           {l}
         </span>

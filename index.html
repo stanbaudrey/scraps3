@@ -29,13 +29,17 @@
          ======================================================== */
       :root {
         --voltage: #8FBF4D;
-        --slate: #7C8873;
+        --slate: #98A290;
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: var(--dusk); overflow-x: hidden; }
-      ::-webkit-scrollbar { width: 5px; }
-      ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--slate) 27%, transparent); }
+      /* Wider, higher-contrast scrollbar than the original 5px/27% —
+         a clipped/overflowing panel needs a visible cue that more
+         content is reachable, not just a hidden native scrollbar. */
+      * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--slate) 55%, transparent) transparent; }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--slate) 55%, transparent); border-radius: 4px; }
 
       /* Global hover classes — defined here so they work before React hydrates */
       .menu-opt {
