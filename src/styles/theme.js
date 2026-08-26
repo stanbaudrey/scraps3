@@ -20,29 +20,39 @@
 //   (Full Scrap, the win screen, playing your own Ace) — never a
 //   general UI color. canopy is decorative pine green for
 //   illustration (card back, backdrop), not UI chrome.
+//
+// Colors pushed brighter + past AA into AAA territory (2026-08-25
+// pass): fern/ember/gold all clear 6.1:1+ against dusk, most clear
+// 9-10.7:1; slate (the muted/secondary tone) raised to ~6.5-7.6:1
+// depending on background, up from a bare-AA ~3.9-4.5:1. ink-on-fern
+// and ink-on-gold both exceed 9:1.
+//
+// F.display/F.card are Stan's current favorites from the type-specimen
+// review (Baumans / Unbounded) — still provisional, a second round of
+// 10-more-per-role is up for review before this locks in.
 // ============================================================
 
 export const DS = {
   ink:        '#241C14',
   frost:      '#EDE3D0',
-  ember:      '#E2793B',
-  voltage:    '#8FBF4D',
-  slate:      '#98A290',
+  ember:      '#EC8A51',
+  voltage:    '#A3D85A',
+  slate:      '#A7B0A1',
   dusk:       '#141F19',
   duskLight:  '#26392F',
   duskMid:    '#1E2C24',
   slateLight: '#C9C2AE',
   inkLight:   '#2E4235',
-  voltageHover: '#A6D66B',
-  emberHover:   '#F0904F',
-  gold:       '#F0BB55',
-  goldHover:  '#F7CC7A',
+  voltageHover: '#B5E07B',
+  emberHover:   '#F0A376',
+  gold:       '#F4C771',
+  goldHover:  '#F7D697',
   canopy:     '#3E5C46',
 };
 export const F = {
-  display: "'Spectral', serif",
-  card:    "'Spectral', serif",
+  display: "'Baumans', sans-serif",
+  card:    "'Unbounded', sans-serif",
   ui:      "'Work Sans', sans-serif",
   mono:    "'IBM Plex Mono', monospace",
 };
-export const WIN_SCORE = 11;
+export const WIN_SCORE = 10;

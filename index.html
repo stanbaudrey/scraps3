@@ -9,7 +9,7 @@
     <!-- This eliminates hover lag caused by @import inside React style tags -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Baumans&family=Unbounded:wght@600;700;800&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
       /* ========================================================
          SINGLE SOURCE OF TRUTH for global CSS.
@@ -28,8 +28,8 @@
          uses var()/color-mix() instead of repeating a hex value.
          ======================================================== */
       :root {
-        --voltage: #8FBF4D;
-        --slate: #98A290;
+        --voltage: #A3D85A;
+        --slate: #A7B0A1;
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,6 +89,17 @@
       @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
       /* Over-limit trade error — quick attention bounce */
       @keyframes errBounce{0%{transform:translateY(0) scale(1)}20%{transform:translateY(-12px) scale(1.05)}45%{transform:translateY(0) scale(1)}65%{transform:translateY(-5px)}100%{transform:translateY(0)}}
+      /* SwirlBg flowing color swaths — opacity + transform only, compositor-safe */
+      @keyframes swirlFlowA{0%,100%{opacity:.55;transform:translate(0,0) scale(1)}50%{opacity:.9;transform:translate(3%,-2%) scale(1.1)}}
+      @keyframes swirlFlowB{0%,100%{opacity:.5;transform:translate(0,0) scale(1)}50%{opacity:.85;transform:translate(-2%,3%) scale(1.08)}}
+      @keyframes swirlFlowC{0%,100%{opacity:.45;transform:translate(0,0) scale(1)}50%{opacity:.8;transform:translate(2%,2%) scale(1.06)}}
+      /* Scoped, not global — a full reduced-motion pass over every
+         animation in the game is Session 5's job. This only stops the
+         one new perpetual decorative loop, which carries no state or
+         feedback, so freezing it loses nothing. */
+      @media (prefers-reduced-motion: reduce) {
+        div[style*="swirlFlow"] { animation: none !important; }
+      }
     </style>
   </head>
   <body>

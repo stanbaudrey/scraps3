@@ -6,28 +6,33 @@ import { DS, F } from "../styles/theme.js";
 // ─────────────────────────────────────────────────────────────
 // SwirlBg + AnimatedTitle
 // ─────────────────────────────────────────────────────────────
-// SwirlBg — completely static, zero animation, zero blur, zero compositor overhead.
-// All previous animated/blur versions caused hover lag by blocking the browser paint thread.
-// Static radial-gradient is painted once and never touched again.
-// A soft, feather-edged dawn/dusk wash — warm gold low and center,
-// deep canopy and ember at the corners, like light through trees.
+// SwirlBg — flowing, pulsating color swaths. Three separate composited
+// layers, each animating ONLY opacity + transform (translate/scale) via
+// CSS keyframes in index.html — never background-position, blur, or the
+// gradient string itself. That distinction matters: an earlier version
+// of this component animated properties that forced a repaint every
+// frame and caused real hover lag; opacity/transform are compositor-only
+// and stay cheap regardless of how long the animation runs.
 export function SwirlBg() {
   return (
-    <div style={{
-      position:'absolute',inset:0,zIndex:0,pointerEvents:'none',
-      background:`
-        radial-gradient(ellipse 60% 50% at 25% 30%, rgba(62,92,70,0.20) 0%, transparent 70%),
-        radial-gradient(ellipse 55% 45% at 75% 70%, rgba(226,121,59,0.13) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 40% at 50% 92%, rgba(240,187,85,0.10) 0%, transparent 70%)
-      `
-    }}/>
+    <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',overflow:'hidden'}}>
+      <div style={{position:'absolute',inset:'-12%',
+        background:`radial-gradient(ellipse 60% 50% at 25% 30%, ${DS.canopy}66 0%, transparent 70%)`,
+        animation:'swirlFlowA 16s ease-in-out infinite',willChange:'opacity, transform'}}/>
+      <div style={{position:'absolute',inset:'-12%',
+        background:`radial-gradient(ellipse 55% 45% at 75% 70%, ${DS.ember}55 0%, transparent 70%)`,
+        animation:'swirlFlowB 20s ease-in-out infinite',willChange:'opacity, transform'}}/>
+      <div style={{position:'absolute',inset:'-12%',
+        background:`radial-gradient(ellipse 50% 40% at 50% 92%, ${DS.gold}4a 0%, transparent 70%)`,
+        animation:'swirlFlowC 24s ease-in-out infinite',willChange:'opacity, transform'}}/>
+    </div>
   );
 }
 export function AnimatedTitle() {
   return (
     <div style={{display:'flex',justifyContent:'center',gap:4,marginBottom:12}}>
       {'SCRAPS'.split('').map((l,i)=>(
-        <span key={i} style={{fontFamily:F.display,fontWeight:700,fontStyle:'italic',
+        <span key={i} style={{fontFamily:F.display,fontWeight:700,
           fontSize:'clamp(80px,17vw,148px)',lineHeight:1,
           display:'inline-block',color:l==='A'?DS.voltage:DS.frost,
           textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,

@@ -35,21 +35,28 @@ export function CardBackSVG({ w, h }) {
       xmlns="http://www.w3.org/2000/svg"
       style={{position:'absolute',inset:0,borderRadius:12,display:'block'}}>
       <rect width="120" height="178" fill={DS.dusk}/>
-      {/* low sun / moon glow */}
-      <circle cx="60" cy="46" r="20" fill={DS.gold} opacity="0.10"/>
-      <circle cx="60" cy="46" r="10" fill={DS.gold} opacity="0.22"/>
-      {/* back ridge — furthest, faintest */}
+      {/* low sun / moon glow — brighter, more saturated */}
+      <circle cx="60" cy="46" r="22" fill={DS.gold} opacity="0.20"/>
+      <circle cx="60" cy="46" r="11" fill={DS.gold} opacity="0.42"/>
+      {/* a few stars for extra texture */}
+      <circle cx="22" cy="22" r="1.4" fill={DS.frost} opacity="0.4"/>
+      <circle cx="96" cy="16" r="1.1" fill={DS.frost} opacity="0.32"/>
+      <circle cx="80" cy="34" r="1" fill={DS.frost} opacity="0.28"/>
+      {/* back ridge — furthest, saturated canopy */}
       <path d="M0,118 C18,100 38,112 60,96 C82,80 100,106 120,90 L120,178 L0,178 Z"
-        fill={DS.canopy} opacity="0.28"/>
+        fill={DS.canopy} opacity="0.45"/>
       {/* mid ridge */}
       <path d="M0,140 C16,120 36,134 58,116 C80,98 98,128 120,112 L120,178 L0,178 Z"
-        fill={DS.canopy} opacity="0.5"/>
-      {/* near ridge — darkest, nearly opaque */}
+        fill={DS.canopy} opacity="0.72"/>
+      {/* near ridge — darkest, fully opaque */}
       <path d="M0,160 C20,138 44,152 66,130 C86,110 102,140 120,126 L120,178 L0,178 Z"
-        fill={DS.ink} opacity="0.92"/>
-      {/* winding river, low opacity */}
+        fill={DS.ink}/>
+      {/* winding river, brighter gold */}
       <path d="M0,172 C24,166 30,176 52,170 C74,164 82,174 120,168"
-        fill="none" stroke={DS.gold} strokeWidth="1.4" opacity="0.22" strokeLinecap="round"/>
+        fill="none" stroke={DS.gold} strokeWidth="1.8" opacity="0.4" strokeLinecap="round"/>
+      {/* pronounced frame so backs stand out against each other and the table */}
+      <rect x="3" y="3" width="114" height="172" rx="9" fill="none"
+        stroke={DS.voltage} strokeWidth="2.5" opacity="0.6"/>
     </svg>
   );
 }
@@ -64,10 +71,10 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
   extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false }) {
 
   const dims={
-    tiny:  {w:60, h:84,  rank:20,suit:21,pad:5},
-    small: {w:80, h:112, rank:25,suit:27,pad:7},
-    normal:{w:104,h:146, rank:32,suit:34,pad:9},
-    large: {w:124,h:174, rank:38,suit:40,pad:11},
+    tiny:  {w:60, h:84,  rank:23,suit:24,pad:5},
+    small: {w:80, h:112, rank:29,suit:31,pad:7},
+    normal:{w:104,h:146, rank:37,suit:39,pad:9},
+    large: {w:124,h:174, rank:44,suit:46,pad:11},
   };
   const d=dims[size]||dims.normal;
   const ink=card?cardInk(card.suit,isScrap):DS.ink;
@@ -78,10 +85,10 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
   let bg,border,shadow;
   if(faceDown){
     bg='transparent';
-    // Neutral: quiet slate outline — the opponent's hidden hand
-    // must never out-glow the player's call-to-action elements.
-    border=`3px solid ${DS.slate}55`;
-    shadow='0 4px 14px rgba(0,0,0,.45)';
+    // Pronounced outline: neighboring face-down cards need a real edge
+    // to read as separate objects, not a merged silhouette.
+    border=`4px solid ${DS.slate}`;
+    shadow='0 4px 14px rgba(0,0,0,.55)';
   } else if(isScrap){
     bg=DS.ink;
     border=selected?`6px solid ${DS.voltage}`:`4px solid ${isRed(card?.suit)?DS.ember:DS.voltage}`;

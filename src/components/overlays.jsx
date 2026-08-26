@@ -37,7 +37,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
         transition:'opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.4,.64,1)',
       }}>
         <div style={{
-          fontFamily:"'Spectral', serif",
+          fontFamily:"'Baumans', sans-serif",
           fontWeight:700,
           fontSize:'clamp(52px,12vw,96px)',
           color:DS.voltage,
