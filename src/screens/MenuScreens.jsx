@@ -69,9 +69,15 @@ export function DifficultyPicker({ onChoose }) {
     return () => clearTimeout(t);
   }, []);
 
+  // Ember on HARD, not a second fern box. Ember is the committed
+  // opponent/danger colour everywhere else in the game, and this is the
+  // screen where you pick an opponent — so the two boxes now differ by
+  // something other than the words inside them.
   const opts = [
-    { id:'easy', label:'EASY', desc:'Doesn’t take risks. Rarely weaponizes Aces.' },
-    { id:'hard', label:'HARD', desc:'Aggressive. Bold. Will sacrifice small hands to win Scraps.' },
+    { id:'easy', label:'EASY', tone:DS.voltage,
+      desc:'Doesn’t take risks. Rarely weaponizes Aces.' },
+    { id:'hard', label:'HARD', tone:DS.ember,
+      desc:'Aggressive. Bold. Will sacrifice small hands to win Scraps.' },
   ];
 
   return (
@@ -92,10 +98,10 @@ export function DifficultyPicker({ onChoose }) {
               className={`pick-box${armed ? ' armed' : ''}`}
               disabled={!armed}
               onClick={armed ? () => onChoose(o.id) : undefined}
-              style={{animationDelay:`${i * 150}ms`}}>
+              style={{animationDelay:`${i * 150}ms`, '--accent':o.tone}}>
               <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
                 <span style={{fontFamily:F.display,fontSize:'clamp(38px,6vw,54px)',
-                  color:DS.voltage,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
+                  color:o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
                 {rec && (rec.w > 0 || rec.l > 0) && (
                   <span style={{fontFamily:F.mono,color:DS.slate,fontSize:13,letterSpacing:'0.1em',
                     whiteSpace:'nowrap'}}>
