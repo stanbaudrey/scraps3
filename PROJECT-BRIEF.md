@@ -636,6 +636,51 @@ Session 3 and Session 5 still own the full mobile/responsive and
 accessibility passes — this addendum fixed what the critique specifically
 measured, not everything in those sessions' scope.
 
+**Session close-out (2026-08-26):** three more rounds landed after the
+addendum above, then the session was closed out.
+
+Font finalization: two rounds of specimen review (5 then 10 more per
+role) landed on Baumans/Unbounded as an interim pick, which Stan then
+overrode directly — final type is **Bungee Shade** (title/wordmark only),
+**Fjalla One** (every other header and subtitle), **Baloo 2** (card
+ranks/suits). This split `F.display` into two tokens: `F.title` for the
+wordmark alone, `F.display` repurposed for "everything else that used to
+share it."
+
+A second, narrower critique ran as a gut check specifically on the
+brightness/contrast/type follow-up (not the whole reskin) — scored 18/20
+on the heuristics that applied. It caught one real bug: the card back's
+new outline frame and ambient sun/river glow were built with `DS.voltage`
+and `DS.gold` — this file's own reserved "yours only" / "milestone only"
+tokens — rendering on a neutral surface that's identical on the
+opponent's hidden hand, the deck, and the discard pile. Fixed same
+session: outline → `slate` (matches `PlayingCard`'s own face-down border
+instead of duplicating it in a second color), sun/river → `ember`. Also
+caught and fixed two more spots using hardcoded font-family strings
+instead of the shared `F` tokens (`overlays.jsx`'s `RoundInterstitial`,
+`flight.jsx`), the same "same value repeated" pattern Session 1 already
+fixed once for colors. Both critique runs are persisted under
+`.impeccable/critique/`.
+
+**Notion synced (2026-08-26).** The kickoff-era brief said the Notion
+connector wasn't authorized — that's now stale; it's connected, and a
+real project mirror already existed at "Project: SCRAPS" (5 sub-pages:
+Concepting through Refining). Updated the "5. Developing" session tracker
+(added the unplanned reskin row, marked Session 2 done, tightened Session
+3's bar, added Session 8) and the top-level "Where things stand" /
+"Decisions I made" tables on "Project: SCRAPS" to match this file. This
+file (`PROJECT-BRIEF.md`) remains the source of truth if the two ever
+drift — Notion is the mirror, not the record.
+
+**Final state at close:** every change is committed and pushed to `dev`
+(not merged to `main` — production is still Session 1's state). All 37
+tests pass and the production build succeeds as of the last commit. No
+local dev server or background process was left running. **Not verified
+live this session, still open:** the RevealOverlay overflow and the Full
+Scrap/Win/Ace modals in their current (brighter, re-fonted) state — worth
+a look before this goes to preview for real review, alongside everything
+already listed as pending under Sessions 3, 5, and 8.
+
 ### Session 2 — Game balance discussion ✅ Done (2026-08-25)
 
 **Notes:** simulated the actual draw/trade/Ace logic in `engine.js` (20,000
