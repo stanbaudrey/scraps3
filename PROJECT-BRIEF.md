@@ -1237,6 +1237,89 @@ appears at 0.6s, the subtitle at 0.7s, the wordmark's last letter at 1.05s.
 — verified there, not just locally: no console errors, no landscape scroll,
 clean text layer, both rings spinning with no gold. Not merged to `main`.
 
+**Motion chosen, and keyboard access fixed (same session, after the
+critique).** Stan asked to see the options rather than argue them, so the
+sixteen candidates were built as a live comparison artifact — four
+dynamics x four options, in the game's own palette and typefaces, with
+scale and speed controls. Artifact:
+https://claude.ai/code/artifact/84fed1d3-0b31-413e-ad98-8dad1e311d88
+
+**His picks, all four now shipped to `dev` (`e06e3ae`):**
+
+- **Idle = riffle**, at **2.08s** rather than the lab's 2.6s — he asked
+  for a quarter more often, and 2.6 / 1.25 is exactly 2.08. A spring
+  travels the row the way a bridged deck releases: most of the cycle is
+  stillness. `perspective` moved to `.scraps-title` so the per-letter
+  `rotateX` reads as depth instead of a flat vertical squash.
+- **Tap = square-up**, with a **new sound**, `playSquareUp()` in
+  `audio.js`, running to the animation's own 0.82s: a brush of card
+  edges while the hand is loose, six taps on the letters' own 0.028s
+  stagger, a soft landing under the last of them. The six taps are a **G
+  major pentatonic** run — any subset of a pentatonic is consonant with
+  any other, so six pitched hits inside 200ms cannot land on a sour
+  interval, which was the whole risk given "not too harsh or dissonant."
+  Verified by counting nodes on a real tap: 7 oscillators (6 taps + the
+  landing), 1 noise bed, 7 filters. Scatter offsets are **fixed per
+  letter, never random** — a gesture that differs run to run reads as a
+  glitch rather than a flourish. Note the auto-fire 1.4s after load is
+  silent by design: browsers refuse audio before a user gesture, so only
+  the tap itself sounds.
+- **Hover = fan the hand**, rotation off a pivot below the baseline,
+  **pure transform** — the ripple it replaces animated inline padding, a
+  layout property. Per his instruction the wordmark keeps
+  **`cursor: default`**: it answers hover, and on touch it answers tap,
+  but clicking does nothing on a pointer device and the cursor must not
+  promise otherwise.
+- **Difficulty panel = dealt in** from off the left. The shine border and
+  its rotating conic ring are gone entirely.
+
+The new panel animation fills **`backwards`, not `both`**, which also
+kills the dead-code bug the critique found: `panelUnfold` filled a
+transform forwards, and a filling animation outranks author rules, so
+`.pick-box.armed:hover`'s lift had never rendered once. Verified: the box
+now settles to `transform: none` and a hover scale actually computes.
+Retiring the flip's second face also removes the doubled text layer for
+good, rather than working around it.
+
+**Keyboard access, fixed (`0d0f5d1`).** The splash and picker exposed
+**zero focusable elements between them**, and all three button
+primitives set `outline:'none'` with no replacement anywhere in the
+project. A running game now has 11.
+
+- One global `:focus-visible` rule, voltage at 3px with 3px offset.
+  `:focus-visible` rather than `:focus` means a mouse click never paints
+  a ring, which is why it can be this loud without being in the way.
+- Difficulty options are real `<button>`s, and the 720ms arm lock is
+  `disabled` rather than `pointer-events: none` — assistive tech is now
+  told the control is not live yet instead of silently finding nothing.
+- **Cards were the real gap**: the core interaction could not be reached
+  at all. Selectable cards in the fan and the Scraps pile carry
+  `role=button`, `tabindex`, `aria-pressed`, Enter/Space handling, and a
+  spoken label built from a rank/suit map (`cardLabel()` in `cards.jsx`),
+  because a screen reader cannot be relied on to say "♦" usefully.
+  Face-down and ineligible cards stay out of the tab order. Verified:
+  Enter on a focused card flips `aria-pressed` false to true and appends
+  ", selected" to its label.
+- Play Ace was a `<div>` — the most consequential move in the game.
+- The walkthrough's "tap anywhere" surface answers Enter, Space and
+  ArrowRight, Escape skips, and events already bound for a real button
+  are ignored so Enter on SKIP does not also advance the beat behind it.
+  Copy now reads "Tap anywhere, or press Enter". Escape closes the rules
+  modal; the log toggle is a button with `aria-expanded`.
+
+**Still open from the critique, deliberately not done here:** no headings
+on either menu screen; picker copy is in-game jargon for anyone who
+skipped the walkthrough; HARD renders in fern (voltage = "yours") on the
+one screen where you choose an opponent, when ember is the committed
+opponent colour; the suits row is monochrome sage though the palette
+assigns ember to red suits; splash timing still runs backwards (PLAY at
+0.6s, subtitle 0.7s, last letter 1.05s).
+
+**Preview:** https://scraps3-8zk82ps69-samvaudrey-3466s-projects.vercel.app
+— verified on the deployment: six riffle animations running, cursor
+default on the wordmark, clean text layer, no shine rings, no console
+errors. Not merged to `main`.
+
 **The 30 subtitle candidates**
 
 *Two hands:* Build two hands at once. · Poker at two speeds. · Two hands
