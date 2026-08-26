@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playGrandFanfare, playFireworkPop, playNeutralJingle } from "../audio.js";
-import { Btn } from "./buttons.jsx";
+import { Btn, AceTag } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
 import { SwirlBg } from "./backdrop.jsx";
 import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
@@ -356,9 +356,16 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// AceDrawnLightbox — first-time-per-game tip shown the moment an
-// Ace lands in the player's hand. The Ace and the Play Ace button
-// wiggle on the same animation so they read as dancing in sync.
+// AceDrawnLightbox — first-time-per-game tip, shown the moment an
+// Ace lands in the player's hand.
+//
+// The Play Ace control here is an ILLUSTRATION, not a control: it
+// shows the player exactly what they are about to see on the
+// table — a gold tag sitting on top of an Ace, leaning with it —
+// so the real one is recognised on sight rather than discovered.
+// It shares one wiggle wrapper with the card for that reason; two
+// separate animations would drift apart and break the pairing.
+// The only thing to press is OKAY, at the bottom.
 // ─────────────────────────────────────────────────────────────
 export function AceDrawnLightbox({ ace, onDismiss }) {
   return (
@@ -368,28 +375,31 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
         borderRadius:16,padding:32,maxWidth:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.gold,
-          letterSpacing:'0.06em',marginBottom:22}}>You've drawn an Ace!</div>
+          letterSpacing:'0.06em',marginBottom:24}}>You've drawn an Ace!</div>
         <div style={{display:'flex',justifyContent:'center',marginBottom:26}}>
-          {ace && <PlayingCard card={ace} size="large" wiggle/>}
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
+            animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
+            <AceTag live={false} width={124}/>
+            {ace && <PlayingCard card={ace} size="large" liftTransform={false}/>}
+          </div>
         </div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:10}}>
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:12}}>
           On your turn, you can play your Ace and select two cards to remove
           from your opponent's Scraps pile. If your opponent has an Ace, they
           can "counter," causing both Aces to be discarded and your turn to end.
         </p>
-        <p style={{fontFamily:F.mono,color:DS.slate,fontSize:14,marginBottom:28}}>
-          When transferred to your Scraps pile, an Ace is worth three cards.
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:28}}>
+          You can also play an Ace in a hand or transfer it to your Scraps pile,
+          worth 3 cards.
         </p>
         <button onClick={onDismiss} style={{
           background:DS.gold,color:DS.ink,border:'none',
-          padding:'16px 40px',borderRadius:10,cursor:'pointer',
+          padding:'16px 44px',borderRadius:10,cursor:'pointer',
           fontFamily:F.ui,fontWeight:700,fontSize:18,
-          letterSpacing:'0.08em',textTransform:'uppercase',
+          letterSpacing:'0.1em',textTransform:'uppercase',
           boxShadow:`0 0 24px ${DS.gold}88`,
-          display:'inline-flex',alignItems:'center',gap:8,
-          animation:'cardWiggle 0.5s ease-in-out infinite alternate',
         }}>
-          Play Ace <IconBolt size={18}/>
+          Okay
         </button>
       </div>
     </div>

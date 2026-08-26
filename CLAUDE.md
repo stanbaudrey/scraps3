@@ -80,7 +80,16 @@ looks broken locally, it is not a missing-secret problem.
   discard piles), `overlays.jsx` (round interstitials, reveal, win/lose
   screens, modals, fireworks), `hud.jsx` (scores, round progress, game log),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
-  `flight.jsx` (the card-flying-across-the-table animation), `backdrop.jsx`.
+  `flight.jsx` (card motion), `backdrop.jsx`.
+- **Card motion is FLIP** (`flight.jsx`). Nothing predicts where a card
+  is or will be: the state change is committed atomically first, then
+  each card's real `getBoundingClientRect` at both ends drives a ghost
+  that flies between them while the real card is hidden (`visibility`,
+  never `display` — the layout has to survive). Cards register their DOM
+  node by id from a **layout** effect, because the motion hook measures
+  destinations in its own layout effect and a card moving piles remounts
+  under a different parent. Because state is already final, a click or
+  Enter can drop every ghost at any moment and the board is correct.
 - **`src/game/stats.js`** — win/loss record and best margin per difficulty,
   in `localStorage` under the key `scraps-stats-v1`. All access is
   try/caught, so private-browsing degrades to zeroed stats rather than
@@ -107,6 +116,18 @@ looks broken locally, it is not a missing-secret problem.
   double-fired under React StrictMode and duplicated AI draws and log lines.
   Keep new game logic in the reducer, not in component callbacks, or that
   bug class comes back.
+- **The opponent never moves over your cards.** The phase advances the
+  instant your trade commits, so `GameScreen` derives `settling`
+  (`animating && it-is-now-an-AI-phase`) and holds the table on your
+  turn until your cards land. Two separate effects run the AI: a gate
+  that waits for `animating` to clear and sets `aiGo`, and a runner that
+  depends only on `aiGo`. They are split deliberately — the AI's own
+  cards set `animating`, so one combined effect would re-run mid-turn
+  and cancel the opponent's move halfway through.
+- **Never render a `useCallback` component as `<Foo/>`.** `flight.jsx`
+  used to return its overlay that way; the function identity changed
+  every render, so React remounted every card in flight and restarted
+  its animation. It returns an element now.
 - **Timers read state through a ref** (`stateRef` in `GameScreen.jsx`) so a
   timeout scheduled seconds earlier never acts on a stale snapshot. Follow
   that pattern for any new delayed action.

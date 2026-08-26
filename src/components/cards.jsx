@@ -13,7 +13,7 @@
 //  • The badge under the player's hand is a change-detector:
 //    subtle at rest, flashes only when the best hand upgrades.
 // ============================================================
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
 import { playClick } from "../audio.js";
 import { evaluateBestHand } from "../game/engine.js";
@@ -74,7 +74,29 @@ export function CardBackSVG({ w, h }) {
 // ─────────────────────────────────────────────────────────────
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
   selectable=false, dimmed=false, onClick, size='normal',
-  extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true }) {
+  extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true,
+  registerEl=null, hidden=false }) {
+
+  // The motion system measures this node to build a card's real
+  // flight path, and hides it (visibility, so LAYOUT SURVIVES —
+  // display:none would collapse the fan and move every sibling)
+  // while a ghost is standing in for it mid-flight.
+  //
+  // LAYOUT effect, not a passive one, and deliberately so. A card
+  // moving hand → Scraps unmounts under one parent and mounts
+  // under another; the motion hook measures destinations in its
+  // own layout effect, and layout effects run child-first, so
+  // registering here is the only way the new node exists in the
+  // registry in time to be measured. The unregister also passes
+  // its node so a late cleanup from the OLD mount cannot delete
+  // the NEW mount's entry.
+  const selfRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!registerEl || !card) return;
+    const el = selfRef.current;
+    registerEl(card.id, el);
+    return () => registerEl(card.id, null, el);
+  }, [registerEl, card && card.id]);
 
   const dims={
     tiny:  {w:60, h:84,  rank:23,suit:24,pad:5},
@@ -108,7 +130,8 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
   const animName = shake?'cardShake':wiggle?'cardWiggle':undefined;
 
   return (
-    <div onClick={onClick} style={{
+    <div ref={selfRef} onClick={onClick} data-card-id={card?card.id:undefined} style={{
+      visibility:hidden?'hidden':'visible',
       width:d.w,height:d.h,borderRadius:12,
       background:faceDown?'transparent':bg,
       border,boxShadow:shadow,
@@ -162,7 +185,8 @@ export function GlowPulse({ active, color=DS.voltage, children, style:extStyle={
 export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new Set(),
   onCardClick, faceDown=false, selectable=false,
   wiggleIds=new Set(), glowZone=false, activeWiggle=false, aiSignaledIds=new Set(),
-  shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set() }) {
+  shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set(),
+  registerEl=null, hiddenIds=new Set(), cardSlot=null }) {
 
   const sorted=faceDown?cards:sortByValue(cards);
   const count=sorted.length;
@@ -187,6 +211,28 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
           const isSel=selectedIds.has(card.id);
           const isTradeSel=tradeSelectedIds.has(card.id);
           const isAiSig=aiSignaledIds.has(card.id);
+          const doWiggle=wiggleIds.has(card.id)||(activeWiggle&&!isSel&&!faceDown);
+          // Slot width is the card's exposed share of the fan, not the
+          // full card width: two Aces sitting next to each other would
+          // otherwise overlap their tags by the fan's overlap amount.
+          const slotW=Math.min(W,Math.round(spread*2));
+          const slot=cardSlot?cardSlot(card,slotW):null;
+          // A slot (today: the Play Ace button) has to move with its
+          // card, wiggle included. So when one is present the wiggle
+          // moves up to a wrapper around BOTH, and the card itself
+          // stops wiggling — otherwise the two would lean out of sync.
+          const body=(
+            <PlayingCard card={card} faceDown={faceDown} isScrap={false}
+              selected={isSel} selectable={selectable&&!faceDown} liftTransform={false}
+              registerEl={registerEl} hidden={hiddenIds.has(card.id)}
+              fadingIn={fadingInIds&&fadingInIds.has(card.id)}
+              wiggle={doWiggle&&!slot}
+              shake={shakeIds.has(card.id)}
+              fading={fadingIds.has(card.id)}
+              extraStyle={isTradeSel?{border:`6px solid ${DS.voltage}`,
+                boxShadow:`0 0 0 3px ${DS.voltage}55`}:{}}
+            />
+          );
           return (
             <div key={card.id} style={{
               position:'absolute',bottom:0,left:'50%',
@@ -194,18 +240,17 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                 ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-28}px) rotate(${rot}deg)`
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
               transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
-              zIndex:i,
+              zIndex:slot?count+5:i,
               animation: waveIds.has(card.id) ? 'waveUp 0.4s ease' : undefined,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
-              <PlayingCard card={card} faceDown={faceDown} isScrap={false}
-                selected={isSel} selectable={selectable&&!faceDown} liftTransform={false}
-                fadingIn={fadingInIds&&fadingInIds.has(card.id)}
-                wiggle={wiggleIds.has(card.id)||(activeWiggle&&!isSel&&!faceDown)}
-                shake={shakeIds.has(card.id)}
-                fading={fadingIds.has(card.id)}
-                extraStyle={isTradeSel?{border:`6px solid ${DS.voltage}`,
-                  boxShadow:`0 0 0 3px ${DS.voltage}55`}:{}}
-              />
+              {slot?(
+                <div style={{position:'relative',
+                  animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
+                  <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
+                    marginBottom:7,display:'flex',justifyContent:'center'}}>{slot}</div>
+                  {body}
+                </div>
+              ):body}
             </div>
           );
         })}
@@ -351,7 +396,8 @@ export function HandUpgradeBadge({ cards }) {
 // belongs to its pile.
 // ─────────────────────────────────────────────────────────────
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
-  onCardClick, discardMode=false, isOpponent=false, glowZone=false }) {
+  onCardClick, discardMode=false, isOpponent=false, glowZone=false,
+  registerEl=null, hiddenIds=new Set() }) {
 
   const sorted = sortByValue(cards);
   const borderCol = discardMode ? DS.voltage : isOpponent ? DS.ember : DS.voltage;
@@ -402,16 +448,23 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             const isElig = selectable && card.eligibleForDiscard !== false;
             const isSel = selectedIds.has(card.id);
             return (
+              // A toggled card lifts STRAIGHT UP and keeps its own
+              // place in the stack. It used to jump to the top of the
+              // z-order and scale up, which threw it over the cards to
+              // its right and hid whatever they showed. The pile reads
+              // as a pile, so relative depth has to survive the toggle;
+              // the vertical lift alone is what marks the selection.
               <div key={card.id} style={{
                 position:'absolute',
                 left: i * step,
-                top: isSel ? 0 : 8,
-                transform: isSel ? 'translateY(-16px) scale(1.06)' : 'translateY(0)',
+                top: 8,
+                transform: isSel ? 'translateY(-18px)' : 'translateY(0)',
                 transition:'transform 0.22s cubic-bezier(.34,1.2,.64,1), left 0.3s ease',
-                zIndex: isSel ? count+10 : i,
+                zIndex: i,
               }} onClick={()=>{ if(isElig){ playClick(); onCardClick&&onCardClick(card); }}}>
                 <PlayingCard card={card} size="small" isScrap={true}
-                  selectable={isElig} selected={isSel}
+                  selectable={isElig} selected={isSel} liftTransform={false}
+                  registerEl={registerEl} hidden={hiddenIds.has(card.id)}
                   dimmed={selectable&&!isElig}/>
               </div>
             );

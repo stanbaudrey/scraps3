@@ -1,117 +1,234 @@
 // ============================================================
-// SCRAPS — Flying card animation system
+// SCRAPS — Card motion
+//
+// Every card that moves on this table travels between two
+// positions that are MEASURED, never guessed.
+//
+// The old system computed both ends by hand — "the hand is
+// centered, so card i must be at handCenter + i*200" — and then
+// removed the real card from state before the ghost launched.
+// Neither end matched where the card actually was, so a card
+// vanished from one place, a lookalike flew a plausible-ish
+// path, and a card faded in somewhere else. That is the
+// "disappearing and reappearing" this replaces.
+//
+// The approach here is FLIP, applied per card:
+//
+//   1. FIRST — before anything changes, read the real
+//      getBoundingClientRect of each card that is about to move.
+//      Cards register their DOM node by id (registerCard), so
+//      this is the true on-screen box: fan rotation, selection
+//      lift and all.
+//   2. COMMIT — dispatch the whole state change at once. The
+//      card is now really in its destination pile, laid out by
+//      the same code that lays out every other card, so the
+//      destination needs no prediction either.
+//   3. LAST — in a layout effect (after React has written the
+//      DOM but before the browser paints) read the destination
+//      rect, hide the real card, and hand its box to a ghost.
+//   4. PLAY — the ghost animates FIRST → LAST. When it lands it
+//      is removed and the real card is unhidden, in the exact
+//      pixel the ghost stopped on. No jump, ever.
+//
+// Because the state commit happens up front, skipping is
+// trivial and always safe: drop the ghosts, unhide the cards,
+// and the board is already correct.
 // ============================================================
-import { useState, useEffect, useCallback, useRef } from "react";
-import { DS, F } from "../styles/theme.js";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
+import { PlayingCard } from "./cards.jsx";
+
+const DURATION = 620;
+const prefersReducedMotion = () => {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch { return false; }
+};
+
+const centerOf = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // ─────────────────────────────────────────────────────────────
-// FlyingCard — arc trajectory via quadratic bezier
-// arcOffset varies per card so multiple cards fly different paths
+// Ghost — one card in flight.
+//
+// It carries BOTH looks (source and destination) stacked, and
+// cross-fades between them mid-flight, so a card leaving the
+// hand for the Scraps pile visibly becomes a Scraps card on the
+// way instead of switching at either end. Size is handled the
+// same way: the wrapper scales from the source box to the
+// destination box, so a 104px hand card arrives as an 80px
+// Scraps card without a step change.
+//
+// The arc is perpendicular to the actual travel direction and
+// scales with distance, so a short hop bows gently and a long
+// cross-table throw bows more. The old version always arced
+// 130px "up", which pushed downward moves through a pointless
+// loop.
 // ─────────────────────────────────────────────────────────────
-export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, arcOffset=0, faceDown=false }) {
-  const startRef = useRef(null);
-  const rafRef   = useRef();
-  const elRef    = useRef();
-  const DURATION = 750;
+function Ghost({ flight, onDone }) {
+  const { from, to, card, faceDown, fromScrap, toScrap, fromSize, toSize, arc, delay } = flight;
+  const elRef = useRef(null);
+  const toRef = useRef(null);
+  const rafRef = useRef(0);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+
+  const a = useMemo(() => centerOf(from), []);
+  const b = useMemo(() => centerOf(to), []);
+  const scale0 = to.width ? from.width / to.width : 1;
 
   useEffect(() => {
-    startRef.current = performance.now();
-    // Quadratic bezier control point — arcs above the midpoint, offset per card
-    const cpX = (fromRect.x + toRect.x) / 2 + arcOffset * 90;
-    const cpY = Math.min(fromRect.y, toRect.y) - 130 - Math.abs(arcOffset) * 50;
-
-    function animate() {
+    if (prefersReducedMotion()) { doneRef.current(); return; }
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    // Control point: midpoint pushed along the normal of the path.
+    const bow = Math.min(110, dist * 0.22) * arc;
+    const cp = { x: (a.x + b.x) / 2 + (-dy / dist) * bow,
+                 y: (a.y + b.y) / 2 + (dx / dist) * bow };
+    let start = 0;
+    const step = (now) => {
+      if (!start) start = now;
       const el = elRef.current;
-      if(!el) return;
-      const elapsed = performance.now() - startRef.current;
-      const t = Math.min(elapsed / DURATION, 1);
-      const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out quad
-      // Bezier position
-      const x = (1-e)*(1-e)*fromRect.x + 2*(1-e)*e*cpX + e*e*toRect.x;
-      const y = (1-e)*(1-e)*fromRect.y + 2*(1-e)*e*cpY + e*e*toRect.y;
-      // Rotation and scale during flight
-      const rot = arcOffset * 18 * Math.sin(e * Math.PI);
-      const scale = 0.88 + 0.18 * Math.sin(e * Math.PI);
-      el.style.left = x + 'px';
-      el.style.top  = y + 'px';
-      el.style.transform = `rotate(${rot}deg) scale(${scale})`;
-      el.style.opacity = t > 0.88 ? String(1-(t-0.88)*8.3) : '1';
-      // Color transition mid-flight for scraps
-      if(toIsScrap && !faceDown && e > 0.45) {
-        const f = Math.min((e-0.45)/0.55, 1);
-        const r1=[237,227,208], r2=[36,28,20];
-        const bg = r1.map((v,i)=>Math.round(v+(r2[i]-v)*f));
-        el.style.background = `rgb(${bg.join(',')})`;
-        el.style.borderColor = card&&(card.suit==='♥'||card.suit==='♦')?DS.ember:DS.voltage;
+      if (!el) return;
+      const raw = (now - start - delay) / DURATION;
+      const t = Math.max(0, Math.min(raw, 1));
+      const e = easeInOut(t);
+      const x = (1 - e) * (1 - e) * a.x + 2 * (1 - e) * e * cp.x + e * e * b.x;
+      const y = (1 - e) * (1 - e) * a.y + 2 * (1 - e) * e * cp.y + e * e * b.y;
+      const s = scale0 + (1 - scale0) * e;
+      const rot = arc * 9 * Math.sin(e * Math.PI);
+      el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${s})`;
+      if (toRef.current) {
+        // Cross-fade the two looks across the middle of the trip.
+        toRef.current.style.opacity = String(Math.max(0, Math.min((e - 0.35) / 0.35, 1)));
       }
-      if(t < 1) rafRef.current = requestAnimationFrame(animate);
-      else onDone();
-    }
-    rafRef.current = requestAnimationFrame(animate);
+      if (raw < 1) rafRef.current = requestAnimationFrame(step);
+      else doneRef.current();
+    };
+    rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const ink = card?((card.suit==='♥'||card.suit==='♦')?DS.ember:DS.ink):DS.ink;
-  const rk  = card&&card.rank==='10' ? 24 : 29;
+  const sameLook = fromScrap === toScrap && fromSize === toSize;
 
   return (
-    <div ref={elRef} style={{
-      position:'fixed', left:fromRect.x, top:fromRect.y,
-      width:fromRect.width, height:fromRect.height,
-      zIndex:1000, pointerEvents:'none', borderRadius:10,
-      background:faceDown?DS.ink:DS.frost,
-      border:faceDown?`3px solid ${DS.slate}55`:`6px solid ${DS.ink}`,
-      display:'flex', flexDirection:'column',
-      justifyContent:faceDown?'center':'flex-start',
-      alignItems:faceDown?'center':'stretch',
-      padding:'8px 9px', boxSizing:'border-box',
-      boxShadow:'0 12px 40px rgba(0,0,0,.7)', transition:'none',
+    <div ref={elRef} data-flight={card ? card.id : 'anon'} data-face={faceDown ? 'down' : 'up'} style={{
+      position:'fixed', left:0, top:0, zIndex:1000, pointerEvents:'none',
+      transform:`translate3d(${a.x}px,${a.y}px,0) scale(${scale0})`,
+      willChange:'transform',
     }}>
-      {faceDown?(
-        <span style={{fontFamily:F.display,fontWeight:700,fontSize:30,
-          color:DS.frost,opacity:0.12,letterSpacing:'0.1em'}}>S</span>
-      ):card&&(
-        <div style={{display:'flex',alignItems:'center',gap:1}}>
-          <span style={{fontFamily:F.card,fontWeight:700,fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
-          <span style={{fontFamily:F.card,fontWeight:700,fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
-        </div>
-      )}
+      <div style={{position:'relative', transform:'translate(-50%,-50%)',
+        filter:'drop-shadow(0 12px 26px rgba(0,0,0,.6))'}}>
+        <PlayingCard card={card} faceDown={faceDown} isScrap={fromScrap}
+          size={fromSize} liftTransform={false}/>
+        {!sameLook&&(
+          <div ref={toRef} style={{position:'absolute',inset:0,opacity:0,
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <PlayingCard card={card} faceDown={faceDown} isScrap={toScrap}
+              size={toSize} liftTransform={false}/>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// useFlyingCards — manages a queue of in-flight card animations
+// useCardMotion
+//
+//   registerCard(id, el)  cards call this via ref
+//   rectOf(id)            the live box of a rendered card
+//   fly(moves)            queue a batch; destinations are
+//                         measured in the layout effect below,
+//                         so call it in the SAME handler that
+//                         dispatches the state change
+//   hiddenIds             cards a ghost is currently standing in
+//                         for — render them invisible but still
+//                         laid out (visibility, never display)
+//   animating             true while anything is mid-flight
+//   skipAll()             land everything now
+//
+// A move is { card, fromId|fromRect, toId|toRect, ... }. Ids are
+// resolved against the registry; rects are for the fixed piles
+// (deck, discard) which are not cards.
 // ─────────────────────────────────────────────────────────────
-export function useFlyingCards() {
-  const [flights, setFlights] = useState([]); // [{id,card,fromRect,toRect,toIsScrap}]
+export function useCardMotion() {
+  const els = useRef(new Map());
+  const [flights, setFlights] = useState([]);
+  const [queue, setQueue] = useState(null);
   const nextId = useRef(0);
 
-  const launchFlight = useCallback((card, fromRect, toRect, toIsScrap=false, arcOffset=0, faceDown=false) => {
-    const id = nextId.current++;
-    setFlights(prev => [...prev, {id, card, fromRect, toRect, toIsScrap, arcOffset, faceDown}]);
-    return id;
+  const registerCard = useCallback((id, el, prevEl) => {
+    if (el) { els.current.set(id, el); return; }
+    // Only forget the card if the node being unregistered is still
+    // the one on file. Otherwise a card that just moved piles would
+    // have its fresh registration wiped by the old mount's cleanup.
+    if (!prevEl || els.current.get(id) === prevEl) els.current.delete(id);
   }, []);
 
-  const removeFlight = useCallback((id) => {
+  const rectOf = useCallback((id) => {
+    const el = els.current.get(id);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return r.width ? r : null;
+  }, []);
+
+  const fly = useCallback((moves) => {
+    if (!moves || moves.length === 0) return;
+    setQueue(q => (q ? [...q, ...moves] : [...moves]));
+  }, []);
+
+  // Runs after React writes the DOM, before paint: destinations
+  // are final here, which is the whole point of doing it in a
+  // LAYOUT effect rather than a normal one.
+  useLayoutEffect(() => {
+    if (!queue) return;
+    const built = [];
+    for (const m of queue) {
+      const from = m.fromRect || (m.fromId != null ? rectOf(m.fromId) : null);
+      const to   = m.toRect   || (m.toId   != null ? rectOf(m.toId)   : null);
+      if (!from || !to) continue;   // element gone: skip, never guess
+      built.push({
+        id: nextId.current++,
+        card: m.card ?? null,
+        faceDown: !!m.faceDown,
+        fromScrap: !!m.fromScrap, toScrap: !!m.toScrap,
+        fromSize: m.fromSize || 'small', toSize: m.toSize || 'small',
+        arc: m.arc || 0, delay: m.delay || 0,
+        hideId: m.toId != null ? m.toId : null,
+        from, to,
+      });
+    }
+    setQueue(null);
+    if (built.length) setFlights(prev => [...prev, ...built]);
+  }, [queue, rectOf]);
+
+  const land = useCallback((id) => {
     setFlights(prev => prev.filter(f => f.id !== id));
   }, []);
 
-  const FlightsOverlay = useCallback(() => (
-    <>
-      {flights.map((f,i) => (
-        <FlyingCard key={f.id}
-          card={f.card}
-          fromRect={f.fromRect}
-          toRect={f.toRect}
-          toIsScrap={f.toIsScrap}
-          arcOffset={f.arcOffset||0}
-          faceDown={f.faceDown||false}
-          onDone={() => removeFlight(f.id)}
-        />
-      ))}
-    </>
-  ), [flights, removeFlight]);
+  const skipAll = useCallback(() => {
+    setQueue(null);
+    setFlights([]);
+  }, []);
 
-  return { launchFlight, FlightsOverlay };
+  const hiddenIds = useMemo(() => {
+    const s = new Set();
+    for (const f of flights) if (f.hideId != null) s.add(f.hideId);
+    return s;
+  }, [flights]);
+
+  const animating = flights.length > 0 || queue != null;
+
+  // An ELEMENT, not a component. The previous version returned a
+  // useCallback component rendered as <FlightsOverlay/>: its
+  // function identity changed on every render, so React saw a new
+  // component type and unmounted/remounted every card in flight.
+  // Each remount restarted that card's animation from zero, which
+  // is why cards used to stutter, restart, or hang mid-table
+  // whenever anything else moved. Returning the element keeps each
+  // Ghost mounted and reconciled by key.
+  const flightsOverlay = (
+    <>{flights.map(f => <Ghost key={f.id} flight={f} onDone={() => land(f.id)}/>)}</>
+  );
+
+  return { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay };
 }

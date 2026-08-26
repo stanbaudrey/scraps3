@@ -23,10 +23,10 @@ import {
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
   playError, playWinSound, playLoseSound } from "../audio.js";
-import { useFlyingCards } from "../components/flight.jsx";
+import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
-import { ScoreCorners, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
-import { BigBtn, TradeInBtn } from "../components/buttons.jsx";
+import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
+import { BigBtn, TradeInBtn, AceTag } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { recordGame } from "../game/stats.js";
 import {
@@ -34,6 +34,11 @@ import {
   AceCounterModal, RulesModal, SkipTurnModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
+
+// A card is 'normal' in a hand and 'small' in a Scraps pile or on
+// a pile marker. Ghosts cross-fade between the two on the way.
+const HAND_SZ = 'normal';
+const PILE_SZ = 'small';
 
 export function GameScreen({ difficulty, onExit }) {
   // ── Game state machine ─────────────────────────────────────
@@ -53,7 +58,7 @@ export function GameScreen({ difficulty, onExit }) {
   // ── UI-local state (selections, animations, overlays) ──────
   const [selected, setSelected]             = useState([]);
   const [scrapsDiscard, setScrapsDiscard]   = useState([]);
-  const [aceMode, setAceMode]               = useState(false);
+  const [aceMode, setAceMode]               = useState(null); // the Ace being spent, or null
   const [aceTargets, setAceTargets]         = useState([]);
   const [aiAceReveal, setAiAceReveal]       = useState(null); // { ace, targets } — step 2 of the opponent-Ace sequence
   const [aiCounterNotice, setAiCounterNotice] = useState(null); // { playerAce, aiAce } — AI countered the player's Ace
@@ -66,7 +71,6 @@ export function GameScreen({ difficulty, onExit }) {
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
-  const [fadingInIds, setFadingInIds]       = useState(new Set());
   const [playerScoreFlash, setPlayerScoreFlash] = useState(false);
   const [aiScoreFlash, setAiScoreFlash]         = useState(false);
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
@@ -88,72 +92,50 @@ export function GameScreen({ difficulty, onExit }) {
   const deckRef          = useRef(null);
   const aiHandRef        = useRef(null);
   const aiScrapsRef      = useRef(null);
-  const { launchFlight, FlightsOverlay } = useFlyingCards();
+  const { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay } = useCardMotion();
 
   // ── Round setup ────────────────────────────────────────────
   const startNewRound = useCallback((alternate) => {
     const deal = buildRoundDeal();
     dispatch({ type: 'START_ROUND', deal, alternate });
-    // Keep the fresh hands hidden while the BEGIN ROUND
-    // interstitial plays — the dealing wave reveals them after.
-    setDealHiddenIds(new Set([...deal.playerHand, ...deal.aiHand].map(c => c.id)));
+    // The fresh hands sit behind the BEGIN ROUND interstitial
+    // until dealWave flies them out of the deck.
     setSelected([]); setScrapsDiscard([]);
-    setAceMode(false); setAceTargets([]);
+    setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
     setRevealData(null); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
-    setWaveIds(new Set()); setFadingInIds(new Set());
+    setWaveIds(new Set());
     setShowInterstitial(true);
   }, []);
 
   useEffect(() => { startNewRound(false); }, []);
 
   // ── Dealing wave ───────────────────────────────────────────
-  // New cards populate individually: each card starts hidden,
-  // then fades/slides in with a quick wiggle, staggered left to
-  // right so the whole hand ripples in like a real deal. Used at
-  // round start (full hands, both sides) and at the second-hand
-  // replenish (new draws only).
-  const dealHiddenRef = useRef(new Set());
-  const [dealHiddenIds, setDealHiddenIds] = useState(new Set());
+  // START_ROUND already put every card in its hand, so there is
+  // nothing to predict: each card flies from the deck to the slot
+  // it is ALREADY occupying (hidden until its ghost lands). The
+  // stagger is a per-card delay inside one batch, so `animating`
+  // stays true across the whole deal rather than flickering off
+  // between cards and letting the next turn start early.
   function dealWave(playerCards, aiCards) {
-    const all = [...playerCards, ...aiCards];
-    if (all.length === 0) return;
-    const hidden = new Set(all.map(c => c.id));
-    dealHiddenRef.current = hidden;
-    setDealHiddenIds(new Set(hidden));
-    const STEP = 90;     // ms between cards — quick wave
-    const FLIGHT = 700;  // deck→hand travel before the card fades into the fan
-    // Each card now visibly leaves the deck (item 2: the deck is
-    // the physical origin of every deal). AI cards fly face-down.
     const deckEl = deckRef.current;
-    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
-    const reveal = (card, i, targetEl, faceDown) => {
-      if (deckRect && targetEl) {
-        setTimeout(() => {
-          const tR = targetEl.getBoundingClientRect();
-          const cw = 80, ch = 112;
-          const from = { x: deckRect.left + deckRect.width / 2 - cw / 2,
-                         y: deckRect.top + 4, width: cw, height: ch };
-          const to = { x: tR.left + tR.width / 2 - cw / 2,
-                       y: tR.top + tR.height / 2 - ch / 2, width: cw, height: ch };
-          launchFlight(faceDown ? null : card, from, to, false, ((i % 3) - 1) * 0.6, faceDown);
-        }, i * STEP);
-      }
-      setTimeout(() => {
-        setDealHiddenIds(prev => { const n = new Set(prev); n.delete(card.id); return n; });
-        setFadingInIds(prev => { const n = new Set(prev); n.add(card.id); return n; });
-        setWaveIds(prev => { const n = new Set(prev); n.add(card.id); return n; });
-        setTimeout(() => {
-          setFadingInIds(prev => { const n = new Set(prev); n.delete(card.id); return n; });
-          setWaveIds(prev => { const n = new Set(prev); n.delete(card.id); return n; });
-        }, 550);
-      }, i * STEP + (deckRect ? FLIGHT : 0));
-    };
-    // Player cards deal in value order (matching the fan), AI after
+    if (!deckEl) return;
+    const deckRect = deckEl.getBoundingClientRect();
+    const STEP = 90;
     const pSorted = [...playerCards].sort((a, b) => a.value - b.value);
-    pSorted.forEach((c, i) => reveal(c, i, playerHandRef.current, false));
-    aiCards.forEach((c, i) => reveal(c, pSorted.length + i, aiHandRef.current, true));
+    const moves = [];
+    pSorted.forEach((card, i) => moves.push({
+      card, fromRect: deckRect, toId: card.id,
+      fromSize: PILE_SZ, toSize: HAND_SZ,
+      arc: ((i % 3) - 1) * 0.5, delay: i * STEP,
+    }));
+    aiCards.forEach((card, i) => moves.push({
+      card: null, faceDown: true, fromRect: deckRect, toId: card.id,
+      fromSize: PILE_SZ, toSize: HAND_SZ,
+      arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
+    }));
+    fly(moves);
   }
 
   function onInterstitialDone() {
@@ -235,92 +217,91 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   function executeTrade(tradeCards, drawCount) {
-    // Launch one arc per card from its actual fan position
-    const handEl   = playerHandRef.current;
-    const scrapsEl = playerScrapsRef.current;
-    if (handEl && scrapsEl) {
-      const handRect   = handEl.getBoundingClientRect();
-      const scrapsRect = scrapsEl.getBoundingClientRect();
-      const cardW = 104, cardH = 146;
-      const n = tradeCards.length;
-      const colCenterX = handRect.left + handRect.width * 0.5;
-      const toRect = { x: scrapsRect.left + scrapsRect.width / 2 - cardW / 2,
-                       y: scrapsRect.top + 10,
-                       width: cardW, height: cardH };
-      tradeCards.forEach((card, i) => {
-        const spreadFrac = n === 1 ? 0 : (i / (n - 1)) - 0.5;
-        const fromX = colCenterX - cardW / 2 + spreadFrac * 200;
-        const fromRect = { x: fromX, y: handRect.bottom - cardH - 20,
-                           width: cardW, height: cardH };
-        const arcOffset = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.4;
-        setTimeout(() => launchFlight(card, fromRect, toRect, true, arcOffset), i * 80);
-      });
-    }
-    // Compute the draws now (same slice the reducer takes) so the
-    // fade-in timers know which card ids are inbound.
+    // FIRST: the real box of each card, right now, in the fan —
+    // rotation, selection lift and all. Must be read BEFORE the
+    // dispatch, because after it these cards live in the Scraps
+    // pile and rectOf would return the destination instead.
+    const first = tradeCards.map(c => ({ card: c, rect: rectOf(c.id) }));
+    const deckEl = deckRef.current;
+    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
     const drawn = stateRef.current.deck.slice(0, drawCount);
-    const FLIGHT_LAND = (tradeCards.length - 1) * 80 + 820; // last card lands
 
-    // 1. Cards leave hand + deck immediately; turn advances
-    dispatch({ type: 'PLAYER_TRADE_TAKE', cards: tradeCards });
     setSelected([]);
     clearTimeout(tradeErrorTimer.current);
     setTradeError(null);
     playWhoosh();
 
-    // 2. Traded cards land in Scraps AFTER the flight
-    setTimeout(() => dispatch({ type: 'PLAYER_SCRAPS_ARRIVE' }), FLIGHT_LAND);
+    // COMMIT: one batched render. TAKE stages the move, the two
+    // ARRIVE actions land it — React runs all three through the
+    // reducer before re-rendering, so the board reaches its final
+    // state in a single paint and the animation is pure decoration
+    // over it. That is what makes skipping safe at any moment.
+    dispatch({ type: 'PLAYER_TRADE_TAKE', cards: tradeCards });
+    dispatch({ type: 'PLAYER_SCRAPS_ARRIVE' });
+    drawn.forEach(c => dispatch({ type: 'PLAYER_DRAW_ARRIVE', cardId: c.id }));
 
-    // 3. Replacement cards fly from the deck, then fade into the
-    //    hand one by one — every draw has a physical origin point.
-    const deckEl = deckRef.current;
-    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
-    drawn.forEach((card, i) => {
-      const delay = FLIGHT_LAND + 100 + i * 200;
-      if (deckRect && playerHandRef.current) {
-        setTimeout(() => {
-          const hR = playerHandRef.current.getBoundingClientRect();
-          const cw = 80, ch = 112;
-          const from = { x: deckRect.left + deckRect.width / 2 - cw / 2,
-                         y: deckRect.top + 4, width: cw, height: ch };
-          const to = { x: hR.left + hR.width / 2 - cw / 2,
-                       y: hR.top + hR.height / 2 - ch / 2, width: cw, height: ch };
-          launchFlight(card, from, to, false, ((i % 3) - 1) * 0.6);
-        }, delay);
-      }
-      setTimeout(() => {
-        dispatch({ type: 'PLAYER_DRAW_ARRIVE', cardId: card.id });
-        setFadingInIds(ids => { const n = new Set(ids); n.add(card.id); return n; });
-        setTimeout(() => {
-          setFadingInIds(ids => { const n = new Set(ids); n.delete(card.id); return n; });
-        }, 700);
-      }, delay + (deckRect ? 680 : 0));
-    });
+    // LAST + PLAY: destinations are measured in the motion hook's
+    // layout effect, after the DOM above has been written.
+    const STEP = 90;
+    const LAND = (tradeCards.length - 1) * STEP + 320;
+    const moves = first
+      .filter(f => f.rect)
+      .map((f, i) => ({
+        card: f.card, fromRect: f.rect, toId: f.card.id,
+        fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+        arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
+        delay: i * STEP,
+      }));
+    if (deckRect) {
+      drawn.forEach((card, i) => moves.push({
+        card, fromRect: deckRect, toId: card.id,
+        fromSize: PILE_SZ, toSize: HAND_SZ,
+        arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
+      }));
+    }
+    fly(moves);
   }
 
   function confirmScrapsDiscard() {
     if (!pendingTrade || scrapsDiscard.length !== scrapsOverflow) return;
-    // Visual only — arc from scraps to discard
-    const scrapsEl  = playerScrapsRef.current;
     const discardEl = discardRef.current;
-    if (scrapsEl && discardEl) {
-      const scrapsRect  = scrapsEl.getBoundingClientRect();
-      const discardRect = discardEl.getBoundingClientRect();
-      const cardW = 80, cardH = 112;
-      const toRect = { x: discardRect.left + discardRect.width / 2 - cardW / 2,
-                       y: discardRect.top + discardRect.height / 2 - cardH / 2,
-                       width: cardW, height: cardH };
-      const n = scrapsDiscard.length;
-      scrapsDiscard.forEach((card, i) => {
-        const spreadFrac = n === 1 ? 0 : (i / (n - 1)) - 0.5;
-        const fromX = scrapsRect.left + scrapsRect.width / 2 - cardW / 2 + spreadFrac * 20;
-        const fromRect = { x: fromX, y: scrapsRect.top + i * 15, width: cardW, height: cardH };
-        const arcOffset = n === 1 ? 0 : (i / (n - 1) - 0.5);
-        setTimeout(() => launchFlight(card, fromRect, toRect, false, arcOffset), i * 80);
-      });
-    }
+    const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
+    const tradeCards = pendingTrade.cards;
+    const drawn = stateRef.current.deck.slice(0, pendingTrade.drawCount);
+
+    // FIRST for both halves of this move: the cards leaving Scraps
+    // for the discard, and the cards leaving the hand for Scraps.
+    const leaving = scrapsDiscard.map(c => ({ card: c, rect: rectOf(c.id) }));
+    const entering = tradeCards.map(c => ({ card: c, rect: rectOf(c.id) }));
+    const deckEl = deckRef.current;
+    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
+
     dispatch({ type: 'PLAYER_TRADE_WITH_DISCARD', discardCards: [...scrapsDiscard] });
     setScrapsDiscard([]); setSelected([]);
+    playWhoosh();
+
+    const moves = [];
+    if (discardRect) {
+      leaving.filter(f => f.rect).forEach((f, i) => moves.push({
+        card: f.card, fromRect: f.rect, toRect: discardRect,
+        fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+        arc: i === 0 ? -0.5 : 0.5,
+      }));
+    }
+    entering.filter(f => f.rect).forEach((f, i) => moves.push({
+      card: f.card, fromRect: f.rect, toId: f.card.id,
+      fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+      arc: 0.35, delay: 160 + i * 90,
+    }));
+    const LAND = 160 + Math.max(0, entering.length - 1) * 90 + 320;
+    if (deckRect) {
+      drawn.forEach((card, i) => moves.push({
+        card, fromRect: deckRect, toId: card.id,
+        fromSize: PILE_SZ, toSize: HAND_SZ,
+        arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
+      }));
+    }
+    fly(moves);
   }
 
   function cancelScrapsDiscard() {
@@ -329,9 +310,9 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   // ── Player Ace ─────────────────────────────────────────────
-  function doPlayAce() {
+  function doPlayAce(ace) {
     if (aiScraps.length < 2) { dispatch({ type: 'LOG', msg: 'Opponent needs at least 2 Scraps cards to target.' }); return; }
-    setAceMode(true); setAceTargets([]); setSelected([]);
+    setAceMode(ace); setAceTargets([]); setSelected([]);
     dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to remove." });
   }
   function toggleAceTarget(card) {
@@ -341,7 +322,10 @@ export function GameScreen({ difficulty, onExit }) {
 
   function confirmAce() {
     if (aceTargets.length !== 2) return;
-    const ace = playerHand.find(c => c.rank === 'A');
+    // The Ace the player actually tagged, not just the first one in
+    // hand — the control is attached to a specific card now.
+    const ace = (aceMode && playerHand.find(c => c.id === aceMode.id))
+      || playerHand.find(c => c.rank === 'A');
     if (!ace) return;
 
     // The AI may counter. Hard counters every player Ace it can;
@@ -352,7 +336,7 @@ export function GameScreen({ difficulty, onExit }) {
     if (shouldCounterAce(difficulty, s.aiHand, s.aiCountersThisRound)) {
       const aiAce = s.aiHand.find(c => c.rank === 'A');
       if (aiAce) {
-        setAceMode(false); setAceTargets([]); setSelected([]);
+        setAceMode(null); setAceTargets([]); setSelected([]);
         dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
         setAiCounterNotice({ playerAce: ace, aiAce });
         return;
@@ -360,16 +344,30 @@ export function GameScreen({ difficulty, onExit }) {
     }
 
     const targets = [...aceTargets];
-    // Animate the targeted cards before removing
+    // Shake the struck cards where they sit, then send them to the
+    // discard from their real positions in the opponent's pile.
     setScrapsShakeIds(new Set(targets.map(c => c.id)));
     setTimeout(() => {
-      setScrapsFadeIds(new Set(targets.map(c => c.id)));
-      setTimeout(() => {
-        setAceMode(false); setAceTargets([]); setSelected([]);
-        setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
-        dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
-      }, 500);
-    }, 600);
+      const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
+      const aceRect = rectOf(ace.id);
+      const discardEl = discardRef.current;
+      const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
+      setAceMode(null); setAceTargets([]); setSelected([]);
+      setScrapsShakeIds(new Set());
+      dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
+      if (discardRect) {
+        const moves = first.filter(f => f.rect).map((f, i) => ({
+          card: f.card, fromRect: f.rect, toRect: discardRect,
+          fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+          arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
+        }));
+        // The spent Ace goes to the discard too, so the cost of the
+        // strike is visible rather than silent.
+        if (aceRect) moves.push({ card: ace, fromRect: aceRect, toRect: discardRect,
+          fromSize: HAND_SZ, toSize: PILE_SZ, arc: 0.4 });
+        fly(moves);
+      }
+    }, 520);
   }
 
   // ── Opponent-Ace feedback sequence ─────────────────────────
@@ -421,36 +419,49 @@ export function GameScreen({ difficulty, onExit }) {
   function onAiAceRevealOk() {
     if (!aiAceReveal) return;
     const { ace: aiAce, targets } = aiAceReveal;
+    // The cards travel from where they actually sit in YOUR Scraps
+    // pile, not from the middle of the screen where the reveal
+    // overlay happened to show copies of them.
+    const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
     const discardEl = discardRef.current;
-    if (discardEl) {
-      const discardRect = discardEl.getBoundingClientRect();
-      const cardW = 104, cardH = 146;
-      const toRect = { x: discardRect.left + discardRect.width / 2 - cardW / 2,
-                       y: discardRect.top + discardRect.height / 2 - cardH / 2,
-                       width: cardW, height: cardH };
-      const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-      targets.forEach((card, i) => {
-        const fromRect = { x: cx - cardW - 7 + i * (cardW + 14),
-                           y: cy - cardH / 2, width: cardW, height: cardH };
-        setTimeout(() => launchFlight(card, fromRect, toRect, false, i === 0 ? -0.5 : 0.5), i * 100);
-      });
-    }
+    const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
     setAiAceReveal(null);
     setScrapsFadeIds(new Set());
     dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
       logMsg: `Opponent's Ace removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
+    if (discardRect) {
+      fly(first.filter(f => f.rect).map((f, i) => ({
+        card: f.card, fromRect: f.rect, toRect: discardRect,
+        fromSize: PILE_SZ, toSize: PILE_SZ, fromScrap: true, toScrap: true,
+        arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
+      })));
+    }
   }
 
   // ── AI turn ────────────────────────────────────────────────
-  // One effect per AI phase entry. All timers are registered and
-  // cleared on cleanup, and every dispatch is a pure action, so
-  // StrictMode cannot duplicate draws or log lines.
+  // Two effects, deliberately. The GATE watches for the board to
+  // go still and then clears the AI to act; the RUNNER does the
+  // acting. They are split because the runner's cleanup clears its
+  // own timers, and the AI's own cards set `animating` while they
+  // fly — one combined effect would re-run mid-turn and cancel the
+  // opponent's move halfway through.
+  //
+  // `aiGo` is set once per AI phase and never changes while the AI
+  // is acting, so the runner starts exactly once. This is what
+  // keeps the opponent from moving over the top of your own cards.
+  const [aiGo, setAiGo] = useState(null);
   useEffect(() => {
-    if (!AI_TURN_PHASES.includes(phase)) return;
+    if (!AI_TURN_PHASES.includes(phase)) { setAiGo(null); return; }
+    if (animating) return;            // your cards are still landing
+    setAiGo(phase);
+  }, [phase, animating]);
+
+  useEffect(() => {
+    if (!aiGo || aiGo !== phase) return;
     const timers = [];
     const T = (fn, ms) => timers.push(setTimeout(fn, ms));
 
-    const FLIGHT_SETTLE = 820;   // player cards land in scraps
+    const FLIGHT_SETTLE = 120;   // the board is already still here
     const WAVE_DURATION = 800;   // full wave animation
 
     // Step 1: the AI hand does the wave after the player's cards land
@@ -476,42 +487,34 @@ export function GameScreen({ difficulty, onExit }) {
         // Animate AI selection: lift cards, then fly to scraps
         setAiSignaledIds(new Set(action.cards.map(c => c.id)));
         T(() => {
-          const aiHandEl   = aiHandRef.current;
-          const aiScrapsEl = aiScrapsRef.current;
-          if (aiHandEl && aiScrapsEl) {
-            const handR   = aiHandEl.getBoundingClientRect();
-            const scrapsR = aiScrapsEl.getBoundingClientRect();
-            const cw = 104, ch = 146;
-            const to = { x: scrapsR.left + scrapsR.width / 2 - cw / 2, y: scrapsR.top + 10, width: cw, height: ch };
-            const n = action.cards.length;
-            const handCenterX = handR.left + handR.width / 2;
-            action.cards.forEach((card, i) => {
-              const spreadFrac = n === 1 ? 0 : (i / (n - 1)) - 0.5;
-              const fx = handCenterX - cw / 2 + spreadFrac * Math.min(handR.width * 0.5, 120);
-              const from = { x: fx, y: handR.top + handR.height / 2 - ch / 2, width: cw, height: ch };
-              const arcOffset = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.4;
-              setTimeout(() => launchFlight(card, from, to, true, arcOffset), i * 80);
-            });
-          }
-        }, 600);
-        T(() => {
+          // Same FLIP shape as the player's trade: measure the lifted
+          // cards where they sit, commit, then animate the delta.
+          const first = action.cards.map(c => ({ card: c, rect: rectOf(c.id) }));
+          const deckEl = deckRef.current;
+          const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
+          const drawCount = action.cards.reduce((sum, c) => sum + tradeInValue(c), 0);
+          const drawn = stateRef.current.deck.slice(0, drawCount);
           setAiSignaledIds(new Set());
           dispatch({ type: 'AI_TRADE_APPLY', cards: action.cards });
-          // The AI's replacement draws fly face-down from the deck
-          // so the opponent's card intake is visible information.
-          const drawCount = action.cards.reduce((sum, c) => sum + tradeInValue(c), 0);
-          const deckEl = deckRef.current, aiEl = aiHandRef.current;
-          if (deckEl && aiEl && drawCount > 0) {
-            const dR = deckEl.getBoundingClientRect();
-            const hR = aiEl.getBoundingClientRect();
-            const cw = 80, ch = 112;
-            for (let i = 0; i < drawCount; i++) {
-              const from = { x: dR.left + dR.width / 2 - cw / 2, y: dR.top + 4, width: cw, height: ch };
-              const to = { x: hR.left + hR.width / 2 - cw / 2, y: hR.top + hR.height / 2 - ch / 2, width: cw, height: ch };
-              setTimeout(() => launchFlight(null, from, to, false, ((i % 3) - 1) * 0.6, true), i * 120);
-            }
+          const STEP = 90;
+          const moves = first.filter(f => f.rect).map((f, i) => ({
+            card: f.card, faceDown: true, fromRect: f.rect, toId: f.card.id,
+            fromSize: HAND_SZ, toSize: PILE_SZ, toScrap: true,
+            arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
+            delay: i * STEP,
+          }));
+          // The AI's replacement draws fly face-down from the deck so
+          // the opponent's card intake stays visible information.
+          const LAND = Math.max(0, first.length - 1) * STEP + 320;
+          if (deckRect) {
+            drawn.forEach((card, i) => moves.push({
+              card: null, faceDown: true, fromRect: deckRect, toId: card.id,
+              fromSize: PILE_SZ, toSize: HAND_SZ,
+              arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
+            }));
           }
-        }, 800);
+          fly(moves);
+        }, 700);
       } else if (action.type === 'ace') {
         const ace = s.aiHand.find(c => c.rank === 'A');
         if (ace && action.targetCards.length >= 2) {
@@ -525,11 +528,11 @@ export function GameScreen({ difficulty, onExit }) {
 
       T(() => {
         dispatch({ type: 'ADVANCE_FROM', phase });
-      }, 1400);
+      }, 2100);
     }, 800);
 
     return () => timers.forEach(clearTimeout);
-  }, [phase]);
+  }, [aiGo]);
 
   // ── AI signals first (even rounds) ─────────────────────────
   // The player sees "Opponent signals N cards" before selecting.
@@ -643,7 +646,13 @@ export function GameScreen({ difficulty, onExit }) {
   const isSignal = phase === 'signal-player' || phase === 'signal-player-2';
   const isAiSignaling = AI_SIGNAL_PHASES.includes(phase);
   const isReveal = phase === 'reveal-1' || phase === 'reveal-2';
-  const isAiThinking = AI_TURN_PHASES.includes(phase) || isAiSignaling;
+  // The phase flips to the opponent the moment your trade commits,
+  // but your cards are still in the air. `settling` covers that
+  // gap: the opponent is gated from acting (see the aiGo gate) and
+  // the table keeps reading as YOUR turn — your hand stays lit,
+  // theirs stays quiet, and the narrator does not hand over early.
+  const settling = animating && (AI_TURN_PHASES.includes(phase) || isAiSignaling);
+  const isAiThinking = !settling && (AI_TURN_PHASES.includes(phase) || isAiSignaling);
   const isScrapsDiscardMode = pendingTrade !== null;
   const selectedInHand = selected.filter(c => playerHand.find(h => h.id === c.id));
   const selIds = new Set(selectedInHand.map(c => c.id));
@@ -658,6 +667,13 @@ export function GameScreen({ difficulty, onExit }) {
   const tradeNetHand = (playerHand.length - selectedInHand.length) + tradeDraw;
   const tradeOverLimit = selectedInHand.length > 0 && tradeNetHand > 7;
   const glowHand = (isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked);
+  // The Play Ace control is rendered by FannedHand, inside the same
+  // wrapper as its card, so the two lean together.
+  const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce;
+  const aceSlot = useCallback((card, width) => {
+    if (!canOfferAce || card.rank !== 'A') return null;
+    return <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2} width={width}/>;
+  }, [canOfferAce, aiScraps.length]);
   const glowPlayerScraps = isScrapsDiscardMode;
   const glowOppScraps = aceMode;
 
@@ -679,6 +695,25 @@ export function GameScreen({ difficulty, onExit }) {
     }
   }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode]);
 
+  // ── Skip the animation ─────────────────────────────────────
+  // A click anywhere, Enter, or Space lands every in-flight card
+  // at once. Safe by construction: the state commit already
+  // happened, so skipping only drops the ghosts and unhides the
+  // real cards, which are already sitting in their final places.
+  useEffect(() => {
+    if (!animating) return;
+    const onSkip = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      skipAll();
+    };
+    window.addEventListener('mousedown', onSkip);
+    window.addEventListener('keydown', onSkip);
+    return () => {
+      window.removeEventListener('mousedown', onSkip);
+      window.removeEventListener('keydown', onSkip);
+    };
+  }, [animating, skipAll]);
+
   useEffect(() => {
     if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
       setRoundEndPulse(true);
@@ -688,7 +723,8 @@ export function GameScreen({ difficulty, onExit }) {
   }, [phase]);
 
   let hint = '';
-  if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
+  if (settling) hint = 'Your cards are on the move. Click anywhere to skip.';
+  else if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
   else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
   else if (isScrapsDiscardMode) {
     const moving = pendingTrade ? pendingTrade.cards.length : 0;
@@ -700,9 +736,10 @@ export function GameScreen({ difficulty, onExit }) {
   else if (aceMode) hint = `Select 2 cards from opponent's Scraps to remove. (${aceTargets.length}/2 selected)`;
   else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
-    hint = playerHasAce && aiScraps.length >= 2
-      ? 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards. Or play an Ace.'
-      : 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
+    const base = 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
+    if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
+    else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
+    else hint = base;
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
   else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals that their hand contains ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Pick your own hand, then hit SIGNAL.`;
@@ -736,8 +773,7 @@ export function GameScreen({ difficulty, onExit }) {
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'auto'}}>
-      <ScoreCorners playerScore={playerScore} aiScore={aiScore}
-        playerFlash={playerScoreFlash} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
+      <OpponentBar aiScore={aiScore} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
         difficultyLabel={(difficulty||'').toUpperCase()}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
@@ -763,7 +799,7 @@ export function GameScreen({ difficulty, onExit }) {
               flexShrink:0}}>
               <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
                 activeWiggle={isAiThinking} waveIds={waveIds}
-                fadingIds={dealHiddenIds} fadingInIds={fadingInIds}/>
+                registerEl={registerCard} hiddenIds={hiddenIds}/>
             </div>
             <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
               <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:8,
@@ -773,6 +809,7 @@ export function GameScreen({ difficulty, onExit }) {
                 <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
                   label="Opp Scraps" selectable={aceMode}
                   selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
+                  registerEl={registerCard} hiddenIds={hiddenIds}
                   isOpponent={true} glowZone={glowOppScraps}/>
               </div>
             </div>
@@ -833,23 +870,10 @@ export function GameScreen({ difficulty, onExit }) {
                         count={selectedInHand.length} drawCount={tradeDraw}
                         projectedHand={tradeNetHand} overLimit={tradeOverLimit}/>
                     )}
-                    {/* Play Ace used to VANISH when the opponent's Scraps
-                        held fewer than 2 cards, so holding an unusable Ace
-                        looked like a bug. It is disabled and explained now. */}
-                    {playerHasAce&&(
-                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-                        <BigBtn variant="gold" onClick={doPlayAce} disabled={aiScraps.length<2}>
-                          <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
-                            Play Ace <IconBolt size={18}/>
-                          </span>
-                        </BigBtn>
-                        {aiScraps.length<2&&(
-                          <span style={{fontFamily:F.ui,color:DS.ember,fontSize:14,fontWeight:600}}>
-                            Needs 2+ cards in their Scraps to strike.
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    {/* Play Ace is NOT in this row any more. It rides on
+                        top of its own Ace in the hand (see aceSlot), so an
+                        optional strike stops reading as the expected next
+                        move and names the card it would spend. */}
                   </>
                 )}
                 {aceMode&&(
@@ -857,7 +881,7 @@ export function GameScreen({ difficulty, onExit }) {
                     <BigBtn variant="gold" onClick={confirmAce} disabled={aceTargets.length!==2}>
                       Remove ({aceTargets.length}/2)
                     </BigBtn>
-                    <BigBtn variant="ghost" onClick={()=>{setAceMode(false);setAceTargets([]);}}>Cancel</BigBtn>
+                    <BigBtn variant="ghost" onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
                   </>
                 )}
                 {isSignal&&!signalLocked&&(
@@ -912,13 +936,13 @@ export function GameScreen({ difficulty, onExit }) {
             <div style={{flex:'1 1 0',minWidth:0}}/>
             <div ref={playerHandRef} style={{
               display:'flex',flexDirection:'column',alignItems:'center',gap:5,
-              opacity:isPlayerTurn||(isSignal&&!signalLocked)?1:0.6,
+              opacity:isPlayerTurn||settling||(isSignal&&!signalLocked)?1:0.6,
               transition:'opacity 0.5s',flexShrink:0}}>
               <FannedHand
                 cards={playerHand}
                 selectedIds={selIds}
-                fadingInIds={fadingInIds}
-                fadingIds={dealHiddenIds}
+                registerEl={registerCard}
+                hiddenIds={hiddenIds}
                 waveIds={waveIds}
                 tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
                 onCardClick={card=>{
@@ -927,12 +951,13 @@ export function GameScreen({ difficulty, onExit }) {
                 }}
                 selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
                 activeWiggle={glowHand&&!pendingAiAce}
+                cardSlot={aceSlot}
               />
               <HandUpgradeBadge cards={playerHand}/>
             </div>
             <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>
               <div ref={playerScrapsRef} style={{
-                opacity:isScrapsDiscardMode?1:isPlayerTurn?1:0.75,transition:'opacity 0.4s'}}>
+                opacity:isScrapsDiscardMode||isPlayerTurn||settling?1:0.75,transition:'opacity 0.4s'}}>
                 <HorizontalScrapsZone
                   cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
                   label="Your Scraps"
@@ -940,6 +965,7 @@ export function GameScreen({ difficulty, onExit }) {
                   selectedIds={scrapsDiscardIds}
                   onCardClick={toggleScrapsDiscardCard}
                   discardMode={isScrapsDiscardMode}
+                  registerEl={registerCard} hiddenIds={hiddenIds}
                   glowZone={glowPlayerScraps}/>
               </div>
             </div>
@@ -956,9 +982,8 @@ export function GameScreen({ difficulty, onExit }) {
             <GameLog messages={log}/>
           </div>
         )}
-        <div style={{background:DS.dusk,borderTop:`1px solid ${DS.slate}22`,
-          padding:'6px 20px 8px',display:'flex',alignItems:'center',
-          justifyContent:'space-between',gap:12}}>
+        <PlayerBar playerScore={playerScore} playerFlash={playerScoreFlash}
+          roundEndPulse={roundEndPulse}>
           {/* The log is the ONLY record of what the opponent did while
               an animation was playing, and a truncated line behind a
               small chevron reads as decoration. The label sits there
@@ -977,11 +1002,11 @@ export function GameScreen({ difficulty, onExit }) {
               {log[log.length-1]||''}
             </span>
           </div>
-        <button onClick={()=>setShowRules(true)} title="Rules" style={{
-          background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
-          borderRadius:'50%',width:28,height:28,cursor:'pointer',
-          fontFamily:F.ui,fontSize:14,fontWeight:900,flexShrink:0}}>?</button>
-        </div>
+          <button onClick={()=>setShowRules(true)} title="Rules" style={{
+            background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
+            borderRadius:'50%',width:28,height:28,cursor:'pointer',
+            fontFamily:F.ui,fontSize:14,fontWeight:900,flexShrink:0}}>?</button>
+        </PlayerBar>
       </div>
 
       {showRules&&<RulesModal onClose={()=>setShowRules(false)}/>}
@@ -989,7 +1014,7 @@ export function GameScreen({ difficulty, onExit }) {
         playerBestIds={revealData.playerBestIds||null}
         aiBestIds={revealData.aiBestIds||null}/>}
       {showFullScrap&&<FullScrapLightbox onDone={()=>setShowFullScrap(false)}/>}
-      <FlightsOverlay/>
+      {flightsOverlay}
       {showInterstitial&&<RoundInterstitial roundNum={roundNum} onDone={onInterstitialDone}/>}
       {pendingAiAce&&!aiAceReveal&&(
         <AceCounterModal

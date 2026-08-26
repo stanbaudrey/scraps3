@@ -881,7 +881,7 @@ crawlers, and goes live on the agreed schedule.
 a cold mobile smoke test, the monthly check is running, and the friends +
 Show HN posts are live using the drafted copy.
 
-### Session 8 — Animation and interaction precision
+### Session 8 — Animation and interaction precision ✅ Done (2026-08-26)
 Added 2026-08-25, from feedback on the forest-reskin pass. Three related
 but distinct problems, all about motion and turn choreography rather than
 color or layout — deliberately not rushed into the same pass that did the
@@ -943,4 +943,4 @@ player's, and Play Ace only appears attached to an actual Ace in hand.
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
-| 8 | Animation and interaction precision | Not started |
+| 8 | Animation and interaction precision | Done |

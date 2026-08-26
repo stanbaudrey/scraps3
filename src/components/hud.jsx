@@ -59,47 +59,80 @@ export function RoundProgressIndicator({ phase }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ScoreCorners — scores dominate the corners; center carries
-// the win condition + the difficulty label. Round state is NOT
-// repeated here (it lives in the strip above opponent Scraps).
+// Score bars — the table is split by ownership, top and bottom.
+//
+// Everything the OPPONENT has is on top: their score, their hand,
+// their Scraps. Everything YOU have is on the bottom: your score,
+// your hand, your Scraps. The scores used to face each other
+// across the top bar, which put half your own information at the
+// far end of the table from the rest of it.
+//
+// The match conditions (FIRST TO N, difficulty) sit at the right
+// edge rather than the middle: they are reference, not action, so
+// they stay out of the centre line where the narrator speaks.
+//
+// Both bars are `position:relative` with a z-index above the
+// table, and a score lifts higher still while it animates. The
+// round-end pop scales to 1.9x, which overflows the bar it lives
+// in; without this it was painted over by the table beneath and
+// the biggest moment in a round was clipped in half.
 // ─────────────────────────────────────────────────────────────
-export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, difficultyLabel, roundEndPulse }) {
+const BAR = {
+  display:'flex', alignItems:'center', justifyContent:'space-between',
+  gap:16, background:DS.dusk, flexShrink:0,
+  position:'relative', zIndex:40,
+};
+
+function Score({ label, value, color, flash, pulse, align }) {
   return (
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-      padding:'8px 22px 4px',background:DS.dusk,
-      borderBottom:`1px solid ${DS.slate}22`,flexShrink:0}}>
-      <div style={{display:'flex',flexDirection:'column',lineHeight:1}}>
-        <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>YOU</span>
-        <span style={{
-          fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.voltage,lineHeight:0.95,
-          animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
-            :playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
-          textShadow:roundEndPulse?'0 0 30px currentColor':'none',
-          transformOrigin:'left center',
-          display:'inline-block',
-        }}>{playerScore}</span>
-      </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-        <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',letterSpacing:'0.12em'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+    <div style={{display:'flex',alignItems:'baseline',gap:10,lineHeight:1,
+      flexShrink:0,whiteSpace:'nowrap',
+      flexDirection:align==='right'?'row-reverse':'row'}}>
+      <span style={{fontFamily:F.ui,fontSize:17,color:DS.slate,
+        letterSpacing:'0.18em',fontWeight:700}}>{label}</span>
+      <span style={{
+        fontFamily:F.display,fontWeight:700,fontSize:60,color,lineHeight:0.9,
+        animation:pulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
+          :flash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+        textShadow:pulse?'0 0 30px currentColor':'none',
+        transformOrigin:align==='right'?'right center':'left center',
+        // Lifted above both bars and the table only while it moves,
+        // so the pop is never clipped by what sits in front of it.
+        position:'relative', zIndex:(pulse||flash)?70:1,
+        display:'inline-block',
+      }}>{value}</span>
+    </div>
+  );
+}
+
+// Top bar — the opponent's score, and the match conditions.
+export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel }) {
+  return (
+    <div style={{...BAR, padding:'6px 22px', borderBottom:`1px solid ${DS.slate}22`}}>
+      <Score label="OPP" value={aiScore} color={DS.ember}
+        flash={aiFlash} pulse={roundEndPulse} align="left"/>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',
+          letterSpacing:'0.12em',whiteSpace:'nowrap'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
         {difficultyLabel&&(
           <span style={{fontFamily:F.mono,fontSize:13,fontWeight:700,color:DS.slate,
             letterSpacing:'0.18em',background:DS.duskMid,borderRadius:20,
-            padding:'3px 14px',border:`1px solid ${DS.slate}44`}}>
+            padding:'3px 14px',border:`1px solid ${DS.slate}44`,whiteSpace:'nowrap'}}>
             {difficultyLabel}
           </span>
         )}
       </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1}}>
-        <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
-        <span style={{
-          fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.ember,lineHeight:0.95,
-          animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
-            :aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
-          textShadow:roundEndPulse?'0 0 30px currentColor':'none',
-          transformOrigin:'right center',
-          display:'inline-block',
-        }}>{aiScore}</span>
-      </div>
+    </div>
+  );
+}
+
+// Bottom bar — the log on the left, your score in the corner.
+export function PlayerBar({ playerScore, playerFlash, roundEndPulse, children }) {
+  return (
+    <div style={{...BAR, padding:'4px 22px 6px', borderTop:`1px solid ${DS.slate}22`}}>
+      <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:12}}>{children}</div>
+      <Score label="YOU" value={playerScore} color={DS.voltage}
+        flash={playerFlash} pulse={roundEndPulse} align="right"/>
     </div>
   );
 }

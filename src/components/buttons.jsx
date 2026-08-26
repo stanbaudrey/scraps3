@@ -144,3 +144,53 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
     </button>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// AceTag — the Play Ace control, sized to sit on top of a card.
+//
+// It used to live in the centre action row beside TRADE, which
+// made an optional, situational strike read as the expected next
+// move — and said nothing about WHICH card it would spend. Here
+// it is exactly one card wide, stacked PLAY / ACE, and it rides
+// the same wrapper as its Ace (see FannedHand's cardSlot), so it
+// leans with the card instead of hovering over it.
+//
+// `live={false}` renders the same object as pure illustration,
+// which is what the You've-Drawn-an-Ace lightbox shows so the
+// player learns the shape before meeting it on the table.
+// ─────────────────────────────────────────────────────────────
+export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
+  const interactive = live && !disabled;
+  const hIn = (e) => {
+    if (!interactive) return;
+    e.currentTarget.style.background = DS.goldHover;
+    e.currentTarget.style.boxShadow = `0 0 24px ${DS.gold}`;
+  };
+  const hOut = (e) => {
+    if (!interactive) return;
+    e.currentTarget.style.background = DS.gold;
+    e.currentTarget.style.boxShadow = `0 0 14px ${DS.gold}88`;
+  };
+  return (
+    <div
+      onMouseEnter={hIn} onMouseLeave={hOut}
+      onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
+      title={disabled ? "Their Scraps needs 2+ cards before an Ace can strike" : undefined}
+      style={{
+        width, boxSizing:'border-box',
+        background: disabled ? DS.duskMid : DS.gold,
+        color: disabled ? DS.slate : DS.ink,
+        border: disabled ? `1px solid ${DS.slate}55` : 'none',
+        borderRadius:8, padding:'5px 4px',
+        fontFamily:F.ui, fontWeight:700, fontSize:13, lineHeight:1.12,
+        letterSpacing:'0.08em', textTransform:'uppercase', textAlign:'center',
+        boxShadow: disabled ? 'none' : `0 0 14px ${DS.gold}88`,
+        cursor: interactive ? 'pointer' : 'default',
+        pointerEvents: interactive ? 'auto' : 'none',
+        userSelect:'none',
+        transition:'background 80ms, box-shadow 80ms',
+      }}>
+      Play<br/>Ace
+    </div>
+  );
+}
