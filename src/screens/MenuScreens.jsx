@@ -89,11 +89,10 @@ export function DifficultyPicker({ onChoose }) {
             // arm lock semantically, which pointer-events never could —
             // assistive tech now knows the control is not yet live.
             <button key={o.id} type="button"
-              className={`pick-box${armed ? ' armed shiny' : ''}`}
+              className={`pick-box${armed ? ' armed' : ''}`}
               disabled={!armed}
               onClick={armed ? () => onChoose(o.id) : undefined}
               style={{animationDelay:`${i * 150}ms`}}>
-              {armed ? <span className="shine-ring" aria-hidden="true"/> : null}
               <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
                 <span style={{fontFamily:F.display,fontSize:'clamp(38px,6vw,54px)',
                   color:DS.voltage,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>

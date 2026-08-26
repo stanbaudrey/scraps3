@@ -41,6 +41,71 @@ export function playWhoosh() {
   src.start(ctx.currentTime); src.stop(ctx.currentTime+0.35);
 }
 
+// Square-up: the wordmark's tap gesture on touch devices. Timed to the
+// animation it accompanies (~0.82s) — a brush of card edges while the
+// hand is loose, six taps on the same stagger the letters use, and a
+// soft landing as the deck goes flush.
+//
+// The six taps are a G major pentatonic run. Any subset of a pentatonic
+// scale is consonant with any other, so the run cannot land on a sour
+// interval no matter how the taps overlap — which is the whole risk
+// with six pitched hits inside 200ms.
+export function playSquareUp() {
+  const ctx = getAudioCtx(); if(!ctx) return;
+  const t0 = ctx.currentTime;
+
+  // 1. Card edges brushing past each other while the hand is loose.
+  //    The noise swells and falls with sin() rather than decaying from
+  //    full, so it reads as a movement rather than a hit.
+  const bedDur = 0.30;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * bedDur), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * (i / d.length)) * 0.9;
+  }
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(2600, t0);
+  bp.frequency.exponentialRampToValueAtTime(1100, t0 + bedDur);
+  bp.Q.value = 0.7;
+  const bedGain = ctx.createGain();
+  bedGain.gain.setValueAtTime(0.075, t0);
+  bedGain.gain.exponentialRampToValueAtTime(0.001, t0 + bedDur);
+  src.connect(bp); bp.connect(bedGain); bedGain.connect(ctx.destination);
+  src.start(t0); src.stop(t0 + bedDur);
+
+  // 2. One tap per letter, on the letters' own 0.028s stagger.
+  const PENT = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
+  PENT.forEach((f, i) => {
+    const at = t0 + 0.16 + i * 0.028;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';                    // no odd-harmonic bite, unlike square
+    o.frequency.setValueAtTime(f, at);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2400;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.05, at + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0008, at + 0.11);
+    o.connect(lp); lp.connect(g); g.connect(ctx.destination);
+    o.start(at); o.stop(at + 0.12);
+  });
+
+  // 3. The deck landing flush, under the last of the taps.
+  const end = t0 + 0.60;
+  const low = ctx.createOscillator();
+  low.type = 'triangle';
+  low.frequency.setValueAtTime(190, end);
+  low.frequency.exponentialRampToValueAtTime(120, end + 0.20);
+  const lowGain = ctx.createGain();
+  lowGain.gain.setValueAtTime(0.0001, end);
+  lowGain.gain.exponentialRampToValueAtTime(0.085, end + 0.012);
+  lowGain.gain.exponentialRampToValueAtTime(0.001, end + 0.22);
+  low.connect(lowGain); lowGain.connect(ctx.destination);
+  low.start(end); low.stop(end + 0.23);
+}
+
 export function playVictoryFanfare(big=false) {
   const ctx = getAudioCtx(); if(!ctx) return;
   // Ascending arpeggio of 3 or 5 notes

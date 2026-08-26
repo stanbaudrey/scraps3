@@ -30,7 +30,6 @@
       :root {
         --voltage: #A3D85A;
         --slate: #A7B0A1;
-        --frost: #EDE3D0;
         --dusk: #141F19;
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,14 +105,14 @@
         background: color-mix(in srgb, var(--dusk) 90%, var(--slate));
         cursor: default;
         pointer-events: none;
-        animation: panelUnfold 420ms cubic-bezier(.22,1,.36,1) both;
+        animation: panelDeal 620ms cubic-bezier(.2,.9,.3,1) backwards;
         transition: border-color 140ms, background 140ms, box-shadow 140ms, transform 140ms;
       }
       .pick-box.armed {
         cursor: pointer;
         pointer-events: auto;
         border-color: color-mix(in srgb, var(--voltage) 70%, transparent);
-        animation: panelUnfold 420ms cubic-bezier(.22,1,.36,1) both, armFlash 620ms ease-out;
+        animation: panelDeal 620ms cubic-bezier(.2,.9,.3,1) backwards, armFlash 620ms ease-out;
       }
       .pick-box.armed:hover {
         border-color: var(--voltage);
@@ -152,7 +151,17 @@
       @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
       @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
       @keyframes wtWiggle{0%{transform:rotate(-2.2deg) translateY(0)}100%{transform:rotate(2.2deg) translateY(-5px)}}
-      @keyframes panelUnfold{0%{opacity:0;clip-path:inset(48% 0 48% 0);transform:scaleY(.82)}55%{opacity:1}100%{opacity:1;clip-path:inset(0 0 0 0);transform:scaleY(1)}}
+      /* Dealt in — the panel is placed on the table like a card, from
+         off the left, once. Fill is `backwards`, NOT `both`, and that
+         is load-bearing: the old panelUnfold filled a transform
+         forwards, and a filling animation outranks author rules, so
+         .pick-box.armed:hover's lift never rendered. Ending unfilled
+         hands `transform` back to the hover rule. */
+      @keyframes panelDeal{
+        0%{opacity:0;transform:translate(-46%,-24%) rotate(-11deg)}
+        45%{opacity:1}
+        100%{opacity:1;transform:translate(0,0) rotate(0deg)}
+      }
       @keyframes armFlash{0%{box-shadow:0 0 0 0 transparent}35%{box-shadow:0 0 0 4px color-mix(in srgb, var(--voltage) 42%, transparent),0 0 30px color-mix(in srgb, var(--voltage) 34%, transparent)}100%{box-shadow:0 0 0 0 transparent}}
       /* Over-limit trade error — quick attention bounce */
       @keyframes errBounce{0%{transform:translateY(0) scale(1)}20%{transform:translateY(-12px) scale(1.05)}45%{transform:translateY(0) scale(1)}65%{transform:translateY(-5px)}100%{transform:translateY(0)}}
@@ -165,127 +174,80 @@
          SCRAPS wordmark — three nested layers per letter, because
          three separate things want to own `transform` at once and
          the last animation to run would otherwise win:
-           .scraps-letter   entrance + the perpetual breathe
-           .scraps-kinetic  desktop hover ripple (transition only)
-           .t3d             the mobile 3D flip (its own 3D context)
-         Perspective sits on .scraps-kinetic, the direct parent of
-         the flip box: an ancestor with its own transform flattens
-         perspective inherited from further up, so putting it on the
-         row would silently do nothing.
+           .scraps-letter   entrance + the perpetual riffle
+           .scraps-kinetic  desktop hover fan (transition only)
+           .tap-layer       the touch-device square-up
+         Perspective sits on the row: the riffle rotates each letter
+         about its own X axis, and without a 3D context that read as
+         a flat vertical squash.
          ======================================================== */
-      .scraps-title { display: flex; justify-content: center; gap: 4px; }
+      .scraps-title {
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+        perspective: 26em;
+        /* The wordmark answers hover and (on touch) tap, but clicking
+           it does nothing on a pointer device — so it must not claim
+           to be a control. Cursor stays default deliberately. */
+        cursor: default;
+      }
       .scraps-letter {
         display: inline-block;
-        transition: padding 380ms cubic-bezier(.2,.8,.3,1);
         will-change: transform;
-        /* Six one-letter boxes, each with a second face carrying the same
-           glyph: selecting the wordmark would otherwise hand over
-           "SSCCRRAAPPSS". aria-hidden fixes the a11y tree but not the text
-           layer, so the back face's glyph moved into ::after (below) and
-           selection is off here. */
         user-select: none;
       }
       .scraps-kinetic {
         display: inline-block;
-        /* Relative to the letter, not a fixed px: depth is 0.5em, so a fixed
-           900px made the barrel roll a 3% ratio at the 54px mobile wordmark
-           against 8% on desktop — it read as a vertical squash on exactly
-           the devices the flip was built for. */
-        perspective: 5em;
-        transition: transform 380ms cubic-bezier(.2,.8,.3,1),
-                    filter 380ms ease;
+        transform-origin: 50% 128%;
+        transition: transform 420ms cubic-bezier(.2,.8,.3,1);
       }
-      /* Gentle rise and fall, one letter after another. Deliberately
-         has NO fill mode: it is listed alongside the entrance
-         animation, and with no fill it stays inert until its delay
-         elapses, letting letterAppear own the transform first. */
-      @keyframes titleBreathe {
-        0%,100% { transform: translateY(0) scale(1); }
-        50%     { transform: translateY(-9px) scale(1.035); }
+      .tap-layer { display: inline-block; }
+
+      /* Riffle — a spring travelling the row the way a bridged deck
+         releases: most of the cycle is stillness, then a fast pass.
+         2.08s rather than the 2.6s of the first pass, a quarter more
+         often, per Stan.
+         Deliberately NO fill mode: it shares the `animation` shorthand
+         with the letterAppear entrance, and with no fill it stays
+         inert until its delay elapses, letting the entrance own the
+         transform first. */
+      @keyframes titleRiffle {
+        0%, 62%, 100% { transform: translateY(0) rotateX(0deg) scaleY(1); }
+        68%  { transform: translateY(-0.09em) rotateX(-58deg) scaleY(1.16); }
+        74%  { transform: translateY(0.015em) rotateX(16deg) scaleY(.93); }
+        80%  { transform: translateY(0) rotateX(0deg) scaleY(1); }
       }
 
-      /* Kinetic hover, desktop only. Magic UI's version interpolates
-         font-weight; the wordmark face (Bungee Shade) ships a single
-         weight, so weight would be a no-op. The behaviour that makes
-         the effect read — one letter swells, its neighbours give way
-         by a decreasing amount — is carried here by scale + the
-         inline padding push instead. */
+      /* Fan — the row splays like a hand opening, and the letter under
+         the cursor stands upright out of the fan. Pure transform: an
+         earlier version of this hover animated inline padding to push
+         neighbours apart, which is a layout property and reflowed the
+         row every frame. Rotation off a pivot below the baseline gets
+         the same "giving way" read for free. */
       @media (hover: hover) and (pointer: fine) {
-        .scraps-letter:hover { padding-inline: .055em; }
-        .scraps-letter:hover + .scraps-letter,
-        .scraps-letter:has(+ .scraps-letter:hover) { padding-inline: .028em; }
-        .scraps-letter:hover > .scraps-kinetic {
-          transform: scale(1.2) translateY(-8px);
-          filter: drop-shadow(0 6px 14px rgba(0,0,0,.45));
-        }
-        .scraps-letter:hover + .scraps-letter > .scraps-kinetic,
-        .scraps-letter:has(+ .scraps-letter:hover) > .scraps-kinetic {
-          transform: scale(1.1) translateY(-4px);
-        }
-        .scraps-letter:hover + .scraps-letter + .scraps-letter > .scraps-kinetic,
-        .scraps-letter:has(+ .scraps-letter + .scraps-letter:hover) > .scraps-kinetic {
-          transform: scale(1.04) translateY(-1px);
+        .scraps-title:hover .scraps-letter:nth-child(1) .scraps-kinetic { transform: rotate(-13deg) translateY(.03em); }
+        .scraps-title:hover .scraps-letter:nth-child(2) .scraps-kinetic { transform: rotate(-8deg)  translateY(.012em); }
+        .scraps-title:hover .scraps-letter:nth-child(3) .scraps-kinetic { transform: rotate(-3deg); }
+        .scraps-title:hover .scraps-letter:nth-child(4) .scraps-kinetic { transform: rotate(3deg); }
+        .scraps-title:hover .scraps-letter:nth-child(5) .scraps-kinetic { transform: rotate(8deg)  translateY(.012em); }
+        .scraps-title:hover .scraps-letter:nth-child(6) .scraps-kinetic { transform: rotate(13deg) translateY(.03em); }
+        .scraps-letter:hover .scraps-kinetic {
+          transform: rotate(0deg) translateY(-.09em) scale(1.1) !important;
         }
       }
 
-      /* 3D flip box. Both faces carry the same letter, so ending the
-         animation at -90deg and snapping back to 0 is invisible —
-         that is what lets one keyframe stand in for a full barrel
-         roll. Depth is 0.5em, i.e. half the letter box, which is
-         uniform across letters even though their widths are not. */
-      .t3d { display: inline-block; position: relative; transform-style: preserve-3d; }
-      .t3d-face { display: block; backface-visibility: hidden; }
-      .t3d-front { transform: translateZ(0.5em); }
-      .t3d-back { position: absolute; inset: 0; transform: rotateX(90deg) translateZ(0.5em); }
-      .t3d-back::after { content: attr(data-char); }
-      .t3d.flipping { animation: t3dFlip 560ms cubic-bezier(.3,.85,.35,1) both; }
-      @keyframes t3dFlip {
-        from { transform: translateZ(-0.5em) rotateX(0deg); }
-        to   { transform: translateZ(-0.5em) rotateX(-90deg); }
+      /* Square-up — the letters go loose like an untidy hand, then snap
+         flush as if tapped on the table. Offsets are fixed per letter
+         rather than random so the gesture is identical every time; a
+         motion that differs run to run reads as a glitch. Paired with
+         playSquareUp() in audio.js, which runs to the same length. */
+      @keyframes squareUp {
+        0%   { transform: translate(0,0) rotate(0deg); }
+        22%  { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); }
+        100% { transform: translate(0,0) rotate(0deg); }
       }
-
-      /* Shine border. The Magic UI original slides `background-position`
-         on a masked ring, but that is a paint property: two rings would
-         repaint every frame, forever. backdrop.jsx's own header records
-         that exact bug class causing real hover lag here before. So the
-         mask stays static and a conic gradient ROTATES behind it —
-         transform is compositor-only, and a rotating sweep actually
-         travels around the border instead of pooling in the corners.
-         Gold is deliberately absent: theme.js reserves it for milestones
-         (Full Scrap, the win screen, your own Ace), never general UI. */
-      .shiny { position: relative; }
-      .shine-ring {
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 2px;
-        pointer-events: none;
-        overflow: hidden;
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-      }
-      .shine-ring::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 190%;
-        aspect-ratio: 1;
-        background: conic-gradient(from 0turn,
-          transparent 0turn,
-          color-mix(in srgb, var(--voltage) 70%, transparent) 0.10turn,
-          var(--frost) 0.15turn,
-          color-mix(in srgb, var(--voltage) 70%, transparent) 0.20turn,
-          transparent 0.30turn,
-          transparent 1turn);
-        animation: shineSpin 8s linear infinite;
-        will-change: transform;
-      }
-      @keyframes shineSpin {
-        from { transform: translate(-50%, -50%) rotate(0deg); }
-        to   { transform: translate(-50%, -50%) rotate(360deg); }
+      .tap-layer.squaring {
+        animation: squareUp 720ms cubic-bezier(.25,1.2,.4,1) both;
       }
 
       /* Scoped, not global — a full reduced-motion pass over every
@@ -300,12 +262,13 @@
            input lock is a JS timer, so it still arms on schedule. */
         .wt-wiggle { animation: none !important; }
         .pick-box, .pick-box.armed { animation: none !important; }
-        .shine-ring { display: none !important; }
+
         /* Kills the wordmark's entrance and its breathe together.
            Safe: letterAppear only fills in opacity/transform it
            already returns to, so with no animation the letters just
            render settled. */
-        .scraps-letter, .t3d.flipping { animation: none !important; }
+        .scraps-letter, .tap-layer.squaring { animation: none !important; }
+        .scraps-kinetic { transition: none !important; }
       }
     </style>
   </head>
