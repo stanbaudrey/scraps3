@@ -25,7 +25,7 @@ import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
   playError, playWinSound, playLoseSound } from "../audio.js";
 import { useFlyingCards } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
-import { ScoreCorners, RoundProgressIndicator, NearWinBanner, GameLog } from "../components/hud.jsx";
+import { ScoreCorners, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
 import { BigBtn, TradeInBtn } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { recordGame } from "../game/stats.js";
@@ -71,6 +71,7 @@ export function GameScreen({ difficulty, onExit }) {
   const [aiScoreFlash, setAiScoreFlash]         = useState(false);
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
+  const [logEverOpened, setLogEverOpened]       = useState(false); // hides the one-time TAP FOR HISTORY label
   const tradeErrorTimer = useRef(null);
 
   // First-time-per-game hint: fires once, the first time an Ace
@@ -219,7 +220,7 @@ export function GameScreen({ difficulty, onExit }) {
       playError();
       setTradeError(null);
       requestAnimationFrame(() =>
-        setTradeError('This trade would place more than 7 total cards in your hand.'));
+        setTradeError(`These ${sel.length} card${sel.length > 1 ? 's' : ''} draw ${drawCount}. Your hand would be ${netHand}/7.`));
       clearTimeout(tradeErrorTimer.current);
       tradeErrorTimer.current = setTimeout(() => setTradeError(null), 2600);
       return;
@@ -650,6 +651,12 @@ export function GameScreen({ difficulty, onExit }) {
   const scrapsDiscardIds = new Set(scrapsDiscard.map(c => c.id));
   const selValid = isSignal && !signalLocked && isValidSignal(selectedInHand);
   const playerHasAce = playerHand.some(c => c.rank === 'A');
+  // Live trade projection. Computed here rather than inside
+  // doTradeIn so the button can state the outcome BEFORE the
+  // click instead of the error firing after it.
+  const tradeDraw = selectedInHand.reduce((n, c) => n + tradeInValue(c), 0);
+  const tradeNetHand = (playerHand.length - selectedInHand.length) + tradeDraw;
+  const tradeOverLimit = selectedInHand.length > 0 && tradeNetHand > 7;
   const glowHand = (isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked);
   const glowPlayerScraps = isScrapsDiscardMode;
   const glowOppScraps = aceMode;
@@ -683,21 +690,26 @@ export function GameScreen({ difficulty, onExit }) {
   let hint = '';
   if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
   else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
-  else if (isScrapsDiscardMode) hint = `Scraps is limited to 7 cards. Select ${scrapsOverflow} card${scrapsOverflow > 1 ? 's' : ''} to discard from your Scraps pile, then hit DISCARD.`;
+  else if (isScrapsDiscardMode) {
+    const moving = pendingTrade ? pendingTrade.cards.length : 0;
+    const lockedInScraps = playerScraps.some(c => !c.eligibleForDiscard);
+    hint = `Trading ${moving} card${moving > 1 ? 's' : ''} would put your Scraps at ${playerScraps.length + moving}/7. `
+      + `Select ${scrapsOverflow} to discard, then hit DISCARD.`
+      + (lockedInScraps ? ' Dimmed cards were placed this turn and cannot go.' : '');
+  }
   else if (aceMode) hint = `Select 2 cards from opponent's Scraps to remove. (${aceTargets.length}/2 selected)`;
-  else if (forcedAce) hint = 'Due to the 7-card hand limit, your only legal move is to play an Ace.';
+  else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
     hint = playerHasAce && aiScraps.length >= 2
       ? 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards. Or play an Ace.'
       : 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
-  else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Toggle the cards you want to play — must be a valid poker hand. Hit SIGNAL.`;
+  else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals that their hand contains ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Pick your own hand, then hit SIGNAL.`;
   else if (isSignal && !signalLocked) hint = (
     <>
-      <b>Time to play a small hand!</b> Select <b>any</b> valid poker hand you
-      want to play. Your opponent will see the number of cards you select
-      before deciding their own hand.
+      Pick any valid hand. Your opponent sees how many cards you will play,
+      which tells them what you might have.
     </>
   );
   else if (isSignal && signalLocked) hint = 'Signal locked. Waiting for opponent...';
@@ -801,6 +813,9 @@ export function GameScreen({ difficulty, onExit }) {
                   {hint}
                 </div>
               )}
+              {isSignal&&!signalLocked&&(
+                <SignalLegalityStrip hand={playerHand} selectedCount={selectedInHand.length}/>
+              )}
               {/* Buttons */}
               <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',justifyContent:'center'}}>
                 {isScrapsDiscardMode&&(
@@ -814,14 +829,26 @@ export function GameScreen({ difficulty, onExit }) {
                 {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&(
                   <>
                     {!forcedAce&&(
-                      <TradeInBtn onClick={doTradeIn} disabled={selected.length===0} count={selected.length}/>
+                      <TradeInBtn onClick={doTradeIn} disabled={selectedInHand.length===0}
+                        count={selectedInHand.length} drawCount={tradeDraw}
+                        projectedHand={tradeNetHand} overLimit={tradeOverLimit}/>
                     )}
-                    {playerHasAce&&aiScraps.length>=2&&(
-                      <BigBtn variant="gold" onClick={doPlayAce}>
-                        <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
-                          Play Ace <IconBolt size={18}/>
-                        </span>
-                      </BigBtn>
+                    {/* Play Ace used to VANISH when the opponent's Scraps
+                        held fewer than 2 cards, so holding an unusable Ace
+                        looked like a bug. It is disabled and explained now. */}
+                    {playerHasAce&&(
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+                        <BigBtn variant="gold" onClick={doPlayAce} disabled={aiScraps.length<2}>
+                          <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+                            Play Ace <IconBolt size={18}/>
+                          </span>
+                        </BigBtn>
+                        {aiScraps.length<2&&(
+                          <span style={{fontFamily:F.ui,color:DS.ember,fontSize:14,fontWeight:600}}>
+                            Needs 2+ cards in their Scraps to strike.
+                          </span>
+                        )}
+                      </div>
                     )}
                   </>
                 )}
@@ -932,12 +959,23 @@ export function GameScreen({ difficulty, onExit }) {
         <div style={{background:DS.dusk,borderTop:`1px solid ${DS.slate}22`,
           padding:'6px 20px 8px',display:'flex',alignItems:'center',
           justifyContent:'space-between',gap:12}}>
-          <div onClick={()=>setShowLogPanel(v=>!v)} title={showLogPanel?'Hide log history':'Show log history'}
+          {/* The log is the ONLY record of what the opponent did while
+              an animation was playing, and a truncated line behind a
+              small chevron reads as decoration. The label sits there
+              until the player opens it once, then never again. */}
+          <div onClick={()=>{setShowLogPanel(v=>!v);setLogEverOpened(true);}}
+            title={showLogPanel?'Hide log history':'Show log history'}
             style={{fontFamily:F.mono,fontSize:15,color:showLogPanel?DS.frost:DS.slateLight,
-            flex:1,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',
-            cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
+            flex:1,minWidth:0,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
             <IconChevron size={14} color={DS.slate} up={!showLogPanel}/>
-            {log[log.length-1]||''}
+            {!logEverOpened&&(
+              <span style={{flexShrink:0,fontFamily:F.mono,fontSize:11,fontWeight:700,
+                letterSpacing:'0.14em',color:DS.voltage,border:`1px solid ${DS.voltage}66`,
+                borderRadius:5,padding:'2px 7px'}}>TAP FOR HISTORY</span>
+            )}
+            <span style={{overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>
+              {log[log.length-1]||''}
+            </span>
           </div>
         <button onClick={()=>setShowRules(true)} title="Rules" style={{
           background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,

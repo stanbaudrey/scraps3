@@ -94,19 +94,39 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false })
 
 // ─────────────────────────────────────────────────────────────
 // TradeInBtn — prominent action button with hover effect
+//
+// The label carries the whole trade: how many cards leave, and
+// how many come back. It used to read "Trade In (2)", where the
+// 2 was cards SELECTED, which collided head-on with the rule the
+// walkthrough had just taught (a 10-K draws 2, an Ace draws 3) —
+// so "(2)" was routinely read as "draw 2".
+//
+// When the draw would blow the 7-card hand limit the button says
+// so BEFORE the click, in ember, with the arithmetic. It stays
+// clickable on purpose: pressing it fires the error copy and
+// sound, which is how the rule gets taught rather than merely
+// enforced.
 // ─────────────────────────────────────────────────────────────
-export function TradeInBtn({ onClick, disabled, count }) {
+export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false }) {
+  const blocked = overLimit && !disabled;
+  const fill = disabled ? DS.duskMid : blocked ? DS.ember : DS.voltage;
+  const fillHover = blocked ? DS.emberHover : DS.voltageHover;
+  const glow = blocked ? DS.ember : DS.voltage;
   const hIn = (e) => {
     if(disabled) return;
-    e.currentTarget.style.background=DS.voltageHover;
-    e.currentTarget.style.boxShadow=`0 0 32px ${DS.voltage},0 0 60px ${DS.voltage}55`;
+    e.currentTarget.style.background=fillHover;
+    e.currentTarget.style.boxShadow=`0 0 32px ${glow},0 0 60px ${glow}55`;
     e.currentTarget.style.transform='scale(1.06)';
   };
   const hOut = (e) => {
-    e.currentTarget.style.background=disabled?DS.duskMid:DS.voltage;
-    e.currentTarget.style.boxShadow=disabled?'none':`0 0 20px ${DS.voltage}66`;
+    e.currentTarget.style.background=fill;
+    e.currentTarget.style.boxShadow=disabled?'none':`0 0 20px ${glow}66`;
     e.currentTarget.style.transform='scale(1)';
   };
+  let label;
+  if (count === 0) label = 'Trade In';
+  else if (blocked) label = `Hand would be ${projectedHand}/7`;
+  else label = `Trade ${count} \u2192 Draw ${drawCount}`;
   return (
     <button onMouseEnter={hIn} onMouseLeave={hOut}
       onClick={disabled?undefined:onClick}
@@ -115,12 +135,12 @@ export function TradeInBtn({ onClick, disabled, count }) {
         fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
         outline:'none',padding:'16px 36px',fontSize:18,borderRadius:10,
         opacity:disabled?0.35:1,
-        background:disabled?DS.duskMid:DS.voltage,
+        background:fill,
         color:DS.ink,
-        boxShadow:disabled?'none':`0 0 20px ${DS.voltage}66`,
+        boxShadow:disabled?'none':`0 0 20px ${glow}66`,
         transition:'background 60ms, box-shadow 60ms, transform 60ms',
       }}>
-      Trade In{count>0?` (${count})`:''}
+      {label}
     </button>
   );
 }

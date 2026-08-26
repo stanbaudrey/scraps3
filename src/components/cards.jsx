@@ -393,7 +393,13 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
               color:DS.slate+'44',fontSize:13,fontFamily:F.mono}}>—</div>
           )}
           {sorted.map((card,i) => {
-            const isElig = selectable;
+            // The zone used to treat every card as clickable whenever
+            // the zone was selectable, while GameScreen's click handler
+            // silently dropped cards with eligibleForDiscard false. The
+            // two disagreed, so a locked card looked live and did
+            // nothing on click. The flag decides both now, and locked
+            // cards render dimmed.
+            const isElig = selectable && card.eligibleForDiscard !== false;
             const isSel = selectedIds.has(card.id);
             return (
               <div key={card.id} style={{

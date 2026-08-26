@@ -5,7 +5,7 @@ round runs two private "small hands" (worth 1 point each) plus one public
 "Scraps" hand (worth 2). You move cards from your hidden hand into your
 face-up Scraps pile to draw fresh cards, and both piles cap at 7. Aces are a
 weapon: discard one to strip two cards from the opponent's Scraps pile, and
-they can counter with an Ace of their own. First to 11, win by 2. Winning
+they can counter with an Ace of their own. First to 10, win by 2. Winning
 both small hands *and* the Scraps hand is a FULL SCRAP, worth 5.
 
 House rule, enforced everywhere in the engine: **flushes are never valid**. A

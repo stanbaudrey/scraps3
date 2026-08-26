@@ -21,7 +21,7 @@
 // Ace itself is the subject.
 // ============================================================
 import { useState } from "react";
-import { DS, F } from "../styles/theme.js";
+import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard } from "../components/cards.jsx";
 import { SwirlBg } from "../components/backdrop.jsx";
 import { IconBolt } from "../components/icons.jsx";
@@ -261,7 +261,8 @@ const BEATS = [
   {
     copy: (
       <>Play two small hands (1 point each) then your best Scraps hand (2 points).
-      <b style={{color:DS.frost}}> No flushes.</b> Win all three hands for a bonus point.</>
+      <b style={{color:DS.frost}}> No flushes.</b> Win all three hands for a bonus point.
+      First to {WIN_SCORE}, win by 2.</>
     ),
     visual: <BeatScoring/>,
     cta: 'Let’s Play',

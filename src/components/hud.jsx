@@ -14,6 +14,7 @@
 import { useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { IconCheck } from "./icons.jsx";
+import { getValidSignals } from "../game/engine.js";
 
 // ─────────────────────────────────────────────────────────────
 // RoundProgressIndicator — slim horizontal three-step strip
@@ -22,28 +23,34 @@ export function RoundProgressIndicator({ phase }) {
   const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-ai','signal-player','reveal-1','replenish'];
   const h2=['player-turn-2a','ai-turn-2a','player-turn-2b','ai-turn-2b','signal-ai-2','signal-player-2','reveal-2'];
   const sc=['scraps-reveal','round-end'];
+  // Point values ride in the label. This strip is the one piece
+  // of chrome a player looks at all game, and it was the only
+  // place naming the three hands without naming the stakes.
   const steps=[
-    {label:'HAND 1',active:h1.includes(phase),done:h2.includes(phase)||sc.includes(phase)},
-    {label:'HAND 2',active:h2.includes(phase),done:sc.includes(phase)},
-    {label:'SCRAPS',active:sc.includes(phase),done:false},
+    {label:'HAND 1',pts:'1PT',active:h1.includes(phase),done:h2.includes(phase)||sc.includes(phase)},
+    {label:'HAND 2',pts:'1PT',active:h2.includes(phase),done:sc.includes(phase)},
+    {label:'SCRAPS',pts:'2PTS',active:sc.includes(phase),done:false},
   ];
   return (
-    <div style={{display:'flex',alignItems:'center',gap:6,
+    <div style={{display:'flex',alignItems:'center',gap:3,
       background:DS.duskMid,border:`1px solid ${DS.slate}33`,
-      borderRadius:10,padding:'5px 8px'}}>
+      borderRadius:10,padding:'4px 6px',maxWidth:'100%'}}>
       {steps.map((s,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',gap:6,
-          padding:'4px 10px',borderRadius:8,
+        <div key={i} style={{display:'flex',alignItems:'center',gap:5,
+          padding:'3px 7px',borderRadius:8,whiteSpace:'nowrap',
           background:s.active?DS.frost+'0e':'transparent',
           border:`1px solid ${s.active?DS.slateLight+'88':DS.slate+'22'}`,
           transition:'all 0.3s'}}>
-          <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+          <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,
             background:s.active?DS.frost:s.done?DS.slate:DS.slate+'33',
             boxShadow:s.active?`0 0 8px ${DS.frost}88`:'none',
             transition:'all 0.3s'}}/>
-          <span style={{fontFamily:F.ui,fontSize:14,fontWeight:700,
+          <span style={{fontFamily:F.ui,fontSize:13,fontWeight:700,
             color:s.active?DS.frost:s.done?DS.slate:DS.slate+'55',
-            letterSpacing:'0.06em',transition:'color 0.3s'}}>{s.label}</span>
+            letterSpacing:'0.04em',transition:'color 0.3s'}}>{s.label}</span>
+          <span style={{fontFamily:F.mono,fontSize:10,fontWeight:700,
+            color:s.active?DS.slateLight:DS.slate+'55',
+            letterSpacing:'0.02em',transition:'color 0.3s'}}>{s.pts}</span>
           {s.done&&<IconCheck size={12} color={DS.slate}/>}
         </div>
       ))}
@@ -141,6 +148,56 @@ export function GameLog({ messages }) {
       {messages.length===0&&(
         <div style={{fontFamily:F.mono,fontSize:14,color:DS.slate}}>No log entries yet.</div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SignalLegalityStrip — what a small hand is allowed to be.
+//
+// A signal is not "any cards you like": engine.isValidSignal
+// accepts one exact shape per count (1 anything, 2 a pair, 3
+// trips, 4 two pair or quads, 5 a straight or better). Nothing
+// on the table ever said so, so a first-timer selecting two
+// unmatched cards got a disabled button and no reason.
+//
+// engine.getValidSignals already computes this set against the
+// live hand and had no UI caller until now. Options the hand
+// cannot make are struck through, so the strip doubles as the
+// explanation for why SIGNAL is disabled.
+// ─────────────────────────────────────────────────────────────
+const SIGNAL_SHAPES = [
+  { n:1, name:'ANY CARD' },
+  { n:2, name:'PAIR' },
+  { n:3, name:'TRIPS' },
+  { n:4, name:'2 PAIR / QUADS' },
+  { n:5, name:'STRAIGHT+' },
+];
+
+export function SignalLegalityStrip({ hand, selectedCount=0 }) {
+  const valid = new Set(getValidSignals(hand));
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',
+      justifyContent:'center',background:DS.duskMid,
+      border:`1px solid ${DS.slate}33`,borderRadius:10,padding:'6px 10px'}}>
+      <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate,
+        letterSpacing:'0.14em',marginRight:2}}>PLAYABLE</span>
+      {SIGNAL_SHAPES.map(sh=>{
+        const ok=valid.has(sh.n);
+        const on=ok&&selectedCount===sh.n;
+        return (
+          <span key={sh.n} style={{
+            fontFamily:F.mono,fontSize:12,fontWeight:700,letterSpacing:'0.06em',
+            padding:'3px 8px',borderRadius:6,whiteSpace:'nowrap',
+            color:on?DS.ink:ok?DS.voltage:DS.slate+'66',
+            background:on?DS.voltage:ok?DS.voltage+'18':'transparent',
+            border:`1px solid ${on?DS.voltage:ok?DS.voltage+'55':DS.slate+'22'}`,
+            textDecoration:ok?'none':'line-through',
+            transition:'all 0.2s'}}>
+            {sh.n} {sh.name}
+          </span>
+        );
+      })}
     </div>
   );
 }

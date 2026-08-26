@@ -428,7 +428,9 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
         <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:17,fontWeight:700,
           marginBottom:24}}>You have an Ace. Counter to cancel theirs?</p>
         <p style={{fontFamily:F.ui,color:DS.slate,fontSize:14,marginBottom:24,lineHeight:1.5}}>
-          Countering cancels their Ace — nothing is removed. Both Aces are discarded.
+          Countering cancels their Ace and nothing is removed. Both Aces are then
+          discarded, so your Ace is spent either way: countering trades it for theirs
+          instead of saving it for a strike of your own.
         </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
           <Btn variant="danger" onClick={onCounter}>
@@ -557,7 +559,9 @@ export function SkipTurnModal({ onOk }) {
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:34,color:DS.frost,
           letterSpacing:'0.06em',marginBottom:14}}>NO LEGAL TRADES</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
-          You have no legal trades available. Your trade is skipped.
+          Every card in your hand draws more than you have room for. Even the
+          cheapest trade would put you over 7, and you have no Ace to play
+          instead, so your turn is skipped.
         </p>
         <Btn onClick={onOk}>OK</Btn>
       </div>
