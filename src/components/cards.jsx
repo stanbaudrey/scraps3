@@ -191,7 +191,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
             <div key={card.id} style={{
               position:'absolute',bottom:0,left:'50%',
               transform:isSel||isAiSig
-                ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-28}px) rotate(${rot}deg) scale(1.05)`
+                ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-28}px) rotate(${rot}deg)`
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
               transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
               zIndex:i,

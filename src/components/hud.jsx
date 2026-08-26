@@ -68,6 +68,7 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
           animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
             :playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           textShadow:roundEndPulse?'0 0 30px currentColor':'none',
+          transformOrigin:'left center',
           display:'inline-block',
         }}>{playerScore}</span>
       </div>
@@ -88,6 +89,7 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
           animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
             :aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
           textShadow:roundEndPulse?'0 0 30px currentColor':'none',
+          transformOrigin:'right center',
           display:'inline-block',
         }}>{aiScore}</span>
       </div>
