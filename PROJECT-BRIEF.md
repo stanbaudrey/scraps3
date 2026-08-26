@@ -1161,8 +1161,81 @@ before-and-after across two calls misses the whole thing and looks exactly
 like a broken trigger. The fixes: sample inside one call with a
 `setTimeout` chain, or freeze a frame and screenshot it.
 
-**Still open:** the subtitle is unpicked, nothing is committed, and none
-of it has been seen on a preview URL.
+**Still open:** nothing is merged to `main`. The subtitle is picked (see
+the addendum below); the other 29 candidates are kept for reference.
+
+**Previewed, critiqued, and fixed (same session).** Subtitle locked to *"Build
+two hands at once."*, and the `settling` hint copy ("Your cards are on the
+move. Click anywhere to skip.") was dropped at Stan's request — the branch
+stays with an empty string on purpose, because deleting it outright would let
+the next condition fill the hint line while cards are still mid-flight.
+
+Pushed to `dev` as `dd9a22b`, previewed, then a full `/impeccable critique`
+ran as two isolated sub-agents (design review; detector + browser evidence).
+Snapshot at `.impeccable/critique/2026-08-26T20-53-27Z__src-screens-menuscreens-jsx.md`.
+Heuristics scored **16/40**, the technical audit **16/20 (Good)** — the gap is
+almost entirely pre-existing keyboard/help-access debt, not this session's
+work. Fixes landed as `50fc941`.
+
+**The verdict worth keeping:** the palette and type are specific to this game
+and the fern-green **A** is the one detail only SCRAPS could justify (the Ace
+is the weapon), but the composition is a default hero stack and all three new
+effects are general web vocabulary, two of them Magic UI ports. Nothing in a
+breathe, a barrel roll, or a border shine says cards, dealing, or hidden
+information. A riffle for the idle motion, a card flip for the tap, and a deal
+for the picker's arm would cost the same zero dependencies and produce motion
+no other product could use. Not acted on — it is a creative direction call,
+not a defect.
+
+**Five defects, all introduced by this session, all fixed and re-verified on
+the deployed preview:**
+
+1. **The shine painted gold** — `theme.js` reserves gold for milestones only
+   and the picker is the most general UI in the game. This is the *same*
+   reserved-token mistake the card back made twice during the reskin, which
+   makes three times a documented colour rule has been broken by code that had
+   the rule sitting two files away. Now voltage into frost.
+2. **The shine animated `background-position`, a paint property, forever** on
+   two masked rings. `backdrop.jsx`'s own header records that exact bug class
+   causing real hover lag here before, and it was reintroduced two files over.
+   Rebuilt: static mask, conic gradient rotating behind it via `transform`,
+   which is compositor-only and reads as a glint travelling the border rather
+   than a wash pooling in the corners.
+3. **PLAY clipped below the fold in landscape** — measured on the deployed
+   preview at 844x390: button bottom at 392px in a 390px viewport, page
+   scrollable. The subtitle's fixed 30px margin stacked on the wordmark's
+   `clamp(26px,6vw,36px)`, neither aware of viewport height. Both gaps and
+   both font sizes now carry `vh` terms (`min(14.5vw,26vh)` on the wordmark,
+   `min(9vw,8vh)` on the suits). Re-measured after: 390px document in a 390px
+   viewport, PLAY ending at 326, no scroll. Desktop and 375px are unchanged by
+   construction — the `vh` term only wins on short viewports.
+4. **The wordmark selected and extracted as `SSCCRRAAPPSS`** — `aria-hidden`
+   removes a node from the accessibility tree but not from the text layer, so
+   screen readers were fine while copy-paste and any text extraction saw every
+   glyph twice. The back face's glyph moved into `::after` via `data-char`, and
+   `user-select: none` on the letters.
+5. **`perspective` was a fixed 900px against `0.5em` of depth** — a 3%
+   depth-to-perspective ratio at the 54px mobile wordmark against 8% on
+   desktop, so the barrel roll read as a vertical squash on exactly the devices
+   it was built for. Now `5em`, relative to the letter (507px computed at the
+   101px landscape size).
+
+**Carried forward, pre-existing, and squarely Session 5's:** splash and picker
+each expose **zero focusable elements** (`.pick-box` are divs with onClick, and
+`buttons.jsx` sets `outline:'none'` with no `:focus-visible` replacement
+anywhere in the project) — and this session added a decorative shine to those
+same unreachable controls. No headings on either screen. `.pick-box.armed:hover`'s
+`transform: scale(1.015)` is dead code, because `panelUnfold` fills a
+`transform` and a filling animation outranks author declarations, so the lift
+renders *only* under reduced motion where the animation is removed. HARD renders
+in fern (voltage = "yours") on the one screen where you choose an opponent, when
+ember is the committed opponent colour. The suits row is monochrome sage though
+the palette assigns ember to red suits. Splash timing runs backwards: PLAY
+appears at 0.6s, the subtitle at 0.7s, the wordmark's last letter at 1.05s.
+
+**Preview URL:** https://scraps3-ob6p09u3c-samvaudrey-3466s-projects.vercel.app
+— verified there, not just locally: no console errors, no landscape scroll,
+clean text layer, both rings spinning with no gold. Not merged to `main`.
 
 **The 30 subtitle candidates**
 
