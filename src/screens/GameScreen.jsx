@@ -991,10 +991,14 @@ export function GameScreen({ difficulty, onExit }) {
               an animation was playing, and a truncated line behind a
               small chevron reads as decoration. The label sits there
               until the player opens it once, then never again. */}
-          <div onClick={()=>{setShowLogPanel(v=>!v);setLogEverOpened(true);}}
+          <button type="button"
+            onClick={()=>{setShowLogPanel(v=>!v);setLogEverOpened(true);}}
             title={showLogPanel?'Hide log history':'Show log history'}
+            aria-expanded={showLogPanel}
+            aria-label={showLogPanel?'Hide log history':'Show log history'}
             style={{fontFamily:F.mono,fontSize:15,color:showLogPanel?DS.frost:DS.slateLight,
-            flex:1,minWidth:0,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
+            flex:1,minWidth:0,cursor:'pointer',display:'flex',alignItems:'center',gap:8,
+            background:'transparent',border:'none',padding:0,textAlign:'left'}}>
             <IconChevron size={14} color={DS.slate} up={!showLogPanel}/>
             {!logEverOpened&&(
               <span style={{flexShrink:0,fontFamily:F.mono,fontSize:11,fontWeight:700,
@@ -1004,7 +1008,7 @@ export function GameScreen({ difficulty, onExit }) {
             <span style={{overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>
               {log[log.length-1]||''}
             </span>
-          </div>
+          </button>
           <button onClick={()=>setShowRules(true)} title="Rules" style={{
             background:DS.duskMid,border:`1px solid ${DS.slate}66`,color:DS.slateLight,
             borderRadius:'50%',width:28,height:28,cursor:'pointer',

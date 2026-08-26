@@ -9,7 +9,7 @@ import { DS, F } from "../styles/theme.js";
 export function Btn({ children, onClick, variant='primary', disabled=false, small=false }) {
   const base={border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
-    outline:'none',padding:small?'10px 20px':'14px 28px',
+    padding:small?'10px 20px':'14px 28px',
     fontSize:small?15:17,borderRadius:8,opacity:disabled?0.35:1,
     transition:'transform 60ms,box-shadow 60ms,background 60ms'};
   const V={
@@ -54,7 +54,7 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
 export function BigBtn({ children, onClick, variant='primary', disabled=false }) {
   const base = {border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
-    outline:'none',padding:'18px 36px',fontSize:20,borderRadius:12,
+    padding:'18px 36px',fontSize:20,borderRadius:12,
     opacity:disabled?0.35:1,
     transition:'transform 60ms, box-shadow 60ms, background 60ms'};
   const V = {
@@ -133,7 +133,7 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
       style={{
         border:'none',cursor:disabled?'not-allowed':'pointer',
         fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
-        outline:'none',padding:'16px 36px',fontSize:18,borderRadius:10,
+        padding:'16px 36px',fontSize:18,borderRadius:10,
         opacity:disabled?0.35:1,
         background:fill,
         color:DS.ink,
@@ -171,8 +171,16 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
     e.currentTarget.style.background = DS.gold;
     e.currentTarget.style.boxShadow = `0 0 14px ${DS.gold}88`;
   };
+  // A real <button> when it is live: this is the Ace strike, one of the
+  // two most consequential moves in the game, and it used to be a div.
+  // The decorative copy in the walkthrough (live={false}) stays inert
+  // and is hidden from assistive tech instead of being a fake control.
+  const Tag = live ? 'button' : 'div';
   return (
-    <div
+    <Tag
+      {...(live ? { type:'button', disabled, 'aria-label': disabled
+        ? 'Play Ace — unavailable until their Scraps has 2 or more cards'
+        : 'Play Ace to strike their Scraps' } : { 'aria-hidden': true })}
       onMouseEnter={hIn} onMouseLeave={hOut}
       onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
       title={disabled ? "Their Scraps needs 2+ cards before an Ace can strike" : undefined}
@@ -191,6 +199,6 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         transition:'background 80ms, box-shadow 80ms',
       }}>
       Play<br/>Ace
-    </div>
+    </Tag>
   );
 }

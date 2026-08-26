@@ -20,7 +20,7 @@
 // 2-9 / 10-K / Ace split) and carry no Aces except where the
 // Ace itself is the subject.
 // ============================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard } from "../components/cards.jsx";
 import { SwirlBg } from "../components/backdrop.jsx";
@@ -287,10 +287,27 @@ export function Walkthrough({ onDone }) {
   }
 
   function skip(e) {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     playClick();
     onDone();
   }
+
+  // "Tap anywhere" is a pointer instruction on a screen with no other
+  // way through, so the same surface listens for keys. Events already
+  // heading for a real button are left alone — otherwise Enter on SKIP
+  // would fire the button AND advance the beat behind it.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && e.target.closest && e.target.closest('button')) return;
+      if (e.key === 'Escape') { skip(); return; }
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        advance();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   return (
     <div onClick={advance} style={{position:'fixed',inset:0,background:DS.dusk,
@@ -336,7 +353,7 @@ export function Walkthrough({ onDone }) {
         </div>
         {!last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
-            color:DS.slate,textTransform:'uppercase'}}>Tap anywhere to continue</div>
+            color:DS.slate,textTransform:'uppercase'}}>Tap anywhere, or press Enter</div>
         )}
         <button onClick={skip} style={{pointerEvents:'auto',background:'transparent',
           border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,

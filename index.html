@@ -42,6 +42,19 @@
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--slate) 55%, transparent); border-radius: 4px; }
 
+      /* Keyboard focus. Every button in this project set
+         `outline:'none'` with no replacement, so a keyboard user had no
+         idea where they were. :focus-visible (not :focus) means a mouse
+         click never paints a ring — only keyboard navigation does, which
+         is why the outline can be this loud without ever being in a
+         mouse user's way. Voltage is already the "interactive/yours"
+         token, so the ring says the same thing as everything else. */
+      :focus-visible {
+        outline: 3px solid var(--voltage);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
       /* Global hover classes — defined here so they work before React hydrates */
       .menu-opt {
         cursor: pointer;
@@ -77,6 +90,16 @@
          difficulty by accident. .armed is the visual "now listening"
          cue — border snaps to voltage and the box pulses once. */
       .pick-box {
+        /* A real <button> now, not a div, so the UA's own font, colour,
+           centring and width have to be unset for the panel to look
+           exactly as it did. */
+        appearance: none;
+        -webkit-appearance: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        width: 100%;
+        display: block;
         border: 2px solid color-mix(in srgb, var(--slate) 27%, transparent);
         border-radius: 14px;
         padding: 26px 30px;

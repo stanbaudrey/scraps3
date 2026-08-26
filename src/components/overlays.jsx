@@ -526,6 +526,14 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // RulesModal
 // ─────────────────────────────────────────────────────────────
 export function RulesModal({ onClose }) {
+  // Escape closes it. The backdrop already closes on click, which is the
+  // pointer half of the same affordance; without this a keyboard user
+  // has to find the Close button to leave.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const rules=[
     {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
     {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},

@@ -83,12 +83,18 @@ export function DifficultyPicker({ onChoose }) {
         {opts.map((o, i) => {
           const rec = stats[o.id];
           return (
-            <div key={o.id}
+            // A real <button>, not a div with an onClick: this is the
+            // last decision before a game starts and it was unreachable
+            // by keyboard entirely. `disabled` also expresses the 720ms
+            // arm lock semantically, which pointer-events never could —
+            // assistive tech now knows the control is not yet live.
+            <button key={o.id} type="button"
               className={`pick-box${armed ? ' armed shiny' : ''}`}
+              disabled={!armed}
               onClick={armed ? () => onChoose(o.id) : undefined}
               style={{animationDelay:`${i * 150}ms`}}>
               {armed ? <span className="shine-ring" aria-hidden="true"/> : null}
-              <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
+              <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
                 <span style={{fontFamily:F.display,fontSize:'clamp(38px,6vw,54px)',
                   color:DS.voltage,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
                 {rec && (rec.w > 0 || rec.l > 0) && (
@@ -97,10 +103,11 @@ export function DifficultyPicker({ onChoose }) {
                     {rec.w}W · {rec.l}L{rec.bestMargin > 0 ? ` · BEST +${rec.bestMargin}` : ''}
                   </span>
                 )}
-              </div>
-              <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:'clamp(16px,2vw,20px)',
-                fontWeight:500,marginTop:8,lineHeight:1.4}}>{o.desc}</div>
-            </div>
+              </span>
+              <span style={{display:'block',fontFamily:F.ui,color:DS.slateLight,
+                fontSize:'clamp(16px,2vw,20px)',
+                fontWeight:500,marginTop:8,lineHeight:1.4}}>{o.desc}</span>
+            </button>
           );
         })}
       </div>

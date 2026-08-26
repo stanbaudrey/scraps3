@@ -20,6 +20,27 @@ import { evaluateBestHand } from "../game/engine.js";
 
 export function isRed(suit){ return suit==='♥'||suit==='♦'; }
 function cardInk(suit,isScrap){ return isScrap?(isRed(suit)?DS.ember:DS.voltage):(isRed(suit)?DS.ember:DS.ink); }
+// Spoken names for the four glyphs. A screen reader hands "♠" to the
+// user as anything from "black spade suit" to nothing at all, so every
+// interactive card gets an explicit label built from these.
+const SUIT_NAMES = { '\u2660':'spades', '\u2665':'hearts', '\u2666':'diamonds', '\u2663':'clubs' };
+export function cardLabel(card){
+  if(!card) return 'card';
+  const rank = card.rank === 'A' ? 'ace' : card.rank === 'K' ? 'king'
+    : card.rank === 'Q' ? 'queen' : card.rank === 'J' ? 'jack' : card.rank;
+  return `${rank} of ${SUIT_NAMES[card.suit] || card.suit}`;
+}
+// Enter and Space are what a native button responds to; anything acting
+// like a button has to answer both or it is a button in appearance only.
+export function buttonKeys(fn){
+  return (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
+}
+
 export function sortByValue(cards){ return [...cards].sort((a,b)=>a.value-b.value); }
 
 // ─────────────────────────────────────────────────────────────
@@ -210,6 +231,9 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
           const ty=Math.abs(offset)*3;
           const isSel=selectedIds.has(card.id);
           const isTradeSel=tradeSelectedIds.has(card.id);
+          // Only a card the player can actually act on becomes a stop
+          // on the tab order; the opponent's face-down fan must not be.
+          const interactive = !faceDown && selectable && !!onCardClick;
           const isAiSig=aiSignaledIds.has(card.id);
           const doWiggle=wiggleIds.has(card.id)||(activeWiggle&&!isSel&&!faceDown);
           // Slot width is the card's exposed share of the fan, not the
@@ -234,7 +258,14 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
             />
           );
           return (
-            <div key={card.id} style={{
+            <div key={card.id}
+              {...(interactive ? {
+                role:'button', tabIndex:0,
+                'aria-pressed': isSel,
+                'aria-label': `${cardLabel(card)}${isSel ? ', selected' : ''}`,
+                onKeyDown: buttonKeys(() => onCardClick(card)),
+              } : {})}
+              style={{
               position:'absolute',bottom:0,left:'50%',
               transform:isSel||isAiSig
                 ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-28}px) rotate(${rot}deg)`
@@ -461,7 +492,14 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                 transform: isSel ? 'translateY(-18px)' : 'translateY(0)',
                 transition:'transform 0.22s cubic-bezier(.34,1.2,.64,1), left 0.3s ease',
                 zIndex: i,
-              }} onClick={()=>{ if(isElig){ playClick(); onCardClick&&onCardClick(card); }}}>
+              }}
+                {...(isElig && onCardClick ? {
+                  role:'button', tabIndex:0,
+                  'aria-pressed': isSel,
+                  'aria-label': `${cardLabel(card)}${isSel ? ', selected' : ''}`,
+                  onKeyDown: buttonKeys(() => { playClick(); onCardClick(card); }),
+                } : {})}
+                onClick={()=>{ if(isElig){ playClick(); onCardClick&&onCardClick(card); }}}>
                 <PlayingCard card={card} size="small" isScrap={true}
                   selectable={isElig} selected={isSel} liftTransform={false}
                   registerEl={registerEl} hidden={hiddenIds.has(card.id)}
