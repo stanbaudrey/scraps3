@@ -1328,6 +1328,55 @@ palette assigns ember to red suits; splash timing still runs backwards
 default on the wordmark, clean text layer, no shine rings, no console
 errors. Not merged to `main`.
 
+**Final round of notes from Stan, then published to production
+(2026-08-26).**
+
+- **Riffle and fan no longer run together.** Hovering drops the riffle;
+  it resumes when the fan is released. The rule needs `!important` and
+  that is load-bearing rather than lazy: each letter's animation is
+  declared **inline** in `backdrop.jsx` because the stagger is
+  per-letter, and an inline declaration outranks a stylesheet rule. The
+  first attempt at this fix silently did nothing for exactly that
+  reason, and it only surfaced because the hover state was measured
+  rather than eyeballed. A 260ms transform transition carries a letter
+  out of a mid-riffle tilt instead of snapping, since the transitions
+  spec counts a running animation as part of the before-change style.
+  One consequence worth knowing: the riffle restarts with its inline
+  delay, so there is roughly a 1.1s beat of stillness after the fan
+  before riffling resumes. It reads as the hand settling.
+- **The Scraps best-hand badge moved beneath the cards.** Stan reported
+  it overlapping the zone border and asked whether it was his display.
+  It was not: measured in a live 260px zone, the badge overflowed past
+  the border by **17px on FULL HOUSE, 52px on FOUR OF A KIND and 61px on
+  THREE OF A KIND**, with HIGH CARD already touching it on one zone. The
+  header put the ownership label and the badge in one row, both
+  `nowrap`. The badge now sits centred under the pile, which is also the
+  relationship `HandUpgradeBadge` already had to the small hand, and
+  every hand name now clears the border by 43px or more.
+- **First log line** now reads `Round N - Opponent dealt. You go first.`
+  Past tense, plain hyphen. The mirrored line for rounds where the
+  player deals was changed to match rather than left in a different
+  tense.
+
+**Published to production.** `dev` fast-forwarded into `main`, nine
+commits, build green in 4s, live at
+[scraps3.vercel.app](https://scraps3.vercel.app) and verified there: six
+riffle animations running, the hover rule present with its `!important`,
+`cursor: default` on the wordmark, clean text layer, the `:focus-visible`
+rule live, no console errors. **No environment variables exist in this
+project and nothing runs on a schedule**, so there was nothing to confirm
+in the production environment beyond the build itself.
+
+The publish-time detector returned 19 findings, all two kinds: 18
+bounce/overshoot easings and one zero-offset voltage glow. Both are this
+game's committed identity — cards that spring when they land, and the
+glow that `theme.js` documents as the interaction language — and all but
+one (the square-up's own overshoot) predate this session. Shipped as-is.
+The fuller `/impeccable critique` was deliberately **not** re-run at
+publish: a full two-agent critique already ran earlier in this same
+session against exactly this surface, all five of its findings were
+fixed, and everything after that was Stan's own picks.
+
 **The 30 subtitle candidates**
 
 *Two hands:* Build two hands at once. · Poker at two speeds. · Two hands
