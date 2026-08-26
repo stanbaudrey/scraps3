@@ -1307,15 +1307,23 @@ project. A running game now has 11.
   Copy now reads "Tap anywhere, or press Enter". Escape closes the rules
   modal; the log toggle is a button with `aria-expanded`.
 
+**HARD now wears ember** (`ff9646f`), closing one of the critique's
+consistency findings: the picker asks you to choose an opponent and drew
+both options in fern, this project's "yours / interactive" token. The
+accent is a per-box `--accent` custom property fed from `theme.js` with
+voltage as the fallback, so the picker CSS no longer hardcodes one colour
+and the boxes differ by something other than their words. Label, border,
+hover glow and arm flash all follow it. Measured live: ember label on the
+panel fill is **8.31:1**, AAA against even the normal-text threshold, at
+54px.
+
 **Still open from the critique, deliberately not done here:** no headings
 on either menu screen; picker copy is in-game jargon for anyone who
-skipped the walkthrough; HARD renders in fern (voltage = "yours") on the
-one screen where you choose an opponent, when ember is the committed
-opponent colour; the suits row is monochrome sage though the palette
-assigns ember to red suits; splash timing still runs backwards (PLAY at
-0.6s, subtitle 0.7s, last letter 1.05s).
+skipped the walkthrough; the suits row is monochrome sage though the
+palette assigns ember to red suits; splash timing still runs backwards
+(PLAY at 0.6s, subtitle 0.7s, last letter 1.05s).
 
-**Preview:** https://scraps3-8zk82ps69-samvaudrey-3466s-projects.vercel.app
+**Preview:** https://scraps3-3en7b34rn-samvaudrey-3466s-projects.vercel.app
 — verified on the deployment: six riffle animations running, cursor
 default on the wordmark, clean text layer, no shine rings, no console
 errors. Not merged to `main`.
