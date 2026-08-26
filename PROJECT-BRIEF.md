@@ -598,7 +598,43 @@ three Ace modals. Worth a look before this goes to preview.
 (Session 3), sound (Session 4), the accessibility/UX audit (Session 5,
 though the menu-`<div>` and contrast issues it flags still apply unchanged
 under the new palette), and font self-hosting (Session 6, now pointed at
-the wrong font names — see above). Not yet pushed to preview or production.
+the wrong font names — see above).
+
+**Addendum, same session — pushed to preview, ran an impeccable audit and
+a dual-agent design critique, fixed what the critique found.** Pushed to
+`dev`, which required a real merge with Session 2's balance-fix push
+(clean on code, one doc conflict in this file, resolved keeping both
+entries). Audit score 10/20 (Acceptable) — driven by the already-tracked
+accessibility/responsive gaps, not new damage. Critique score 30/40
+(Good); full report at
+`.impeccable/critique/2026-08-25T23-30-06Z__scraps-forest-dusk-reskin.md`.
+Four issues came out of it and got fixed, per Stan's call to take all four
+in one pass rather than defer to Session 3/5:
+- The Scraps zone's horizontal overflow was silently clipping a full pile
+  at narrow widths with no way to see the cut-off card — changed
+  `overflowX:'hidden'` to `'auto'` on the table's scroll container
+  (GameScreen.jsx); confirmed live that a 6-card pile now actually
+  overflows-and-scrolls instead of vanishing.
+- `slate` was failing AA contrast against `duskMid`/`duskLight` (3.9:1 /
+  3.3:1, confirmed two independent ways — manual calculation and the
+  critique's live in-DOM detector), lightened to `#98A290` (5.5:1 / 4.6:1,
+  both now pass).
+- The scrollbar was nearly invisible (5px, 27% opacity) — bumped to 8px/
+  55%, plus Firefox `scrollbar-color`, as the general fix for "clipped
+  content gives no cue that scrolling exists."
+- The splash wordmark's gold "A" broke the theme's own "gold means
+  milestone, nothing else" rule — moved to fern per Stan's call.
+
+Left alone per Stan's call: the zero-offset colored glow effects the
+critique's live detector flagged as an unexamined carry-over from the old
+neon palette — kept as-is, judged to still read as confident emphasis
+rather than a mismatch with the new painterly direction.
+
+**Still not done:** the RevealOverlay overflow and Full Scrap/Win/Ace
+modals still haven't been clicked through live in a real playthrough.
+Session 3 and Session 5 still own the full mobile/responsive and
+accessibility passes — this addendum fixed what the critique specifically
+measured, not everything in those sessions' scope.
 
 ### Session 2 — Game balance discussion ✅ Done (2026-08-25)
 
