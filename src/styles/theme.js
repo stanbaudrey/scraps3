@@ -27,9 +27,11 @@
 // depending on background, up from a bare-AA ~3.9-4.5:1. ink-on-fern
 // and ink-on-gold both exceed 9:1.
 //
-// F.display/F.card are Stan's current favorites from the type-specimen
-// review (Baumans / Unbounded) — still provisional, a second round of
-// 10-more-per-role is up for review before this locks in.
+// Type, finalized 2026-08-25 after the specimen review: F.title is
+// the SCRAPS wordmark ONLY (AnimatedTitle) — everything else that
+// used to share F.display (RULES/READY/DIFFICULTY headings, BEGIN
+// ROUND N, win/lose screens, score numbers, hand names) now reads
+// F.display as "headers and subtitles."
 // ============================================================
 
 export const DS = {
@@ -50,8 +52,9 @@ export const DS = {
   canopy:     '#3E5C46',
 };
 export const F = {
-  display: "'Baumans', sans-serif",
-  card:    "'Unbounded', sans-serif",
+  title:   "'Londrina Sketch', sans-serif",
+  display: "'Fjalla One', sans-serif",
+  card:    "'Baloo 2', sans-serif",
   ui:      "'Work Sans', sans-serif",
   mono:    "'IBM Plex Mono', monospace",
 };

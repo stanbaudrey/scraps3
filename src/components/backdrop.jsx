@@ -32,7 +32,7 @@ export function AnimatedTitle() {
   return (
     <div style={{display:'flex',justifyContent:'center',gap:4,marginBottom:12}}>
       {'SCRAPS'.split('').map((l,i)=>(
-        <span key={i} style={{fontFamily:F.display,fontWeight:700,
+        <span key={i} style={{fontFamily:F.title,
           fontSize:'clamp(80px,17vw,148px)',lineHeight:1,
           display:'inline-block',color:l==='A'?DS.voltage:DS.frost,
           textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,

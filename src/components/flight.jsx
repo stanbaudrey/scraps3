@@ -68,12 +68,12 @@ export function FlyingCard({ card, fromRect, toRect, toIsScrap=false, onDone, ar
       boxShadow:'0 12px 40px rgba(0,0,0,.7)', transition:'none',
     }}>
       {faceDown?(
-        <span style={{fontFamily:"'Baumans',sans-serif",fontWeight:700,fontSize:30,
+        <span style={{fontFamily:"'Fjalla One',sans-serif",fontWeight:700,fontSize:30,
           color:DS.frost,opacity:0.12,letterSpacing:'0.1em'}}>S</span>
       ):card&&(
         <div style={{display:'flex',alignItems:'center',gap:1}}>
-          <span style={{fontFamily:"'Unbounded',sans-serif",fontWeight:700,fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
-          <span style={{fontFamily:"'Unbounded',sans-serif",fontWeight:700,fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
+          <span style={{fontFamily:"'Baloo 2',sans-serif",fontWeight:700,fontSize:rk,color:ink,lineHeight:1}}>{card.rank}</span>
+          <span style={{fontFamily:"'Baloo 2',sans-serif",fontWeight:700,fontSize:rk+2,color:ink,lineHeight:1,marginTop:-2}}>{card.suit}</span>
         </div>
       )}
     </div>

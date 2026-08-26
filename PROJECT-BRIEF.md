@@ -709,19 +709,30 @@ actually fine.
 ### Session 3 — Mobile and responsive QA
 **Goal:** SCRAPS is genuinely playable on a phone, not just non-broken.
 **Bring:** this brief (Section 6), Session 1's preview.
+**Updated bar (2026-08-25):** Stan tightened this from "responsive" to
+strict — everything must fit inside the viewport on desktop and mobile
+alike, with no scrolling ever. That's a harder constraint than Session 1's
+interim fix (which still allows a small scroll at short viewport heights)
+and than the horizontal-scroll fallback added on the Scraps pile during
+the forest-reskin critique pass — both of those were deliberately
+temporary safety nets, not the final answer, and this session should
+replace them with a real reactive layout that never needs to scroll.
 **Opening prompt:**
-> Read PROJECT-BRIEF.md, especially the Mobile QA part of Section 6. Make
-> the layout responsive at phone and tablet widths, not just "not clipped"
-> — the card fan, Scraps pile, and HUD all need to stay legible and usable
-> around 375px wide. Size touch targets for a finger, not a cursor,
-> including the `.menu-opt`/`.diff-opt` elements. Make sure whatever the
-> card-move interaction currently is works by touch, since there's no hover
-> state on a phone. Test in the resizable device toolbar first, then flag
-> anything you want me to check on an actual phone before we call this
-> done.
-**Done when:** the full game is playable start to finish on a real phone,
-touch targets are appropriately sized, and nothing depends on a hover state
-that doesn't exist on touch.
+> Read PROJECT-BRIEF.md, especially the Mobile QA part of Section 6 and
+> the note above it. Build a genuinely reactive layout — the whole game
+> must fit inside the viewport on both desktop and mobile with no
+> scrolling, ever, replacing the interim scroll fallbacks from Sessions 1
+> and the forest-reskin pass. The card fan, Scraps pile, and HUD all need
+> to stay legible and usable down to ~375px wide. Size touch targets for a
+> finger, not a cursor, including the `.menu-opt`/`.diff-opt` elements.
+> Make sure whatever the card-move interaction currently is works by
+> touch, since there's no hover state on a phone. Test in the resizable
+> device toolbar first, then flag anything you want me to check on an
+> actual phone before we call this done.
+**Done when:** the full game is playable start to finish on a real phone
+and on desktop with zero scrolling anywhere, touch targets are
+appropriately sized, and nothing depends on a hover state that doesn't
+exist on touch.
 
 ### Session 4 — Sound identity
 **Goal:** SCRAPS has one cohesive, recognizable sound, not ten disconnected
@@ -804,6 +815,54 @@ crawlers, and goes live on the agreed schedule.
 a cold mobile smoke test, the monthly check is running, and the friends +
 Show HN posts are live using the drafted copy.
 
+### Session 8 — Animation and interaction precision
+Added 2026-08-25, from feedback on the forest-reskin pass. Three related
+but distinct problems, all about motion and turn choreography rather than
+color or layout — deliberately not rushed into the same pass that did the
+color/type/contrast work, so each gets a real build-and-verify cycle
+instead of a guess.
+
+**Goal:** every card's motion is accurate and trackable, your turn and the
+opponent's turn never visually overlap, and the Ace mechanic reads as an
+optional weapon tied to a specific card rather than the obvious next move.
+
+**The three problems, in Stan's words:**
+1. **Motion paths are wrong.** Cards depart from locations that don't
+   match where they were actually selected or toggled. Cards moving from
+   the deck fade out and then just *appear* in the hand instead of
+   following one consistent, trackable path from deck to hand.
+2. **Turns overlap.** The opponent's cards sometimes start moving while
+   the player's own cards are still mid-animation — no turn's animation
+   should start until the previous one has actually finished.
+3. **Play Ace is too prominent.** It currently sits in the main action
+   button row, which makes an optional, situational move read as the
+   expected next action. Stan's own recommendation: move the button to
+   float above the Ace's specific card in the hand, so it's visually tied
+   to that one card, and have it wiggle in sync with the Ace's existing
+   wiggle animation rather than sitting in the button row at all.
+
+**Bring:** this brief, `src/components/flight.jsx` (the flight/motion
+system), `src/screens/GameScreen.jsx` (turn choreography and the current
+Play Ace button), `src/components/cards.jsx` (the existing wiggle
+animation on cards).
+**Opening prompt:**
+> Read PROJECT-BRIEF.md, Session 8. Fix three related motion/interaction
+> problems: (1) every card's flight path should start from its actual
+> real position (where it was selected/toggled) and end at its actual
+> real destination — no fade-out-then-appear, one consistent trackable
+> path per card, including deck-to-hand draws. (2) Sequence turn
+> animations strictly — the opponent's turn must not begin animating
+> until the player's turn has fully finished, and vice versa. (3) Move the
+> Play Ace button out of the main action row: have it float above the
+> specific Ace card in the player's hand and wiggle in sync with that
+> card's existing wiggle animation, so it reads as tied to that one card
+> rather than a default next step. Verify all three live in the browser,
+> not just in code — motion bugs are easy to miscall from reading the
+> animation math alone.
+**Done when:** every card's motion path is visibly accurate and
+consistent card-to-card, no turn's animation ever overlaps the other
+player's, and Play Ace only appears attached to an actual Ace in hand.
+
 ---
 
 ## Session tracker
@@ -818,3 +877,4 @@ Show HN posts are live using the drafted copy.
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
+| 8 | Animation and interaction precision | Not started |
