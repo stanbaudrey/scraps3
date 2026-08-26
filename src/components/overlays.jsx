@@ -356,6 +356,105 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// TransferHintArrow — first-time-per-game nudge shown the first
+// time the player can move cards from hand to Scraps. A sketchy,
+// hand-drawn-looking curve (SVG turbulence displacement, not a
+// clean bezier) from the right half of the hand to the Scraps
+// pile. Tracks the two zones' live positions via refs so it holds
+// up under window resizes and layout shifts, and fades in without
+// claiming a new accent color — it borrows voltage, the palette's
+// existing "yours / active" token.
+// ─────────────────────────────────────────────────────────────
+export function TransferHintArrow({ fromRef, toRef }) {
+  const [pts, setPts] = useState(null);
+  const lastPts = useRef(null);
+  useEffect(() => {
+    function measure() {
+      const f = fromRef.current, t = toRef.current;
+      if (!f || !t) return;
+      const fr = f.getBoundingClientRect();
+      const tr = t.getBoundingClientRect();
+      const next = {
+        x1: fr.left + fr.width * 0.64, y1: fr.top + fr.height * 0.32,
+        x2: tr.left + tr.width * 0.2,  y2: tr.top + tr.height * 0.45,
+      };
+      const last = lastPts.current;
+      if (last && last.x1===next.x1 && last.y1===next.y1 && last.x2===next.x2 && last.y2===next.y2) return;
+      lastPts.current = next;
+      setPts(next);
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    const id = setInterval(measure, 400);
+    return () => { window.removeEventListener('resize', measure); clearInterval(id); };
+  }, [fromRef, toRef]);
+  if (!pts) return null;
+  const { x1, y1, x2, y2 } = pts;
+  const cx = (x1 + x2) / 2, cy = Math.min(y1, y2) - 70;
+  const angle = Math.atan2(y2 - cy, x2 - cx) * 180 / Math.PI;
+  return (
+    <svg style={{position:'fixed',inset:0,width:'100vw',height:'100vh',
+      pointerEvents:'none',zIndex:40,animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1)'}}>
+      <defs>
+        <filter id="sketchWobble" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.015 0.05" numOctaves="2" seed="7" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="7"/>
+        </filter>
+      </defs>
+      <path d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`} fill="none"
+        stroke={DS.voltage} strokeWidth="4.5" strokeLinecap="round"
+        filter="url(#sketchWobble)" opacity="0.92"
+        style={{animation:'pulse 1.6s ease-in-out infinite'}}/>
+      <g transform={`translate(${x2},${y2}) rotate(${angle})`} filter="url(#sketchWobble)">
+        <path d="M -16 -10 L 5 0 L -16 10" fill="none" stroke={DS.voltage}
+          strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </g>
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// AceDrawnLightbox — first-time-per-game tip shown the moment an
+// Ace lands in the player's hand. The Ace and the Play Ace button
+// wiggle on the same animation so they read as dancing in sync.
+// ─────────────────────────────────────────────────────────────
+export function AceDrawnLightbox({ ace, onDismiss }) {
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:95,background:'rgba(20,31,25,.92)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
+        borderRadius:16,padding:32,maxWidth:480,width:'100%',textAlign:'center',
+        boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
+        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.gold,
+          letterSpacing:'0.06em',marginBottom:22}}>You've drawn an Ace!</div>
+        <div style={{display:'flex',justifyContent:'center',marginBottom:26}}>
+          {ace && <PlayingCard card={ace} size="large" wiggle/>}
+        </div>
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:10}}>
+          On your turn, you can play your Ace and select two cards to remove
+          from your opponent's Scraps pile. If your opponent has an Ace, they
+          can "counter," causing both Aces to be discarded and your turn to end.
+        </p>
+        <p style={{fontFamily:F.mono,color:DS.slate,fontSize:14,marginBottom:28}}>
+          When transferred to your Scraps pile, an Ace is worth three cards.
+        </p>
+        <button onClick={onDismiss} style={{
+          background:DS.gold,color:DS.ink,border:'none',
+          padding:'16px 40px',borderRadius:10,cursor:'pointer',
+          fontFamily:F.ui,fontWeight:700,fontSize:18,
+          letterSpacing:'0.08em',textTransform:'uppercase',
+          boxShadow:`0 0 24px ${DS.gold}88`,
+          display:'inline-flex',alignItems:'center',gap:8,
+          animation:'cardWiggle 0.5s ease-in-out infinite alternate',
+        }}>
+          Play Ace <IconBolt size={18}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // AceCounterModal — prompt player to counter opponent's ace
 // ─────────────────────────────────────────────────────────────
 export function AceCounterModal({ onCounter, onAllow, playerScraps }) {

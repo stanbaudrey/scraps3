@@ -33,7 +33,7 @@ import { recordGame } from "../game/stats.js";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
   AceCounterModal, RulesModal, TutorialOverlay, SkipTurnModal,
-  OpponentAceReveal, AiCounterNotice,
+  OpponentAceReveal, AiCounterNotice, TransferHintArrow, AceDrawnLightbox,
 } from "../components/overlays.jsx";
 
 export function GameScreen({ mode, difficulty, onExit }) {
@@ -74,6 +74,15 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
   const tradeErrorTimer = useRef(null);
+
+  // First-time-per-game hints (regular play only — the tutorial
+  // already scripts its own explanation of both of these).
+  const [showTransferHint, setShowTransferHint] = useState(false);
+  const transferHintShownRef = useRef(false);
+  const [aceDrawnCard, setAceDrawnCard]         = useState(null);
+  const aceHintShownRef = useRef(false);
+  const [roundEndPulse, setRoundEndPulse]       = useState(false);
+  const prevPhaseRef = useRef(phase);
 
   // Refs for card travel animation zones
   const playerHandRef    = useRef(null);
@@ -213,6 +222,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
   // ── Card selection ─────────────────────────────────────────
   function toggleHandCard(card) {
     playClick();
+    if (showTransferHint) setShowTransferHint(false);
     setSelected(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : [...prev, card]);
   }
   function toggleScrapsDiscardCard(card) {
@@ -706,6 +716,35 @@ export function GameScreen({ mode, difficulty, onExit }) {
   const forcedAce = noLegalTrade && playerHasAce && aiScraps.length >= 2;
   const mustSkip  = noLegalTrade && !forcedAce && !pendingAiAce;
 
+  // ── First-time-per-game hints (regular play only) ───────────
+  useEffect(() => {
+    if (mode === 'tutorial' || transferHintShownRef.current) return;
+    if (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !showInterstitial) {
+      transferHintShownRef.current = true;
+      setShowTransferHint(true);
+    }
+  }, [isPlayerTurn, aceMode, isScrapsDiscardMode, pendingAiAce, showInterstitial, mode]);
+  useEffect(() => {
+    if (showTransferHint && !isPlayerTurn) setShowTransferHint(false);
+  }, [isPlayerTurn]);
+
+  useEffect(() => {
+    if (mode === 'tutorial' || aceHintShownRef.current) return;
+    if (showInterstitial || pendingAiAce || aiAceReveal || aceMode) return;
+    if (playerHasAce) {
+      aceHintShownRef.current = true;
+      setAceDrawnCard(playerHand.find(c => c.rank === 'A'));
+    }
+  }, [playerHasAce, mode, showInterstitial, pendingAiAce, aiAceReveal, aceMode]);
+
+  useEffect(() => {
+    if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
+      setRoundEndPulse(true);
+      setTimeout(() => setRoundEndPulse(false), 1500);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
   let hint = '';
   if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
   else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
@@ -714,8 +753,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
   else if (forcedAce) hint = 'Due to the 7-card hand limit, your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
     hint = playerHasAce && aiScraps.length >= 2
-      ? 'Select cards to transfer from your small hand to your Scraps pile. Or play an Ace.'
-      : 'Select cards to transfer from your small hand to your Scraps pile.';
+      ? 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards. Or play an Ace.'
+      : 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
   else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Toggle the cards you want to play — must be a valid poker hand. Hit SIGNAL.`;
@@ -751,7 +790,7 @@ export function GameScreen({ mode, difficulty, onExit }) {
     <div style={{height:'100vh',display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'auto'}}>
       <ScoreCorners playerScore={playerScore} aiScore={aiScore}
-        playerFlash={playerScoreFlash} aiFlash={aiScoreFlash}
+        playerFlash={playerScoreFlash} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
         difficultyLabel={mode==='tutorial'?'TUTORIAL':(difficulty||'').toUpperCase()}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
@@ -1007,6 +1046,8 @@ export function GameScreen({ mode, difficulty, onExit }) {
       {mustSkip&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
         <SkipTurnModal onOk={()=>dispatch({type:'PLAYER_SKIP'})}/>
       )}
+      {showTransferHint&&<TransferHintArrow fromRef={playerHandRef} toRef={playerScrapsRef}/>}
+      {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}
     </div>
   );
 }

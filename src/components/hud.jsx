@@ -56,7 +56,7 @@ export function RoundProgressIndicator({ phase }) {
 // the win condition + the difficulty label. Round state is NOT
 // repeated here (it lives in the strip above opponent Scraps).
 // ─────────────────────────────────────────────────────────────
-export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, difficultyLabel }) {
+export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, difficultyLabel, roundEndPulse }) {
   return (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
       padding:'8px 22px 4px',background:DS.dusk,
@@ -65,7 +65,9 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
         <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>YOU</span>
         <span style={{
           fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.voltage,lineHeight:0.95,
-          animation:playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
+            :playerFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          textShadow:roundEndPulse?'0 0 30px currentColor':'none',
           display:'inline-block',
         }}>{playerScore}</span>
       </div>
@@ -83,7 +85,9 @@ export function ScoreCorners({ playerScore, aiScore, playerFlash, aiFlash, diffi
         <span style={{fontFamily:F.ui,fontSize:22,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>OPP</span>
         <span style={{
           fontFamily:F.display,fontWeight:700,fontSize:96,color:DS.ember,lineHeight:0.95,
-          animation:aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          animation:roundEndPulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
+            :aiFlash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
+          textShadow:roundEndPulse?'0 0 30px currentColor':'none',
           display:'inline-block',
         }}>{aiScore}</span>
       </div>

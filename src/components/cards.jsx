@@ -74,7 +74,7 @@ export function CardBackSVG({ w, h }) {
 // ─────────────────────────────────────────────────────────────
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
   selectable=false, dimmed=false, onClick, size='normal',
-  extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false }) {
+  extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true }) {
 
   const dims={
     tiny:  {w:60, h:84,  rank:23,suit:24,pad:5},
@@ -112,7 +112,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
       width:d.w,height:d.h,borderRadius:12,
       background:faceDown?'transparent':bg,
       border,boxShadow:shadow,
-      transform:selected?'translateY(-22px) scale(1.07)':'none',
+      transform:selected?(liftTransform?'translateY(-22px) scale(1.07)':'none'):'none',
       transition:'transform 0.44s cubic-bezier(.34,1.4,.64,1),box-shadow 0.4s,border-color 0.3s,opacity 0.6s',
       opacity:fading?0:fadingIn?0.15:dimmed?.28:1,
       animation:fadingIn?'cardFadeIn 0.5s ease forwards':animName?`${animName} 0.5s ease-in-out infinite alternate`:undefined,
@@ -198,7 +198,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
               animation: waveIds.has(card.id) ? 'waveUp 0.4s ease' : undefined,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
               <PlayingCard card={card} faceDown={faceDown} isScrap={false}
-                selected={isSel} selectable={selectable&&!faceDown}
+                selected={isSel} selectable={selectable&&!faceDown} liftTransform={false}
                 fadingIn={fadingInIds&&fadingInIds.has(card.id)}
                 wiggle={wiggleIds.has(card.id)||(activeWiggle&&!isSel&&!faceDown)}
                 shake={shakeIds.has(card.id)}
