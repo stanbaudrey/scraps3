@@ -11,9 +11,10 @@ duplicates).
 **Read this brief at the start of every session on this project**, alongside
 CLAUDE.md. When a session finishes, mark it done in the table at the bottom.
 
-There is no Notion mirror of this brief — the Notion connector isn't
-authorized in this environment, so Part 6 of kickoff was skipped. If Stan
-connects Notion later, this file is still the source of truth.
+Notion **is** connected (the note here previously said it wasn't — that
+was stale from kickoff). A project mirror lives there under **SCRAPS** and
+is updated at the end of each session. This file remains the source of
+truth; Notion is a summary of it, not a second copy to reconcile.
 
 ---
 
@@ -820,6 +821,11 @@ has its own sound, and a full playthrough doesn't produce anything jarring
 or repetitive.
 
 ### Session 5 — Design and UX audit
+**Note (2026-08-26):** the unplanned onboarding session below already did a
+first-time-player *rules-legibility* audit and implemented all ten of its
+findings. This session's scope is unchanged and still worth running — but
+it covers balance, negative space, focus, the motion inventory and
+accessibility, and should not re-open the copy that pass settled.
 **Goal:** the game reads clearly at a glance and follows real UI/UX
 practice, not just "looks fine."
 **Bring:** this brief (Section 6).
@@ -881,6 +887,69 @@ crawlers, and goes live on the agreed schedule.
 a cold mobile smoke test, the monthly check is running, and the friends +
 Show HN posts are live using the drafted copy.
 
+### Unplanned session — Onboarding rebuild and rules clarity ✅ Done (2026-08-26)
+Requested directly by Stan, between Session 2 and Session 8, and done in
+the same sitting as Session 8.
+
+**Notes:** cut both onboarding paths that existed. The six-panel RULES
+wall asked a first-timer to read six dense sentences before they had ever
+seen a table, and the scripted TUTORIAL HAND rigged a deal to force one
+lesson (the Ace play) at the cost of ~140 lines of script plus
+`mode === 'tutorial'` branches threaded through the game screen and the
+dealer. `src/game/tutorial.js` is deleted; `buildRoundDeal()` now takes no
+arguments and always deals a straight round.
+
+In their place, a four-beat storyboard between PLAY and the difficulty
+picker (`src/screens/Walkthrough.jsx`): the two hands that are always
+running, what each rank is worth to trade in, the Ace strike as a still
+frame of the two taps it takes, and how a round scores. Tapping anywhere
+advances, SKIP is pinned to the viewport on every beat, and it plays once
+per browser session (`sessionStorage`), so NEW GAME off the win/lose
+screen goes straight to the picker. Deliberately unanimated at Stan's
+direction: beats swap instantly and the only motion is a slow lean on the
+cards each sentence names, so there is nothing to sit through and no way
+to out-click the screen.
+
+The difficulty picker is two boxes and nothing else. It is inert for
+**720ms** after mount, not the 250ms Stan suggested: 250ms is shorter than
+a double-click interval, so a speed-tapper's second click would still land
+on a difficulty. The panels unfold from a hairline and the borders snap to
+voltage and pulse once when input opens, so the lock reads as deliberate
+rather than broken.
+
+**Then a first-time-player clarity audit of the live game, and all ten
+findings implemented.** The recurring theme was rules the engine enforced
+but never stated:
+- `isValidSignal` accepts exactly one shape per count (1 any card, 2 a
+  pair, 3 trips, 4 two pair or quads, 5 a straight or better) and nothing
+  on screen said so — an unmatched pair of cards got a disabled button and
+  no reason. `engine.getValidSignals` already computed that set against
+  the live hand and **had no UI caller at all**; it now drives a legality
+  strip in the action zone with impossible shapes struck through.
+- The trade button read `Trade In (2)` where 2 was cards *selected*, which
+  collided head-on with the rule the walkthrough had just taught (a 10-K
+  draws 2, an Ace draws 3) and was routinely read as "draw 2". Now
+  `TRADE 2 → DRAW 4`, and `HAND WOULD BE 10/7` in ember *before* the click
+  when the draw breaks the limit.
+- `HorizontalScrapsZone` treated every card as clickable whenever the zone
+  was selectable, while `GameScreen`'s handler silently dropped cards with
+  `eligibleForDiscard` false. The two disagreed, so a locked card looked
+  live and did nothing on click. The flag decides both now.
+- Play Ace vanished when the opponent's Scraps held fewer than two cards,
+  so holding an unusable Ace looked like a bug; the counter modal never
+  said that countering spends your Ace either way; the no-legal-trades
+  modal only restated itself; the round strip named the three hands
+  without naming the stakes; the log was a truncated line behind a small
+  chevron that most players would never discover.
+
+Also corrected `WIN_SCORE`: CLAUDE.md still said "First to 11" after the
+score changed to 10.
+
+**Overlap note for Session 5:** this was a *rules-legibility* audit, not
+Session 5's pass. Session 5 (balance, negative space, focus, motion
+inventory, accessibility, menu `<div>`s → real buttons) is still untouched
+and still worth running — but it should not re-litigate the copy above.
+
 ### Session 8 — Animation and interaction precision ✅ Done (2026-08-26)
 Added 2026-08-25, from feedback on the forest-reskin pass. Three related
 but distinct problems, all about motion and turn choreography rather than
@@ -891,6 +960,73 @@ instead of a guess.
 **Goal:** every card's motion is accurate and trackable, your turn and the
 opponent's turn never visually overlap, and the Ace mechanic reads as an
 optional weapon tied to a specific card rather than the obvious next move.
+
+**Notes:** all three problems were real and two shared a single root
+cause: nothing in the old system ever measured anything.
+
+`flight.jsx` computed both ends of every flight by hand — "the hand is
+centred, so card *i* must be at handCenter + i*200" — and the reducer
+removed the real card from state *before* the ghost launched. Neither end
+matched where the card actually was, so a card vanished from one place, a
+lookalike flew a roughly-plausible path, and a card faded in somewhere
+else. It is FLIP now: read each card's real `getBoundingClientRect`,
+commit the whole state change at once, read the destination in a layout
+effect, and hand that box to a ghost while the real card sits hidden
+(`visibility`, never `display` — the fan's layout has to survive). Both
+ends are measured, so no path can be wrong by construction.
+
+One contributing bug **predated this session** and is worth remembering:
+the flight overlay was a `useCallback` component rendered as
+`<FlightsOverlay/>`. Its function identity changed on every render, so
+React saw a new component type and unmounted/remounted every card in
+flight, restarting its animation from zero whenever anything else moved.
+That alone would make motion stutter and hang. It returns an element now.
+A second ordering bug surfaced during the rebuild: cards registered their
+DOM node in a passive effect, but a card moving hand → Scraps unmounts
+under one parent and mounts under another, so it was not in the registry
+when the destination was measured. Registration is a layout effect now,
+and unregistering passes its node so a late cleanup from the old mount
+cannot delete the new mount's entry.
+
+Turn overlap is fixed by two deliberately separate effects: a gate that
+waits for `animating` to clear and sets `aiGo`, and a runner that depends
+only on `aiGo`. They cannot be combined — the AI's own cards set
+`animating`, so a single effect would re-run mid-turn and cancel the
+opponent's move halfway through. Measured live: the opponent's first card
+moves 1520ms after the player's last one lands. Because state commits up
+front, **skipping is safe at any instant** — a click anywhere, Enter or
+Space drops the ghosts onto a board that is already correct. Stan asked
+for skip; the phase also flips to the opponent the moment a trade commits,
+so the table now derives `settling` and keeps reading as your turn until
+your cards land, with that narrator line carrying the skip hint (it is
+otherwise undiscoverable).
+
+Play Ace moved out of the action row onto its own Ace: one card wide,
+PLAY over ACE, sharing a wiggle wrapper with the card so the two lean as
+one object. A hand can hold two Aces, so ace mode tracks *which* card is
+spent, and each tag is only as wide as its card's share of the fan —
+at full card width two adjacent Aces overlapped their tags.
+
+**Three layout fixes Stan raised in the same pass:** toggled Scraps cards
+lift straight up and keep their place in the stack (they used to jump to
+the top of the z-order and cover their neighbours); the scores split by
+ownership — opponent top-left, yours bottom-right, match conditions at the
+right edge — so all of a player's information sits on their own side of
+the table; and an animating score lifts above both bars, because the
+round-end pop scales to 1.9x and was being painted over by the table in
+front of it.
+
+Verified in the browser rather than from the animation math: flight paths
+traced frame by frame from real fan positions to the real Scraps pile,
+skip by click and by Enter both dropping 4 ghosts to 0 with the board
+correct, and a full game played to a win including a Scraps-overflow
+discard and an Ace strike (two struck cards and the spent Ace all reaching
+the discard pile). Net chrome height is 33px *smaller* than before, which
+gives a little back on short screens. 37 tests pass.
+
+**Left in deliberately:** `data-card-id` on every card and
+`data-flight`/`data-face` on every ghost. They are what made frame-by-frame
+verification possible and cost nothing.
 
 **The three problems, in Stan's words:**
 1. **Motion paths are wrong.** Cards depart from locations that don't
@@ -943,4 +1079,5 @@ player's, and Play Ace only appears attached to an actual Ace in hand.
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
+| — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
