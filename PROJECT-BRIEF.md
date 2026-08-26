@@ -1377,6 +1377,44 @@ publish: a full two-agent critique already ran earlier in this same
 session against exactly this surface, all five of its findings were
 fixed, and everything after that was Stan's own picks.
 
+**Session closed (2026-08-26).** Two process edits were proposed in the
+publish retro and approved by Stan, then made:
+
+- **`~/.claude/skills/build-next/SKILL.md`** now opens with a checkout
+  currency check: `git fetch`, then `git log --oneline HEAD..origin/main`
+  and the same against `origin/dev`, before reading anything. It also
+  gains a note in the reconcile step that a stale checkout is the first
+  thing to rule out when Notion and the brief disagree, because Notion is
+  edited in a browser and is always current while the brief is only as
+  fresh as the last pull. That inverts the usual "the repo is the source
+  of truth" instinct, which is exactly why it cost this session time.
+- **`~/.claude/CLAUDE.md`**'s browser-measurement rule gained the two
+  hidden-pane failures this session kept hitting: `requestAnimationFrame`
+  and `animationstart`/`animationend` never fire, so anything that sizes
+  itself in a rAF callback silently never runs and an animation looks
+  dead when it is merely eventless; and two JS round-trips are slower
+  than most animations, so sampling a class before-and-after across two
+  tool calls misses the whole thing and reads as a broken trigger. Plus
+  a note that `currentTime` advances in bursts, so pane timing is
+  unreliable even once an animation is confirmed running.
+
+**Worth knowing for the next session that touches layout:** CLAUDE.md now
+documents Stan's display setup, and one line of it matters for this
+project specifically. His Mac runs the "Larger Text" resolution preset,
+roughly 1024x662 logical points, so a maximized browser on his screen is
+about **tablet width** in CSS pixels. He lands on tablet breakpoints
+while other desktop users land on desktop ones. The Scraps badge overflow
+he reported was real and measured independently at a 1280 viewport, but
+his narrower window would have made it worse, not imagined. The table's
+known clipping issue (Session 3) deserves re-measuring at ~1024x662
+rather than at 1280.
+
+**Final state at close:** everything is committed and pushed, `main` and
+`dev` both at `b4f0928` and even with each other. 37 tests pass, the
+production build succeeds, and production is verified live. The dev
+server and browser tabs opened during this session were stopped at close;
+no background process was left running.
+
 **The 30 subtitle candidates**
 
 *Two hands:* Build two hands at once. · Poker at two speeds. · Two hands
