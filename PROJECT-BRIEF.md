@@ -1145,6 +1145,29 @@ file) are still uncommitted and were left alone.
 **Never heard by Claude.** Every claim above is numerical.
 
 ### Session 5 — Design and UX audit
+
+**Do this first (2026-08-26): install the impeccable detector's HTML parser.**
+This session is the first heavily *visual* pass since the problem was found,
+and the detector cannot see CSS without it. `htmlparser2`, `css-select`,
+`css-tree` and `domutils` do not resolve from
+`~/.claude/skills/impeccable/node_modules`, so contrast, custom-property and
+selector-matching checks **do not run at all** — and no `DEGRADED` banner
+prints, which is the dangerous part: a clean result is indistinguishable
+from a real one. That means every "detector found nothing" in this brief
+since the problem began is a *partial* pass on anything CSS-related, not a
+clean bill of health. They must live next to the detector; installing them
+into a project does nothing. Stan agreed to have this in place before this
+session runs.
+
+A contrast audit run through a blind detector is the exact failure this
+session exists to prevent, so confirm the parser is live before trusting a
+single contrast number — and note that this session's brief already says
+not to eyeball contrast but to compute it.
+
+**Also expected by then:** Stan will have committed the four outstanding
+files in `~/.claude` (`kickoff`, `publish`, `wrap`, and an EGOT memory
+file) that this session left alone.
+
 **Note (2026-08-26):** the unplanned onboarding session below already did a
 first-time-player *rules-legibility* audit and implemented all ten of its
 findings. This session's scope is unchanged and still worth running — but
