@@ -1113,14 +1113,16 @@ present, and every old cue name (`playWhoosh`, `playGrandFanfare`,
 and none in `audio.js`** — this game's committed identity, shipped as-is,
 consistent with the previous publish. The fuller `/impeccable critique` was
 deliberately not run: this push changes sound and motion, not a screen,
-a component or a layout. **Caveat worth carrying forward:** the detector's
-four HTML-parser modules (`htmlparser2`, `css-select`, `css-tree`,
-`domutils`) do not resolve from
-`~/.claude/skills/impeccable/node_modules`, so contrast and
-custom-property checks did not run — and **no DEGRADED banner printed**,
-which is the dangerous part, because a clean result looks identical to a
-real one. Installing them into a project does nothing; they have to live
-next to the detector.
+a component or a layout. **A caveat recorded here earlier was WRONG and is
+withdrawn.** It claimed the detector's four parser modules did not resolve
+and that contrast checks had silently not run. They do resolve, from
+`~/.claude/node_modules`, which is where the end-of-brief section already
+said they were installed. The bad check was `require.resolve(m, { paths:
+[...] })`, which does not reproduce Node's real upward walk — `createRequire`
+from `detect.mjs` itself resolves all four. The missing `DEGRADED` banner was
+the detector being honest, not silent. **This session's detector results are
+sound**, and the lesson is about the test, not the tool: verify a
+module-resolution claim from the file that actually does the importing.
 
 **Two process edits came out of this session's retro and were approved**
 (committed to `~/.claude`, which is a local-only git repo with no remote,
@@ -1146,27 +1148,22 @@ file) are still uncommitted and were left alone.
 
 ### Session 5 — Design and UX audit
 
-**Do this first (2026-08-26): install the impeccable detector's HTML parser.**
-This session is the first heavily *visual* pass since the problem was found,
-and the detector cannot see CSS without it. `htmlparser2`, `css-select`,
-`css-tree` and `domutils` do not resolve from
-`~/.claude/skills/impeccable/node_modules`, so contrast, custom-property and
-selector-matching checks **do not run at all** — and no `DEGRADED` banner
-prints, which is the dangerous part: a clean result is indistinguishable
-from a real one. That means every "detector found nothing" in this brief
-since the problem began is a *partial* pass on anything CSS-related, not a
-clean bill of health. They must live next to the detector; installing them
-into a project does nothing. Stan agreed to have this in place before this
-session runs.
+**Correction (2026-08-26, later the same day): the detector is NOT
+degraded, and an earlier note in this session claiming it was has been
+withdrawn.** All four parser modules — `htmlparser2`, `css-select`,
+`css-tree`, `domutils` — resolve correctly from the detector's own file, at
+`~/.claude/node_modules`, exactly where the "Fixed 2026-08-26" section at
+the end of this brief says they were installed. The bad check was a
+`require.resolve(m, { paths: [...] })` call, which does not reproduce Node's
+real upward walk; `createRequire` from `detect.mjs` itself resolves all four.
+The absence of a `DEGRADED` banner in this session's runs was the detector
+telling the truth. **So the publish-time detector results recorded in this
+session are sound**, and no parser install is needed before Session 5.
 
-A contrast audit run through a blind detector is the exact failure this
-session exists to prevent, so confirm the parser is live before trusting a
-single contrast number — and note that this session's brief already says
-not to eyeball contrast but to compute it.
-
-**Also expected by then:** Stan will have committed the four outstanding
-files in `~/.claude` (`kickoff`, `publish`, `wrap`, and an EGOT memory
-file) that this session left alone.
+**What IS still outstanding for this session, from that same end-of-brief
+section:** the 20 full-strength findings have been *counted, not triaged*.
+Nobody has decided which are real and which are false positives. That
+triage belongs here, in the visual pass.
 
 **Note (2026-08-26):** the unplanned onboarding session below already did a
 first-time-player *rules-legibility* audit and implemented all ten of its
