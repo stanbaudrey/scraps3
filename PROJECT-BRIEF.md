@@ -1122,6 +1122,26 @@ which is the dangerous part, because a clean result looks identical to a
 real one. Installing them into a project does nothing; they have to live
 next to the detector.
 
+**Two process edits came out of this session's retro and were approved**
+(committed to `~/.claude`, which is a local-only git repo with no remote,
+so the commit is the whole of it):
+
+- **`/preview` now fetches and checks the checkout before reading the
+  diff.** `/build-next` already did, but most work never arrives through
+  `/build-next` — it arrives as a direct request, and `/preview` is where
+  that work first touches git, which makes it the real catch point. Three
+  consecutive sessions on this project opened stale.
+- **`/build-next` gained a verification note: when a session ports values
+  out of a design tool, measure the shipped code rather than trusting the
+  export.** Written from this session's nine-of-thirteen miss.
+
+That commit also carried an *unrelated* uncommitted change that was already
+sitting in the working tree — a section 4b in `/build-next` from an earlier
+EGOT session ("effectively done is not a status"). Git commits whole files,
+so it could not be separated; it is called out in the commit message. Four
+more files in `~/.claude` (`kickoff`, `publish`, `wrap`, and an EGOT memory
+file) are still uncommitted and were left alone.
+
 **Never heard by Claude.** Every claim above is numerical.
 
 ### Session 5 — Design and UX audit
