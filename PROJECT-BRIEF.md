@@ -2155,6 +2155,15 @@ geometry inside a single JS call stays consistent, so measuring two
 points in the same call is reliable; comparing across calls is not. The
 old `tools/responsive-qa.mjs` Playwright path is no longer available —
 Playwright is not installed globally on this machine any more.
+**Corrected 2026-08-27: that is true of the Playwright CLI and false of
+the Playwright MCP server**, which drives its own real browser where
+timers fire and screenshots come back whole. The whole of Session 5's
+audit ran through it — splash → storyboard → picker → a full turn, the
+focus trap, the reduced-motion measurement — and none of it was walkable
+in the in-app pane, whose suspended `setTimeout` stalls at the picker's
+720ms arm lock. Reach for the MCP server before concluding a flow cannot
+be driven. `responsive-qa.mjs` itself still needs the CLI and still
+cannot run.
 
 **2. The Foley Bench — Session 4's exploration half**
 
