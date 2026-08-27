@@ -1885,3 +1885,54 @@ background process left running.
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
 | — | *Unplanned:* Ghost launch frame + Foley Bench sound lab | Done |
+
+
+---
+
+## ⚠️ Every publish-time detector result in this brief was recorded DEGRADED (found 2026-08-26)
+
+**Read this before trusting any "detector returned N findings" line above.**
+
+Impeccable's static detector (`scripts/detect.mjs`) needs four parser modules —
+`htmlparser2`, `css-select`, `css-tree`, `domutils` — to build a real DOM and
+CSS tree. They were **never installed on this machine**, so every static
+detector run in this project's history fell back to regex matching and printed
+`impeccable detect: DEGRADED` as its first line. In that state it does **not**
+evaluate custom properties, selector matching, or computed contrast at all.
+
+That matters most for a project whose colours live in CSS custom properties:
+the detector was reading `var(--token)` with no way to resolve it, so contrast
+was structurally unmeasurable rather than measured-and-passed. **A low or zero
+count from those runs means the check could not see, not that the files were
+clean.**
+
+**Not affected:** any `/impeccable critique` run. Critique uses a *live in-DOM
+detector* driving a real browser, which does its own parsing and never needed
+these modules. Contrast ratios and measurements quoted from a critique report
+are sound.
+
+**Fixed 2026-08-26.** The four modules are installed at
+`~/.claude/node_modules` (Node resolves them upward from the detector's own
+file, so a per-project install does nothing). `/publish` now requires reporting
+the degraded banner rather than quoting a degraded zero as a pass.
+
+**Re-run at full strength on 2026-08-26, for comparison against what this brief
+records:**
+
+Brief records **19 findings** ("18 bounce/overshoot easings and one zero-offset
+voltage glow"). Full strength returns **20** — 19 `bounce-easing` plus the same
+1 `dark-glow`, so exactly one additional easing surfaced.
+
+Both categories are the ones this brief already examined and shipped as-is on
+purpose, as the game's committed identity — cards that spring when they land,
+and the glow `theme.js` documents as the interaction language. So the earlier
+conclusion still stands; the count was one short, and the reasoning behind it
+was not affected.
+
+**ACTION REQUIRED BEFORE LAUNCH:** re-review these findings with the modules
+installed. They have been counted, not triaged — nobody has yet decided which
+are real and which are false positives. Expect some of the latter: on EGOT the
+two findings that only appeared at full strength were both false positives
+against a documented, deliberate choice (a fallback font in a system stack, and
+a type ratio that was already above the stated floor). Judge them, record the
+verdicts, and only then treat the detector line in this brief as trustworthy.
