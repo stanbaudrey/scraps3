@@ -91,7 +91,13 @@ function Score({ label, value, color, flash, pulse, align, compact=false }) {
       <span style={{fontFamily:F.ui,fontSize:compact?13:17,color:DS.slate,
         letterSpacing:'0.18em',fontWeight:700}}>{label}</span>
       <span style={{
-        fontFamily:F.display,fontWeight:700,fontSize:compact?34:60,color,lineHeight:0.9,
+        // 60 -> 44 (34 -> 26 compact). The score was the loudest
+        // object on the table and changes maybe six times a game,
+        // while the hand and the trade action matter every turn. It
+        // is still the biggest number in its bar; it just stopped
+        // outranking the thing you are actually doing. Also gives
+        // ~16px of height per bar back to the table.
+        fontFamily:F.display,fontWeight:700,fontSize:compact?26:44,color,lineHeight:0.9,
         animation:pulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
           :flash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
         textShadow:pulse?'0 0 30px currentColor':'none',

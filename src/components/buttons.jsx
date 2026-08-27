@@ -174,6 +174,14 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false, c
 // enforced.
 // ─────────────────────────────────────────────────────────────
 export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
+  // A disabled TRADE IN used to be `ink` on `duskMid` at opacity
+  // 0.35 — a smudge. Since it is disabled most of the time, a
+  // first-time player never learned the game's primary action
+  // existed until they happened to select a card. It is a legible
+  // outlined control now: slateLight on duskMid measures 8.20:1, at
+  // full opacity, with a slate rule around it. Nothing about it
+  // reads as live — the enabled state is a solid fern fill with a
+  // glow, which is a different object, not a brighter one.
   const blocked = overLimit && !disabled;
   const fill = disabled ? DS.duskMid : blocked ? DS.ember : DS.voltage;
   const fillHover = blocked ? DS.emberHover : DS.voltageHover;
@@ -197,13 +205,14 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
     <button type="button" disabled={disabled} {...pressStyles(hIn,hOut)}
       onClick={disabled?undefined:onClick}
       style={{
-        border:'none',cursor:disabled?'not-allowed':'pointer',
+        border:disabled?`2px solid ${DS.slate}88`:'none',
+        cursor:disabled?'not-allowed':'pointer',
         fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
         padding:compact?'14px 20px':'16px 36px',fontSize:compact?15:18,borderRadius:10,
         minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
-        opacity:disabled?0.35:1,
+        opacity:1,
         background:fill,
-        color:DS.ink,
+        color:disabled?DS.slateLight:DS.ink,
         boxShadow:disabled?'none':`0 0 20px ${glow}66`,
         transition:'background 60ms, box-shadow 60ms, transform 60ms',
       }}>

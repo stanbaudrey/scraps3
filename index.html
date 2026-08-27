@@ -198,8 +198,12 @@
         100%{opacity:1;transform:translate(0,0) rotate(0deg)}
       }
       @keyframes armFlash{0%{box-shadow:0 0 0 0 transparent}35%{box-shadow:0 0 0 4px color-mix(in srgb, var(--accent, var(--voltage)) 42%, transparent),0 0 30px color-mix(in srgb, var(--accent, var(--voltage)) 34%, transparent)}100%{box-shadow:0 0 0 0 transparent}}
-      /* Over-limit trade error — quick attention bounce */
-      @keyframes errBounce{0%{transform:translateY(0) scale(1)}20%{transform:translateY(-12px) scale(1.05)}45%{transform:translateY(0) scale(1)}65%{transform:translateY(-5px)}100%{transform:translateY(0)}}
+      /* Over-limit trade error. `errBounce` is retired: it overshot
+         12px and then again at 5px, which is a celebration curve
+         attached to the message that your move is illegal — the
+         detector's bounce-easing finding, restated in game terms.
+         errRise arrives once and settles. */
+      @keyframes errRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
       /* SwirlBg flowing color swaths — opacity + transform only, compositor-safe */
       @keyframes swirlFlowA{0%,100%{opacity:.55;transform:translate(0,0) scale(1)}50%{opacity:.9;transform:translate(3%,-2%) scale(1.1)}}
       @keyframes swirlFlowB{0%,100%{opacity:.5;transform:translate(0,0) scale(1)}50%{opacity:.85;transform:translate(-2%,3%) scale(1.08)}}

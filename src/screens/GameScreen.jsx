@@ -884,11 +884,34 @@ export function GameScreen({ difficulty, onExit }) {
     </div>
   );
 
+  // Deck over discard on one vertical axis, not side by side.
+  // Two reasons, and the first is the one that forced it: as a ROW
+  // this rail was two cards wide, and at 1024x662 its right edge ran
+  // 29px into the narrator panel — 36% of the discard column, with
+  // full vertical overlap. At 1440 there was a 67px gap, so it was a
+  // narrow-desktop collision that most viewers never saw. As a
+  // column the rail is one card wide and cannot reach the panel at
+  // any width. The second reason is hierarchy: the discard is the
+  // least important object on the table, so it goes UNDER the deck
+  // and renders a size smaller rather than claiming equal billing
+  // beside it. It stays an anchor for card flight either way —
+  // `discardRef` is measured, not predicted, so a smaller pile just
+  // means the ghost lands smaller.
+  // ...but only where there is height to spend on it, which is exactly
+  // where the collision happens. `tight` is the "height is the scarce
+  // axis" flag (see the arrangement-vs-size note above), and it is the
+  // right test rather than `stack`: a landscape phone keeps the WIDE
+  // arrangement on 390px of height, so it wants the row as much as a
+  // portrait phone does. Measured cost of getting this wrong — column
+  // everywhere — was 0.73 to 0.66 at 375x667 and 0.57 to 0.49 in
+  // landscape. The discard stays a size smaller in every layout,
+  // because that half is about hierarchy, not about fitting.
+  const pileRail = stack || tight;
   const pilesEl = (
-    <div style={{display:'flex',justifyContent:'center',
-      alignItems:'flex-start',gap:stack?10:22,flexShrink:0}}>
+    <div style={{display:'flex',flexDirection:pileRail?'row':'column',
+      alignItems:pileRail?'flex-start':'center',gap:10,flexShrink:0}}>
       <div ref={deckRef}><DeckPile count={deck.length} size={SZ.pile}/></div>
-      <div ref={discardRef}><DiscardPile count={discard.length} size={SZ.pile}/></div>
+      <div ref={discardRef}><DiscardPile count={discard.length} size="tiny" abbrev={stack}/></div>
     </div>
   );
 
@@ -911,7 +934,11 @@ export function GameScreen({ difficulty, onExit }) {
       {tradeError ? (
         <div style={{fontFamily:F.ui,fontSize:tight?17:25,color:DS.ember,
           fontWeight:700,textAlign:'center',lineHeight:1.3,
-          animation:'errBounce 0.5s cubic-bezier(.34,1.4,.64,1)'}}>
+          // Was errBounce on a bounce curve — a 12px overshoot
+          // celebrating the news that your move is illegal. It
+          // rises once and settles now; the ember and the wording
+          // are what carry the urgency.
+          animation:'errRise 0.32s cubic-bezier(.22,1,.36,1)'}}>
           {tradeError}
         </div>
       ) : (
@@ -1126,7 +1153,17 @@ export function GameScreen({ difficulty, onExit }) {
               {/* ── MIDDLE BAND: deck + discard center-left, action zone center ── */}
               <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0,
                 minHeight:tight?0:150}}>
-                <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'center',
+                {/* No `minWidth:0` on the pile column, unlike its
+                    mirror on the right. That one property is what
+                    caused the narrator panel to run into the discard:
+                    the column was allowed to shrink below its own
+                    contents, and the rail — centred inside it —
+                    overflowed both edges. Letting it hold its content
+                    width makes the panel (which is already
+                    `flexShrink:1`) give way instead, which is the
+                    correct loser: it has 760px of slack and the rail
+                    has none. */}
+                <div style={{flex:'0 1 auto',display:'flex',justifyContent:'center',
                   alignItems:'center'}}>
                   {pilesEl}
                 </div>
@@ -1134,8 +1171,12 @@ export function GameScreen({ difficulty, onExit }) {
                 <div style={{flex:'1 1 0',minWidth:0}}/>
               </div>
 
-              {/* ── BOTTOM BAND: player hand, with YOUR Scraps beside it ── */}
-              <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0}}>
+              {/* ── BOTTOM BAND: player hand, with YOUR Scraps beside it ──
+                  `flex-end`, not `center`: the hand's best-hand name and
+                  the Scraps zone's now both hang below their own pile, and
+                  bottom-aligning the two columns is what puts them on one
+                  line instead of two arbitrary heights. */}
+              <div style={{display:'flex',alignItems:'flex-end',gap:18,flexShrink:0}}>
                 <div style={{flex:'1 1 0',minWidth:0}}/>
                 {playerHandEl}
                 <div style={{flex:'1 1 0',minWidth:0,display:'flex',justifyContent:'flex-start'}}>

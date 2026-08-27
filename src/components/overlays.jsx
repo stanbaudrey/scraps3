@@ -98,6 +98,15 @@ function Shell({ children, zIndex, background, onClick, pad = 16, style = {},
   );
 }
 
+// Easing for overlays that deliver BAD news. The rest of this file
+// arrives on cubic-bezier(.34,1.6,.64,1) — an overshoot, which is the
+// right feel for a Full Scrap or a win and the wrong one for "the
+// opponent just took two of your cards." That mismatch is the
+// bounce-easing finding the static detector kept raising and Session 1's
+// critique flagged as a P1: celebratory motion attached to a loss.
+// SETTLE is ease-out-quint. Same duration, same distance, no rebound.
+const SETTLE = 'cubic-bezier(.22,1,.36,1)';
+
 // Card padding shrinks with the viewport: 32px of inset around a
 // modal is a third of a phone's width.
 const CARD_PAD = 'clamp(18px,5vw,32px)';
@@ -190,7 +199,9 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
         background:winner==='player'?DS.voltage+'18':winner==='ai'?DS.ember+'18':DS.slate+'18',
         border:`3px solid ${winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}`,
         boxShadow:winner==='player'?`0 0 32px ${DS.voltage}66`:winner==='ai'?`0 0 32px ${DS.ember}55`:'none',
-        animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1)'}}>
+        // The one overlay that is sometimes good news and sometimes
+        // not, so it picks: the win bounces, the loss and the tie land.
+        animation:`popIn 0.4s ${winner==='player'?'cubic-bezier(.34,1.6,.64,1)':SETTLE}`}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:42,letterSpacing:'0.04em',
           color:winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}}>
           {winner==='player'?'YOU WIN!':winner==='ai'?'OPPONENT WINS.':'TIE'}
@@ -583,14 +594,14 @@ export function OpponentAceReveal({ targets, onOk }) {
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent's Ace removed two of your Scraps cards">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
-        boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
+        boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           OPPONENT plays an Ace and removes two cards from your Scraps
         </div>
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:24}}>
           {(targets||[]).map((c,i)=>(
-            <div key={c.id} style={{animation:`popIn 0.4s cubic-bezier(.34,1.6,.64,1) ${0.15+i*0.12}s both`}}>
+            <div key={c.id} style={{animation:`popIn 0.4s ${SETTLE} ${0.15+i*0.12}s both`}}>
               <PlayingCard card={c} size="normal" isScrap={true}/>
             </div>
           ))}
@@ -610,7 +621,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
-        boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
+        boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           Opponent counters your Ace!
@@ -618,7 +629,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:18}}>
           {[playerAce,aiAce].filter(Boolean).map((c,i)=>(
             <div key={c.id} style={{position:'relative',
-              animation:`popIn 0.4s cubic-bezier(.34,1.6,.64,1) ${0.15+i*0.12}s both`}}>
+              animation:`popIn 0.4s ${SETTLE} ${0.15+i*0.12}s both`}}>
               <div style={{filter:'saturate(0.4) brightness(0.75)'}}>
                 <PlayingCard card={c} size={cardSize} isScrap={false}/>
               </div>

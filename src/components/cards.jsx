@@ -397,7 +397,13 @@ export function DeckPile({ count, size='small' }) {
 // instead of orphaned in its own column. Label bumped to
 // legible size + full slate.
 // ─────────────────────────────────────────────────────────────
-export function DiscardPile({ count, size='small' }) {
+export function DiscardPile({ count, size='small', abbrev=null }) {
+  // The abbreviation used to be `size === 'tiny'`, which was fine while
+  // the card size and the layout agreed. They no longer do: the discard
+  // renders tiny in BOTH layouts now (it is the least important object
+  // on the table), so a roomy table would have read "DISC · 0" for no
+  // reason. The caller says which it wants.
+  const short = abbrev === null ? size === 'tiny' : abbrev;
   const d=CARD_DIMS[size]||CARD_DIMS.small;
   const fs=size==='tiny'?10:13;
   const layers=Math.min(count,4);
@@ -423,7 +429,7 @@ export function DiscardPile({ count, size='small' }) {
         )}
       </div>
       <span style={{fontFamily:F.mono,fontSize:fs,color:DS.slate,
-        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>{size==='tiny'?'DISC':'DISCARD'} · {count}</span>
+        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>{short?'DISC':'DISCARD'} · {count}</span>
     </div>
   );
 }
@@ -541,14 +547,25 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
     : Math.max(Math.min(cardW * 3, maxContainerW), Math.min(naturalW, maxContainerW));
 
   return (
+    // A column, because in the side-by-side layout the best-hand badge
+    // now hangs BELOW the zone's border rather than inside it — the
+    // same relationship the small hand's badge has to its fan, so the
+    // two read as one row of labels instead of one inside a box and
+    // one under a fan. The wrapper sits outside GlowPulse on purpose:
+    // the state glow rings the pile, not the caption.
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
     <GlowPulse active={glowZone} color={glowColor} style={{padding:glowZone?4:0}}>
       <div style={{
         width: innerW + 20, maxWidth:'100%',
         background:DS.inkLight, border:`2px solid ${borderCol}`,
         borderRadius:12, padding:size==='tiny'?'5px 8px 4px':'8px 10px 6px',
-        boxShadow: discardMode?`0 0 22px ${DS.voltage}66`
-          :isOpponent?`0 0 10px ${DS.ember}33`:`0 0 10px ${DS.voltage}22`,
-        transition:'border-color 0.2s', flexShrink:0,
+        // Both zones used to glow permanently in their ownership
+        // colour, which meant the ACTUAL state cue — GlowPulse, when
+        // a zone is the thing to act on — had to shout over a halo
+        // that was already on. Only the state glows now. The 2px
+        // border still carries ownership, which is what it is for.
+        boxShadow: discardMode?`0 0 22px ${DS.voltage}66`:'none',
+        transition:'border-color 0.2s, box-shadow 0.3s', flexShrink:0,
       }}>
         {/* Header carries the ownership label. The best-hand badge
             sits BELOW the cards in the side-by-side layout, because
@@ -624,16 +641,21 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             );
           })}
         </div>
-        {/* Best hand, under its own pile — same relationship the small
-            hand's badge has to the fan. Centred and full-width, so no
-            hand name can reach the border. */}
-        {!oneRowHeader&&(
-          <div style={{display:'flex',justifyContent:'center',minHeight:18,
-            alignItems:'center',marginTop:2}}>
-            <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'}/>
-          </div>
-        )}
       </div>
     </GlowPulse>
+    {/* Best hand, under its own pile and now OUTSIDE its border.
+        `fontSize` and `minHeight` deliberately match HandUpgradeBadge's
+        roomy values, because the bottom band is bottom-aligned and the
+        two badges are meant to land on the same line. Stacked, the
+        badge stays up in the header row: that layout is short of
+        height, not width, and the header placement buys back a whole
+        row per zone (see the header comment). */}
+    {!oneRowHeader&&(
+      <div style={{display:'flex',justifyContent:'center',alignItems:'center',
+        minHeight:21,marginTop:4,maxWidth:'100%',padding:'0 8px'}}>
+        <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'} fontSize={15}/>
+      </div>
+    )}
+    </div>
   );
 }
