@@ -184,7 +184,7 @@ function crack(c, out, t, mat, { gain = 1, sub = true, k = 1, seed = 1 } = {}) {
 // offline in the Foley Bench against these exact parameters:
 //
 //   select .16 · draw .22 · invalid/handWon/handLost .34
-//   transfer .38 · roundLost .46 · roundWon .50
+//   transfer .30 · roundLost .46 · roundWon .50
 //   gameLost .66 · gameWon .72 · aces .80 · fullScrap .94
 //
 // So the cue you hear thirty times a game can never end up
@@ -202,7 +202,7 @@ function crack(c, out, t, mat, { gain = 1, sub = true, k = 1, seed = 1 } = {}) {
 // ─────────────────────────────────────────────────────────────
 const TRIM = {
   select:     3.4706,
-  transfer:   3.0348,
+  transfer:   2.2417,
   draw:       2.1066,
   aceStrike:  2.1678,
   aceCounter: 2.7208,
@@ -251,12 +251,17 @@ const VOICES = {
   /** Trade commits; cards fly hand → Scraps. Friction sweeping up
    *  under a slow swell, then a slap as it lands on felt. The
    *  sweep is what makes it directional — you hear the card
-   *  leave. Stan lengthened this to 360ms against a 200ms
-   *  default, which covers the 620ms flight without repeating
-   *  per card. */
+   *  leave.
+   *
+   *  Stan took this to 360ms in the bench, then cut it back to
+   *  260ms on the preview and asked for it quieter. Quieter is a
+   *  TARGET change, not a gain change: the trim renormalises this
+   *  function's own gains away, so `gain` below sets the balance
+   *  between the slide and the slap and nothing else. The level
+   *  you hear is TRIM's target, which went .38 → .30. */
   transfer: (c, o, t) => {
-    friction(c, o, t, { dur: 0.36, f0: 820, f1: 2700, gain: 0.35 });
-    tap(c, o, t + 0.36 * 0.92, MAT.felt, { gain: 0.385, exc: .010, curve: 3 });
+    friction(c, o, t, { dur: 0.26, f0: 820, f1: 2700, gain: 0.35 });
+    tap(c, o, t + 0.26 * 0.92, MAT.felt, { gain: 0.385, exc: .010, curve: 3 });
   },
 
   /** Replacement card, deck → hand. Darker and drier than the
@@ -390,7 +395,7 @@ const VOICES = {
 // How long each voice actually rings for, used only by the
 // offline measurement below.
 export const CUE_DUR = {
-  select: .16, transfer: .42, draw: .20, aceStrike: .36, aceCounter: .62,
+  select: .16, transfer: .32, draw: .20, aceStrike: .36, aceCounter: .62,
   invalid: .24, handWon: .46, handLost: .56, roundWon: .68, roundLost: .56,
   gameWon: 1.15, gameLost: .85, fullScrap: 1.75, revealBuild: .70,
 };
