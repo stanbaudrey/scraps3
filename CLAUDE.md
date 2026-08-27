@@ -18,8 +18,14 @@ five-card suited straight scores as a plain straight, never a straight flush.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
 - Vitest for tests. 37 tests cover the engine and the reducer.
-- Fonts come from Google Fonts via a `<link>` in `index.html` (Bebas Neue,
-  Righteous, Space Grotesk, Space Mono) — not self-hosted.
+- Fonts come from Google Fonts via a `<link>` in `index.html` — **five**
+  families, not four: Bungee Shade (the SCRAPS wordmark, and nothing
+  else), Fjalla One (headings and subtitles), Baloo 2 (card ranks and
+  suits), Work Sans (UI), IBM Plex Mono (mono). Not self-hosted. The
+  authoritative list is the `<link>` in `index.html` and the `F` object in
+  `src/styles/theme.js`, which must agree; both were named wrongly in this
+  file until Session 3 (see PROJECT-BRIEF.md's forest-reskin and specimen
+  notes for the two changes that drifted from it).
 - Audio is generated live in `src/audio.js` with the Web Audio API:
   oscillators and synthesized noise buffers. There are no audio files in the
   project and none are needed.

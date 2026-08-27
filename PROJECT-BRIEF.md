@@ -318,9 +318,16 @@ space, focus, motion), and a UX/UI heuristics pass.
   `<link>`. Every visitor's IP address goes to Google before the fonts load
   — this is the exact pattern behind the German court rulings that made
   Google Fonts a live GDPR issue for EU visitors. The clean fix is
-  self-hosting the four font files (Bebas Neue, Righteous, Space Grotesk,
-  Space Mono) instead of linking Google's CDN — small, doesn't add a
-  dependency, removes the issue outright rather than needing a disclosure.
+  self-hosting the five families instead of linking Google's CDN — small,
+  doesn't add a dependency, removes the issue outright rather than needing
+  a disclosure. **The families are Bungee Shade, Fjalla One, Baloo 2,
+  Work Sans and IBM Plex Mono** (corrected 2026-08-27 — this brief named
+  the pre-reskin four, and then a Spectral set that was itself replaced;
+  `index.html`'s `<link>` and `theme.js`'s `F` object are the only two
+  places that have ever been right). Only some weights are loaded — Bungee
+  Shade and Fjalla One at 400, Baloo 2 at 600/700/800, Work Sans at
+  400/500/600/700, IBM Plex Mono at 400/500/700 — and self-hosting should
+  ship exactly those, not the full families.
 - No accounts, no forms, no email capture currently exist in the app
   itself, so the only privacy surface is: font loading (above), `localStorage`
   stats (already local-only, never leaves the browser), and whatever Vercel
@@ -333,9 +340,11 @@ space, focus, motion), and a UX/UI heuristics pass.
   game it's low-stakes, but "low-stakes" isn't "zero paperwork."
 
 **Legality and rights.**
-- Fonts: Google Fonts' four families are all OFL-licensed — fine to
+- Fonts: all five families are OFL-licensed on Google Fonts — fine to
   self-host, no attribution required but worth crediting in the rights
-  inventory anyway.
+  inventory anyway. Re-confirm each licence at self-host time rather than
+  taking this line's word for it; that is a two-minute check and the
+  licence is what makes the whole plan legal.
 - No images, audio files, or third-party datasets exist in the repo
   (CLAUDE.md, confirmed) — nothing to license-check there. `src/audio.js`
   being fully synthesized means there's no audio licensing surface at all.
@@ -563,10 +572,17 @@ specific hex value Session 1's notes reference above is now stale.
 
 Fonts changed too: Bebas Neue/Righteous/Space Grotesk/Space Mono →
 Spectral (display + card, semibold/bold, italic for the wordmark) / Work
-Sans (UI) / IBM Plex Mono (mono), still loaded from Google Fonts —
-**Session 6's opening prompt still names the old four font files; it needs
-updating to self-host Spectral/Work Sans/IBM Plex Mono instead** before
-that session runs.
+Sans (UI) / IBM Plex Mono (mono), still loaded from Google Fonts.
+
+> **Superseded (2026-08-27).** The Spectral set above did not survive the
+> specimen review later the same day, which split it into Bungee Shade
+> (wordmark only), Fjalla One (headings) and Baloo 2 (card faces) — see
+> the type note in `theme.js`. So the stack is five families, not three or
+> four. This paragraph's warning that Session 6's opening prompt named the
+> wrong fonts was correct and went unactioned for two days; that prompt,
+> Section 6 and CLAUDE.md are all corrected now, and the lesson is that a
+> font list written in three places drifts exactly like a colour palette
+> written in three places does.
 
 Beyond the token swap: `CardBackSVG` in `cards.jsx` was redrawn from a
 diamond-pattern back into a layered ridge-line/pine-canopy scene with a low
@@ -938,12 +954,44 @@ panel is for.
 - **Tap-and-hold.** Press feedback now ends on `pointerup`. Confirm a
   card or a button doesn't stay lit after a tap, which was the old bug.
 
-**Found, not fixed (out of scope):** CLAUDE.md's Stack section still names
-the four fonts as Bebas Neue / Righteous / Space Grotesk / Space Mono, and
-`index.html` has loaded Bungee Shade / Fjalla One / Baloo 2 / Work Sans /
-IBM Plex Mono since the forest reskin. Session 6's opening prompt repeats
-the stale four, so both want correcting together rather than one of them
-quietly.
+**Found, and then fixed on Stan's say-so:** the font list was wrong in
+every prose copy of it. CLAUDE.md named the pre-reskin four (Bebas Neue /
+Righteous / Space Grotesk / Space Mono); the forest-reskin entry recorded a
+Spectral set that the specimen review replaced hours later; Section 6 and
+Session 6's opening prompt both still asked for the pre-reskin four to be
+self-hosted. The truth, from `index.html`'s `<link>` and `theme.js`'s `F`
+object, is five families — Bungee Shade (wordmark only), Fjalla One
+(headings), Baloo 2 (card faces), Work Sans (UI), IBM Plex Mono (mono) —
+and all four places now say so, with the weights Session 6 will actually
+need to ship. Worth noting the shape of the failure: this is the colour
+palette's problem in a different medium. A fact restated in prose in four
+places drifts, and the fix each time is to point at the one file that
+executes rather than to restate it.
+
+**Session close (2026-08-27).** Shipped to `main`, which is the production
+deploy — GitHub integration on `unclescrunch/scraps3` publishes every push
+to `main` to [scraps3.vercel.app](https://scraps3.vercel.app). Merged as a
+fast-forward from `claude/build-next-o9oue6`; `npm test` (37 passing) and
+`npm run build` both green immediately before the push, and
+`tools/responsive-qa.mjs` clean on all six viewports.
+
+Left open, deliberately:
+- **Landscape phone.** Playable, clips nothing, scales to 0.57 — a 54px
+  button renders at ~31. Portrait is what the table is composed for. If
+  landscape turns out to matter it wants its own arrangement, not a
+  tighter version of this one, and that is a session of its own.
+- **The real-device pass.** Everything above is measured in a headless
+  Chromium at real viewport sizes, which is not the same as a thumb on
+  glass. Session 3's own "done when" asks for one actual phone; the four
+  things worth checking are listed above, and the launch session's
+  cold-cellular smoke test is the second half of it.
+- **Reduced motion** stays Session 5's, as `index.html` has said since the
+  splash pass. This session added no perpetual motion, and `FitBox`'s
+  scaling is a layout property rather than an animation, so nothing here
+  widens that gap.
+
+Nothing in this session touched `engine.js` or `reducer.js`. The rules are
+exactly where they were; only the table they are played on changed shape.
 
 ### Session 4 — Sound identity
 **Goal:** SCRAPS has one cohesive, recognizable sound, not ten disconnected
@@ -994,10 +1042,12 @@ balance, negative space, focus, and motion with before/after specifics.
 **Goal:** nothing leaks, nothing's unlicensed, the fine print is real.
 **Bring:** this brief.
 **Opening prompt:**
-> Read PROJECT-BRIEF.md. Self-host the four Google Fonts (Bebas Neue,
-> Righteous, Space Grotesk, Space Mono) instead of loading them from
-> `fonts.googleapis.com`/`fonts.gstatic.com` — this removes the
-> third-party-request privacy issue outright. Repoint the git remote from
+> Read PROJECT-BRIEF.md. Self-host the five Google Fonts — Bungee Shade,
+> Fjalla One, Baloo 2, Work Sans and IBM Plex Mono — instead of loading
+> them from `fonts.googleapis.com`/`fonts.gstatic.com`; this removes the
+> third-party-request privacy issue outright. Ship only the weights
+> `index.html` actually asks for, and check the live `<link>` and
+> `theme.js`'s `F` object rather than trusting any list in this brief. Repoint the git remote from
 > `stanbaudrey/scraps3` to `unclescrunch/scraps3` (currently only works via
 > GitHub's rename redirect). Write a short privacy policy page, linked from
 > wherever makes sense in the UI: what's collected (currently just the
@@ -1005,8 +1055,10 @@ balance, negative space, focus, and motion with before/after specifics.
 > in the launch session), why, where it lives, and that nothing leaves the
 > browser except analytics. **Stop and show me the actual privacy policy
 > text before treating this as done** — don't just fill in a template.
-**Done when:** fonts are self-hosted, the git remote points at the real
-repo, and Stan has explicitly signed off on the privacy policy text.
+**Done when:** all five fonts are self-hosted and nothing in the built
+output requests `fonts.googleapis.com` or `fonts.gstatic.com`, the git
+remote points at the real repo, and Stan has explicitly signed off on the
+privacy policy text.
 
 ### Session 7 — Findability and launch
 **Goal:** the game looks right when shared, gets found by search/AI
