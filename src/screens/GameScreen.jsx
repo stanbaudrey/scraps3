@@ -21,8 +21,9 @@ import {
   AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
-import { playClick, playWhoosh, playVictoryFanfare, playCrescendo,
-  playError, playWinSound, playLoseSound } from "../audio.js";
+import { playSelect, playTransfer, playDraw, playAceStrike, playAceCounter,
+  playInvalid, playHandWon, playHandLost, playRoundWon, playRoundLost,
+  playFullScrap, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
@@ -110,6 +111,25 @@ export function GameScreen({ difficulty, onExit }) {
   const aiHandRef        = useRef(null);
   const aiScrapsRef      = useRef(null);
   const { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay } = useCardMotion();
+
+  // Draws are the one cue that has to be SCHEDULED rather than
+  // played on the spot: the cards leave the deck well after the
+  // trade commits, one every 120ms, and a peel that fires before
+  // its card moves reads as belonging to the trade instead. These
+  // timers are tracked so skipping the animation cancels the
+  // sounds that have not landed yet — otherwise a skip is followed
+  // by peels for cards already sitting in the hand.
+  const drawSfx = useRef([]);
+  const clearDrawSfx = useCallback(() => {
+    drawSfx.current.forEach(clearTimeout);
+    drawSfx.current = [];
+  }, []);
+  const scheduleDraws = useCallback((count, land) => {
+    for (let i = 0; i < count; i++) {
+      drawSfx.current.push(setTimeout(playDraw, land + i * 120));
+    }
+  }, []);
+  useEffect(() => clearDrawSfx, [clearDrawSfx]);
 
   // ── Layout ─────────────────────────────────────────────────
   // 'wide'  — hand centred, that side's Scraps beside it.
@@ -200,9 +220,10 @@ export function GameScreen({ difficulty, onExit }) {
     if (playerScore > prevScores.current.p) {
       setPlayerScoreFlash(true);
       setTimeout(() => setPlayerScoreFlash(false), 600);
-      // The winning point hands off to the win screen's grand
-      // fanfare — don't stack the small one underneath it.
-      if (!gameOver) playVictoryFanfare(false);
+      // Deliberately silent. The outcome cue already fired when the
+      // reveal appeared; this is the same event's score landing a
+      // couple of seconds later, and sounding it again gave every
+      // hand two celebrations. The flash above carries this beat.
     }
     if (aiScore > prevScores.current.a) {
       setAiScoreFlash(true);
@@ -227,12 +248,12 @@ export function GameScreen({ difficulty, onExit }) {
 
   // ── Card selection ─────────────────────────────────────────
   function toggleHandCard(card) {
-    playClick();
+    playSelect();
     setSelected(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : [...prev, card]);
   }
   function toggleScrapsDiscardCard(card) {
     if (!card.eligibleForDiscard) return;
-    playClick();
+    playSelect();
     setScrapsDiscard(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : [...prev, card]);
   }
 
@@ -248,7 +269,7 @@ export function GameScreen({ difficulty, onExit }) {
       // Over-limit trade: error sound + bouncing copy in the action
       // zone (re-setting the state restarts the bounce on repeat
       // attempts).
-      playError();
+      playInvalid();
       setTradeError(null);
       requestAnimationFrame(() =>
         setTradeError(`These ${sel.length} card${sel.length > 1 ? 's' : ''} draw ${drawCount}. Your hand would be ${netHand}/7.`));
@@ -278,7 +299,7 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]);
     clearTimeout(tradeErrorTimer.current);
     setTradeError(null);
-    playWhoosh();
+    playTransfer();
 
     // COMMIT: one batched render. TAKE stages the move, the two
     // ARRIVE actions land it — React runs all three through the
@@ -307,6 +328,7 @@ export function GameScreen({ difficulty, onExit }) {
         fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
       }));
+      scheduleDraws(drawn.length, LAND);
     }
     fly(moves);
   }
@@ -327,7 +349,7 @@ export function GameScreen({ difficulty, onExit }) {
 
     dispatch({ type: 'PLAYER_TRADE_WITH_DISCARD', discardCards: [...scrapsDiscard] });
     setScrapsDiscard([]); setSelected([]);
-    playWhoosh();
+    playTransfer();
 
     const moves = [];
     if (discardRect) {
@@ -349,6 +371,7 @@ export function GameScreen({ difficulty, onExit }) {
         fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
       }));
+      scheduleDraws(drawn.length, LAND);
     }
     fly(moves);
   }
@@ -365,7 +388,7 @@ export function GameScreen({ difficulty, onExit }) {
     dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to remove." });
   }
   function toggleAceTarget(card) {
-    playClick();
+    playSelect();
     setAceTargets(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : prev.length < 2 ? [...prev, card] : prev);
   }
 
@@ -386,6 +409,7 @@ export function GameScreen({ difficulty, onExit }) {
       const aiAce = s.aiHand.find(c => c.rank === 'A');
       if (aiAce) {
         setAceMode(null); setAceTargets([]); setSelected([]);
+        playAceCounter();
         dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
         setAiCounterNotice({ playerAce: ace, aiAce });
         return;
@@ -395,6 +419,10 @@ export function GameScreen({ difficulty, onExit }) {
     const targets = [...aceTargets];
     // Shake the struck cards where they sit, then send them to the
     // discard from their real positions in the opponent's pile.
+    // The strike lands with the SHAKE, not with the cards leaving
+    // 520ms later — the shake is the visual of this sound, and the
+    // crush is 360ms so it finishes inside it.
+    playAceStrike();
     setScrapsShakeIds(new Set(targets.map(c => c.id)));
     setTimeout(() => {
       const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
@@ -451,6 +479,7 @@ export function GameScreen({ difficulty, onExit }) {
 
   function onPlayerCounterAce() {
     if (!pendingAiAce) return;
+    playAceCounter();
     dispatch({ type: 'PLAYER_COUNTER_ACE' });
     // Player's turn is NOT consumed — they still need to trade or act
   }
@@ -476,6 +505,7 @@ export function GameScreen({ difficulty, onExit }) {
     const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
     setAiAceReveal(null);
     setScrapsFadeIds(new Set());
+    playAceStrike();
     dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
       logMsg: `Opponent's Ace removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
     if (discardRect) {
@@ -561,6 +591,7 @@ export function GameScreen({ difficulty, onExit }) {
               fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
               arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
             }));
+            scheduleDraws(drawn.length, LAND);
           }
           fly(moves);
         }, 700);
@@ -635,8 +666,8 @@ export function GameScreen({ difficulty, onExit }) {
     let winner = 'tie', pts = 0;
     if (res > 0) { winner = 'player'; pts = 1; }
     else if (res < 0) { winner = 'ai'; pts = 1; }
-    if (winner === 'player') playWinSound();
-    else if (winner === 'ai') playLoseSound();
+    if (winner === 'player') playHandWon();
+    else if (winner === 'ai') playHandLost();
     const curPhase = phase;
     setRevealData({
       playerCards: [...playerPlayed], aiCards: [...aiPlayed],
@@ -669,8 +700,8 @@ export function GameScreen({ difficulty, onExit }) {
     const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
     if (!out) { dispatch({ type: 'LOG', msg: 'Not enough cards in Scraps.' }); return; }
     const { pPts, aPts, winner, fullScrap, aiSweep, pB, aB } = out;
-    if (winner === 'player') playWinSound();
-    else if (winner === 'ai') playLoseSound();
+    if (winner === 'player') playRoundWon();
+    else if (winner === 'ai') playRoundLost();
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
     const aBestIds = new Set(getActiveHandCards(aB).map(c => c.id));
     setRevealData({
@@ -684,7 +715,7 @@ export function GameScreen({ difficulty, onExit }) {
         dispatch({ type: 'SCRAPS_SCORED', pPts, aPts, winner, fullScrap, aiSweep, pName: pB.name });
         if (fullScrap) {
           setShowFullScrap(true);
-          playVictoryFanfare(true);
+          playFullScrap();
         }
       },
     });
@@ -754,6 +785,7 @@ export function GameScreen({ difficulty, onExit }) {
     if (!animating) return;
     const onSkip = (e) => {
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      clearDrawSfx();
       skipAll();
     };
     window.addEventListener('mousedown', onSkip);
@@ -762,7 +794,7 @@ export function GameScreen({ difficulty, onExit }) {
       window.removeEventListener('mousedown', onSkip);
       window.removeEventListener('keydown', onSkip);
     };
-  }, [animating, skipAll]);
+  }, [animating, skipAll, clearDrawSfx]);
 
   useEffect(() => {
     if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
@@ -943,7 +975,7 @@ export function GameScreen({ difficulty, onExit }) {
             onClick={()=>{
               if(revealBuilding) return;
               setRevealBuilding(true);
-              playCrescendo(()=>{
+              playRevealBuild(()=>{
                 setRevealBuilding(false);
                 resolveSmallHand();
               });

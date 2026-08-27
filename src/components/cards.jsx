@@ -15,7 +15,7 @@
 // ============================================================
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
-import { playClick } from "../audio.js";
+import { playSelect } from "../audio.js";
 import { evaluateBestHand } from "../game/engine.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -597,9 +597,9 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                   role:'button', tabIndex:0,
                   'aria-pressed': isSel,
                   'aria-label': `${cardLabel(card)}${isSel ? ', selected' : ''}`,
-                  onKeyDown: buttonKeys(() => { playClick(); onCardClick(card); }),
+                  onKeyDown: buttonKeys(() => { playSelect(); onCardClick(card); }),
                 } : {})}
-                onClick={()=>{ if(isElig){ playClick(); onCardClick&&onCardClick(card); }}}>
+                onClick={()=>{ if(isElig){ playSelect(); onCardClick&&onCardClick(card); }}}>
                 <PlayingCard card={card} size={size} isScrap={true}
                   selectable={isElig} selected={isSel} liftTransform={false}
                   registerEl={registerEl} hidden={hiddenIds.has(card.id)}

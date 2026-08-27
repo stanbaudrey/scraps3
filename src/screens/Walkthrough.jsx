@@ -26,7 +26,7 @@ import { PlayingCard } from "../components/cards.jsx";
 import { SwirlBg } from "../components/backdrop.jsx";
 import { IconBolt } from "../components/icons.jsx";
 import { TOUCH_MIN } from "../components/buttons.jsx";
-import { playClick } from "../audio.js";
+import { playSelect } from "../audio.js";
 import { FitBox } from "../ui/viewport.jsx";
 
 // ── Sample cards ─────────────────────────────────────────────
@@ -292,14 +292,14 @@ export function Walkthrough({ onDone }) {
   // LET'S PLAY does, so a reader who never notices the button is
   // not stuck on a dead screen.
   function advance() {
-    playClick();
+    playSelect();
     if (last) onDone();
     else setI(n => n + 1);
   }
 
   function skip(e) {
     if (e && e.stopPropagation) e.stopPropagation();
-    playClick();
+    playSelect();
     onDone();
   }
 

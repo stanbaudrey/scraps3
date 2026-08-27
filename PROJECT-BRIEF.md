@@ -997,17 +997,11 @@ Left open, deliberately:
 Nothing in this session touched `engine.js` or `reducer.js`. The rules are
 exactly where they were; only the table they are played on changed shape.
 
-### Session 4 — Sound identity  ⏳ In progress
-**Status (2026-08-26):** the exploration half is done and lives in the
-**Foley Bench** artifact —
-https://claude.ai/code/artifact/2b99d5e2-f9b1-400e-9609-ee2b3dd210b8 —
-which holds two fully-built directions (Cardboard & Bone, 27 options; The
-Dealer, 25 options) across 12 cues, including the Ace strike and
-counter-strike this session's prompt asks for. See the unplanned session
-entry at the end of this file for how it was built and what was found.
-**Before the rest of this session can run, Stan has to listen and choose**
-a direction and per-cue options; the bench exports that as JSON. `src/audio.js`
-is still the original ten cues and has not been touched.
+### Session 4 — Sound identity ✅ Done (2026-08-26)
+**Explored** in the **Foley Bench** artifact —
+https://claude.ai/code/artifact/2b99d5e2-f9b1-400e-9609-ee2b3dd210b8 — which
+holds two fully-built directions (Cardboard & Bone, 27 options; The Dealer,
+25) across 12 cues. **Chosen and shipped:** Cardboard & Bone. Notes below.
 **Goal:** SCRAPS has one cohesive, recognizable sound, not ten disconnected
 cues.
 **Bring:** this brief (Section 5).
@@ -1025,6 +1019,79 @@ cues.
 **Done when:** all cues share a recognizable identity, the Ace-strip moment
 has its own sound, and a full playthrough doesn't produce anything jarring
 or repetitive.
+
+**Notes.** `src/audio.js` is rewritten. Ten unrelated oscillator melodies —
+a square-wave "denied" buzz, a victory arpeggio, a sine crescendo — are
+gone from the table entirely; **no oscillator plays a note any more.** The
+one sine left (`thud`) is a body under an impact and never lasts long
+enough to read as pitched. Everything else is modal synthesis: a noise
+exciter generated as raw sample data in JS, through parallel high-Q
+bandpass banks acting as the body of a material (`cardstock`, `wood`,
+`woodHi`, `bone`, `boneLow`, `felt`).
+
+**Stan's picks deviated from the bench defaults in three places worth
+remembering:** the transfer slide was lengthened to 360ms against a 200ms
+default and dropped to level 0.35, so it covers the 620ms card flight
+without repeating per card; the Ace strike is **Box crush**, the option
+with no crack in it at all (a lowpass collapsing 6 kHz → 200 in an eighth
+of a second) rather than the bone crack; and the game loss is **Two flat
+drops** rather than the swelling box-close.
+
+**Three cues had no call site in the game at all** and were added: `draw`
+(scheduled per card against each one's flight delay, and cancelled on skip
+so a skipped animation isn't followed by peels for cards already landed),
+`aceStrike`, and `aceCounter` — the last two being exactly the "signature
+moment reusing a generic sound" this session was written to fix. Two more
+cues had no bench selection because the bench has no cue for them:
+`handLost` (round-lost's falling wood at the *hand* target, so the kit's
+one real mechanism — rising means you won it, falling means you didn't —
+holds at both scales) and `revealBuild` (accelerating taps into a gap,
+replacing a 200→900 Hz sine sweep, timed to the same 580ms).
+
+**One sound was deliberately silenced.** The score counter ticking up was
+firing a second celebration for an outcome the reveal had already
+announced a couple of seconds earlier, so every hand had two. The score
+flash carries that beat now. Easy to reverse if it reads as missing.
+
+**Two real defects were found by measuring the port rather than trusting
+it, and both would have shipped:**
+
+1. **Nine of thirteen cues landed off their target level**, `select` by
+   49% and `roundLost` by 30%. Cause: the bench computed each trim from a
+   *single* render, and the exciter was `Math.random()`.
+2. Which is the deeper bug — **the cues varied in loudness between plays.**
+   Measured across twenty renders, `roundLost`'s peak spanned **3.41x**:
+   the same sound arriving up to three times louder than last time. A 6ms
+   burst exciting a Q-26 resonator is a lottery over whether a big sample
+   lands early.
+
+The exciter is a seeded xorshift now and the buffer is normalised, so
+every cue is bit-identical every play (verified: peak spread exactly
+1.0000 across renders) and the trims are exact rather than estimated.
+Variety is added deliberately instead — a `seed` option gives repeated
+taps inside one cue their own character, and `playFireworkPop` randomises
+pitch and level out loud. **If you retune a cue, its trim is wrong until
+re-measured**; `renderCue()` is exported so it can be rendered into an
+`OfflineAudioContext` at gain 1 and re-derived.
+
+**Verified** by rendering the shipped `src/audio.js` offline, not the
+bench: all 14 cues land on target to within 0.0002; every export runs
+without throwing, including 20 rapid firework pops; a full trade plays
+through with no console errors; and the win screen's worst case (the drum
+roll under 25 stacked events, deliberately pessimistic) peaks at 0.47 with
+zero samples over full scale, so the bus compressor is doing its job.
+
+**Left alone on purpose:** `playSquareUp`, the splash wordmark, byte for
+byte including its direct connection to `ctx.destination` rather than the
+trimmed bus. Two of its three layers are already this vocabulary — card
+edges brushing, the deck landing flush — and only its six triangle taps on
+a G major pentatonic are tonal. It plays on the splash, before a table
+exists, and it was chosen by ear in a previous session, so whether those
+six taps should become cardstock is Stan's call and not a side effect of
+this port. **Also not added:** a sound on the round-start deal (5+5 cards
+would be ten peels) — flagged, not decided.
+
+**Never heard by Claude.** Every claim above is numerical.
 
 ### Session 5 — Design and UX audit
 **Note (2026-08-26):** the unplanned onboarding session below already did a
@@ -1779,7 +1846,7 @@ background process left running.
 | — | *Unplanned:* Forest/national-park brand reskin | Done |
 | 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Done |
-| 4 | Sound identity | In progress — directions built, none chosen |
+| 4 | Sound identity | Done |
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |

@@ -26,9 +26,14 @@ five-card suited straight scores as a plain straight, never a straight flush.
   `src/styles/theme.js`, which must agree; both were named wrongly in this
   file until Session 3 (see PROJECT-BRIEF.md's forest-reskin and specimen
   notes for the two changes that drifted from it).
-- Audio is generated live in `src/audio.js` with the Web Audio API:
-  oscillators and synthesized noise buffers. There are no audio files in the
-  project and none are needed.
+- Audio is generated live in `src/audio.js` with the Web Audio API. There are
+  no audio files in the project and none are needed. Since Session 4 the
+  table's sound is one direction, **Cardboard & Bone** — modal synthesis, not
+  melody. A seeded noise exciter is generated as raw sample data in JS and
+  played through parallel high-Q bandpass banks that act as the body of a
+  material (`MAT.cardstock`, `.wood`, `.woodHi`, `.bone`, `.boneLow`,
+  `.felt`). **No oscillator plays a note**; the single sine (`thud`) is a body
+  under an impact. See the file's own header and the Gotchas below.
 - The repo contains **no asset files at all** — no `public/` directory, no
   images, no SVG files on disk. Every graphic (card backs, icons, the swirl
   backdrop) is SVG written inline in JSX.
@@ -137,6 +142,23 @@ looks broken locally, it is not a missing-secret problem.
   a single 52-card deck to fix that. Cards still carry a unique `id` — no
   longer load-bearing for uniqueness now that rank+suit is unique again, but
   nothing assumes otherwise, so it was left in place rather than ripped out.
+- **The audio exciter is seeded, and that is load-bearing.** `noiseBuf` uses
+  a deterministic xorshift, not `Math.random()`. A 6ms noise burst exciting a
+  Q-26 resonator is a lottery: measured across twenty renders the peak of one
+  cue spanned **3.41x**, so the same sound arrived up to three times louder
+  than last time. Seeding makes every cue bit-identical, which is also what
+  makes `TRIM` measurable. Variety is added deliberately instead — a `seed`
+  option gives repeated taps inside one cue their own character, and
+  `playFireworkPop` randomises pitch and level out loud.
+- **`TRIM` is the mix, and it goes stale silently.** Each cue is normalised to
+  a declared target peak (`select` .16 up to `fullScrap` .94) so the cue you
+  hear thirty times a game can never be louder than the one you may never
+  hear. Raw peaks span 75:1 without it. **If you retune a cue's parameters,
+  its trim is wrong until re-measured** — render `renderCue(name, offlineCtx,
+  gainAt1, 0)` and divide the target by the peak. Nothing will warn you; the
+  first port of this kit carried the design tool's numbers over and nine of
+  thirteen cues landed off target, one by 49%.
+
 - **The reducer is pure on purpose.** Its header notes it replaced an older
   pattern of `setState` nested inside other `setState` updaters, which
   double-fired under React StrictMode and duplicated AI draws and log lines.

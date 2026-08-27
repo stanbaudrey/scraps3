@@ -3,7 +3,7 @@
 // ============================================================
 import { useState, useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
-import { playGrandFanfare, playFireworkPop, playNeutralJingle } from "../audio.js";
+import { playGameWon, playFireworkPop, playGameLost } from "../audio.js";
 import { Btn, AceTag } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
 import { SwirlBg } from "./backdrop.jsx";
@@ -268,7 +268,7 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
     // Five-second fanfare starts with the screen. It's scheduled on
     // the audio clock, so nothing below waits on it.
-    playGrandFanfare();
+    playGameWon();
     const pts=[]; const cols=[DS.gold,DS.ember,DS.frost,DS.canopy,'#fff','#F2A68C','#D9CB6B','#B8874A'];
     function burst(x,y,n=120){
       playFireworkPop(); // one pop per visual explosion
@@ -384,7 +384,7 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
   // Deliberately quiet: no fireworks, no descending sad-trombone.
   // A neutral jingle plays once, and the final score is the
   // biggest text on the screen (matching the win screen's scale).
-  useEffect(()=>{ playNeutralJingle(); },[]);
+  useEffect(()=>{ playGameLost(); },[]);
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
       display:'flex',flexDirection:'column',padding:16}}>
