@@ -257,18 +257,26 @@ session's audit added: mobile QA, a formal design audit (balance, negative
 space, focus, motion), and a UX/UI heuristics pass.
 
 **Accessibility — highest risk category for this project.**
-- Menu options are `<div>`s, not `<button>`s (CLAUDE.md, confirmed): not
-  keyboard-focusable, not announced by screen readers, invisible to browser
-  automation. This blocks a whole category of players before the splash
-  screen even resolves. Fix: semantic buttons/roles + visible focus states.
+- ~~Menu options are `<div>`s, not `<button>`s~~ — **closed 2026-08-26**
+  by the unplanned splash-identity pass, which recorded it only in Notion
+  and left this line, the Session 5 prompt and two Notion tables all
+  still describing it as open. Verified end to end 2026-08-27: the picker
+  is a real `<button>`, cards carry `role`/`tabIndex`/`aria-pressed` with
+  spoken labels, and one global `:focus-visible` rule replaced the
+  `outline:'none'` every primitive was setting.
 - The 100vh/`overflow: hidden` clipping bug (CLAUDE.md, confirmed): below
   ~800px viewport height the player's own hand is cut off with no scroll
   fallback. On a 1280×720 laptop, unplayable — and this is the same root
   issue the new mobile pass has to solve, just at a more extreme width.
 - Also in scope: reduced-motion handling for the CSS keyframe animations in
-  `index.html`, AA contrast on `slate #8A8FA8` text against `dusk #1C1C28`,
-  and whether any game state (whose turn, score changes, an Ace strip) is
-  conveyed by color alone.
+  `index.html`, ~~AA contrast on `slate #8A8FA8` text against
+  `dusk #1C1C28`~~, and whether any game state (whose turn, score changes,
+  an Ace strip) is conveyed by color alone. **All three done 2026-08-27 —
+  see the Session 5 entry.** The contrast pairing named here was the
+  pre-reskin neon palette and had not existed since 2026-08-25; the audit
+  against the real Forest Dusk tokens found two AA failures this line
+  could never have caught, the worse of them the rank on every red card
+  in your hand at 1.98:1. Colour-alone: passes, nothing depends on hue.
 
 **Mobile QA — new this session.**
 - Responsive layout at phone, tablet, and desktop widths — not just "does
@@ -1231,6 +1239,149 @@ practice, not just "looks fine."
 navigation works end to end, and you can walk me through what changed for
 balance, negative space, focus, and motion with before/after specifics.
 
+**Session 5 — part one shipped (2026-08-27). The accessibility, motion
+and contrast half is built and committed to `dev` (`18f952d`); the
+visual half is audited and reported, awaiting Stan's picks.** Split on
+purpose at his direction: the accessibility work has right answers, the
+balance/space/focus work has taste in it, and one shouldn't wait on the
+other.
+
+**Two of this prompt's own nouns had rotted** — see the re-validation
+note at the top of this session. Converting the menu `<div>`s was
+already done (by the splash-identity pass, recorded only in Notion), and
+the contrast target named in Section 6 pointed at a palette deleted in
+August. Four separate places — Section 6, this prompt, Notion's Best
+Practice table and Notion's accessibility checklist — were all still
+calling the menu `<div>`s the project's highest-risk open item.
+
+**What was actually still broken, and none of it was in the prompt:**
+
+- **Nothing in the game was ever announced.** There was no `aria-live`
+  region anywhere. Whose turn it is, a score moving, an Ace taking two
+  of your Scraps — every one of those was carried by colour and position
+  alone. The splash-identity pass had made every control *reachable*,
+  which made this the more visible gap rather than a smaller one: a
+  player could now press every button and still not know what happened.
+  `GameAnnouncer` (`hud.jsx`) adds two polite regions. Two, not one, and
+  that is the point: the reducer's own log line answers "what just
+  happened" and the narrator hint answers "what do I do now", and
+  sharing one region would let each new event cancel the instruction
+  mid-sentence. The log was already a complete, well-written narration —
+  it needed a region, not new copy.
+- **Buttons that looked disabled were not disabled.** `Btn`, `BigBtn`
+  and `TradeInBtn` all expressed "unavailable" with three visual tricks
+  — `opacity: 0.35`, `cursor: not-allowed`, and dropping the `onClick`
+  — and never set the `disabled` attribute. So TRADE IN, the game's
+  primary action and the control that spends most of its life in that
+  state, was **the first tab stop on the table** and did nothing when
+  pressed, with no explanation. Measured before: 8 tab stops, the dead
+  button first. After: 7, starting on the cards. `AceTag` was the one
+  control that had always set `disabled` properly.
+- **Contrast had never once been computed against the Forest Dusk
+  palette.** Two live AA failures, both on text: **red suits on a hand
+  card at 1.98:1** — the rank and pip on every heart and diamond you
+  hold, which is the most-read text in the game — and the best-hand
+  badge at **4.27:1**. Fixed with `DS.emberInk` (`#A8341F`, 5.20:1),
+  used *only* as ink on the pale card face, and by moving the badge one
+  step up the ember ramp to `emberHover` (5.24:1). Ember itself is
+  untouched and keeps its accent role; on the *dark* Scraps card face it
+  already measured 6.65:1 and needed no help. **All 27 pairings now
+  clear AA**, 18 of them AAA. `tools/contrast-audit.mjs` is committed so
+  the claim stays reproducible — add a row when a new pairing ships.
+- **The reduced-motion pass `index.html` had been promising itself.**
+  Five of ~28 keyframes were handled. Now: a blanket 1ms rule, plus
+  static substitutes for the three animations that are the *only*
+  carrier of a state. **1ms rather than `animation: none` is
+  load-bearing** — `none` discards the fill, so anything filling
+  `forwards`/`both` (cardFadeIn, panelDeal, the delayed subtitle) would
+  snap back to its unstyled start and stay invisible. And a blanket kill
+  would have quietly *removed information*: a wiggling card means "this
+  one is live", a pulsing zone means "act here", a shaking REVEAL button
+  means "working". Each gets a ring instead, keyed on a `live-cue-*`
+  class the component adds beside its animation. A ring, not an
+  `outline`, so `outline` stays reserved for `:focus-visible` and a
+  state cue can never be mistaken for a focus ring.
+- **No headings, no dialog semantics.** There was no `h1` anywhere and
+  therefore no heading list at all. The splash wordmark is the `h1` now
+  (it *is* the title, so an invisible duplicate would have been worse);
+  the picker, storyboard and table get `sr-only` ones. Every blocking
+  overlay now carries `role="dialog"`, `aria-modal` and a label, and
+  `useDialogFocus` does the three things a modal owes a keyboard: move
+  focus in, keep Tab inside, put focus back on close. They had all
+  trapped the *pointer* since forever — a fixed backdrop — and never
+  trapped focus, so Tab from inside the Ace counter modal walked
+  straight onto the cards it exists to block. `RoundInterstitial` is
+  deliberately excluded: it is a two-second flash nobody can act on.
+- Dead CSS removed: `.menu-opt` and `.diff-opt` had zero references left
+  in `src/`.
+
+**How it was verified: Playwright, not the in-app pane, and that choice
+mattered.** The pane suspends `setTimeout`, and this flow cannot be
+walked without it — the difficulty picker's 720ms arm lock would never
+fire and the walk would stall on screen two, exactly as CLAUDE.md warns.
+The Playwright MCP server has its own browser where timers run.
+Measured there, not read off the code: **5 running animations → 0** with
+the shipped media rule's own declarations applied (the harness cannot
+flip the OS setting, so the rule *contents* were tested by injecting
+them — the media query itself is trivially correct), and the substitute
+ring computing to `rgb(163,216,90) 0 0 0 3px` while every card stayed
+visible at opacity 1; focus entering the Ace dialog onto "Okay", Tab
+holding it there, and returning to the table on close; both live regions
+carrying real text ("Round 1 - Opponent dealt. You go first."); every
+tab stop labelled and every target ≥44px on its short axis.
+
+**Colour-alone check: passes.** Every state that uses colour also
+carries a non-colour signal — the narrator says whose turn it is in
+words, zones are labelled OPP/YOUR, selection is a lift plus
+`aria-pressed`, ineligible cards are dimmed, and suits are distinct
+glyphs. Nothing depends on hue alone.
+
+**The 20 detector findings, now triaged rather than counted.** The
+detector runs at full strength here (no DEGRADED banner, re-confirmed
+this session). 19 `bounce-easing` + 1 `dark-glow`. Verdicts:
+**16 false positives against a deliberate choice** — card motion,
+score pops and the splash wordmark are a card game's physical
+vocabulary, and the voltage glow is what `theme.js` documents as the
+interaction language. **4 are real and worth a decision**: `popIn` with
+overshoot fires on the *losing* overlays too (opponent's Ace reveal,
+the counter notice, no-legal-trades) and `errBounce` bounces the
+over-limit error. Celebratory easing on bad news is the detector's
+point restated in game terms, and Session 1's critique had already
+flagged it as a P1. Listed below as a visual finding, not changed.
+
+**Open — the visual half, reported for Stan's picks:**
+
+1. **The narrator panel collides with the discard pile at his width.**
+   Measured: at 1024×662 the panel's left edge is at x=208 and the
+   discard column runs to x=238 — **29px of overlap, 36% of that
+   column**, with full vertical overlap. At 1440×900 there is a 67px
+   gap and no collision. Real, measured independently of his screen,
+   and it is a width effect, so he sees it and most desktop users do
+   not. Fix is a `min-width` or an explicit gap on the rail rather than
+   letting a `max-width: 760` panel run into it.
+2. **Visual weight is spent on the two things that change least.** The
+   loudest objects on the table are the two score digits, which move
+   once every few minutes; the hand and the trade action, which matter
+   every single turn, are mid-weight.
+3. **Both Scraps zones glow permanently**, in ownership colours, so
+   when `GlowPulse` genuinely activates for discard or ace mode the
+   real state cue has to compete with decoration that is always on.
+4. **A disabled TRADE IN is nearly invisible** at `opacity: 0.35`, so a
+   first-timer does not learn the primary action exists until they
+   happen to select a card. (WCAG exempts disabled controls from
+   contrast, so this is discoverability, not a violation — the
+   *semantic* half is fixed above.)
+5. **Bounce easing on losing overlays**, per the triage above.
+6. **The table reads right-heavy.** The left third below the deck is
+   empty while the right column stacks round strip, opponent Scraps and
+   your Scraps.
+7. **Two treatments for one kind of information**: the hand's best-hand
+   name sits *below* the fan in slate, the zones' sit *inside* their
+   frames with a `▸`.
+
+**Not re-opened, on purpose:** the rules copy the unplanned onboarding
+session settled.
+
 ### Session 6 — Security, privacy, and rights
 **Goal:** nothing leaks, nothing's unlicensed, the fine print is real.
 **Bring:** this brief.
@@ -1959,7 +2110,7 @@ background process left running.
 | 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
-| 5 | Design and UX audit | Not started |
+| 5 | Design and UX audit | In progress — accessibility/motion/contrast shipped 2026-08-27; visual findings await Stan's picks |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
@@ -2017,3 +2168,19 @@ two findings that only appeared at full strength were both false positives
 against a documented, deliberate choice (a fallback font in a system stack, and
 a type ratio that was already above the stated floor). Judge them, record the
 verdicts, and only then treat the detector line in this brief as trustworthy.
+
+**TRIAGED 2026-08-27 in Session 5 — this action is now closed.** All 20
+were judged individually rather than accepted as a block. **16 are false
+positives against a documented, deliberate choice:** card motion, score
+pops and the splash wordmark are a card game's physical vocabulary, and
+the single `dark-glow` is what `theme.js` records as the interaction
+language. **4 are real** — `popIn`'s overshoot fires on the *losing*
+overlays (the opponent's Ace reveal, the counter notice, no-legal-trades)
+and `errBounce` bounces the over-limit error, so celebratory easing lands
+on bad news. That is the same P1 Session 1's critique raised. Logged as an
+open visual finding in the Session 5 entry above, for Stan to call.
+
+The prediction in this section held: as on EGOT, the findings that only
+appear at full strength were false positives against choices this project
+had already made on purpose. What the full-strength run bought was the
+confidence to say so.
