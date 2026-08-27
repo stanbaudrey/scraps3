@@ -46,6 +46,21 @@ const prefersReducedMotion = () => {
 const centerOf = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
+// The transform an element actually ends up drawn with, composed all
+// the way up the tree — the fan's per-card rotate AND the FitBox scale
+// that fits the table to the viewport. getBoundingClientRect flattens
+// both into an axis-aligned box and loses the angle; this keeps them.
+function screenMatrix(el) {
+  let m = new DOMMatrix();
+  for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+    const t = getComputedStyle(n).transform;
+    // Ancestor transforms apply to the child's coordinates, so each
+    // one pre-multiplies what we have accumulated so far.
+    if (t && t !== 'none') m = new DOMMatrix(t).multiply(m);
+  }
+  return m;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Ghost — one card in flight.
 //
@@ -91,8 +106,12 @@ function Ghost({ flight, onDone }) {
   const a = useMemo(() => centerOf(from), []);
   const b = useMemo(() => centerOf(to), []);
   const natW = (sz) => (CARD_DIMS[sz] || CARD_DIMS.small).w;
-  const scale0 = from.width ? from.width / natW(fromSize) : 1;
-  const scale1 = to.width   ? to.width   / natW(toSize)   : 1;
+  // trueW is present when the end was a real card (rotation removed);
+  // the fixed piles pass a plain rect, which is unrotated anyway.
+  const scale0 = (from.trueW || from.width) / natW(fromSize) || 1;
+  const scale1 = (to.trueW   || to.width)   / natW(toSize)   || 1;
+  const rot0 = from.rot || 0;
+  const rot1 = to.rot   || 0;
 
   useEffect(() => {
     if (prefersReducedMotion()) { doneRef.current(); return; }
@@ -113,7 +132,9 @@ function Ghost({ flight, onDone }) {
       const x = (1 - e) * (1 - e) * a.x + 2 * (1 - e) * e * cp.x + e * e * b.x;
       const y = (1 - e) * (1 - e) * a.y + 2 * (1 - e) * e * cp.y + e * e * b.y;
       const s = scale0 + (scale1 - scale0) * e;
-      const rot = arc * 9 * Math.sin(e * Math.PI);
+      // Lean out of the angle the card was sitting at and into the
+      // angle it lands at, with the arc's flourish laid over the top.
+      const rot = rot0 + (rot1 - rot0) * e + arc * 9 * Math.sin(e * Math.PI);
       el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${s})`;
       if (toRef.current) {
         // Cross-fade the two looks across the middle of the trip.
@@ -131,7 +152,15 @@ function Ghost({ flight, onDone }) {
   return (
     <div ref={elRef} data-flight={card ? card.id : 'anon'} data-face={faceDown ? 'down' : 'up'} style={{
       position:'fixed', left:0, top:0, zIndex:1000, pointerEvents:'none',
-      transform:`translate3d(${a.x}px,${a.y}px,0) scale(${scale0})`,
+      // '0 0', NOT the default centre. The inner div centres the card
+      // on this element's origin, so the origin is the card's centre —
+      // but scale/rotate default to pivoting about the element's own
+      // box centre, half a card away. That pushed frame one up and to
+      // the left of the card it was replacing (measured: 3.4px left,
+      // 4.8px up) and put the landing slightly off the real card too.
+      // Pivoting about the origin makes both ends exact at any scale.
+      transformOrigin:'0 0',
+      transform:`translate3d(${a.x}px,${a.y}px,0) rotate(${rot0}deg) scale(${scale0})`,
       willChange:'transform',
     }}>
       <div style={{position:'relative', transform:'translate(-50%,-50%)',
@@ -187,7 +216,22 @@ export function useCardMotion() {
     const el = els.current.get(id);
     if (!el) return null;
     const r = el.getBoundingClientRect();
-    return r.width ? r : null;
+    if (!r.width) return null;
+    // A card in the fan is ROTATED, and getBoundingClientRect hands
+    // back the axis-aligned box AROUND the rotated card — 13% wider
+    // than the card really is at the fan's outer angles. Sizing the
+    // ghost from that width launched it visibly too big, and drawing
+    // it upright snapped it out of the lean it was sitting in. Read
+    // the accumulated transform instead: it gives the true scale and
+    // the SIGNED angle, so the ghost starts exactly on top of the
+    // card the player just toggled. The box's centre is still right
+    // either way — rotation about the centre preserves it.
+    const m = screenMatrix(el);
+    const scale = Math.hypot(m.a, m.b) || 1;
+    return Object.assign(r.toJSON(), {
+      trueW: el.offsetWidth * scale,
+      rot: Math.atan2(m.b, m.a) * 180 / Math.PI,
+    });
   }, []);
 
   const fly = useCallback((moves) => {
