@@ -1443,6 +1443,56 @@ most of it back.
 **Not re-opened, on purpose:** the rules copy the unplanned onboarding
 session settled.
 
+**Published to production 2026-08-27** — `main` fast-forwarded to
+`cac9850`, deploy READY, and `dev` and `main` are level with each other.
+
+**Verified against production, not the build log.** The strongest form of
+this check that exists here: `curl`ed the live bundle and ran `cmp`
+against the locally tested `dist/assets/index-CQzez2Y6.js` — **byte for
+byte identical**, so everything measured locally is what shipped. Present
+in the served JS: the new card-face red `#A8341F`, both `live-cue-*`
+classes, `aria-live`, the game-table `h1` and the Ace dialog's label.
+Absent: `errBounce`, gone entirely. In the served HTML: `.sr-only`, the
+`h1.scraps-title` reset, the full `prefers-reduced-motion` block and
+`errRise`, with `.menu-opt`/`.diff-opt` gone. The one `errBounce` string
+left in the HTML is the comment recording its retirement.
+
+**Nothing to check on the environment side, and that is a fact rather
+than a skip:** `grep` for `import.meta.env` and `process.env` across
+`src/` and `index.html` returns nothing, this push added no variable, and
+the project has no scheduled job, cron, webhook or background worker to
+confirm ran.
+
+**Publish-time detector: 14 findings, full strength (no DEGRADED
+banner).** Every one is in the set this session triaged as the game's
+committed identity — card motion, score pops, the splash wordmark, the
+win and Full Scrap celebrations, and the documented voltage glow. The
+four the triage called real were fixed and are gone. **The fuller
+`/impeccable critique` was deliberately not run**: this push does rework
+UI, which normally calls for it, but the session had already done a
+measured design and accessibility audit end to end in a real browser —
+contrast computed for 27 pairings, the reduced-motion rule's own
+declarations applied and animations counted 5 → 0, the focus trap
+walked, geometry measured at four viewports. Critique spawns two
+sub-agents and closes by asking a question, which is the wrong shape for
+a session close-out and would mostly re-derive what was just measured.
+Worth running at the Session 7 pre-launch pass instead, on a surface that
+has not just been audited.
+
+**Found during the publish checks, and it belongs to Session 7:
+production serves no favicon, no OG image, no `robots.txt`, no
+`sitemap.xml`, and the HTML carries no `og:` tags at all** — all 404s.
+That is not a regression; those files have never existed and Session 7 is
+scoped to create them. It is recorded here because of *how* they should
+be created. The share image is the canonical case of an asset generated
+once from values that later move, with nothing regenerating it and no
+test reading it: EGOT's card advertised a product name that had been
+renamed away, for six days, because the site looked perfect and the card
+is the one surface nobody sees while working. **So Session 7 should ship
+these with a generator script that reads the live sources and exits
+non-zero on a mismatch — and that script should be broken on purpose
+once, to watch it fail, before it is trusted.**
+
 ### Session 6 — Security, privacy, and rights
 **Goal:** nothing leaks, nothing's unlicensed, the fine print is real.
 **Bring:** this brief.
@@ -1474,7 +1524,14 @@ crawlers, and goes live on the agreed schedule.
 > description in `index.html` (SCRAPS — Two Hands. One Table. No Mercy.).
 > Add: a favicon, Open Graph and Twitter card tags with a real 1200×630
 > share image, a canonical tag, `sitemap.xml`, `robots.txt`, JSON-LD for the
-> game, and an `llms.txt` for AI crawlers. **Stop and show me every literal
+> game, and an `llms.txt` for AI crawlers. **Generate the share image and
+> favicon from a committed script that reads the live sources (the title in
+> `index.html`, the tokens in `theme.js`) and exits non-zero when they no
+> longer match — then break it on purpose once and watch it fail before
+> trusting it.** Confirmed 2026-08-27 that none of these files exist yet, so
+> there is nothing to migrate; the requirement is about what happens after a
+> future rename or repaint, which is how EGOT shipped six days of links
+> advertising a product name that no longer existed. **Stop and show me every literal
 > field value — the actual title tag, the actual description, the actual OG
 > image — before moving on.** Once approved: walk the game on preview once
 > more, publish to production, smoke test the live URL cold on a phone on
