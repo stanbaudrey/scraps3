@@ -1162,6 +1162,30 @@ file) are still uncommitted and were left alone.
 
 ### Session 5 — Design and UX audit
 
+**Prompt re-validated 2026-08-27 (written 2026-08-24). Two of its nouns had
+rotted; both are corrected below and struck through in the prompt itself.**
+
+1. **"Convert the menu `<div>`s to real focusable buttons" is already done** —
+   by the unplanned splash-identity session on 2026-08-26, which recorded it
+   only in Notion. The difficulty picker is a real `<button>` with the 720ms
+   arm lock expressed as `disabled`; cards in the fan and the Scraps zone
+   carry `role`/`tabIndex`/`aria-pressed`, Enter and Space, and spoken labels;
+   Play Ace stopped being a div; and one global `:focus-visible` rule replaced
+   the `outline:'none'` every button primitive was setting. Section 6 above,
+   this prompt, Notion's "Best Practice Considerations" table and Notion's
+   accessibility checklist were **all four** still calling this the project's
+   highest-risk open item. What remains is verification end to end, not
+   conversion.
+2. **The contrast target named in Section 6 — `slate #8A8FA8` on
+   `dusk #1C1C28` — is the pre-reskin neon palette and no longer exists.**
+   The Forest Dusk reskin replaced every value on 2026-08-25. Contrast still
+   needs auditing; it needs auditing against `theme.js`'s current tokens, in
+   the states the app actually renders.
+
+Unchanged and still accurate: the reduced-motion pass (index.html's own
+comment names this session as its owner — 5 of ~28 keyframes are handled),
+and the detector triage below.
+
 **Correction (2026-08-26, later the same day): the detector is NOT
 degraded, and an earlier note in this session claiming it was has been
 withdrawn.** All four parser modules — `htmlparser2`, `css-select`,
@@ -1198,8 +1222,11 @@ practice, not just "looks fine."
 > pass: is everything clickable obviously clickable, is feedback immediate
 > after every action, are invalid moves communicated clearly instead of
 > silently rejected. Also finish the accessibility items from Section 6:
-> convert the menu `<div>`s to real focusable buttons, fix contrast where
-> needed, respect `prefers-reduced-motion`.
+> ~~convert the menu `<div>`s to real focusable buttons~~ (done
+> 2026-08-26 — verify keyboard nav end to end instead), fix contrast where
+> needed ~~on `slate #8A8FA8` against `dusk #1C1C28`~~ (that palette is gone —
+> compute against the current Forest Dusk tokens), respect
+> `prefers-reduced-motion`.
 **Done when:** an accessibility checker shows no critical issues, keyboard
 navigation works end to end, and you can walk me through what changed for
 balance, negative space, focus, and motion with before/after specifics.

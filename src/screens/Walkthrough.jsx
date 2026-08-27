@@ -324,6 +324,12 @@ export function Walkthrough({ onDone }) {
     <div onClick={advance} className="app-vh" style={{position:'fixed',inset:0,background:DS.dusk,
       display:'flex',flexDirection:'column',cursor:'pointer',overflow:'hidden',userSelect:'none'}}>
       <SwirlBg/>
+      <h1 className="sr-only">SCRAPS — how to play</h1>
+      {/* Each beat replaces the last in place, so the step count is a
+          change a screen reader has to be told about rather than shown. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {`Step ${i + 1} of ${BEATS.length}.`}
+      </div>
 
       {/* Beat body. It used to scroll on a short screen and eat
           130px of padding to clear a pinned rail; now the rail is

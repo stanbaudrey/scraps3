@@ -28,10 +28,66 @@ import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "
 // be exactly as tall as its content and always "fit"), and
 // FitBox scales anything that still comes up too tall.
 // ─────────────────────────────────────────────────────────────
-function Shell({ children, zIndex, background, onClick, pad = 16, style = {} }) {
+// ─────────────────────────────────────────────────────────────
+// useDialogFocus — the keyboard half of a modal.
+//
+// Every overlay in this file already trapped a POINTER: a fixed
+// backdrop covers the table, so nothing behind it can be clicked.
+// Focus was never trapped to match. Tab from inside the Ace counter
+// modal walked straight out into the hand underneath it — cards that
+// are role="button" and reachable — so a keyboard player could tab
+// onto controls the modal exists to block, with no way to tell they
+// had left the dialog.
+//
+// Three things, all of them standard and none of them optional:
+// move focus in on open, keep Tab inside while it is up, and put
+// focus back where it came from on close. The last one is the one
+// that gets skipped and the one people notice: without it, dismissing
+// a modal drops focus to the top of the document.
+// ─────────────────────────────────────────────────────────────
+const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function useDialogFocus(active) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!active) return undefined;
+    const node = ref.current;
+    if (!node) return undefined;
+    const restoreTo = document.activeElement;
+    const list = () => Array.from(node.querySelectorAll(FOCUSABLE));
+    const first = list()[0];
+    (first || node).focus();
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return;
+      const f = list();
+      if (!f.length) { e.preventDefault(); node.focus(); return; }
+      const at = f.indexOf(document.activeElement);
+      if (e.shiftKey && at <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && at === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    };
+    node.addEventListener('keydown', onKey);
+    return () => {
+      node.removeEventListener('keydown', onKey);
+      if (restoreTo && typeof restoreTo.focus === 'function') restoreTo.focus();
+    };
+  }, [active]);
+  return ref;
+}
+
+function Shell({ children, zIndex, background, onClick, pad = 16, style = {},
+  dialogLabel = null }) {
+  // `dialogLabel` is opt-in, because not every user of this Shell is a
+  // dialog. RoundInterstitial is a 2-second flash nobody can act on;
+  // announcing it as a modal and stealing focus into it would be a lie
+  // and a nuisance. The overlays that ask a question all pass one.
+  const dialogRef = useDialogFocus(!!dialogLabel);
   return (
-    <div onClick={onClick} style={{position:'fixed',inset:0,zIndex,background,
-      display:'flex',flexDirection:'column',padding:pad,...style}}>
+    <div onClick={onClick}
+      ref={dialogLabel ? dialogRef : undefined}
+      {...(dialogLabel ? { role:'dialog', 'aria-modal':true, 'aria-label':dialogLabel, tabIndex:-1 } : {})}
+      style={{position:'fixed',inset:0,zIndex,background,
+      display:'flex',flexDirection:'column',padding:pad,...style,
+      ...(dialogLabel ? { outline:'none' } : {})}}>
       <FitBox modeMinW={300}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
           alignItems:'center',justifyContent:'center'}}>
@@ -113,7 +169,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
   const cardSize = w < 700 ? 'small' : 'normal';
   useEffect(()=>{setTimeout(()=>setVis(true),50);},[]);
   return (
-    <Shell zIndex={80} background="rgba(20,31,25,0.94)" pad={14}
+    <Shell zIndex={80} background="rgba(20,31,25,0.94)" pad={14} dialogLabel="Hand reveal"
       style={{opacity:vis?1:0,transition:'opacity 0.3s'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',
         gap:'clamp(10px,2.4vh,20px)'}}>
@@ -174,6 +230,10 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
 export function FullScrapLightbox({ onDone }) {
   const canvasRef=useRef();
   const [phase,setPhase]=useState(0); // 0=fireworks, 1=text
+  // Phase 0 is fireworks over a canvas with nothing to press. Trapping
+  // focus before the button exists would park it on the container and
+  // announce an empty dialog, so the trap arms with the text.
+  const dialogRef=useDialogFocus(phase===1);
   useEffect(()=>{
     const canvas=canvasRef.current; if(!canvas) return;
     const ctx=canvas.getContext('2d');
@@ -207,8 +267,10 @@ export function FullScrapLightbox({ onDone }) {
   },[]);
 
   return (
-    <div style={{position:'fixed',inset:0,zIndex:200}}>
-      <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
+    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+      aria-label="Full Scrap — you won all three hands"
+      style={{position:'fixed',inset:0,zIndex:200,outline:'none'}}>
+      <canvas ref={canvasRef} aria-hidden="true" style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
       {phase===1&&(
         <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:16}}>
           <FitBox modeMinW={300}>
@@ -425,14 +487,15 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 // ─────────────────────────────────────────────────────────────
 export function AceDrawnLightbox({ ace, onDismiss }) {
   return (
-    <Shell zIndex={95} background="rgba(20,31,25,.92)">
+    <Shell zIndex={95} background="rgba(20,31,25,.92)" dialogLabel="You drew an Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.gold,
           letterSpacing:'0.06em',marginBottom:24}}>You've drawn an Ace!</div>
         <div style={{display:'flex',justifyContent:'center',marginBottom:26}}>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
+          <div className="live-cue-card"
+            style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
             animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
             <AceTag live={false} width={124}/>
             {ace && <PlayingCard card={ace} size="large" liftTransform={false}/>}
@@ -466,7 +529,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
 // ─────────────────────────────────────────────────────────────
 export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent played an Ace — counter or allow">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
@@ -517,7 +580,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
 // ─────────────────────────────────────────────────────────────
 export function OpponentAceReveal({ targets, onOk }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent's Ace removed two of your Scraps cards">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
@@ -544,7 +607,7 @@ export function OpponentAceReveal({ targets, onOk }) {
 // ─────────────────────────────────────────────────────────────
 export function AiCounterNotice({ playerAce, aiAce, onOk }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
@@ -578,6 +641,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // RulesModal
 // ─────────────────────────────────────────────────────────────
 export function RulesModal({ onClose }) {
+  const dialogRef = useDialogFocus(true);
   // Escape closes it. The backdrop already closes on click, which is the
   // pointer half of the same affordance; without this a keyboard user
   // has to find the Close button to leave.
@@ -600,8 +664,9 @@ export function RulesModal({ onClose }) {
   // defeats the only thing the panel is for. Every other overlay
   // here is a short message and gets scaled instead.
   return (
-    <div style={{position:'fixed',inset:0,zIndex:100,background:'rgba(20,31,25,.94)',
-      display:'flex',alignItems:'center',justifyContent:'center',padding:12}} onClick={onClose}>
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Rules" tabIndex={-1}
+      style={{position:'fixed',inset:0,zIndex:100,background:'rgba(20,31,25,.94)',
+      display:'flex',alignItems:'center',justifyContent:'center',padding:12,outline:'none'}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:DS.duskMid,
         border:`2px solid ${DS.slate}44`,borderRadius:16,padding:'clamp(20px,5vw,34px) clamp(16px,5vw,40px)',
         maxWidth:820,width:'100%',maxHeight:'min(88vh, 88dvh)',overflowY:'auto'}}>
@@ -628,7 +693,7 @@ export function RulesModal({ onClose }) {
 // ─────────────────────────────────────────────────────────────
 export function SkipTurnModal({ onOk }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="No legal trades — your turn is skipped">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.slate}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:520,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.slate}44`}}>

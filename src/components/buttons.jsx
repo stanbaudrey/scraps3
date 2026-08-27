@@ -52,6 +52,22 @@ export function pressStyles(applyIn, applyOut) {
 // ─────────────────────────────────────────────────────────────
 // Btn — DOM-mutation press states (zero React re-renders)
 // ─────────────────────────────────────────────────────────────
+//
+// DISABLED IS A STATE, NOT A LOOK (fixed 2026-08-27, Session 5).
+// All three primitives below used to express "unavailable" with three
+// visual tricks — opacity 0.35, `cursor: not-allowed`, and dropping the
+// onClick — and never set the `disabled` attribute itself. Everything
+// that is not a sighted mouse user therefore missed it entirely: the
+// button stayed in the tab order, a screen reader announced it as an
+// ordinary available control, and pressing Enter on it did nothing at
+// all, with no explanation. TRADE IN is the game's primary action and
+// spends most of its life in that state, so it was the FIRST tab stop
+// on the table and it was dead.
+//
+// `disabled` now goes on the element. That takes it out of the tab
+// order and makes assistive tech say so, which is exactly what
+// MenuScreens' picker already does for its 720ms arm lock. AceTag was
+// the one control that had this right all along.
 export function Btn({ children, onClick, variant='primary', disabled=false, small=false }) {
   const base={border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
@@ -90,7 +106,7 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     if(variant==='warning'){el.style.background='transparent';}
     if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
-  return <button style={{...base,...V[variant]}}
+  return <button type="button" disabled={disabled} style={{...base,...V[variant]}}
     {...pressStyles(hIn,hOut)}
     onClick={disabled?undefined:onClick}>{children}</button>;
 }
@@ -137,7 +153,7 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false, c
     if(variant==='sky'){el.style.background=DS.slate;}
     if(variant==='gold'){el.style.background=DS.gold;el.style.boxShadow=disabled?'none':`0 0 20px ${DS.gold}66`;}
   };
-  return <button style={{...base,...V[variant]}}
+  return <button type="button" disabled={disabled} style={{...base,...V[variant]}}
     {...pressStyles(hIn,hOut)}
     onClick={disabled?undefined:onClick}>{children}</button>;
 }
@@ -178,7 +194,7 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
   else if (blocked) label = `Hand would be ${projectedHand}/7`;
   else label = `Trade ${count} \u2192 Draw ${drawCount}`;
   return (
-    <button {...pressStyles(hIn,hOut)}
+    <button type="button" disabled={disabled} {...pressStyles(hIn,hOut)}
       onClick={disabled?undefined:onClick}
       style={{
         border:'none',cursor:disabled?'not-allowed':'pointer',

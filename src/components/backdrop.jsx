@@ -79,7 +79,7 @@ export function AnimatedTitle() {
   }, [isTouch, squareUp]);
 
   return (
-    <div className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}
+    <h1 className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}
       onClick={isTouch ? squareUp : undefined}>
       {LETTERS.map((l,i)=>(
         <span key={i} className="scraps-letter"
@@ -99,6 +99,6 @@ export function AnimatedTitle() {
           </span>
         </span>
       ))}
-    </div>
+    </h1>
   );
 }

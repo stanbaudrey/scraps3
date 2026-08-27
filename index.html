@@ -75,49 +75,30 @@
         border-radius: 4px;
       }
 
-      /* Global hover classes — defined here so they work before React hydrates */
-      .menu-opt {
-        cursor: pointer;
-        border: 2px solid color-mix(in srgb, var(--slate) 27%, transparent);
-        border-radius: 10px;
-        padding: 20px 24px;
-        background: transparent;
-        transition: border-color 80ms, background 80ms, box-shadow 80ms;
+      /* Available to a screen reader, absent from the picture. Used for
+         the per-screen <h1>s and for the two live regions that narrate
+         the game — see GameAnnouncer in hud.jsx. `clip-path` rather than
+         `display:none` or `visibility:hidden`, because both of those
+         remove the node from the accessibility tree as well, which would
+         defeat the entire point of a live region. */
+      .sr-only {
+        position: absolute;
+        width: 1px; height: 1px;
+        margin: -1px; padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
       }
-      /* Hover is gated on a device that HAS hover. Without the
-         query a phone latches the hover look onto whatever was
-         tapped last and never lets go. The :active rule below is
-         the touch equivalent — same feedback, tied to the press. */
-      @media (hover: hover) and (pointer: fine) {
-        .menu-opt:hover {
-          border-color: var(--voltage);
-          background: color-mix(in srgb, var(--voltage) 8%, transparent);
-          box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
-        }
-      }
-      .menu-opt:active {
-        border-color: var(--voltage);
-        background: color-mix(in srgb, var(--voltage) 14%, transparent);
-      }
-      .diff-opt {
-        cursor: pointer;
-        border: 2px solid color-mix(in srgb, var(--slate) 27%, transparent);
-        border-radius: 10px;
-        padding: 18px 22px;
-        background: transparent;
-        transition: border-color 80ms, background 80ms, box-shadow 80ms;
-      }
-      @media (hover: hover) and (pointer: fine) {
-        .diff-opt:hover {
-          border-color: var(--voltage);
-          background: color-mix(in srgb, var(--voltage) 8%, transparent);
-          box-shadow: 0 0 20px color-mix(in srgb, var(--voltage) 40%, transparent);
-        }
-      }
-      .diff-opt:active {
-        border-color: var(--voltage);
-        background: color-mix(in srgb, var(--voltage) 14%, transparent);
-      }
+
+      /* The wordmark is the page's <h1>. Reset what a UA gives an h1 so
+         the heading is a semantic change and not a visual one. */
+      h1.scraps-title { margin: 0; font-size: inherit; font-weight: inherit; }
+
+      /* `.menu-opt` and `.diff-opt` lived here until 2026-08-27. Both were
+         dead: the splash's option wall was deleted with the RULES panel,
+         and the difficulty picker became a real <button> styled by
+         `.pick-box` below. Nothing in src/ referenced either class. */
 
       /* Difficulty picker — the two big boxes. They unfold from a
          hairline and are INERT until .armed lands (see ARM_MS in
@@ -316,25 +297,73 @@
         animation: squareUp 720ms cubic-bezier(.25,1.2,.4,1) both;
       }
 
-      /* Scoped, not global — a full reduced-motion pass over every
-         animation in the game is Session 5's job. This only stops the
-         one new perpetual decorative loop, which carries no state or
-         feedback, so freezing it loses nothing. */
-      @media (prefers-reduced-motion: reduce) {
-        div[style*="swirlFlow"] { animation: none !important; }
-        /* Both are decorative-only and carry no state: the storyboard
-           wiggle is emphasis, the picker unfold is a reveal. Killing
-           them leaves the final rendered state, and the picker's
-           input lock is a JS timer, so it still arms on schedule. */
-        .wt-wiggle { animation: none !important; }
-        .pick-box, .pick-box.armed { animation: none !important; }
+      /* ========================================================
+         REDUCED MOTION — the full pass (Session 5, 2026-08-27).
+         This replaces the five scoped rules that used to sit here
+         with a note saying a real pass was still owed.
 
-        /* Kills the wordmark's entrance and its breathe together.
-           Safe: letterAppear only fills in opacity/transform it
-           already returns to, so with no animation the letters just
-           render settled. */
-        .scraps-letter, .tap-layer.squaring { animation: none !important; }
-        .scraps-kinetic { transition: none !important; }
+         Every animation in this project falls into one of three
+         groups, and only the third needs thought:
+
+         1. ONE-SHOT ENTRANCES that end where the element already
+            belongs — fadeUp, cardFadeIn, slideUp/Down, popIn,
+            fullScrapPop, letterAppear, panelDeal, waveUp, errBounce,
+            the score and badge pops. Collapsing the duration lands
+            the final frame immediately. Nothing is lost: these
+            animate an element INTO the state it would have had
+            anyway.
+         2. PERPETUAL DECORATION that carries no state — the three
+            swirl layers, the wordmark riffle and its tap scatter,
+            the storyboard lean, the suits bounce. Freezing them
+            loses nothing at all.
+         3. MOTION THAT IS THE ONLY CARRIER OF A STATE — three cases,
+            and this is where a blanket `animation: none` would
+            quietly break the game rather than calm it. A wiggling
+            card means "this one is live"; a pulsing zone means
+            "act here"; a shaking REVEAL button means "working".
+            Remove the movement and a reduced-motion player loses
+            information a default player has. Each gets a STATIC
+            substitute below, keyed on a `live-cue-*` class the
+            component adds alongside the animation.
+
+         The blanket rule uses 1ms rather than `none` on purpose:
+         `animation: none` discards a fill, so anything filling
+         `forwards`/`both` (cardFadeIn, panelDeal, the delayed
+         subtitle) would snap back to its unstyled start and stay
+         there — invisible. A 1ms run still fills.
+
+         Card FLIGHT is handled separately and already was: the
+         motion hook in flight.jsx checks the same query and lands
+         every card instantly instead of arcing it.
+         ======================================================== */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 1ms !important;
+          animation-delay: 0ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 1ms !important;
+          transition-delay: 0ms !important;
+          scroll-behavior: auto !important;
+        }
+
+        /* Group 3 substitutes. Each says the same thing the motion
+           said, without moving: a bright ring for "this card is live",
+           a heavier zone ring for "act here", a thick collar on the
+           REVEAL button for "working, wait".
+           A ring, not an outline: `outline` belongs to :focus-visible
+           alone, so a state cue and a focus ring can never be mistaken
+           for one another on the same card. */
+        .live-cue-card {
+          border-radius: 14px;
+          box-shadow: 0 0 0 3px var(--voltage),
+                      0 0 0 7px color-mix(in srgb, var(--voltage) 30%, transparent) !important;
+        }
+        .live-cue-zone {
+          box-shadow: 0 0 0 5px color-mix(in srgb, var(--voltage) 75%, transparent) !important;
+        }
+        .live-cue-busy {
+          box-shadow: 0 0 0 5px var(--slate) !important;
+        }
       }
     </style>
   </head>

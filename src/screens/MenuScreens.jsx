@@ -87,6 +87,7 @@ export function DifficultyPicker({ onChoose }) {
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
       position:'relative',overflow:'hidden'}}>
       <SwirlBg/>
+      <h1 className="sr-only">SCRAPS — choose your opponent</h1>
       {/* Gaps and box padding are viewport-relative so the two
           panels stay whole on a short screen instead of the second
           one running off the bottom. */}

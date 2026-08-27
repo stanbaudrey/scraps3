@@ -49,6 +49,16 @@ export const DS = {
   duskMid:    '#1E2C24',
   slateLight: '#C9C2AE',
   inkLight:   '#2E4235',
+  // Red suits printed on the pale card face, and NOWHERE else. `ember`
+  // is 1.98:1 against `frost` — the rank and suit on every heart and
+  // diamond in your hand were failing AA by a factor of two, measured
+  // 2026-08-27 in the Session 5 audit. It went unnoticed because the
+  // brief's contrast target still named the pre-reskin `#8A8FA8`
+  // on `#1C1C28`, a pairing that stopped existing in August.
+  // This token is 5.20:1 on frost. Ember itself is untouched and keeps
+  // its accent role: on the DARK Scraps card face it measures 6.65:1
+  // and needs no help, so only the light face uses this.
+  emberInk:   '#A8341F',
   voltageHover: '#B5E07B',
   emberHover:   '#F0A376',
   gold:       '#F4C771',

@@ -214,6 +214,45 @@ const SIGNAL_SHAPES = [
   { n:5, name:'STRAIGHT+' },
 ];
 
+// ─────────────────────────────────────────────────────────────
+// GameAnnouncer — the game, spoken.
+//
+// Everything this table says, it said in colour and position: whose
+// turn it is, that a score moved, that an Ace just took two of your
+// cards. A player using a screen reader could reach every control
+// (Session 8 and the splash-identity pass saw to that) and still have
+// no idea what had happened after pressing one.
+//
+// Two regions, not one, and that is the point. The log answers "what
+// just happened" and the hint answers "what do I do now"; sharing a
+// single region would mean each new event cancelled the instruction
+// mid-sentence. Both are `polite`, so neither interrupts the player.
+//
+// `aria-atomic` makes the whole region re-read on change rather than
+// just the changed words — these are one-sentence regions, so the
+// alternative is a screen reader reading a diff aloud.
+//
+// Known limit, deliberately accepted: during the opponent's turn the
+// reducer can append two or three log lines inside a few hundred ms,
+// and a polite region announces the value it finds when it gets to it,
+// not every value it passed through. The full history is in the log
+// panel. Queueing every line instead would put the narration further
+// and further behind the board it is describing.
+// ─────────────────────────────────────────────────────────────
+export function GameAnnouncer({ messages, hint }) {
+  const latest = messages.length ? messages[messages.length - 1] : '';
+  return (
+    <>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {latest}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {hint}
+      </div>
+    </>
+  );
+}
+
 export function SignalLegalityStrip({ hand, selectedCount=0, compact=false }) {
   const valid = new Set(getValidSignals(hand));
   return (

@@ -26,7 +26,7 @@ import { playSelect, playTransfer, playDraw, playAceStrike, playAceCounter,
   playFullScrap, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
-import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip } from "../components/hud.jsx";
+import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, TradeInBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { recordGame } from "../game/stats.js";
@@ -828,12 +828,9 @@ export function GameScreen({ difficulty, onExit }) {
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
   else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals that their hand contains ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Pick your own hand, then hit SIGNAL.`;
-  else if (isSignal && !signalLocked) hint = (
-    <>
-      Pick any valid hand. Your opponent sees how many cards you will play,
-      which tells them what you might have.
-    </>
-  );
+  else if (isSignal && !signalLocked) hint =
+    'Pick any valid hand. Your opponent sees how many cards you will play, '
+    + 'which tells them what you might have.';
   else if (isSignal && signalLocked) hint = 'Signal locked. Waiting for opponent...';
   else if (isReveal) hint = 'Both signals in. Reveal hands?';
   else if (isAiThinking) hint = 'Opponent is thinking...';
@@ -968,6 +965,12 @@ export function GameScreen({ difficulty, onExit }) {
         )}
         {isReveal&&(
           <button
+            type="button"
+            // Busy, not disabled: the build is 580ms and disabling would
+            // drop keyboard focus mid-press. aria-busy says the same thing
+            // to assistive tech that the shake says to everyone else.
+            aria-busy={revealBuilding}
+            className={revealBuilding ? 'live-cue-busy' : undefined}
             {...pressStyles(
               el=>{if(!revealBuilding){el.style.background=DS.slateLight;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.slateLight}`;}},
               el=>{el.style.background=DS.slate;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.slate}88`;}
@@ -1054,6 +1057,11 @@ export function GameScreen({ difficulty, onExit }) {
   return (
     <div className="app-vh" style={{display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'hidden'}}>
+      {/* The table's one heading. The wordmark is on the splash, not
+          here, so without this the game screen has no h1 at all and a
+          screen reader's heading list is empty. */}
+      <h1 className="sr-only">SCRAPS — game table</h1>
+      <GameAnnouncer messages={log} hint={hint}/>
       <OpponentBar aiScore={aiScore} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
         difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
       {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}

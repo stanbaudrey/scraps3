@@ -41,7 +41,10 @@ export const CARD_DIMS = {
 };
 
 export function isRed(suit){ return suit==='♥'||suit==='♦'; }
-function cardInk(suit,isScrap){ return isScrap?(isRed(suit)?DS.ember:DS.voltage):(isRed(suit)?DS.ember:DS.ink); }
+// Red suits use a different red on each face, because the two faces are
+// different backgrounds: `ember` reads 6.65:1 on the dark Scraps card
+// and 1.98:1 on the pale hand card. `emberInk` is the hand-card red.
+function cardInk(suit,isScrap){ return isScrap?(isRed(suit)?DS.ember:DS.voltage):(isRed(suit)?DS.emberInk:DS.ink); }
 // Spoken names for the four glyphs. A screen reader hands "♠" to the
 // user as anything from "black spade suit" to nothing at all, so every
 // interactive card gets an explicit label built from these.
@@ -167,7 +170,14 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
   const animName = shake?'cardShake':wiggle?'cardWiggle':undefined;
 
   return (
-    <div ref={selfRef} onClick={onClick} data-card-id={card?card.id:undefined} style={{
+    <div ref={selfRef} onClick={onClick} data-card-id={card?card.id:undefined}
+      // `live-cue-*` marks motion that is the ONLY carrier of a state, so
+      // the reduced-motion block in index.html can hand it a static
+      // substitute instead of simply deleting the signal. See the comment
+      // above that block.
+      className={animName === 'cardWiggle' ? 'live-cue-card'
+        : animName === 'cardShake' ? 'live-cue-busy' : undefined}
+      style={{
       visibility:hidden?'hidden':'visible',
       width:d.w,height:d.h,borderRadius:12,
       background:faceDown?'transparent':bg,
@@ -207,7 +217,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
 // ─────────────────────────────────────────────────────────────
 export function GlowPulse({ active, color=DS.voltage, children, style:extStyle={} }) {
   return (
-    <div style={{borderRadius:16,
+    <div className={active ? 'live-cue-zone' : undefined} style={{borderRadius:16,
       boxShadow:active?`0 0 0 3px ${color}88,0 0 22px ${color}55`:'none',
       animation:active?'zonePulse 1.6s ease-in-out infinite':'none',
       transition:'box-shadow 0.3s',...extStyle}}>
@@ -333,7 +343,8 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
               animation: waveIds.has(card.id) ? 'waveUp 0.4s ease' : undefined,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
               {slot?(
-                <div style={{position:'relative',
+                <div className={doWiggle ? 'live-cue-card' : undefined}
+                  style={{position:'relative',
                   animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
                   <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
                     marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
@@ -446,10 +457,15 @@ function useBestHand(cards) {
 // opponent = ember when threatening, slate otherwise.
 function ZoneBadge({ cards, owner, fontSize=13 }) {
   const { best, flash } = useBestHand(cards);
+  // `emberHover`, not `ember`, and not for a hover reason: this badge is
+  // 13px on the zone's inkLight fill, where plain ember measures 4.27:1 —
+  // just under AA for text this size. emberHover is the same hue one step
+  // brighter and measures 5.24:1. Both owners use it, since the player's
+  // own badge turns ember at rank 5 too.
   let col;
   if (!best) col = DS.slate + '55';
-  else if (owner === 'player') col = best.rank>=7?DS.voltage:best.rank>=5?DS.ember:best.rank>=3?DS.slateLight:DS.slate;
-  else col = best.rank>=5?DS.ember:DS.slate;
+  else if (owner === 'player') col = best.rank>=7?DS.voltage:best.rank>=5?DS.emberHover:best.rank>=3?DS.slateLight:DS.slate;
+  else col = best.rank>=5?DS.emberHover:DS.slate;
   return (
     <span style={{
       fontFamily:F.mono,fontSize:fontSize,fontWeight:700,color:col,
