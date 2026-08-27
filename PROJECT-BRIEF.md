@@ -1479,6 +1479,36 @@ a session close-out and would mostly re-derive what was just measured.
 Worth running at the Session 7 pre-launch pass instead, on a surface that
 has not just been audited.
 
+**Three process edits came out of the publish retro, approved by Stan and
+made** (committed to `~/.claude`, `479365b` — a local-only repo with no
+remote, so the commit is the whole of it):
+
+- **`~/.claude/CLAUDE.md`**'s browser-measurement rule now names the
+  **Playwright MCP server as the first fallback** when the in-app pane
+  suspends `setTimeout`, ahead of the lift-the-logic-into-Node path that
+  was there. The pane cannot walk a timer-driven flow at all; the MCP
+  server drives a real browser that can. The rule also warns that this
+  is easy to talk yourself out of, because a project note saying
+  "Playwright is not installed globally any more" is about the *CLI* and
+  reads as if it covers both — which is exactly the misreading this
+  session nearly made, off this brief's own line (now corrected above).
+- **`~/.claude/skills/build-next/SKILL.md`**'s close-out now requires
+  that a session finishing work belonging to a **different** planned
+  session update that session's row too. This project is the worked
+  example: the splash-identity pass fixed the top-flagged accessibility
+  risk as a side quest and logged it in one Notion cell, and a month
+  later four documents still called it open.
+- **`~/.claude/skills/publish/SKILL.md`**'s asset step now handles the
+  case where the identity-derived asset **does not exist yet** — check
+  the live URL rather than the repo, and write the generator requirement
+  into the pending session's own prompt. That is what produced the
+  Session 7 note below.
+
+Four files in `~/.claude` remain uncommitted from earlier sessions and
+were left alone; a lookbook-skill change already sitting in `CLAUDE.md`
+rode along with the commit above, since git commits whole files, and is
+called out in its message.
+
 **Found during the publish checks, and it belongs to Session 7:
 production serves no favicon, no OG image, no `robots.txt`, no
 `sitemap.xml`, and the HTML carries no `og:` tags at all** — all 404s.
