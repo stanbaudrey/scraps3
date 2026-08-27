@@ -22,7 +22,7 @@ import { evaluateBestHand } from "../game/engine.js";
 // CARD_DIMS — the four card sizes, exported because two other
 // modules need the same numbers:
 //   • the layout picks a size per band from the viewport mode
-//     (src/ui/viewport.js) and has to know how wide the result
+//     (src/ui/viewport.jsx) and has to know how wide the result
 //     will be before it can lay a fan out;
 //   • flight.jsx derives a ghost's start and end scale from a
 //     card's MEASURED box against its natural one, which is the

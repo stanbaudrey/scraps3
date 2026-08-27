@@ -973,7 +973,11 @@ deploy — GitHub integration on `unclescrunch/scraps3` publishes every push
 to `main` to [scraps3.vercel.app](https://scraps3.vercel.app). Merged as a
 fast-forward from `claude/build-next-o9oue6`; `npm test` (37 passing) and
 `npm run build` both green immediately before the push, and
-`tools/responsive-qa.mjs` clean on all six viewports.
+`tools/responsive-qa.mjs` clean on all six viewports. Verified live
+afterwards: the production deployment reports READY and
+scraps3.vercel.app serves the same bundle hash the local build produced,
+with the new global CSS (`.app-vh`, the gated hover queries,
+`touch-action: manipulation`) present in the shipped `index.html`.
 
 Left open, deliberately:
 - **Landscape phone.** Playable, clips nothing, scales to 0.57 — a 54px

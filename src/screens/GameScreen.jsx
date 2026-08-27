@@ -115,7 +115,7 @@ export function GameScreen({ difficulty, onExit }) {
   // 'wide'  — hand centred, that side's Scraps beside it.
   // 'stack' — hand above its own Scraps, both full width.
   // The mode is chosen on whichever axis is scarce, not on device
-  // class; see src/ui/viewport.js. Everything that has to know a
+  // class; see src/ui/viewport.jsx. Everything that has to know a
   // pixel size — card sizes, fan spread, zone widths, bar chrome —
   // is derived from it here rather than guessed at in a media query.
   const vp = useViewport();
