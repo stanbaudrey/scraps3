@@ -997,7 +997,17 @@ Left open, deliberately:
 Nothing in this session touched `engine.js` or `reducer.js`. The rules are
 exactly where they were; only the table they are played on changed shape.
 
-### Session 4 — Sound identity
+### Session 4 — Sound identity  ⏳ In progress
+**Status (2026-08-26):** the exploration half is done and lives in the
+**Foley Bench** artifact —
+https://claude.ai/code/artifact/2b99d5e2-f9b1-400e-9609-ee2b3dd210b8 —
+which holds two fully-built directions (Cardboard & Bone, 27 options; The
+Dealer, 25 options) across 12 cues, including the Ace strike and
+counter-strike this session's prompt asks for. See the unplanned session
+entry at the end of this file for how it was built and what was found.
+**Before the rest of this session can run, Stan has to listen and choose**
+a direction and per-cue options; the bench exports that as JSON. `src/audio.js`
+is still the original ten cues and has not been touched.
 **Goal:** SCRAPS has one cohesive, recognizable sound, not ten disconnected
 cues.
 **Bring:** this brief (Section 5).
@@ -1644,6 +1654,123 @@ SCRAP. · Three hands a round. Only one is public.
 
 ---
 
+---
+
+### Unplanned session — Ghost launch frame, and the Foley Bench ✅ Done (2026-08-26)
+
+**Not a planned session.** Stan asked to continue the build plan and, in
+the same breath, reported that toggled cards "abruptly change position in
+the first frame" of the transfer animation. The sound-lab request arrived
+mid-session and turned into the exploration half of Session 4.
+
+**Read this first: `dev` was three commits behind `main`.** Session 3's
+whole viewport rewrite (`src/ui/viewport.jsx`, `tools/responsive-qa.mjs`,
+and a 574-line change to `GameScreen.jsx`) lived only on `main`. Working
+on `dev` without fast-forwarding would have rebuilt against a layout that
+no longer exists. Fast-forwarded before reading anything. This is the
+*second* consecutive session to open on a stale checkout — the check is
+worth doing before literally anything else.
+
+**1. The ghost launch frame (`src/components/flight.jsx`)**
+
+Session 8's FLIP rewrite was right that both ends must be measured, but
+`getBoundingClientRect` measures the wrong thing for a card in the fan.
+Three separate defects stacked into one visible jump, all confirmed by
+measuring the live DOM rather than reading the animation math:
+
+- **`transform-origin` was the ghost's own box centre.** The inner div
+  centres the card on the element's origin, but scale and rotate pivot
+  about the box centre by default — half a card away. Measured: frame one
+  landed 3.4px left and 4.8px above the real card. The *landing* was off
+  by the same mechanism whenever the destination scale wasn't 1, so
+  Session 8's "no jump, ever" was not quite true at either end.
+- **`from.width` was the rotated bounding box.** A fan card at -5.6° has
+  a true width of 76.7px and an AABB of 86.8px, so `scale0` came out 13%
+  too large and the ghost launched visibly bigger than the card.
+- **The ghost drew upright.** Fan cards sit at up to ±8.4°; the ghost
+  started at 0° and snapped.
+
+`rectOf` now walks the ancestor transforms into a single `DOMMatrix`
+(`screenMatrix`), which gives the true scale and the *signed* angle —
+the 2×2 AABB solve would have given the magnitude but lost the sign. The
+ghost pivots about `0 0` and leans from the source angle to the
+destination one, with the existing arc flourish laid on top.
+
+Measured after the fix: card at capture `(-129.24, 720.88)`, `-5.6°`,
+`90.55px` — ghost frame one identical on all three. 37 tests pass, the
+production build succeeds.
+
+**Worth knowing:** the in-app browser pane reports `0×0` and
+`visibilityState: hidden` for most of a session, which makes absolute
+coordinates meaningless and screenshots come back half-blank. Relative
+geometry inside a single JS call stays consistent, so measuring two
+points in the same call is reliable; comparing across calls is not. The
+old `tools/responsive-qa.mjs` Playwright path is no longer available —
+Playwright is not installed globally on this machine any more.
+
+**2. The Foley Bench — Session 4's exploration half**
+
+Stan asked for a sound lab with several options per cue, big swings, no
+resemblance to his other games, non-Web-Audio options considered, and
+"repurpose the existing audio labs from past projects."
+
+**There were no audio labs to repurpose.** Three synthesis *engines*
+exist — `EGOT/src/game/sound.js` (702 lines, the richest: `tone()` and a
+`shortVerb()` convolution helper), `forgotmyd20/src/audio.js`
+(`envelope()`), and `photonscroll/src/audio/stemEngine.js` (a sample stem
+player). EGOT's primitives seeded the kernel; the bench itself is new.
+
+Published as an artifact, deliberately not a file in this repo, because
+Stan wants it to grow and serve future projects:
+**https://claude.ai/code/artifact/2b99d5e2-f9b1-400e-9609-ee2b3dd210b8**
+
+Two directions, chosen by Stan from a shortlist of four:
+
+- **Cardboard & Bone** — 27 options across 12 cues. No oscillator plays a
+  note; the only sine in the direction is a sub-bass *body* under impacts.
+  Exciters are generated as raw sample data in JS (shaped noise,
+  Karplus–Strong) and played through parallel high-Q bandpass banks that
+  act as the modal body of a material — `cardstock`, `wood`, `bone`,
+  `felt`. AudioWorklet was considered and rejected: worklets need a
+  separate module URL, which is fragile under an artifact's CSP, and
+  rendering the exciter offline gets the same physical models with none
+  of that risk.
+- **The Dealer** — 25 options, `SpeechSynthesis` as an instrument.
+
+**A claim made early in the session and corrected:** the voice *cannot*
+be routed into Web Audio. No browser exposes a `MediaStream` from
+`SpeechSynthesis`, so it cannot be filtered, pitch-shifted after the
+fact, or drawn as a waveform, and utterances queue serially rather than
+overlapping. The instrument is exactly four things: the voice, `rate`,
+`pitch`, and the syllables. The bed underneath is the only Web Audio in
+that direction. The lab states this on screen rather than hiding it.
+
+**The mix was the real finding.** Raw peaks across the Bone kit spanned
+**75:1** — the wood-tap cues (`handWon` 0.020, `gameWon/drum` 0.024) sat
+25 dB under the Ace cues (`crush` 0.507), so a drum roll would have been
+inaudible next to an Ace strike. Every option is now measured in an
+`OfflineAudioContext` and trimmed to a per-cue target defined in
+`PROJ.loud` — a deliberate hierarchy from `select` at 0.16 to `fullScrap`
+at 0.94. Verified: all 27 land on target within 0.01, spread now 5.9:1.
+Choosing between two options never changes the volume.
+
+The same offline render feeds the drawn waveform, so the picture and the
+sound cannot drift. Waveforms normalise to fill their box (shape is what
+a waveform is for); loudness gets its own explicit bar and dBFS readout.
+
+**What is NOT done, and why Session 4 stays open:** nothing has been
+chosen and `src/audio.js` is untouched — the game still has its original
+ten cues. Session 4's bar is "all cues share a recognizable identity, the
+Ace-strip moment has its own sound, and a full playthrough doesn't
+produce anything jarring." That needs Stan to listen, pick a direction
+and per-cue options, and then a build session to port the chosen kit into
+`src/audio.js`. **Claude has never heard any of this** — every claim above
+is numerical (renders, peaks, clipping, mix targets), not aural.
+
+**State at close:** the flight fix is committed to `dev` (`7c08ca9`) and
+not yet pushed or previewed. `main` is unchanged. No dev server or
+background process left running.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -1652,10 +1779,11 @@ SCRAP. · Three hands a round. Only one is public.
 | — | *Unplanned:* Forest/national-park brand reskin | Done |
 | 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Done |
-| 4 | Sound identity | Not started |
+| 4 | Sound identity | In progress — directions built, none chosen |
 | 5 | Design and UX audit | Not started |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
+| — | *Unplanned:* Ghost launch frame + Foley Bench sound lab | Done |
