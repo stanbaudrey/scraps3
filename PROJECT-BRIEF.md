@@ -1091,6 +1091,37 @@ six taps should become cardstock is Stan's call and not a side effect of
 this port. **Also not added:** a sound on the round-start deal (5+5 cards
 would be ten peels) — flagged, not decided.
 
+**One change after the preview.** Stan found the transfer slide a little
+loud: 360ms → 260ms and the target level .38 → .30, which is −2.1 dB, and
+the audible tail is now 0.26s against 0.40s. Worth knowing why the obvious
+edit would have done nothing — **quieter had to be a TARGET change, not a
+gain change.** The trim renormalises each voice's own gains away, so the
+`gain` values inside a voice only set the balance between its parts (here,
+the slide against the slap); the level you actually hear is TRIM's target.
+Changing the duration also invalidated the trim, which was re-measured
+(3.0348 → 2.2417) and all 14 cues re-verified on target.
+
+**Published to production 2026-08-26.** Four commits fast-forwarded into
+`main`, build green, and the live bundle at
+[scraps3.vercel.app](https://scraps3.vercel.app) was checked to actually
+contain the new engine rather than trusted: the re-measured transfer trim
+`2.2417`, the seeded-exciter constant, and the bus compressor are all
+present, and every old cue name (`playWhoosh`, `playGrandFanfare`,
+`playNeutralJingle`) is gone.
+
+**Publish-time detector: 13 findings, all `bounce-easing`, all pre-existing
+and none in `audio.js`** — this game's committed identity, shipped as-is,
+consistent with the previous publish. The fuller `/impeccable critique` was
+deliberately not run: this push changes sound and motion, not a screen,
+a component or a layout. **Caveat worth carrying forward:** the detector's
+four HTML-parser modules (`htmlparser2`, `css-select`, `css-tree`,
+`domutils`) do not resolve from
+`~/.claude/skills/impeccable/node_modules`, so contrast and
+custom-property checks did not run — and **no DEGRADED banner printed**,
+which is the dangerous part, because a clean result looks identical to a
+real one. Installing them into a project does nothing; they have to live
+next to the detector.
+
 **Never heard by Claude.** Every claim above is numerical.
 
 ### Session 5 — Design and UX audit
