@@ -16,6 +16,20 @@ was stale from kickoff). A project mirror lives there under **SCRAPS** and
 is updated at the end of each session. This file remains the source of
 truth; Notion is a summary of it, not a second copy to reconcile.
 
+> **Process note (2026-08-27) — this is a legacy-format project, on purpose.**
+> Stan's setup adopted a split record format for new projects (a short brief
+> plus an append-only `SESSION-LOG.md`, with a one-way Notion flow). This
+> project predates it and stays on its established process: the full record
+> lives in this file, sessions log here exactly as the entries below already
+> do, the session tracker table at the bottom stays authoritative, and
+> Notion is maintained the way this brief describes. Do not migrate
+> mid-flight, do not create a `SESSION-LOG.md` here, and nothing in the
+> remaining plan (Sessions 4, 5, 6, 7) moved because of the process change.
+> Migration to the split format is optional later, at a natural boundary and
+> on Stan's say-so. The new `minigame` skill distills lessons from this
+> project (and knowtient); sessions here may load it as guidelines, but this
+> brief's decisions outrank it.
+
 ---
 
 ## 1. The brief
