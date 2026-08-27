@@ -1349,9 +1349,68 @@ over-limit error. Celebratory easing on bad news is the detector's
 point restated in game terms, and Session 1's critique had already
 flagged it as a P1. Listed below as a visual finding, not changed.
 
-**Open — the visual half, reported for Stan's picks:**
+**Part two shipped the same day (2026-08-27), Stan's picks from the seven
+findings below.** He took six of seven: everything except the
+right-heavy negative-space imbalance (6), which he did not call and which
+stays open.
 
-1. **The narrator panel collides with the discard pile at his width.**
+- **Deck over discard on one vertical axis**, discard rendered a size
+  smaller — his framing was "the discard pile is unimportant", so it
+  goes under rather than beside. This is what removes the collision:
+  as a row the rail was two cards wide.
+  **But the column is only used where there is height to spend on it**
+  (`stack || tight` keeps the row). Getting that wrong is expensive and
+  was measured: column everywhere took the fit from **0.73 to 0.66** at
+  375×667 and **0.57 to 0.49** in landscape, because a landscape phone
+  keeps the *wide* arrangement on 390px of height. `tight`, not `stack`,
+  is the right test — it is already the project's "height is the scarce
+  axis" flag.
+- **The actual cause of the collision was one property**, found while
+  fixing it: the pile column carried `minWidth: 0`, so it could shrink
+  below its own contents and the centred rail overflowed both edges.
+  It holds its content width now and the narrator panel gives way
+  instead, which is the correct loser — it has 760px of slack and the
+  rail has none. That also fixed a *pre-existing* 8px overlap in
+  landscape that nobody had noticed.
+- **Score digits 60 → 44** (34 → 26 compact), which also hands ~16px per
+  bar back to the table.
+- **The permanent ownership glow on both Scraps zones is gone.** The
+  border still carries ownership; only `GlowPulse` glows now, so the
+  real state cue stopped having to shout over a halo that was always on.
+- **Disabled TRADE IN is legible**: slateLight on duskMid at 8.20:1,
+  full opacity, slate rule — and still unmistakably not the live fern
+  fill, which is a different object rather than a brighter one.
+- **Bounce off the losing overlays.** The opponent's Ace reveal and the
+  counter notice land on ease-out-quint; the reveal banner picks its
+  curve from `winner`, so a win still bounces and a loss does not; and
+  `errBounce` is retired for `errRise`, since overshooting 12px twice to
+  announce an illegal move was the finding restated. **Detector 20 → 14
+  — the four real findings are gone and the 16 deliberate ones remain**,
+  which is the triage above holding up under its own test.
+- **Both Scraps badges moved outside their zone borders** and the bottom
+  band bottom-aligns, so they share one line with the hand's own badge.
+  Measured 602.2 vs 601.6. Stacked keeps the badge in the header row —
+  that layout is short of height, not width, and the header placement
+  buys back a row per zone.
+
+**Verified at 1024×662 after: 13px gap where there was 29px of overlap,
+deck and discard centred on x=176, badges aligned to 0.6px, no document
+scroll, nothing painted outside the viewport.** Session 3's never-scroll
+rule re-checked at 375×667 (0.74, marginally better than its recorded
+0.73, thanks to the smaller scores), 390×844 and 844×390 (0.55).
+
+**The one cost, stated plainly: the roomy desktop table now scales
+0.7994 → 0.7377** at 1024×662. A vertical rail is taller than a
+horizontal one and something had to pay for it. Nothing is clipped or
+unreachable and no touch target drops below the Session 3 floor, but the
+table is about 8% smaller on a roomy desktop than it was this morning.
+If that reads as too small on his screen, the lever is the deck: it is
+still `small` while the discard is `tiny`, and matching them would buy
+most of it back.
+
+**Open — the visual findings, six of seven now taken:**
+
+1. **DONE.** The narrator panel collides with the discard pile at his width.**
    Measured: at 1024×662 the panel's left edge is at x=208 and the
    discard column runs to x=238 — **29px of overlap, 36% of that
    column**, with full vertical overlap. At 1440×900 there is a 67px
@@ -1359,23 +1418,25 @@ flagged it as a P1. Listed below as a visual finding, not changed.
    and it is a width effect, so he sees it and most desktop users do
    not. Fix is a `min-width` or an explicit gap on the rail rather than
    letting a `max-width: 760` panel run into it.
-2. **Visual weight is spent on the two things that change least.** The
+2. **DONE.** Visual weight is spent on the two things that change least.** The
    loudest objects on the table are the two score digits, which move
    once every few minutes; the hand and the trade action, which matter
    every single turn, are mid-weight.
-3. **Both Scraps zones glow permanently**, in ownership colours, so
+3. **DONE.** Both Scraps zones glow permanently, in ownership colours, so
    when `GlowPulse` genuinely activates for discard or ace mode the
    real state cue has to compete with decoration that is always on.
-4. **A disabled TRADE IN is nearly invisible** at `opacity: 0.35`, so a
+4. **DONE.** A disabled TRADE IN is nearly invisible at `opacity: 0.35`, so a
    first-timer does not learn the primary action exists until they
    happen to select a card. (WCAG exempts disabled controls from
    contrast, so this is discoverability, not a violation — the
    *semantic* half is fixed above.)
-5. **Bounce easing on losing overlays**, per the triage above.
-6. **The table reads right-heavy.** The left third below the deck is
-   empty while the right column stacks round strip, opponent Scraps and
-   your Scraps.
-7. **Two treatments for one kind of information**: the hand's best-hand
+5. **DONE.** Bounce easing on losing overlays, per the triage above.
+6. **STILL OPEN — the table reads right-heavy.** The left third below
+   the deck is empty while the right column stacks round strip, opponent
+   Scraps and your Scraps. Not called by Stan, not changed. Worth
+   re-looking at now that the pile rail is a column, which changed the
+   left column's shape.
+7. **DONE** (by the badge move in 6 above). Two treatments for one kind of information: the hand's best-hand
    name sits *below* the fan in slate, the zones' sit *inside* their
    frames with a `▸`.
 
@@ -2110,7 +2171,7 @@ background process left running.
 | 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
-| 5 | Design and UX audit | In progress — accessibility/motion/contrast shipped 2026-08-27; visual findings await Stan's picks |
+| 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
 | 6 | Security, privacy, and rights | Not started |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
