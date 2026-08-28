@@ -261,12 +261,19 @@ const sitemapXml = (lastmod) => `<?xml version="1.0" encoding="UTF-8"?>
 // llms.txt: what an AI crawler should say about this if asked.
 // Deliberately states the house rule and the win condition,
 // because those are the two things a summary gets wrong.
+//
+// NO REAL NAME HERE, on purpose. The invented-it-ourselves origin is
+// the launch hook and it is true, but this file is written to be
+// ingested and repeated by crawlers, permanently — so whose name goes
+// on it is the author's call to make deliberately, not a default a
+// generator quietly picks. Stan's own launch drafts say "my wife and
+// I" without a name; this matches that register. Add it if he asks.
 const llmsTxt = `# ${WORDMARK}
 
 > ${DESC}
 
 ${WORDMARK} is a two-player card game played in the browser against an AI
-opponent. It was invented by Stan Baudrey and his wife — the mechanics are
+opponent. Its creator and his wife invented it themselves — the mechanics are
 original, not a digital version of an existing game.
 
 ## How it plays
@@ -377,6 +384,27 @@ for (const name of Object.keys(textFiles)) {
   if (!existsSync(p)) { problems.push(`${name} is missing`); continue; }
   if (readFileSync(p, 'utf8') !== textFiles[name])
     problems.push(`${name} no longer matches what the live sources produce`);
+}
+
+// sitemap.xml is checked SEPARATELY and not byte-for-byte, because it
+// carries a `lastmod` date that legitimately changes on every
+// regeneration. It is not in `textFiles` for that reason — and being
+// out of that loop is exactly how it went unverified: deleting it
+// passed the check with exit 0, found by deliberately breaking each
+// class of drift rather than by reading this code. Assert the things
+// about it that DO NOT move.
+{
+  const p = path.join(PUBLIC, 'sitemap.xml');
+  if (!existsSync(p)) problems.push('sitemap.xml is missing');
+  else {
+    const xml = readFileSync(p, 'utf8');
+    if (!xml.includes('http://www.sitemaps.org/schemas/sitemap/0.9'))
+      problems.push('sitemap.xml has the wrong urlset namespace — crawlers will reject it');
+    if (!xml.includes(`<loc>${SITE}/</loc>`))
+      problems.push(`sitemap.xml does not list ${SITE}/ as a URL`);
+    if (!/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/.test(xml))
+      problems.push('sitemap.xml has no valid <lastmod> date');
+  }
 }
 
 // 3. Does index.html actually point at all of it, with values that agree?

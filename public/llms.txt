@@ -3,7 +3,7 @@
 > This turn's discards are next turn's hand.
 
 SCRAPS is a two-player card game played in the browser against an AI
-opponent. It was invented by Stan Baudrey and his wife — the mechanics are
+opponent. Its creator and his wife invented it themselves — the mechanics are
 original, not a digital version of an existing game.
 
 ## How it plays
