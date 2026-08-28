@@ -56,7 +56,13 @@ jobs:
       # ── The live site is actually serving all of it ───────
       # A 200 on the page proves nothing about the share card,
       # which is exactly how a broken card survives for days.
+      # Only meaningful against production. On a `dev` push this step
+      # would fail for the honest reason that dev's work is not live
+      # yet, which trains everyone to ignore a red tick. It proved
+      # itself the first time it ran: pushed from dev before Session 7
+      # was published, it correctly reported all nine paths 404.
       - name: Live site serves the game and its metadata
+        if: github.event_name != 'push' || github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           BASE=https://scraps3.vercel.app
