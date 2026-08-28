@@ -1431,11 +1431,15 @@ most of it back.
    contrast, so this is discoverability, not a violation — the
    *semantic* half is fixed above.)
 5. **DONE.** Bounce easing on losing overlays, per the triage above.
-6. **STILL OPEN — the table reads right-heavy.** The left third below
-   the deck is empty while the right column stacks round strip, opponent
-   Scraps and your Scraps. Not called by Stan, not changed. Worth
-   re-looking at now that the pile rail is a column, which changed the
-   left column's shape.
+6. **DONE (2026-08-28), in the unplanned centre-axis session below.**
+   The table read right-heavy: the left third below the deck was empty
+   while the right column stacked round strip, opponent Scraps and your
+   Scraps. The guess in this line was right — the pile rail becoming a
+   column is exactly what let it be fixed, because a one-card rail no
+   longer needs a content-sized gutter to keep clear of the narrator
+   panel. Stan reported the same imbalance from the other side ("pushing
+   to the left") once he saw it on a wide screen. Painted mass at 1920
+   moved from 185px left of the centre axis to 47px right of it.
 7. **DONE** (by the badge move in 6 above). Two treatments for one kind of information: the hand's best-hand
    name sits *below* the fan in slate, the zones' sit *inside* their
    frames with a `▸`.
@@ -2678,6 +2682,139 @@ is numerical (renders, peaks, clipping, mix targets), not aural.
 not yet pushed or previewed. `main` is unchanged. No dev server or
 background process left running.
 
+### Unplanned session — The table's centre axis, and the Ace tag's touch target ✅ Done (2026-08-28)
+Requested directly by Stan, after Session 7's publish. He sent a
+screenshot of a wide window and said "the whole experience is weirdly
+pushing to the left since your last wave of fixes", asked for a
+diagnosis and a fix, and added "i like the text being centered".
+
+**This closes Session 5's finding 6**, the one visual finding left open
+there ("the table reads right-heavy"). That entry guessed correctly that
+it was worth re-looking at once the pile rail became a column. The two
+reports are the same imbalance seen from different rows: the audit saw
+the hand bands leaning right, Stan saw the narrator panel shoved left.
+
+**It was not the last wave of fixes.** It landed in Session 5's visual
+pass. The table's three bands are each a three-column row — gutter,
+centre column, gutter — and the two hand bands use `flex:'1 1 0'` on
+both gutters, which is what keeps a hand dead centre at any width.
+Session 5 changed the middle band's left gutter to `flex:'0 1 auto'` so
+the two-card pile rail could not collide with the narrator panel at
+1024x662. That sized the gutter to its contents and sent all of the
+row's slack to the right, so the panel packed itself against the deck.
+
+**The offset scales with the window, which is why it survived a session
+and then appeared all at once.** Measured centre of the panel against
+the axis the hands sit on: **12px left at 1024, 224px at 1440, 464px at
+1920.** Stan's Mac runs the "Larger Text" resolution preset, so a
+maximized window on the laptop screen is about 1024 CSS px wide, where
+12px is invisible; his screenshot is a much wider viewport. **This is
+the inverse of the usual asymmetry in his display setup — his screen was
+hiding a defect other viewers see, rather than showing one they do not.**
+Worth remembering as a class: a defect whose size is proportional to
+viewport width is systematically under-reported by his laptop.
+
+**The fix is one property**, plus an alignment change. Both gutters are
+`flex:'1 1 0'` again, so all three bands share one centre axis. The
+collision Session 5 was guarding against is held off by the *missing*
+`minWidth:0` instead: a flex item's default `min-width:auto` stops the
+column shrinking below the rail, so the panel — `flexShrink:1` with
+760px of slack — is the one that gives way, and flex items cannot
+overlap in any case. Rail-to-panel clearance measured at 1000, 1024,
+1280, 1440, 1920 and 844x390 landscape: the rail never reaches it, and
+in the one squeezed case (landscape) the clamp pushes the panel 31px
+right rather than causing a collision. The piles moved to `flex-end`,
+mirroring how each Scraps hugs its hand from the right.
+
+**Whole-table balance, painted extents at 1920** (the axis is 960):
+before, the three bands' masses sat at 1138 / **435** / 1099 and the
+table painted 14 → 1536, a mass centre 185px LEFT of the axis strung out
+as a diagonal. After: 1138 / **899** / 1099, painting 478 → 1536, mass
+centre 1007, **47px right of the axis**. The hand bands still lean right
+by 139-178px on their own, because each Scraps hangs in the right gutter
+by design; that half was not changed and Stan has not asked for it.
+
+**The Ace tag was the only control on the table under the 44px touch
+minimum**, found by the responsive harness during this pass and fixed in
+the same sitting at Stan's request. The cause is the same class of thing
+as the centring bug: `TOUCH_MIN` and `TOUCH_MIN_COMPACT` read as
+"desktop" and "phone", but what they are really tracking is FitBox's
+scale, and **that is below 1 well before a layout is stacked** — 0.80 at
+1280x720, 0.89 on a portrait iPad. The tag declared 44 (or 54 stacked)
+and rendered 42 on a laptop and 43 on a 375x667 iPhone SE. That 2px miss
+is the one `TOUCH_MIN_COMPACT`'s own comment recorded ("54 -> 42") and
+left. It now has a floor of its own, `ACE_TAG_MIN = 62`, which is 44
+divided by 0.72 with margin for the fact that a taller tag lowers the
+scale slightly itself; `SLOT_ROOM` in `cards.jsx` derives from it so the
+fan's headroom cannot drift from the tag again.
+
+**Re-measured after the change, with seeded deals** (`Math.random`
+stubbed with a xorshift so a hand containing an Ace is reproducible,
+rather than waiting for a 34% deal), rendered short axis:
+
+| viewport | scale | before | after |
+|---|---|---|---|
+| 375x667 iPhone SE | 0.72 | 43 | **49** |
+| 390x844 iPhone 14 | 0.93 | 56 | 63 |
+| 768x1024 iPad | 0.89 | 47 | 62 |
+| 1280x720 laptop | 0.80 | 42 | **56** |
+| 1920x1080 | 1.00 | 52 | 70 |
+| 844x390 landscape | 0.55 | 33 | 37 |
+
+**Landscape is the one exception and stays open on purpose.** At 0.55 a
+control would have to declare 80px to render 44, and the tag is now
+width-bound there anyway (39px wide, being one card wide by design), so
+buying it would cost every card on the table height on the screen with
+the least of it. That is the same trade CLAUDE.md's known-issues entry
+already records for every control in landscape.
+
+**Also confirmed, with a card selected so TRADE IN is enabled:** no
+other in-table control falls below 44 at any of the six viewports. The
+Ace tag really was the only one.
+
+**Verified:** 37 tests, clean build, and `tools/responsive-qa.mjs` **ALL
+CLEAR** at all six viewports — no document scroll, no inner scrollers,
+nothing painted outside the viewport, no small targets. Note that the
+harness's landscape pass is partly luck: the Ace tag only exists when
+the player is dealt an Ace, so the 39x37 figure above comes from the
+seeded measurement, not from the harness.
+
+**Tooling note for the next session.** Both the Playwright MCP server
+and the in-app Browser pane were unavailable: the MCP server's browser
+profile was locked by another session ("Browser is already in use...
+use --isolated"), and the pane reported `document.hidden` true with
+`innerWidth`/`innerHeight` of **0**, which makes it useless for layout
+work specifically (a 0-width viewport puts `layoutMode()` in `stack`).
+The way through, and it is worth reaching for first next time: the
+Playwright MCP server ships its own `playwright-core` at
+`~/.npm/_npx/9833c18b2d85bc59/node_modules/playwright-core`, and driving
+it against the Chrome already on this machine
+(`executablePath: '/Applications/Google Chrome.app/...'`) gives a real,
+unhidden browser where timers fire. `tools/responsive-qa.mjs` runs
+unmodified through the same shim (rewrite its one `from 'playwright'`
+import). **The project's "Playwright is not a dependency" note is about
+`npm`, not about whether a real browser can be driven here.**
+
+**Impeccable `audit` ran** over the three changed files (the `/preview`
+step calls for it on a UI diff). The bundled detector returned four
+`bounce-easing` warnings, all pre-existing and none on a touched line
+(`GameScreen.jsx:976`, `cards.jsx:187/344/629`). Reading them as false
+positives in context: a slight overshoot on a card being flicked onto a
+table is card physics, not the dated easing the rule is aimed at, and
+Session 5 already retired the one bounce that was doing decorative work
+(`errBounce`). Nothing else in the diff touched colour, ARIA, or motion.
+
+**State at close:** committed to `dev` as `5514c6c` and pushed;
+preview deployment `dpl_CRUC16mYHF3z3w8DxwMtgiXqtzWJ` READY at the same
+SHA. Not published — `main` is still on `3c97e33`. The preview could not
+be fetched to compare bundle hashes: Vercel Authentication redirects both
+the branch alias and the immutable URL to `/sso-api`, and the Vercel
+MCP's fetch tool got the same 302, so the honest claim is that the
+deployed SHA equals local `HEAD` with a clean tree, not that the served
+bytes were read. **This is the second project where deployment protection
+has blocked preview verification; the fix is one setting** (Vercel
+dashboard → Settings → Deployment Protection → Vercel Authentication).
+
 ## Session tracker
 
 | # | Session | Status |
@@ -2687,13 +2824,14 @@ background process left running.
 | 2 | Game balance discussion | Done |
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
-| 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
+| 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings. The seventh, the right-heavy layout, closed 2026-08-28 in the unplanned centre-axis session |
 | 6 | Security, privacy, and rights | Done + published (2026-08-28) — fonts self-hosted, remote needed no change (the prompt was backwards), privacy notice signed off. Landed via PR #1; **`dev` is behind `main` and needs a fast-forward** |
 | 7 | Findability and launch | **Part one done + PUBLISHED (2026-08-28)** — metadata, generated share card + self-checking generator, monthly GitHub Actions check, two of Stan's four pre-launch notes fixed, launch copy reconciled to `WIN_SCORE` 10. Live and verified byte-identical. Part two: the cellular smoke test (Stan's phone only), and the posts |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
 | — | *Unplanned:* Ghost launch frame + Foley Bench sound lab | Done |
+| — | *Unplanned:* Table centre axis + Ace tag touch target | Done (2026-08-28) — closes Session 5's last open visual finding. On `dev` and previewed, **not published** |
 
 
 ---
