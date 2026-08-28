@@ -2804,16 +2804,48 @@ table is card physics, not the dated easing the rule is aimed at, and
 Session 5 already retired the one bounce that was doing decorative work
 (`errBounce`). Nothing else in the diff touched colour, ARIA, or motion.
 
-**State at close:** committed to `dev` as `5514c6c` and pushed;
-preview deployment `dpl_CRUC16mYHF3z3w8DxwMtgiXqtzWJ` READY at the same
-SHA. Not published — `main` is still on `3c97e33`. The preview could not
-be fetched to compare bundle hashes: Vercel Authentication redirects both
-the branch alias and the immutable URL to `/sso-api`, and the Vercel
-MCP's fetch tool got the same 302, so the honest claim is that the
-deployed SHA equals local `HEAD` with a clean tree, not that the served
-bytes were read. **This is the second project where deployment protection
+**Previewed, then PUBLISHED to production 2026-08-28** — `main`
+fast-forwarded to `900838e`, deploy READY.
+
+**The preview could not be verified by bundle hash, and production
+could.** Vercel Authentication redirects both the preview branch alias
+and the immutable URL to `/sso-api`, and the Vercel MCP's fetch tool got
+the same 302, so at preview time the honest claim was only that the
+deployed SHA equalled local `HEAD` with a clean tree — the served bytes
+were never read. **This is the second project where deployment protection
 has blocked preview verification; the fix is one setting** (Vercel
 dashboard → Settings → Deployment Protection → Vercel Authentication).
+Production has no such protection, which is why the check below was
+possible there.
+
+**Verified against production, not the build log.** The live bundle was
+downloaded and `cmp`ed against the locally tested
+`dist/assets/index-B5LnStID.js`: **byte for byte identical**, so
+everything measured above is what shipped. Traced through the served
+JS specifically: `ip=62` is `ACE_TAG_MIN`, used exactly once as a
+`minHeight` (the tag) and once as `ip+5` (the fan's headroom), with
+`At=44` and `lp=54` still present for the other buttons as intended.
+`justifyContent:"flex-end"` appears once — the pile gutter — and the
+defective `"0 1 auto"` is **gone, zero occurrences**. Nine production
+paths sweep 200 (`/`, `og.png`, `favicon.svg`, `robots.txt`,
+`sitemap.xml`, `llms.txt`, a real vendored font) while a nonexistent
+sibling still 404s, which is what makes the 200s mean anything.
+
+**Publish-time checks, all green and none of them degraded.** The
+personal-data-out grep over `dist/` found nothing (no name, no login, no
+email). `npm run share:check` reports every baked-in value still matching
+its live source — its seven break-on-purpose classes were exercised in
+Session 7 the day before and were not re-run here. `npm run fonts:check`
+re-downloaded from Google: 24 faces over 14 files, 0 changed, 0 stale.
+And the impeccable detector **ran at full strength for the first time
+recorded in this brief** — no DEGRADED banner, and all four parser
+modules resolve (they live in `~/.claude/node_modules`, which is why
+looking for them under the skill directory reads as missing). Its four
+`bounce-easing` findings on the changed files are all pre-existing, none
+on a touched line, and are the same false positives Session 5 triaged:
+card overshoot is this game's physical vocabulary. `/impeccable critique`
+was deliberately NOT run — this push restores an intended composition
+rather than reworking UI, and `audit` had already run at preview time.
 
 ## Session tracker
 
@@ -2831,7 +2863,7 @@ dashboard → Settings → Deployment Protection → Vercel Authentication).
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
 | — | *Unplanned:* Ghost launch frame + Foley Bench sound lab | Done |
-| — | *Unplanned:* Table centre axis + Ace tag touch target | Done (2026-08-28) — closes Session 5's last open visual finding. On `dev` and previewed, **not published** |
+| — | *Unplanned:* Table centre axis + Ace tag touch target | Done + **PUBLISHED** (2026-08-28) — closes Session 5's last open visual finding. Live bundle verified byte-identical to the tested build |
 
 
 ---
