@@ -1523,7 +1523,7 @@ these with a generator script that reads the live sources and exits
 non-zero on a mismatch — and that script should be broken on purpose
 once, to watch it fail, before it is trusted.**
 
-### Session 6 — Security, privacy, and rights ⏳ Awaiting sign-off (2026-08-28)
+### Session 6 — Security, privacy, and rights ✅ Done (2026-08-28)
 **Goal:** nothing leaks, nothing's unlicensed, the fine print is real.
 **Bring:** this brief.
 **Opening prompt:**
@@ -1636,7 +1636,7 @@ been corrected to say this. Separately: a remote change lives in
 `.git/config`, which is not committed, so it could not have persisted
 beyond this container anyway.
 
-**3. The privacy notice is written and built, and is AWAITING SIGN-OFF.**
+**3. The privacy notice is written, built and SIGNED OFF.**
 It lives as a second view inside `RulesModal` (Stan's call — one entry
 point, nothing new on the table where every pixel is already contested),
 reached by a `Privacy` button beside `Close`. No contact line, also Stan's
@@ -1657,9 +1657,40 @@ Verified in a browser: the dialog's `aria-label` follows the view, the
 toggle works both ways, the panel scrolls internally and the document
 still does not.
 
-**Done when:** unchanged from the plan except that the remote item is
-closed as "not needed, prompt was wrong". What remains is Stan reading the
-notice text and approving it, after which this session publishes.
+**Stan rewrote the notice and approved his own version (2026-08-28), which
+is what shipped.** He cut five paragraphs to three: merged the opening two,
+dropped the how-to-clear-your-data paragraph outright, and cut the Vercel
+paragraph back to the one fact a reader cares about — they get your IP and
+log it — losing the user-agent and requested-file detail as noise. The
+draft's structure survived; its length did not.
+
+Worth recording, because it changed the UI and not just the words: **at
+1024x662 the notice now fits with no scrolling at all** (`scrollHeight`
+489 against a `clientHeight` of 489, where the first draft needed 718 in
+the same 579px box). The rules panel is the one overlay in the game
+allowed to scroll, and the privacy half of it no longer uses that
+allowance. Shorter copy did what no layout change would have.
+
+A `Last updated 28 August 2026` line was kept below the text — a date
+stamp rather than copy, and the thing that tells a reader whether the
+notice predates something they heard about.
+
+**Done when:** met. Fonts self-hosted with nothing in the built output
+requesting `fonts.googleapis.com` or `fonts.gstatic.com`; the remote item
+closed as "not needed, the prompt was backwards"; Stan signed off on the
+notice text.
+
+**Not published.** The branch is pushed and green but nothing has gone to
+production, deliberately — Session 7 is the launch session and adds the
+metadata, favicon and share image that a visitor sees at the same time as
+this. Publishing twice in two days buys nothing.
+
+**Open, and carried into Session 7:** the `?` help button asks for Work
+Sans 900 (`GameScreen.jsx:1237`), which was never declared and renders as
+700 with synthetic bold. Work Sans is variable and its file is already on
+disk, so declaring a real 900 face costs zero extra bytes. Left alone this
+session to preserve parity with what production already renders; not yet
+called either way.
 
 ### Session 7 — Findability and launch
 **Goal:** the game looks right when shared, gets found by search/AI
@@ -2384,7 +2415,7 @@ background process left running.
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
 | 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
-| 6 | Security, privacy, and rights | Awaiting sign-off (2026-08-28) — fonts self-hosted and verified; remote needed no change (prompt was backwards); privacy notice written and built, pending Stan's approval of the text |
+| 6 | Security, privacy, and rights | Done (2026-08-28) — fonts self-hosted and verified, remote needed no change (the prompt was backwards), privacy notice signed off. Not published; held for Session 7 |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |

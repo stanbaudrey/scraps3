@@ -656,11 +656,9 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // would be a second thing to keep in sync. `view` swaps the body between
 // the rules and the notice; there is no route and no second dialog.
 const PRIVACY = [
-  `SCRAPS runs entirely in your browser. There is no account, no sign-up, and nothing on a server keeping track of you.`,
-  `Two things get saved on your own device. Your win-loss record and best winning margin for each difficulty, which stays until you clear your browser data. And a note that you have already seen the intro, so it does not replay every time you press Play, which clears when you close the tab.`,
-  `Both sit in your browser's own storage. Neither is sent anywhere. Once the page has loaded the game makes no network requests at all: no analytics, no tracking pixels, no cookies, no third-party scripts. Even the fonts are served from this site rather than from Google.`,
-  `To wipe the record, clear site data for this domain in your browser settings and the game starts from zero. In private browsing, storage is usually blocked, so nothing persists and the stats simply read as zero.`,
-  `One thing worth being straight about: this site is hosted on Vercel, so loading the page is a request to their servers. Like any web host they receive your IP address, your browser's user agent and which file you asked for, and keep that in their logs. That happens before any of this code runs and is outside what the game controls.`,
+  `SCRAPS runs entirely in your browser, and two things get saved on your browser's storage. Your win-loss record and best winning margin for each difficulty, which stays until you clear your browser data. And a note that you have already seen the intro, so it does not replay every time you press Play, which clears when you close the tab.`,
+  `No account, no sign-up, and nothing on a server keeping track of you. Once the page has loaded the game makes no network requests at all: no analytics, no tracking pixels, no cookies, no third-party scripts. Even the fonts are served from this site rather than from Google.`,
+  `This site is hosted on Vercel. Like any web host, they receive your IP address and keep that in their logs.`,
 ];
 
 export function RulesModal({ onClose }) {
