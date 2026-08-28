@@ -2899,3 +2899,90 @@ The prediction in this section held: as on EGOT, the findings that only
 appear at full strength were false positives against choices this project
 had already made on purpose. What the full-strength run bought was the
 confidence to say so.
+
+
+---
+
+## Where the next session should start
+
+*Rewritten at the end of every pass. Priority order, defects above
+preferences. Anything closed is deleted from here rather than left
+sitting at the top with the work already done.*
+
+**Start here: Session 7 part two, the launch itself.** Everything the
+launch needs is built, published and verified — metadata, share card,
+favicons, `robots.txt`, `sitemap.xml`, `llms.txt`, the monthly Actions
+check — and the drafted posts in Section 8 have had their two copy
+errors fixed. What is left is not code. It is the **cold smoke test on
+CELLULAR, which only Stan can run**, on his phone, off wifi: every walk
+done so far went over a fast connection and proves the layout and the
+game, not the load on a slow radio. Then the posts go out. Do not
+re-verify the metadata; it was checked against the live URL with
+`og.png` byte-identical, and `npm run share:check` re-derives it on
+demand.
+
+**Decide analytics explicitly, before the posts, not after.** The
+privacy notice Stan approved describes a site with no analytics, which
+is true today. Adding any after launch makes the shipped notice wrong
+the moment it lands, and the notice is the one document here with a
+real legal edge. So this is a decision to make on purpose — including
+deciding on none — rather than one to inherit. Vercel's own request
+logs are already named in the notice and are not the question.
+
+**One small open item, never called either way.** The `?` help button
+asks for Work Sans 900, which was never declared as a `@font-face`, so
+it renders as synthetic bold. Work Sans is variable and already on
+disk, so a real 900 face costs zero bytes. Open since Session 6. Run
+`npm run fonts` after any change there; the rules are generated and
+`npm run fonts:check` fails on drift.
+
+**Post-launch, explicitly not before:** feed this project's lessons
+back into the `minigame` skill. Three are worth carrying: fake-`disabled`
+buttons as an accessibility trap; computing contrast against the CURRENT
+palette rather than whatever the brief last named; and the one this pass
+added, that a control's declared size is not its rendered size inside a
+scaled fit-box, so a touch minimum has to be measured on screen rather
+than declared.
+
+### Do not do these next, and why
+
+**Do not re-open the table's composition.** It was examined on
+2026-08-28 and deliberately left half-changed: the narrator panel and
+both hands share one centre axis, while each side's Scraps still hangs
+in the right gutter, so the hand rows sit 139-178px right of centre at
+1920. That is the arrangement Session 3 established, Stan has not called
+it, and centring the hand-and-Scraps pair as a group would move the
+hands off the axis he explicitly said he likes. Three consecutive passes
+have now touched this area. Let it settle unless he raises it.
+
+**Do not chase the Ace tag's touch target on a landscape phone.** It
+renders 39x37 there against a 44px bar, and it is width-bound, so the
+only fixes are a wider-than-one-card tag or bigger cards. The whole
+table is already scaled to 0.55 on that screen. This is the same trade
+CLAUDE.md's known-issues entry records for every control in landscape,
+and portrait is the intended orientation.
+
+**Do not refactor `GameScreen.jsx` as part of something else.** The
+2026-08-24 decision still holds — real code-health issue, no
+user-visible payoff, real risk. It earns its own session, after launch,
+and the Session 3 split into named pieces (`oppHandEl`, `actionEl`,
+`playerHandEl`) has already made the lift easier than it was.
+
+### Two things about how to work in this repo
+
+**Measure the browser, do not read the CSS.** Both defects fixed on
+2026-08-28 were invisible in the source and obvious in a measurement,
+and the second one had its own comment recording the miss ("54 -> 42")
+without anyone converting that into a fix.
+
+**When the usual browser routes are dead, there is a third.** The
+Playwright MCP server's profile can be locked by another session, and
+the in-app pane can report a 0x0 viewport (which silently puts
+`layoutMode()` into `stack` and makes every layout number wrong). The
+server ships its own `playwright-core` at
+`~/.npm/_npx/9833c18b2d85bc59/node_modules/playwright-core`; driving it
+against `/Applications/Google Chrome.app/...` gives a real, unhidden
+browser where timers fire, and `tools/responsive-qa.mjs` runs through
+the same shim by rewriting its one `from 'playwright'` import. The
+"Playwright is not a dependency" note in this repo is about `npm`, not
+about whether a browser can be driven here.
