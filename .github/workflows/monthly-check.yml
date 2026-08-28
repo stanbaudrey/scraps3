@@ -1,0 +1,128 @@
+# ============================================================
+# SCRAPS — monthly health check
+#
+# Three things rot quietly on a shipped site, and none of them
+# announce themselves: the share card stops matching the game,
+# a dependency picks up an advisory, and the live URL starts
+# serving something other than the game.
+#
+# This runs on the 1st of each month and ON EVERY PUSH, so a
+# break is usually caught the day it lands rather than up to
+# 30 days later. It opens an issue when it fails, because a
+# scheduled job whose only output is a red tick in a tab
+# nobody opens is the same as no job at all.
+#
+# Run it by hand any time from the Actions tab ("Run workflow").
+# ============================================================
+name: Monthly check
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'      # 09:00 UTC, first of the month
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      # ── The build itself still works ──────────────────────
+      - name: Tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+      # ── The share card still describes THIS game ──────────
+      # No browser needed: --check only re-derives and compares.
+      - name: Share assets match live sources
+        run: npm run share:check
+
+      # ── The self-hosted fonts have not drifted from Google ─
+      - name: Webfonts match upstream
+        run: npm run fonts:check
+
+      # ── The live site is actually serving all of it ───────
+      # A 200 on the page proves nothing about the share card,
+      # which is exactly how a broken card survives for days.
+      - name: Live site serves the game and its metadata
+        run: |
+          set -euo pipefail
+          BASE=https://scraps3.vercel.app
+          fail=0
+          for p in / /og.png /favicon.svg /favicon-32.png /favicon-180.png \
+                   /robots.txt /sitemap.xml /llms.txt /share-manifest.json; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$BASE$p" || echo 000)
+            if [ "$code" = "200" ]; then echo "  ok   $code  $p"
+            else echo "  FAIL $code  $p"; fail=1; fi
+          done
+          # The page must still be the game, not a parked domain
+          # or a Vercel error page returning 200.
+          if ! curl -sS --max-time 25 "$BASE/" | grep -q 'og:image'; then
+            echo "  FAIL  / responded but carries no og:image tag"; fail=1
+          fi
+          # And the card the live HTML points at must be a real
+          # PNG of the right size, not an HTML error body.
+          ctype=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 25 "$BASE/og.png" || true)
+          case "$ctype" in
+            image/png*) echo "  ok   og.png is $ctype" ;;
+            *) echo "  FAIL og.png served as '$ctype', expected image/png"; fail=1 ;;
+          esac
+          exit $fail
+
+      # ── Advisories: reported, never a hard failure ────────
+      # The esbuild chain via Vite 5 is known, dev-only, and
+      # deliberately unfixed (see CLAUDE.md). Failing on it
+      # would train everyone to ignore this job.
+      - name: Dependency advisories (report only)
+        continue-on-error: true
+        run: |
+          npm audit --omit=dev || true
+          echo '--- outdated ---'
+          npm outdated || true
+
+      # ── Make a failure impossible to miss ─────────────────
+      - name: Open an issue if anything above failed
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Monthly check failed';
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `The scheduled health check failed on \`${context.ref}\`.`,
+              '',
+              `Run: ${url}`,
+              '',
+              'Most likely causes, in the order worth checking:',
+              '- **share:check** — a title, colour or WIN_SCORE moved and the share',
+              '  card was not regenerated. Fix with `npm run share`, then commit.',
+              '- **fonts:check** — Google changed what it serves for one of the five',
+              '  families. Fix with `npm run fonts`, then commit.',
+              '- **Live site** — production is down, or is serving something that is',
+              '  not the game.',
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'monthly-check',
+            });
+            if (open.length) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: open[0].number,
+                body: `Failed again — ${url}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                ...context.repo, title, body, labels: ['monthly-check'],
+              });
+            }

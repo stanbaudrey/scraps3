@@ -1,0 +1,5 @@
+# SCRAPS — https://scraps3.vercel.app
+User-agent: *
+Allow: /
+
+Sitemap: https://scraps3.vercel.app/sitemap.xml

@@ -8,3 +8,6 @@ dist
 .env*
 
 tools/shots/
+
+# Playwright MCP working files
+.playwright-mcp/

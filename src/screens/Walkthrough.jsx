@@ -303,6 +303,16 @@ export function Walkthrough({ onDone }) {
     onDone();
   }
 
+  // The backdrop advances on any click, so BACK has to stop its own
+  // event reaching it — otherwise a click would step back and
+  // forward in the same gesture and look like nothing happened.
+  function back(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (i === 0) return;
+    playSelect();
+    setI(n => n - 1);
+  }
+
   // "Tap anywhere" is a pointer instruction on a screen with no other
   // way through, so the same surface listens for keys. Events already
   // heading for a real button are left alone — otherwise Enter on SKIP
@@ -311,6 +321,7 @@ export function Walkthrough({ onDone }) {
     const onKey = (e) => {
       if (e.target && e.target.closest && e.target.closest('button')) return;
       if (e.key === 'Escape') { skip(); return; }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); back(); return; }
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowRight') {
         e.preventDefault();
         advance();
@@ -380,11 +391,28 @@ export function Walkthrough({ onDone }) {
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
             color:DS.slate,textTransform:'uppercase'}}>Tap anywhere, or press Enter</div>
         )}
-        <button onClick={skip} style={{pointerEvents:'auto',background:'transparent',
-          border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
-          padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',
-          fontFamily:F.ui,fontWeight:700,fontSize:14,
-          letterSpacing:'0.14em',textTransform:'uppercase'}}>Skip</button>
+        {last && (
+          <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
+            color:DS.slate,textTransform:'uppercase'}}>Tap anywhere to begin</div>
+        )}
+        {/* BACK is always rendered, merely invisible on the first
+            beat, so SKIP does not jump sideways the moment a reader
+            leaves beat one. */}
+        <div style={{display:'flex',gap:10,alignItems:'center'}}>
+          <button onClick={back} disabled={i === 0} aria-label="Previous step"
+            style={{pointerEvents:'auto',background:'transparent',
+              border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
+              padding:'9px 20px',minHeight:TOUCH_MIN,
+              cursor:i === 0 ? 'default' : 'pointer',
+              visibility:i === 0 ? 'hidden' : 'visible',
+              fontFamily:F.ui,fontWeight:700,fontSize:14,
+              letterSpacing:'0.14em',textTransform:'uppercase'}}>Back</button>
+          <button onClick={skip} style={{pointerEvents:'auto',background:'transparent',
+            border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
+            padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',
+            fontFamily:F.ui,fontWeight:700,fontSize:14,
+            letterSpacing:'0.14em',textTransform:'uppercase'}}>Skip</button>
+        </div>
       </div>
     </div>
   );

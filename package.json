@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "fonts": "node tools/fetch-fonts.mjs",
-    "fonts:check": "node tools/fetch-fonts.mjs --check"
+    "fonts:check": "node tools/fetch-fonts.mjs --check",
+    "share": "node tools/make-share-assets.mjs",
+    "share:check": "node tools/make-share-assets.mjs --check"
   },
   "dependencies": {
     "react": "^18.3.1",

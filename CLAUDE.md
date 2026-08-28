@@ -39,11 +39,18 @@ five-card suited straight scores as a plain straight, never a straight flush.
   material (`MAT.cardstock`, `.wood`, `.woodHi`, `.bone`, `.boneLow`,
   `.felt`). **No oscillator plays a note**; the single sine (`thud`) is a body
   under an impact. See the file's own header and the Gotchas below.
-- The only asset files in the repo are the **14 self-hosted `.woff2` fonts**
-  in `public/fonts` (Session 6). There are still no images and no SVG files
-  on disk: every graphic (card backs, icons, the swirl backdrop) is SVG
-  written inline in JSX, and there is still no audio file — `audio.js`
-  synthesises everything.
+- Asset files in the repo, and there are only two kinds: the **14
+  self-hosted `.woff2` fonts** in `public/fonts` (Session 6), and the
+  **three share/favicon PNGs plus `favicon.svg`** in `public/`
+  (Session 7). Nothing inside the *game* is a file — every graphic it
+  draws (card backs, icons, the swirl backdrop) is still SVG written
+  inline in JSX, and there is still no audio file anywhere, `audio.js`
+  synthesises everything. The Session 7 images are share-surface
+  artifacts, not game art, and **none of them is hand-drawn**:
+  `tools/make-share-assets.mjs` renders them from the live tokens and
+  the live `<title>`, and `npm run share:check` fails if a source moves
+  without them being regenerated. Do not edit anything in `public/`
+  that `public/share-manifest.json` lists.
 
 ## Running locally
 
@@ -62,7 +69,18 @@ npm test          # vitest, 37 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
+npm run share         # regenerate og.png, favicons, robots/sitemap/llms.txt
+npm run share:check   # exit 1 if any of them no longer match the live sources
 ```
+
+`share:check` needs no network and no browser — it only re-derives values
+and compares — so it is cheap and runs in CI. `npm run share` DOES need a
+browser to rasterise with, and finds the copy of Chrome already on the
+machine (or `CHROME_PATH`); nothing is added to `package.json` for it. The
+generator reads the `<title>` from `index.html` and the tokens from
+`theme.js`, and records what it baked into `public/share-manifest.json`, so
+a rename or a repaint that forgets to regenerate fails the check by name
+rather than shipping a share card for a game that no longer exists.
 
 `fonts:check` re-downloads from Google and compares, so it needs network and
 takes a couple of seconds; it is not part of `npm test`. Run it if you touch
@@ -236,10 +254,12 @@ versions and should not be deployed to.
 ## Known issues
 
 - **There is no README, and never was one.** Nothing in git history has ever
-  added a `.md` file. So there are no stale README claims to correct — but
-  there's also no written description of the game rules anywhere outside the
-  code and the in-app rules panel. If the rules ever need to live somewhere
-  readable, that's a gap worth filling.
+  added a `.md` file. So there are no stale README claims to correct.
+  The "rules are written down nowhere" half of this gap closed in Session 7:
+  `public/llms.txt` states the full ruleset, including the no-flushes house
+  rule and the win condition, and it is generated from `WIN_SCORE` so it
+  cannot drift from the engine. It is written for crawlers rather than for
+  a human browsing the repo, so a README would still be worth having.
 - **The git remote is fine, and the note that said otherwise was backwards.**
   This file and PROJECT-BRIEF.md both claimed `origin`
   (`https://github.com/stanbaudrey/scraps3.git`) only worked via a rename

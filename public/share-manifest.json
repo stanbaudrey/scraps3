@@ -1,0 +1,48 @@
+{
+  "note": "Written by tools/make-share-assets.mjs. Do not hand-edit — run `npm run share` to regenerate, `npm run share:check` to verify.",
+  "generated": "2026-08-28T03:37:48.610Z",
+  "sources": {
+    "title": "SCRAPS — Two Hands. One Table. No Mercy.",
+    "description": "A card game of hidden hands, public scraps, and calculated betrayal.",
+    "wordmark": "SCRAPS",
+    "subtitle": "Build two hands at once.",
+    "winScore": 10,
+    "palette": {
+      "dusk": "#141F19",
+      "frost": "#EDE3D0",
+      "voltage": "#A3D85A",
+      "slate": "#A7B0A1",
+      "slateLight": "#C9C2AE",
+      "canopy": "#3E5C46",
+      "ember": "#EC8A51",
+      "gold": "#F4C771",
+      "ink": "#241C14"
+    }
+  },
+  "files": {
+    "og.png": {
+      "w": 1200,
+      "h": 630,
+      "sha256": "2ed1fb57204036ec"
+    },
+    "favicon-32.png": {
+      "w": 32,
+      "h": 32,
+      "sha256": "4766f52c2c4cd03a"
+    },
+    "favicon-180.png": {
+      "w": 180,
+      "h": 180,
+      "sha256": "ad65d54eeec91454"
+    },
+    "favicon.svg": {
+      "sha256": "7f5d5855ff6e1a39"
+    },
+    "robots.txt": {
+      "sha256": "43a9d07417414369"
+    },
+    "llms.txt": {
+      "sha256": "d87f60ebdd4fc396"
+    }
+  }
+}

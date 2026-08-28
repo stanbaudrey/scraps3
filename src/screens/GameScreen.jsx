@@ -10,7 +10,7 @@
 // React.StrictMode's development double-invocation is harmless.
 // ============================================================
 
-import { useReducer, useState, useEffect, useCallback, useRef } from "react";
+import { useReducer, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
   aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, tradeInValue,
@@ -86,6 +86,15 @@ export function GameScreen({ difficulty, onExit }) {
   const [showFullScrap, setShowFullScrap]   = useState(false);
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [waveIds, setWaveIds]               = useState(new Set());
+  // Cards that belong to a hand but have not been dealt out of the
+  // deck yet. RoundInterstitial is a SCRIM, not a cover: it sits at
+  // 0.6 alpha on the way in and spends its last 600ms fading to
+  // fully transparent, while dealWave does not run until onDone()
+  // at 2000ms. So the round's real hands sat face-up and readable
+  // through the fade, then vanished and dealt themselves in again.
+  // Hidden from the moment the round is built; the motion hook's
+  // own hiddenIds takes over the instant the wave launches.
+  const [pendingDealIds, setPendingDealIds] = useState(new Set());
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
@@ -111,6 +120,15 @@ export function GameScreen({ difficulty, onExit }) {
   const aiHandRef        = useRef(null);
   const aiScrapsRef      = useRef(null);
   const { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay } = useCardMotion();
+
+  // One set for every consumer, so no card component has to know
+  // there are two reasons a card can be invisible.
+  const allHiddenIds = useMemo(() => {
+    if (!pendingDealIds.size) return hiddenIds;
+    const s = new Set(hiddenIds);
+    for (const id of pendingDealIds) s.add(id);
+    return s;
+  }, [hiddenIds, pendingDealIds]);
 
   // Draws are the one cue that has to be SCHEDULED rather than
   // played on the spot: the cards leave the deck well after the
@@ -175,6 +193,7 @@ export function GameScreen({ difficulty, onExit }) {
     setRevealData(null); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
+    setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand].map(c => c.id)));
     setShowInterstitial(true);
   }, []);
 
@@ -189,7 +208,10 @@ export function GameScreen({ difficulty, onExit }) {
   // between cards and letting the next turn start early.
   function dealWave(playerCards, aiCards) {
     const deckEl = deckRef.current;
-    if (!deckEl) return;
+    // No deck to fly from: unhide rather than strand the hand
+    // invisible, which is the one way this could break the game
+    // rather than just the animation.
+    if (!deckEl) { setPendingDealIds(new Set()); return; }
     const deckRect = deckEl.getBoundingClientRect();
     const STEP = 90;
     const pSorted = [...playerCards].sort((a, b) => a.value - b.value);
@@ -205,6 +227,10 @@ export function GameScreen({ difficulty, onExit }) {
       arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
     }));
     fly(moves);
+    // Batched with fly()'s own update: the motion hook builds its
+    // flights in a LAYOUT effect, so the handoff lands before paint
+    // and there is no frame where the cards are visible in place.
+    setPendingDealIds(new Set());
   }
 
   function onInterstitialDone() {
@@ -865,7 +891,7 @@ export function GameScreen({ difficulty, onExit }) {
       flexShrink:0}}>
       <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
         activeWiggle={isAiThinking} waveIds={waveIds}
-        registerEl={registerCard} hiddenIds={hiddenIds}
+        registerEl={registerCard} hiddenIds={allHiddenIds}
         size={SZ.oppHand} maxWidth={stack?Math.max(120,railW-152):null}/>
     </div>
   );
@@ -878,7 +904,7 @@ export function GameScreen({ difficulty, onExit }) {
       <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
         label="Opp Scraps" selectable={aceMode}
         selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
-        registerEl={registerCard} hiddenIds={hiddenIds}
+        registerEl={registerCard} hiddenIds={allHiddenIds}
         isOpponent={true} glowZone={glowOppScraps}
         size={SZ.pile} width={stack?railW:340} fill={stack}/>
     </div>
@@ -1040,6 +1066,10 @@ export function GameScreen({ difficulty, onExit }) {
     </div>
   );
 
+  const visiblePlayerHand = allHiddenIds.size
+    ? playerHand.filter(c => !allHiddenIds.has(c.id))
+    : playerHand;
+
   const playerHandEl = (
     <div ref={playerHandRef} style={{
       display:'flex',flexDirection:'column',alignItems:'center',gap:stack?2:5,
@@ -1049,7 +1079,7 @@ export function GameScreen({ difficulty, onExit }) {
         cards={playerHand}
         selectedIds={selIds}
         registerEl={registerCard}
-        hiddenIds={hiddenIds}
+        hiddenIds={allHiddenIds}
         waveIds={waveIds}
         tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
         onCardClick={card=>{
@@ -1061,7 +1091,13 @@ export function GameScreen({ difficulty, onExit }) {
         cardSlot={aceSlot}
         size={SZ.hand} maxWidth={stack?railW:null}
       />
-      <HandUpgradeBadge cards={playerHand} fontSize={stack?13:15}/>
+      {/* Name the hand you can actually SEE. Built from playerHand
+          directly, this read "PAIR" under an empty fan while the
+          round's cards were still in the deck — the same leak as the
+          cards themselves, in text. Filtering on the hidden set also
+          means the badge settles as a trade's cards land instead of
+          describing a hand that is still in the air. */}
+      <HandUpgradeBadge cards={visiblePlayerHand} fontSize={stack?13:15}/>
     </div>
   );
 
@@ -1075,7 +1111,7 @@ export function GameScreen({ difficulty, onExit }) {
         selectedIds={scrapsDiscardIds}
         onCardClick={toggleScrapsDiscardCard}
         discardMode={isScrapsDiscardMode}
-        registerEl={registerCard} hiddenIds={hiddenIds}
+        registerEl={registerCard} hiddenIds={allHiddenIds}
         glowZone={glowPlayerScraps}
         size={SZ.pile} width={stack?railW:340} fill={stack}/>
     </div>
