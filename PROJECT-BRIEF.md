@@ -1680,10 +1680,49 @@ requesting `fonts.googleapis.com` or `fonts.gstatic.com`; the remote item
 closed as "not needed, the prompt was backwards"; Stan signed off on the
 notice text.
 
-**Not published.** The branch is pushed and green but nothing has gone to
-production, deliberately — Session 7 is the launch session and adds the
-metadata, favicon and share image that a visitor sees at the same time as
-this. Publishing twice in two days buys nothing.
+**Published to production 2026-08-28**, at Stan's call, rather than being
+held for Session 7 as this entry first planned. `main` is at merge commit
+`4de3205`; deploy `dpl_bf1CvZdbhenzLc6ZVQXDXW2ZjCN2`, target production,
+state READY.
+
+**Landed via pull request, not a direct push, and that is a change in how
+this project publishes.** This session ran in a sandboxed remote container
+whose policy refuses any `git push` to `main` or `dev`. The work went in as
+[#1](https://github.com/stanbaudrey/scraps3/pull/1), merged through the
+GitHub API. Nothing about the result differs — `main` carries the same four
+commits — but a session running under that policy cannot fast-forward the
+two branches by hand.
+
+**Consequence, and the one loose end: `dev` is now BEHIND `main`.** Every
+prior session left them level. `dev` still sits at `85f872f` and needs a
+fast-forward to `4de3205` from a machine that can push it. Nothing is
+broken by the gap; `/preview` just deploys yesterday's code until it is
+closed.
+
+**Verified against production itself, not the build log**, in the same
+spirit as Session 5's `cmp` and with the same conclusion reached a
+different way:
+
+- The live HTML serves `/assets/index-EjHBJe5J.js` — **the exact filename
+  the local build produced.** Vite derives that hash from content, so a
+  matching name is a matching bundle.
+- All 24 `@font-face` rules are present in the served HTML, pointing at
+  `/fonts/*.woff2`, with the `FONT-FACE:BEGIN`/`END` sentinels intact and
+  the three preloads above them. **No `googleapis`/`gstatic` link or
+  preconnect survives** — the only occurrence of either string is the
+  comment explaining why they are gone.
+- A real font file returns `200`, `content-type: font/woff2`,
+  `content-length: 13348` — byte-exact against the local file — and its
+  body starts with the `wOF2` signature. A *missing* path under `/fonts/`
+  returns a genuine `404` rather than an SPA fallback, which is what makes
+  the `200` mean the file is really there.
+
+**One check this session could not run, stated rather than skipped:**
+direct HTTPS to `scraps3.vercel.app` is refused by this container's egress
+policy (`403` on CONNECT, recorded in the proxy's own failure log). The
+verification above went through Vercel's API instead. A cold mobile smoke
+test on cellular data — Session 7's requirement — has therefore still not
+happened from here.
 
 **Open, and carried into Session 7:** the `?` help button asks for Work
 Sans 900 (`GameScreen.jsx:1237`), which was never declared and renders as
@@ -2415,7 +2454,7 @@ background process left running.
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
 | 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
-| 6 | Security, privacy, and rights | Done (2026-08-28) — fonts self-hosted and verified, remote needed no change (the prompt was backwards), privacy notice signed off. Not published; held for Session 7 |
+| 6 | Security, privacy, and rights | Done + published (2026-08-28) — fonts self-hosted, remote needed no change (the prompt was backwards), privacy notice signed off. Landed via PR #1; **`dev` is behind `main` and needs a fast-forward** |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
