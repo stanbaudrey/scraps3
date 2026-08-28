@@ -1731,7 +1731,7 @@ disk, so declaring a real 900 face costs zero extra bytes. Left alone this
 session to preserve parity with what production already renders; not yet
 called either way.
 
-### Session 7 — Findability and launch — part one done (2026-08-28)
+### Session 7 — Findability and launch — part one done + PUBLISHED (2026-08-28)
 **Goal:** the game looks right when shared, gets found by search/AI
 crawlers, and goes live on the agreed schedule.
 **Bring:** this brief (Section 8 has the drafted copy and venue list).
@@ -1933,9 +1933,57 @@ correct content types on the dev server; the workflow green on Actions run
 `33139620027`. Both pre-launch fixes measured frame-by-frame in a real
 browser before and after.
 
+**Published to production 2026-08-28** at Stan's call, `main` at
+`c961879`, deploy Ready. Merged as a clean fast-forward from a machine
+that can push both branches, so the Session 6 PR detour did not repeat
+and `dev` and `main` are level again.
+
+**Verified against the live URL, not the build log:** all nine new paths
+return 200 with correct content types, a *missing* path under the same
+prefix still returns a genuine 404 (which is what makes the 200s mean
+the files are really there rather than an SPA fallback), and the live
+`og.png` is **byte-identical to the local file** — same sha256, same
+330,628 bytes, same 1200x630 header. The live HTML carries the canonical
+tag, all nine `og:`/`twitter:` tags and the JSON-LD. Production was
+reachable from this machine, unlike Session 6's container, so this is a
+direct check rather than one made through Vercel's API.
+
+**The whole game was then walked on production at 390x844:** storyboard
+opens, BACK appears at beat two and steps back, the picker arms, the
+deal runs with the hands hidden throughout the scrim and no hand-name
+leak, 14 cards visible when it settles, and zero document scroll on
+either axis.
+
+**Two things the publish-time checks caught that the build did not:**
+
+- **`llms.txt` published Stan's full real name.** It was written to be
+  ingested and repeated by crawlers, permanently, and he never asked for
+  it — his own launch drafts say "my wife and I" without a name. The
+  origin claim stays, the name is gone, and the reasoning now lives in
+  the generator where whoever edits it will read it.
+- **The share-asset check had a hole, found by breaking it rather than
+  by reading it.** Deleting `sitemap.xml` passed with **exit 0**. It is
+  written separately from the other text files because its `lastmod`
+  legitimately changes every run, which quietly put it outside the loop
+  that verifies the rest. It now asserts what does not move — presence,
+  the `urlset` namespace, and the canonical `<loc>` — each confirmed by
+  breaking it. **This is the second real defect that only the
+  break-on-purpose step found**, after the wrong sitemap namespace
+  earlier the same day. Neither would have been caught by any amount of
+  reading, and both were in the code whose entire job is catching drift.
+
+**The monthly check has now been observed doing both things.** It failed
+correctly at 04:09 from `dev`, reporting nine 404s on production because
+the metadata was not live; it passed at 07:36 from `main` with all nine
+green. A check seen only passing is a reassuring message; this one has
+been seen distinguishing the two states. **Still not proven: that the
+cron itself fires** — unknowable until 2026-09-01.
+
 **Open, carried to Session 7 part two:**
-- **Nothing is published.** All of this is on `dev` at `b87115d`.
-  Production still serves no favicon, no OG tags, no `robots.txt`.
+- **The cold mobile smoke test on CELLULAR has still not happened.** The
+  390x844 walk above went over this machine's connection, which is a
+  different test: it proves the layout and the game, not the load on a
+  slow radio. Only Stan can run the real one, on his phone, off wifi.
 - Stan has not yet signed off on the literal metadata field values.
 - The cold mobile smoke test on cellular data still has not happened —
   now for the first time not because the environment blocked it, since
@@ -2641,7 +2689,7 @@ background process left running.
 | 4 | Sound identity | Done |
 | 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
 | 6 | Security, privacy, and rights | Done + published (2026-08-28) — fonts self-hosted, remote needed no change (the prompt was backwards), privacy notice signed off. Landed via PR #1; **`dev` is behind `main` and needs a fast-forward** |
-| 7 | Findability and launch | **Part one done (2026-08-28)** — metadata, generated share card + self-checking generator, monthly GitHub Actions check, and two of Stan's four pre-launch notes fixed. On `dev`, **not published**. Part two: field signoff, publish, cold mobile smoke test, launch copy |
+| 7 | Findability and launch | **Part one done + PUBLISHED (2026-08-28)** — metadata, generated share card + self-checking generator, monthly GitHub Actions check, two of Stan's four pre-launch notes fixed, launch copy reconciled to `WIN_SCORE` 10. Live and verified byte-identical. Part two: the cellular smoke test (Stan's phone only), and the posts |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
