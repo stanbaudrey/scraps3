@@ -18,11 +18,16 @@ five-card suited straight scores as a plain straight, never a straight flush.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
 - Vitest for tests. 37 tests cover the engine and the reducer.
-- Fonts come from Google Fonts via a `<link>` in `index.html` — **five**
+- Fonts are **self-hosted** from `public/fonts` since Session 6 — **five**
   families, not four: Bungee Shade (the SCRAPS wordmark, and nothing
   else), Fjalla One (headings and subtitles), Baloo 2 (card ranks and
-  suits), Work Sans (UI), IBM Plex Mono (mono). Not self-hosted. The
-  authoritative list is the `<link>` in `index.html` and the `F` object in
+  suits), Work Sans (UI), IBM Plex Mono (mono). They used to load from
+  `fonts.googleapis.com`; nothing in the app reaches off-origin now. The
+  `@font-face` rules live between the `FONT-FACE:BEGIN`/`END` sentinels in
+  `index.html` and are **generated — never hand-edit them or the files in
+  `public/fonts`**. `npm run fonts` rewrites both from Google;
+  `npm run fonts:check` exits non-zero if either has drifted. The
+  authoritative family list is those rules plus the `F` object in
   `src/styles/theme.js`, which must agree; both were named wrongly in this
   file until Session 3 (see PROJECT-BRIEF.md's forest-reskin and specimen
   notes for the two changes that drifted from it).
@@ -34,9 +39,11 @@ five-card suited straight scores as a plain straight, never a straight flush.
   material (`MAT.cardstock`, `.wood`, `.woodHi`, `.bone`, `.boneLow`,
   `.felt`). **No oscillator plays a note**; the single sine (`thud`) is a body
   under an impact. See the file's own header and the Gotchas below.
-- The repo contains **no asset files at all** — no `public/` directory, no
-  images, no SVG files on disk. Every graphic (card backs, icons, the swirl
-  backdrop) is SVG written inline in JSX.
+- The only asset files in the repo are the **14 self-hosted `.woff2` fonts**
+  in `public/fonts` (Session 6). There are still no images and no SVG files
+  on disk: every graphic (card backs, icons, the swirl backdrop) is SVG
+  written inline in JSX, and there is still no audio file — `audio.js`
+  synthesises everything.
 
 ## Running locally
 
@@ -53,7 +60,13 @@ by hand without those flags starts on 5173 instead.
 ```bash
 npm test          # vitest, 37 tests, runs in under a second
 npm run build     # production bundle into dist/
+npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
+npm run fonts:check   # exit 1 if either has drifted from upstream Google
 ```
+
+`fonts:check` re-downloads from Google and compares, so it needs network and
+takes a couple of seconds; it is not part of `npm test`. Run it if you touch
+`index.html`'s font block, and before a release.
 
 `tools/responsive-qa.mjs` walks the real app in a headless browser at six
 viewports and asserts the Session 3 rule — no document scroll, no inner
@@ -227,11 +240,18 @@ versions and should not be deployed to.
   there's also no written description of the game rules anywhere outside the
   code and the in-app rules panel. If the rules ever need to live somewhere
   readable, that's a gap worth filling.
-- **The git remote points at the wrong username.** `origin` is
-  `https://github.com/stanbaudrey/scraps3.git`, but the repo actually lives
-  at `unclescrunch/scraps3` — GitHub's rename redirect is what keeps pushes
-  working. It works today, silently, and would break if that redirect is ever
-  reclaimed. Worth repointing the remote.
+- **The git remote is fine, and the note that said otherwise was backwards.**
+  This file and PROJECT-BRIEF.md both claimed `origin`
+  (`https://github.com/stanbaudrey/scraps3.git`) only worked via a rename
+  redirect from a canonical `unclescrunch/scraps3`. Checked against the
+  GitHub API on 2026-08-27: `stanbaudrey/scraps3` **is** the canonical
+  `full_name` (owner login `stanbaudrey`, id 285274906, homepage
+  `scraps3.vercel.app`, `pushed_at` matching this repo's last push), and the
+  API resolves renames to the canonical name rather than echoing the queried
+  one. A `repo:unclescrunch/scraps3` lookup returns no such resource. The
+  rename ran the other way — the account was `unclescrunch` and is now
+  `stanbaudrey` — so `origin` already points at the live name and
+  "repointing" it would aim at the stale one. Left alone deliberately.
 - **`GameScreen.jsx` is ~1100 lines** and mixes three concerns: UI state, the
   animation timer choreography, and the rendering of the whole table. Unlike
   the engine and reducer, nothing in the file claims this is deliberate. The
@@ -268,5 +288,6 @@ versions and should not be deployed to.
   deployments interleaved with the good ones from that same period; the
   current production deploy is healthy.
 - **No linter is configured.** There's no ESLint setup and no `lint` script,
-  so "run the linter before pushing" currently has nothing to run. `npm test`
-  and `npm run build` are the available checks.
+  so "run the linter before pushing" currently has nothing to run.
+  `npm test`, `npm run build` and `npm run fonts:check` are the available
+  checks.

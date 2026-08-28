@@ -1523,7 +1523,7 @@ these with a generator script that reads the live sources and exits
 non-zero on a mismatch — and that script should be broken on purpose
 once, to watch it fail, before it is trusted.**
 
-### Session 6 — Security, privacy, and rights
+### Session 6 — Security, privacy, and rights ✅ Done (2026-08-28)
 **Goal:** nothing leaks, nothing's unlicensed, the fine print is real.
 **Bring:** this brief.
 **Opening prompt:**
@@ -1532,9 +1532,12 @@ once, to watch it fail, before it is trusted.**
 > them from `fonts.googleapis.com`/`fonts.gstatic.com`; this removes the
 > third-party-request privacy issue outright. Ship only the weights
 > `index.html` actually asks for, and check the live `<link>` and
-> `theme.js`'s `F` object rather than trusting any list in this brief. Repoint the git remote from
-> `stanbaudrey/scraps3` to `unclescrunch/scraps3` (currently only works via
-> GitHub's rename redirect). Write a short privacy policy page, linked from
+> `theme.js`'s `F` object rather than trusting any list in this brief.
+> ~~Repoint the git remote from `stanbaudrey/scraps3` to
+> `unclescrunch/scraps3` (currently only works via GitHub's rename
+> redirect).~~ (Checked 2026-08-28 and **this is backwards** — see the
+> findings below. `stanbaudrey` is canonical; doing this would have
+> pointed the remote at the dead name.) Write a short privacy policy page, linked from
 > wherever makes sense in the UI: what's collected (currently just the
 > `scraps-stats-v1` localStorage stats, plus whatever analytics gets added
 > in the launch session), why, where it lives, and that nothing leaves the
@@ -1544,6 +1547,150 @@ once, to watch it fail, before it is trusted.**
 output requests `fonts.googleapis.com` or `fonts.gstatic.com`, the git
 remote points at the real repo, and Stan has explicitly signed off on the
 privacy policy text.
+
+**What happened:**
+
+**Two of the three items are done and verified. The third needs Stan to
+approve the text.**
+
+**1. The five fonts are self-hosted, and the third-party request is gone.**
+`tools/fetch-fonts.mjs` vendors them into `public/fonts` and rewrites the
+`@font-face` rules between `FONT-FACE:BEGIN`/`END` sentinels in
+`index.html`, so the rules and the files cannot drift apart. `npm run
+fonts` regenerates, `npm run fonts:check` re-downloads from Google and
+exits non-zero on drift.
+
+**The check was broken on purpose three ways before being trusted** — a
+corrupted `.woff2`, a deleted `@font-face` rule, a stale leftover file —
+and caught all three with exit 1, then passed again on restore. That is
+the discipline Session 7's share-image generator is supposed to inherit;
+it works, and the pattern is now in the repo to copy.
+
+Two things found on the way in, neither of which the prompt anticipated:
+
+- **Work Sans and Baloo 2 are variable fonts.** Google serves ONE file per
+  subset for them and varies only the `font-weight` descriptor. A naive
+  one-file-per-weight fetch wrote identical bytes four times over; the
+  first run produced 24 files of which only 14 were distinct. Files are
+  now named by weight only where the weights are genuinely different
+  files. **24 faces over 14 files.**
+- **Only `latin` and `latin-ext` are vendored.** Google's default also
+  serves cyrillic, greek and vietnamese, which nothing here renders. The
+  `unicode-range` descriptors are kept verbatim, so a browser still
+  downloads only the subset it needs — `latin`, in practice, about 203 KB
+  across the five families.
+
+**A per-family weight audit, which the prompt asked for and which turned
+up two mismatches worth Stan's call.** Neither is a regression — both
+behave exactly as they did on Google — and neither was changed:
+
+| Family | `<link>` asked for | Actually used in `src/` |
+|---|---|---|
+| Bungee Shade | 400 | 400 |
+| Fjalla One | 400 | 600, 700 — *single-weight font, both synthesised* |
+| Baloo 2 | 600, 700, 800 | **600 only** |
+| Work Sans | 400, 500, 600, 700 | 400, 500, 600, 700, **900** |
+| IBM Plex Mono | 400, 500, 700 | 400, 700 |
+
+- **Work Sans 900** is asked for by the `?` help button
+  (`GameScreen.jsx:1237`) and was never declared, so it renders as 700
+  with synthetic bold. Measured: identical width to 700, confirming the
+  browser clamps to the top declared weight. Because Work Sans is
+  variable and its file is already on disk, **declaring a real 900 face
+  would cost zero extra bytes.** Left as-is to preserve parity; Stan's
+  call whether to take the free fix.
+- **IBM Plex Mono 500 is the only genuinely wasted file** (14.5 KB in the
+  repo, never downloaded by a browser since nothing references that
+  weight). Baloo 2's unused 700 and 800 cost nothing at all, being the
+  same variable file as 600.
+
+**Verified in Chromium against the built output**, not the build log:
+zero requests leave the origin on the splash *and* on the table, and all
+nine declared faces render from local files rather than falling back. The
+vendored `.woff2` files are byte-identical to what `fonts.gstatic.com`
+serves right now, so rendering is unchanged by construction. The JS
+bundle hash did not move (`index-CQzez2Y6.js`), confirming no JS was
+touched.
+
+**A direct pixel A/B against the Google-served build was attempted and is
+not possible here, which is worth recording rather than quietly
+skipping.** Production is unreachable from this container
+(`ERR_TUNNEL_CONNECTION_FAILED`), and a locally built "before" using the
+old `<link>` rendered every family at the fallback width — the sandbox
+blocks the browser from reaching Google, so the comparison would have
+measured monospace against monospace and proved nothing. Byte-identity to
+gstatic is the stronger claim available and is the one being made.
+
+**2. The git remote does NOT need repointing, and the prompt had it
+backwards.** This was checked rather than done. The GitHub API returns
+`stanbaudrey/scraps3` as the canonical `full_name` (owner login
+`stanbaudrey`, id 285274906, homepage `scraps3.vercel.app`, `pushed_at`
+matching this repo's last push), and the API resolves renames to the
+canonical name rather than echoing the queried one. A
+`repo:unclescrunch/scraps3` lookup returns no such resource. **The rename
+ran the other way** — the account was `unclescrunch` and is now
+`stanbaudrey` — so `origin` already points at the live name, and doing
+what the prompt asked would have aimed it at the stale one and broken
+pushes. CLAUDE.md's "git remote points at the wrong username" note has
+been corrected to say this. Separately: a remote change lives in
+`.git/config`, which is not committed, so it could not have persisted
+beyond this container anyway.
+
+**3. The privacy notice is written, built and SIGNED OFF.**
+It lives as a second view inside `RulesModal` (Stan's call — one entry
+point, nothing new on the table where every pixel is already contested),
+reached by a `Privacy` button beside `Close`. No contact line, also Stan's
+call: the game collects nothing, so there is no data for anyone to request
+or have deleted.
+
+The text was written against an audit of what the code does, not a
+template. Confirmed absent: `fetch`, `XMLHttpRequest`, `sendBeacon`,
+`WebSocket`, any analytics package, any cookie. Confirmed present: exactly
+two storage keys — `scraps-stats-v1` (localStorage; wins, losses and best
+margin per difficulty) and `scraps-walkthrough-seen-v1` (sessionStorage;
+one flag). **It states plainly that Vercel receives the usual request data
+in its logs**, because a notice claiming nothing leaves your browser would
+be false the moment someone loads the page, and that is the sentence a
+sceptical reader checks first.
+
+Verified in a browser: the dialog's `aria-label` follows the view, the
+toggle works both ways, the panel scrolls internally and the document
+still does not.
+
+**Stan rewrote the notice and approved his own version (2026-08-28), which
+is what shipped.** He cut five paragraphs to three: merged the opening two,
+dropped the how-to-clear-your-data paragraph outright, and cut the Vercel
+paragraph back to the one fact a reader cares about — they get your IP and
+log it — losing the user-agent and requested-file detail as noise. The
+draft's structure survived; its length did not.
+
+Worth recording, because it changed the UI and not just the words: **at
+1024x662 the notice now fits with no scrolling at all** (`scrollHeight`
+489 against a `clientHeight` of 489, where the first draft needed 718 in
+the same 579px box). The rules panel is the one overlay in the game
+allowed to scroll, and the privacy half of it no longer uses that
+allowance. Shorter copy did what no layout change would have.
+
+A `Last updated 28 August 2026` line was kept below the text — a date
+stamp rather than copy, and the thing that tells a reader whether the
+notice predates something they heard about.
+
+**Done when:** met. Fonts self-hosted with nothing in the built output
+requesting `fonts.googleapis.com` or `fonts.gstatic.com`; the remote item
+closed as "not needed, the prompt was backwards"; Stan signed off on the
+notice text.
+
+**Not published.** The branch is pushed and green but nothing has gone to
+production, deliberately — Session 7 is the launch session and adds the
+metadata, favicon and share image that a visitor sees at the same time as
+this. Publishing twice in two days buys nothing.
+
+**Open, and carried into Session 7:** the `?` help button asks for Work
+Sans 900 (`GameScreen.jsx:1237`), which was never declared and renders as
+700 with synthetic bold. Work Sans is variable and its file is already on
+disk, so declaring a real 900 face costs zero extra bytes. Left alone this
+session to preserve parity with what production already renders; not yet
+called either way.
 
 ### Session 7 — Findability and launch
 **Goal:** the game looks right when shared, gets found by search/AI
@@ -2268,7 +2415,7 @@ background process left running.
 | 3 | Mobile and responsive QA | Done |
 | 4 | Sound identity | Done |
 | 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
-| 6 | Security, privacy, and rights | Not started |
+| 6 | Security, privacy, and rights | Done (2026-08-28) — fonts self-hosted and verified, remote needed no change (the prompt was backwards), privacy notice signed off. Not published; held for Session 7 |
 | 7 | Findability and launch | Not started |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |

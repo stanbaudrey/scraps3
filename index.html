@@ -5,12 +5,256 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SCRAPS — Two Hands. One Table. No Mercy.</title>
     <meta name="description" content="A card game of hidden hands, public scraps, and calculated betrayal." />
-    <!-- Fonts loaded here in <head> so they're available before first paint -->
-    <!-- This eliminates hover lag caused by @import inside React style tags -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Fjalla+One&family=Baloo+2:wght@600;700;800&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Fonts are SELF-HOSTED from /fonts (Session 6). They used to come from
+         fonts.googleapis.com + fonts.gstatic.com, which handed every visitor's
+         IP and user-agent to a third party before the game had drawn a card.
+         Nothing here reaches off-origin any more.
+
+         The @font-face rules live in the <style> block below rather than a
+         separate stylesheet, for the same reason everything else does: they
+         must be parsed before first paint. Regenerate them, and the files in
+         public/fonts, with `npm run fonts` — never edit either by hand.
+
+         Only the splash's three families are preloaded; Baloo 2 (card faces)
+         and IBM Plex Mono are not on the first screen and are left to be
+         fetched when they are first used. crossorigin is required on a font
+         preload even same-origin, or the browser fetches the file twice. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/bungee-shade-latin.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/fjalla-one-latin.woff2">
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/work-sans-latin.woff2">
     <style>
+      /* ========================================================
+         SELF-HOSTED WEBFONTS — generated, do not hand-edit.
+         Source: tools/fetch-fonts.mjs (`npm run fonts`), which
+         pulls from Google and rewrites both these rules and the
+         files in public/fonts. `npm run fonts:check` fails if the
+         vendored copies have drifted from upstream.
+
+         Work Sans and Baloo 2 are variable fonts: their weights
+         all point at ONE file per subset and the font-weight
+         descriptor selects along the axis. That is why there are
+         24 rules over 14 files, and why an extra declared weight
+         of those two families would cost no additional bytes.
+         ======================================================== */
+      /* FONT-FACE:BEGIN */
+      /* Bungee Shade 400 — latin-ext */
+      @font-face {
+        font-family: 'Bungee Shade';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/bungee-shade-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Bungee Shade 400 — latin */
+      @font-face {
+        font-family: 'Bungee Shade';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/bungee-shade-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Fjalla One 400 — latin-ext */
+      @font-face {
+        font-family: 'Fjalla One';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/fjalla-one-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Fjalla One 400 — latin */
+      @font-face {
+        font-family: 'Fjalla One';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/fjalla-one-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Baloo 2 600 — latin-ext */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Baloo 2 600 — latin */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Baloo 2 700 — latin-ext */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Baloo 2 700 — latin */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Baloo 2 800 — latin-ext */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 800;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Baloo 2 800 — latin */
+      @font-face {
+        font-family: 'Baloo 2';
+        font-style: normal;
+        font-weight: 800;
+        font-display: swap;
+        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Work Sans 400 — latin-ext */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Work Sans 400 — latin */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Work Sans 500 — latin-ext */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Work Sans 500 — latin */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Work Sans 600 — latin-ext */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Work Sans 600 — latin */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* Work Sans 700 — latin-ext */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Work Sans 700 — latin */
+      @font-face {
+        font-family: 'Work Sans';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/work-sans-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* IBM Plex Mono 400 — latin-ext */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-400-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* IBM Plex Mono 400 — latin */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-400-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* IBM Plex Mono 500 — latin-ext */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-500-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* IBM Plex Mono 500 — latin */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-500-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* IBM Plex Mono 700 — latin-ext */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-700-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* IBM Plex Mono 700 — latin */
+      @font-face {
+        font-family: 'IBM Plex Mono';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/ibm-plex-mono-700-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /* FONT-FACE:END */
+
       /* ========================================================
          SINGLE SOURCE OF TRUTH for global CSS.
          Everything here loads before first paint, so hover

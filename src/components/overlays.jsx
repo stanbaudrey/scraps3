@@ -651,8 +651,20 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
 // ─────────────────────────────────────────────────────────────
 // RulesModal
 // ─────────────────────────────────────────────────────────────
+// The privacy notice lives in this modal rather than on its own screen:
+// it is the only reference panel the game has, and a second entry point
+// would be a second thing to keep in sync. `view` swaps the body between
+// the rules and the notice; there is no route and no second dialog.
+const PRIVACY = [
+  `SCRAPS runs entirely in your browser, and two things get saved on your browser's storage. Your win-loss record and best winning margin for each difficulty, which stays until you clear your browser data. And a note that you have already seen the intro, so it does not replay every time you press Play, which clears when you close the tab.`,
+  `No account, no sign-up, and nothing on a server keeping track of you. Once the page has loaded the game makes no network requests at all: no analytics, no tracking pixels, no cookies, no third-party scripts. Even the fonts are served from this site rather than from Google.`,
+  `This site is hosted on Vercel. Like any web host, they receive your IP address and keep that in their logs.`,
+];
+
 export function RulesModal({ onClose }) {
   const dialogRef = useDialogFocus(true);
+  const [view, setView] = useState('rules');
+  const privacy = view === 'privacy';
   // Escape closes it. The backdrop already closes on click, which is the
   // pointer half of the same affordance; without this a keyboard user
   // has to find the Close button to leave.
@@ -675,7 +687,7 @@ export function RulesModal({ onClose }) {
   // defeats the only thing the panel is for. Every other overlay
   // here is a short message and gets scaled instead.
   return (
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Rules" tabIndex={-1}
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={privacy?'Privacy':'Rules'} tabIndex={-1}
       style={{position:'fixed',inset:0,zIndex:100,background:'rgba(20,31,25,.94)',
       display:'flex',alignItems:'center',justifyContent:'center',padding:12,outline:'none'}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:DS.duskMid,
@@ -684,9 +696,24 @@ export function RulesModal({ onClose }) {
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
           gap:12,marginBottom:20}}>
           <h2 style={{fontFamily:F.display,fontWeight:700,color:DS.voltage,
-            fontSize:'clamp(28px,6vw,40px)',letterSpacing:'0.06em'}}>Rules</h2>
-          <Btn small variant="ghost" onClick={onClose}>Close</Btn>
+            fontSize:'clamp(28px,6vw,40px)',letterSpacing:'0.06em'}}>
+            {privacy?'Privacy':'Rules'}</h2>
+          <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0}}>
+            <Btn small variant="ghost" onClick={()=>setView(privacy?'rules':'privacy')}>
+              {privacy?'Rules':'Privacy'}</Btn>
+            <Btn small variant="ghost" onClick={onClose}>Close</Btn>
+          </div>
         </div>
+        {privacy ? (
+          <div>
+            {PRIVACY.map((p,i)=>(
+              <p key={i} style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,
+                lineHeight:1.65,marginBottom:16}}>{p}</p>
+            ))}
+            <p style={{fontFamily:F.mono,color:DS.slate,fontSize:13,
+              letterSpacing:'0.04em',marginTop:22}}>Last updated 28 August 2026</p>
+          </div>
+        ) : (<>
         {rules.map((r,i)=>(
           <div key={i} style={{display:'flex',gap:16,alignItems:'flex-start',marginBottom:18}}>
             <span style={{flexShrink:0,marginTop:3,width:38,display:'flex',
@@ -694,6 +721,7 @@ export function RulesModal({ onClose }) {
             <div style={{fontFamily:F.ui,color:DS.slateLight,fontSize:19,lineHeight:1.6}}>{r.t}</div>
           </div>
         ))}
+        </>)}
       </div>
     </div>
   );
