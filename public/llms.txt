@@ -1,6 +1,6 @@
 # SCRAPS
 
-> A card game of hidden hands, public scraps, and calculated betrayal.
+> This turn's discards are next turn's hand.
 
 SCRAPS is a two-player card game played in the browser against an AI
 opponent. It was invented by Stan Baudrey and his wife — the mechanics are

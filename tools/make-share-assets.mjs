@@ -71,9 +71,28 @@ const menus = readFileSync(path.join(ROOT, 'src/screens/MenuScreens.jsx'), 'utf8
 const SUBTITLE = (menus.match(/const SUBTITLE\s*=\s*"([^"]*)"/) || [])[1]
   || fail('could not find SUBTITLE in MenuScreens.jsx');
 
-// The wordmark is the title's first word — the product name, and
-// the exact field that went stale in the sibling project.
-const WORDMARK = TITLE.split('—')[0].trim();
+// The wordmark is the title's leading product name, and the exact
+// field that went stale in the sibling project. Split on an em dash
+// OR a spaced hyphen: the title has used both, and a version of this
+// that only knew about the em dash silently took the WHOLE title as
+// the product name the moment the separator changed.
+const WORDMARK = TITLE.split(/\s+[—–-]\s+/)[0].trim();
+
+// Share-surface copy. It lives here rather than in the app because
+// nothing in the game says it — but it is still recorded in the
+// manifest and diffed by --check, so it cannot drift silently either.
+const STRAPLINE = 'A 5-minute card game with a twist';
+
+// The hand drawn on the card. NOTE for whoever changes this: the
+// house rule is that FLUSHES ARE NEVER VALID in SCRAPS, so a suited
+// A-K-Q-J-10 is a hand this game does not recognise. It is on the
+// card because it is the most legible "card game" image there is,
+// and it was chosen deliberately with that known. The valid
+// near-identical alternative, if this is ever revisited, is the same
+// five ranks in mixed suits — a straight, which IS the best hand
+// here. Switch HAND to HAND_STRAIGHT below to use it.
+const HAND          = [['10','♦'],['J','♦'],['Q','♦'],['K','♦'],['A','♦']];
+const HAND_STRAIGHT = [['10','♦'],['J','♣'],['Q','♥'],['K','♠'],['A','♦']];
 
 // Everything baked into the pixels. Drift in ANY of these means
 // the committed PNGs no longer describe the project.
@@ -82,6 +101,8 @@ const sources = {
   description: DESC,
   wordmark: WORDMARK,
   subtitle: SUBTITLE,
+  strapline: STRAPLINE,
+  hand: HAND.map(([r, su]) => r + su).join(' '),
   winScore: WIN_SCORE,
   palette: {
     dusk: DS.dusk, frost: DS.frost, voltage: DS.voltage,
@@ -95,45 +116,82 @@ const fontFace = (family, file, weight = 400) => `
   @font-face{font-family:'${family}';font-style:normal;font-weight:${weight};
     src:url('${pathToFileURL(path.join(PUBLIC, 'fonts', file)).href}') format('woff2');}`;
 
-// Reproduces the splash: SwirlBg's three radial layers at rest,
-// the suit row, the Bungee Shade wordmark with its one voltage
-// letter, the subtitle, and the table's own HUD line — which is
-// where WIN_SCORE gets into the pixels.
-const cardHtml = ({ w, h, scale }) => `<!doctype html><meta charset="utf-8"><style>
+// The card: SwirlBg's three radial layers at rest, the Bungee Shade
+// wordmark with its one voltage letter, a real fanned hand drawn
+// with the same geometry and inks as the game's own PlayingCard
+// (frost face, 6px ink border, Baloo 2 rank, emberInk for a red
+// suit), and one line of copy. The rules line that used to sit here
+// was cut: a share card has about one second to be interesting and
+// "first to 10, win by 2" is not the interesting part.
+const CARD_W = 104, CARD_H = 146;   // CARD_DIMS.normal, kept in step by eye
+
+const handHtml = (hand, scale) => {
+  const n = hand.length;
+  return hand.map(([rank, suit], i) => {
+    const t = i - (n - 1) / 2;                 // -2..2 about the centre
+    const rot = t * 7.5;                       // lean out from the middle
+    const lift = Math.abs(t) * Math.abs(t) * 8; // outer cards sit lower
+    const red = suit === '\u2665' || suit === '\u2666';
+    const ink = red ? DS.emberInk : DS.ink;
+    const rankFs = (rank === '10' ? 37 * 0.82 : 37) * scale;
+    return `<div class="pc" style="
+      width:${CARD_W * scale}px;height:${CARD_H * scale}px;
+      margin:0 ${-CARD_W * scale * 0.10}px;
+      transform:rotate(${rot}deg) translateY(${lift * scale}px);
+      padding:${9 * scale}px ${10 * scale}px;
+      border-width:${6 * scale}px">
+      <span style="color:${ink};font-size:${rankFs}px">${rank}</span
+      ><span style="color:${ink};font-size:${39 * scale}px;margin-top:${-2 * scale}px">${suit}</span>
+    </div>`;
+  }).join('');
+};
+
+const cardHtml = ({ w, h, scale, hand = HAND }) => `<!doctype html><meta charset="utf-8"><style>
   ${fontFace('Bungee Shade', 'bungee-shade-latin.woff2')}
   ${fontFace('Fjalla One', 'fjalla-one-latin.woff2')}
-  ${fontFace('IBM Plex Mono', 'ibm-plex-mono-400-latin.woff2')}
+  ${fontFace('Baloo 2', 'baloo-2-latin.woff2', '100 900')}
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:${w}px;height:${h}px;overflow:hidden}
   /* Padding is not decoration here: share surfaces crop, round the
      corners, and letterbox this image, so nothing that must survive
      is allowed near an edge. */
   body{background:${DS.dusk};position:relative;
-    font-size:${scale}px;padding:0 ${Math.round(w * 0.055)}px;
+    font-size:${scale}px;padding:0 ${Math.round(w * 0.05)}px;
     display:flex;align-items:center;justify-content:center}
   .swirl{position:absolute;inset:-12%}
   .a{background:radial-gradient(ellipse 60% 50% at 25% 30%, ${DS.canopy}66 0%, transparent 70%)}
   .b{background:radial-gradient(ellipse 55% 45% at 75% 70%, ${DS.ember}55 0%, transparent 70%)}
   .c{background:radial-gradient(ellipse 50% 40% at 50% 92%, ${DS.gold}4a 0%, transparent 70%)}
-  .stack{position:relative;z-index:1;text-align:center;width:100%}
-  .suits{font-family:'Fjalla One',sans-serif;color:${DS.slate};
-    letter-spacing:0.18em;font-size:2.1em;margin-bottom:0.22em}
-  .word{font-family:'Bungee Shade',sans-serif;font-size:7.2em;line-height:1;
+  .stack{position:relative;z-index:1;text-align:center;width:100%;
+    display:flex;flex-direction:column;align-items:center}
+  .word{font-family:'Bungee Shade',sans-serif;font-size:5.1em;line-height:1;
     color:${DS.frost};text-shadow:0 3px 0 rgba(0,0,0,.4);letter-spacing:0.01em}
   .word i{font-style:normal;color:${DS.voltage};
     text-shadow:0 0 30px ${DS.voltage}88, 0 3px 0 rgba(0,0,0,.4)}
+  /* The bottom margin has to clear the fan's own droop, not just the
+     card box: the outer cards are rotated AND pushed down, so the
+     lowest painted corner sits well below where flex thinks the row
+     ends. Sized against the largest lift below, with room to spare —
+     the first version of this had the strapline running through the
+     10 and the ace. */
+  .fan{display:flex;justify-content:center;align-items:flex-start;
+    margin:0.34em 0 1.5em}
+  /* Same face as the game deals: frost ground, heavy ink edge, the
+     rank and suit set tight in the top-left corner. */
+  .pc{background:${DS.frost};border-style:solid;border-color:${DS.ink};
+    border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.45);
+    display:flex;align-items:center;justify-content:flex-start;
+    line-height:1;flex-shrink:0}
+  .pc span{font-family:'Baloo 2',sans-serif;font-weight:600;line-height:1}
   .sub{font-family:'Fjalla One',sans-serif;color:${DS.slateLight};
-    letter-spacing:0.04em;font-size:1.95em;margin-top:0.55em}
-  .hud{font-family:'IBM Plex Mono',monospace;color:${DS.slate};
-    letter-spacing:0.22em;font-size:1.05em;margin-top:1.5em;text-transform:uppercase}
+    letter-spacing:0.04em;font-size:1.85em}
 </style>
 <div class="swirl a"></div><div class="swirl b"></div><div class="swirl c"></div>
 <div class="stack">
-  <div class="suits">&#9824; &#9829; &#9830; &#9827;</div>
   <div class="word">${[...WORDMARK].map(ch =>
       ch === 'A' ? `<i>${ch}</i>` : ch).join('')}</div>
-  <div class="sub">${SUBTITLE}</div>
-  <div class="hud">First to ${WIN_SCORE} &middot; Win by 2 &middot; No flushes</div>
+  <div class="fan">${handHtml(hand, scale / 24)}</div>
+  <div class="sub">${STRAPLINE}</div>
 </div>`;
 
 // The favicon is drawn, not typeset: at 16px a wordmark is mush,

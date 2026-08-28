@@ -444,9 +444,9 @@ was open to more:**
 > cards, and Aces you can discard to strip your opponent's board (they can
 > counter with an Ace of their own). I built it as a real browser game
 > against an AI opponent. Every card back, icon, and the table backdrop is
-> inline SVG — no `public/` directory, no image files anywhere in the repo.
-> All sound is generated live with the Web Audio API, so there are no audio
-> files either. React, zero runtime dependencies otherwise. [link]
+> inline SVG — the game ships no image files at all. All sound is generated
+> live with the Web Audio API, so there are no audio files either. React,
+> zero runtime dependencies. [link]
 
 *r/cardgames (leads with the invented-game angle, this audience cares most
 about mechanics):*
@@ -457,7 +457,7 @@ about mechanics):*
 > Scraps hand worth 2. Move cards into your Scraps pile to draw fresh ones,
 > both piles cap at 7. Aces are a weapon — discard one to strip two cards
 > from the opponent's Scraps pile, they can counter with an Ace of their
-> own. First to 11, win by 2. Sweep both small hands and the Scraps hand in
+> own. First to 10, win by 2. Sweep both small hands and the Scraps hand in
 > one round for a Full Scrap, worth 5.] Built a browser version to actually
 > playtest it against an AI. [link] — would love feedback on the rules
 > themselves as much as the build.
@@ -469,7 +469,7 @@ about mechanics):*
 > An original card game — invented it with my wife, then built this as a
 > real playable version. Two private hands worth 1 point each, a public
 > "Scraps" pile worth 2. Aces let you strip your opponent's pile, and they
-> can counter-strip right back. First to 11, win by 2. [link] — feedback
+> can counter-strip right back. First to 10, win by 2. [link] — feedback
 > welcome, especially anything that breaks on your setup.
 
 *Friends / word of mouth:* no drafted copy needed — direct message, not a
@@ -1772,18 +1772,22 @@ and no post has been written.
 would have deployed the pre-Session-6 game. Fast-forwarded and pushed.
 Both branches were level at `51e7bef` before any work started.
 
-**The prompt was re-validated and Section 8's launch copy has two errors.**
-Not corrected — Stan's call to leave the copy alone this session — but they
-must be fixed before anything is posted:
+**The prompt was re-validated and Section 8's launch copy had two factual
+errors. Both are now FIXED** — Stan first held the copy back, then asked for
+the win score reconciled, so both were corrected in the same pass:
 
-- Two of the three drafts say **"First to 11, win by 2."** `WIN_SCORE` has
+- Two of the three drafts said **"First to 11, win by 2."** `WIN_SCORE` has
   been **10** since the 2026-08-25 reskin. The r/cardgames draft leads with
-  the full ruleset to the audience most likely to notice.
-- The Show HN draft claims **"no `public/` directory, no image files
+  the full ruleset to the audience most likely to notice. Now 10 in both.
+- The Show HN draft claimed **"no `public/` directory, no image files
   anywhere in the repo."** Session 6 created `public/fonts` and this session
-  added four more files. The "no images inside the game, no audio files"
-  claim is still true and is the one worth making; the sentence as written
-  is not.
+  added four more files. Reworded to "the game ships no image files at all",
+  which is the true and still-interesting version of the claim.
+
+**There is no "11" left anywhere in the repo.** `WIN_SCORE` is the only
+declaration of it, `hud.jsx` and the storyboard both read that constant, and
+the share card's own generator imports it — so this class of drift is now
+caught by `npm run share:check` rather than found by reading.
 
 **1. Two of Stan's four pre-launch notes were real. Two had already been
 fixed and nobody had gone back to check.** All four were measured in a real
@@ -1826,6 +1830,49 @@ pane suspends and therefore cannot show.
   `panelDeal` rewrite almost certainly fixed the original.
 - **Left-justified instruction copy. ALREADY FIXED.** The walkthrough copy
   computes `text-align: center`.
+
+**Stan rewrote the metadata copy and the share card the same day, and
+what he chose is what shipped.** The first pass kept the existing title
+and put the game's rules on the card; he cut both.
+
+| Field | Was | Is |
+|---|---|---|
+| Title | SCRAPS — Two Hands. One Table. No Mercy. | **SCRAPS - Poker with two hands at once.** |
+| Description | A card game of hidden hands, public scraps, and calculated betrayal. | **This turn's discards are next turn's hand.** |
+| Card line | FIRST TO 10 · WIN BY 2 · NO FLUSHES | **A 5-minute card game with a twist** |
+| Card art | *(none)* | **a fanned royal flush of diamonds** |
+
+His reasoning on the card line, worth keeping because it generalises:
+*"boring rules"*. A share card has about a second to be interesting and
+the win condition is not the interesting part. The rules still exist for
+the audiences that want them — `llms.txt` states the full ruleset for
+crawlers and the JSON-LD carries it for search — they are just not what
+the picture spends its one second on.
+
+**The hand on the card is a royal flush of diamonds, and it is a hand
+this game does not recognise.** Flushes are never valid in SCRAPS; a
+suited A-K-Q-J-10 scores as a plain straight. This was flagged before
+building and Stan chose it anyway, which is the right call for the
+reason it was offered: it is the most instantly legible "card game"
+image there is, and almost nobody reads a share card as a rules claim.
+The valid near-identical alternative was rendered beside it for the
+comparison — the same five ranks in mixed suits, which is a straight
+and genuinely the best hand here — and is kept in the generator as
+`HAND_STRAIGHT`, one constant away, in case the r/cardgames audience
+ever makes it worth switching.
+
+**Two things this broke that were caught rather than shipped:**
+
+- The new title uses a **hyphen**, not an em dash. `WORDMARK` was derived
+  by splitting the title on `—`, so with a hyphen it silently took the
+  ENTIRE title as the product name — which would have set
+  "SCRAPS - Poker with two hands at once." in Bungee Shade across the
+  card and written it into `robots.txt` and `llms.txt` as the game's
+  name. It splits on either separator now.
+- The first render put the strapline **through** the fan: the outer
+  cards are rotated *and* pushed down, so the lowest painted corner sits
+  well below where flex thinks the row ends. Fixed by sizing the gap
+  against the real droop rather than the card box.
 
 **2. The findability metadata, generated rather than drawn.**
 `tools/make-share-assets.mjs` reads the `<title>` from `index.html`, the
@@ -1893,7 +1940,8 @@ browser before and after.
 - The cold mobile smoke test on cellular data still has not happened —
   now for the first time not because the environment blocked it, since
   production **is** reachable from this machine.
-- Section 8's two copy errors, above.
+- ~~Section 8's two copy errors~~ — **fixed 2026-08-28**, both drafts now
+  say "First to 10" and the Show HN claim about `public/` is reworded.
 - Still open from Session 6: the `?` help button asks for Work Sans 900,
   which was never declared and renders as synthetic bold. Work Sans is
   variable and already on disk, so a real 900 face costs zero bytes.

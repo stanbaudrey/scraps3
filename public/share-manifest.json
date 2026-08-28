@@ -1,11 +1,13 @@
 {
   "note": "Written by tools/make-share-assets.mjs. Do not hand-edit — run `npm run share` to regenerate, `npm run share:check` to verify.",
-  "generated": "2026-08-28T03:37:48.610Z",
+  "generated": "2026-08-28T04:06:38.739Z",
   "sources": {
-    "title": "SCRAPS — Two Hands. One Table. No Mercy.",
-    "description": "A card game of hidden hands, public scraps, and calculated betrayal.",
+    "title": "SCRAPS - Poker with two hands at once.",
+    "description": "This turn's discards are next turn's hand.",
     "wordmark": "SCRAPS",
     "subtitle": "Build two hands at once.",
+    "strapline": "A 5-minute card game with a twist",
+    "hand": "10♦ J♦ Q♦ K♦ A♦",
     "winScore": 10,
     "palette": {
       "dusk": "#141F19",
@@ -23,7 +25,7 @@
     "og.png": {
       "w": 1200,
       "h": 630,
-      "sha256": "2ed1fb57204036ec"
+      "sha256": "3c6e3cecf7293738"
     },
     "favicon-32.png": {
       "w": 32,
@@ -42,7 +44,7 @@
       "sha256": "43a9d07417414369"
     },
     "llms.txt": {
-      "sha256": "d87f60ebdd4fc396"
+      "sha256": "4afe8b07f879b221"
     }
   }
 }
