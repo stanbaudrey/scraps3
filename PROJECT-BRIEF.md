@@ -2968,13 +2968,15 @@ disk, so a real 900 face costs zero bytes. Open since Session 6. Run
 `npm run fonts` after any change there; the rules are generated and
 `npm run fonts:check` fails on drift.
 
-**Post-launch, explicitly not before:** feed this project's lessons
-back into the `minigame` skill. Three are worth carrying: fake-`disabled`
-buttons as an accessibility trap; computing contrast against the CURRENT
-palette rather than whatever the brief last named; and the one this pass
-added, that a control's declared size is not its rendered size inside a
-scaled fit-box, so a touch minimum has to be measured on screen rather
-than declared.
+**Feed the remaining lessons into the `minigame` skill.** The third of
+three is **done (2026-08-28)** — the skill's touch-target bullet now says
+a control's declared size is not its rendered size inside a scaled
+fit-box, with this project's 42-and-43-real-px numbers as the evidence,
+plus the corollary that a screen-walking harness only sees controls the
+current game state happens to render. **Two still to carry, post-launch:**
+fake-`disabled` buttons as an accessibility trap, and computing contrast
+against the CURRENT palette rather than whatever the brief last named.
+Both are Session 5 findings and neither is in the skill yet.
 
 ### Do not do these next, and why
 
