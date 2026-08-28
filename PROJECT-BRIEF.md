@@ -1731,7 +1731,7 @@ disk, so declaring a real 900 face costs zero extra bytes. Left alone this
 session to preserve parity with what production already renders; not yet
 called either way.
 
-### Session 7 — Findability and launch
+### Session 7 — Findability and launch — part one done (2026-08-28)
 **Goal:** the game looks right when shared, gets found by search/AI
 crawlers, and goes live on the agreed schedule.
 **Bring:** this brief (Section 8 has the drafted copy and venue list).
@@ -1760,6 +1760,144 @@ crawlers, and goes live on the agreed schedule.
 **Done when:** Stan has approved every metadata field, the live site passes
 a cold mobile smoke test, the monthly check is running, and the friends +
 Show HN posts are live using the drafted copy.
+
+**What happened (2026-08-28).** Stan scoped this sitting to the pre-launch
+notes plus the metadata and the monthly check, and explicitly held the
+launch-post copy back. So the session is **part one of two**: everything
+that makes the site findable is built and on `dev`; nothing is published
+and no post has been written.
+
+**Before anything else, the checkout was reconciled.** Session 6 landed on
+`main` through a pull request, so `dev` sat 7 commits behind and `/preview`
+would have deployed the pre-Session-6 game. Fast-forwarded and pushed.
+Both branches were level at `51e7bef` before any work started.
+
+**The prompt was re-validated and Section 8's launch copy has two errors.**
+Not corrected — Stan's call to leave the copy alone this session — but they
+must be fixed before anything is posted:
+
+- Two of the three drafts say **"First to 11, win by 2."** `WIN_SCORE` has
+  been **10** since the 2026-08-25 reskin. The r/cardgames draft leads with
+  the full ruleset to the audience most likely to notice.
+- The Show HN draft claims **"no `public/` directory, no image files
+  anywhere in the repo."** Session 6 created `public/fonts` and this session
+  added four more files. The "no images inside the game, no audio files"
+  claim is still true and is the one worth making; the sentence as written
+  is not.
+
+**1. Two of Stan's four pre-launch notes were real. Two had already been
+fixed and nobody had gone back to check.** All four were measured in a real
+browser through the Playwright MCP server, not reasoned about — the
+difficulty-card bug in particular fires on a 720ms timer, which the in-app
+pane suspends and therefore cannot show.
+
+- **The round's cards were readable before they were dealt. REAL, fixed.**
+  `RoundInterstitial` is a **scrim, not a cover**: `rgba(20,31,25,0.6)` on
+  the way in, 0.92 while it holds, and then it spends its last 600ms fading
+  to *fully transparent* — while `dealWave` does not run until `onDone()` at
+  2000ms. Sampled every animation frame: 14 of 14 cards visible and
+  unhidden right up to t=2030ms, when the ghosts finally launched. So the
+  player saw their real hand, face-up, for more than half a second, and
+  then watched it vanish and deal itself in. A `pendingDealIds` set now
+  hides the two hands from the moment the round is built and hands off to
+  the motion hook's own `hiddenIds` before paint — measured after the fix at
+  10 hidden from t=11ms, with `hid` never returning to 0 across the
+  handoff. The 4 Scraps cards stay visible, correctly: they are never dealt
+  by the wave.
+- **The hand-name badge leaked the same information, in text.** Found in
+  the after-fix screenshot, not in the report: `HandUpgradeBadge` read
+  **"PAIR" under an empty fan** because it was built from `playerHand`
+  directly. It now reads the cards actually on screen, which also means it
+  settles as a trade's cards land instead of naming a hand still in the air.
+- **The storyboard had no way back. REAL, fixed.** `ArrowLeft` and a BACK
+  button beside SKIP. It is always rendered and merely `visibility:hidden`
+  on beat one, so SKIP does not jump sideways when it appears, and it
+  `stopPropagation`s — the backdrop advances on any click, so without that a
+  click would step back and forward in one gesture.
+- **The difficulty cards dealing in then glitching. DOES NOT REPRODUCE.**
+  Measured at both 1280x720 and Stan's 1024x662, through the storyboard on
+  a genuine first run and via SKIP: both boxes move monotonically to
+  (202,211) and (202,341) and never move again, and `armed` landing at
+  ~690ms changes no position. A plausible cause was read out of the CSS
+  first — `.pick-box.armed` re-declares the whole `animation` shorthand,
+  which looks like it should restart `panelDeal` — and **that reading was
+  wrong**: the browser matches animations by position in the list, so a
+  finished `panelDeal` stays finished. Session 5's `panelUnfold` →
+  `panelDeal` rewrite almost certainly fixed the original.
+- **Left-justified instruction copy. ALREADY FIXED.** The walkthrough copy
+  computes `text-align: center`.
+
+**2. The findability metadata, generated rather than drawn.**
+`tools/make-share-assets.mjs` reads the `<title>` from `index.html`, the
+`SUBTITLE` from `MenuScreens.jsx`, and `DS` and `WIN_SCORE` by *importing*
+`theme.js` rather than regexing it. It renders a 1200x630 card and three
+favicon sizes, and writes `robots.txt`, `sitemap.xml` and `llms.txt`.
+`index.html` gains canonical, OG, Twitter-card, favicon links and JSON-LD.
+
+**No new dependency.** Rasterising goes through the copy of Chrome already
+on the machine (`--headless --screenshot`), the same way
+`tools/responsive-qa.mjs` leans on a browser it does not vendor. `npm ls`
+is unchanged. `--check` needs neither browser nor network — it only
+re-derives and compares — which is what lets CI run it.
+
+**The share card is the whole point of the discipline, so it was broken on
+purpose seven times before being trusted.** Six deliberately, one by
+accident:
+
+| Break | Caught as |
+|---|---|
+| `WIN_SCORE` 10 → 11 | `winScore` baked-in/live diff, plus `llms.txt` |
+| Product renamed in `<title>` | `title`, `wordmark`, `robots.txt`, `llms.txt`, `og:title`, JSON-LD `name` — six places |
+| `voltage` repainted | `palette.voltage` diff |
+| A byte appended to `og.png` | "has been modified since it was generated" |
+| `robots.txt` deleted | "is missing" |
+| `og:image` pointed at the abandoned **scraps2** project | `og:image` and `twitter:image`, both named |
+| *(unplanned)* the live-site sweep ran from `dev` | all nine paths 404 on production, correctly |
+
+All exited 1, all restored to exit 0. The rename case is the EGOT failure
+this requirement came from, and it is caught in six places at once.
+
+**One real bug in the generator, found and fixed before commit:** the
+sitemap was written with `xmlns="http://www.w3.org/1999/sitemaps/0.9"`,
+which is not the sitemap namespace and would have made the file invalid to
+every crawler that read it. It is `http://www.sitemaps.org/schemas/sitemap/0.9`.
+
+**3. The monthly check runs in GitHub Actions, not on this machine.** A
+cron on a laptop cannot run when the laptop is closed, and Actions leaves a
+run history as its own audit trail. `.github/workflows/monthly-check.yml`
+runs `share:check`, `fonts:check`, `npm test`, `npm run build`, a live-URL
+sweep and an advisory report on the 1st of each month, on every push, and
+on demand — and **opens a GitHub issue when it fails**, because a scheduled
+job whose only output is a red tick nobody looks at is the same as no job.
+
+**It proved itself immediately, in the least convenient way.** The first
+run failed: pushed from `dev`, the live sweep checked *production*, which
+serves none of this yet, and reported nine 404s. True, but not actionable
+from `dev`, and a check that is honestly red gets ignored — so the live
+step is now gated to scheduled runs, manual runs, and pushes to `main`.
+The next run was green. **What is proven: the workflow runs, passes, and
+its live-site step really does detect missing metadata. What is NOT
+proven: that the monthly cron itself fires** — that cannot be known until
+2026-09-01, and no absence of evidence before then means anything.
+
+**Confirmed working, and how:** 37/37 tests and `npm run build` green;
+`share:check` and `fonts:check` both clean; all nine new paths served with
+correct content types on the dev server; the workflow green on Actions run
+`33139620027`. Both pre-launch fixes measured frame-by-frame in a real
+browser before and after.
+
+**Open, carried to Session 7 part two:**
+- **Nothing is published.** All of this is on `dev` at `b87115d`.
+  Production still serves no favicon, no OG tags, no `robots.txt`.
+- Stan has not yet signed off on the literal metadata field values.
+- The cold mobile smoke test on cellular data still has not happened —
+  now for the first time not because the environment blocked it, since
+  production **is** reachable from this machine.
+- Section 8's two copy errors, above.
+- Still open from Session 6: the `?` help button asks for Work Sans 900,
+  which was never declared and renders as synthetic bold. Work Sans is
+  variable and already on disk, so a real 900 face costs zero bytes.
+  Not called either way.
 
 ### Unplanned session — Onboarding rebuild and rules clarity ✅ Done (2026-08-26)
 Requested directly by Stan, between Session 2 and Session 8, and done in
@@ -2455,7 +2593,7 @@ background process left running.
 | 4 | Sound identity | Done |
 | 5 | Design and UX audit | Done (2026-08-27) — accessibility, motion, contrast and six of seven visual findings; the right-heavy layout is the one left open |
 | 6 | Security, privacy, and rights | Done + published (2026-08-28) — fonts self-hosted, remote needed no change (the prompt was backwards), privacy notice signed off. Landed via PR #1; **`dev` is behind `main` and needs a fast-forward** |
-| 7 | Findability and launch | Not started |
+| 7 | Findability and launch | **Part one done (2026-08-28)** — metadata, generated share card + self-checking generator, monthly GitHub Actions check, and two of Stan's four pre-launch notes fixed. On `dev`, **not published**. Part two: field signoff, publish, cold mobile smoke test, launch copy |
 | — | *Unplanned:* Onboarding rebuild and rules clarity | Done |
 | 8 | Animation and interaction precision | Done |
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
