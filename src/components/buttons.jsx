@@ -21,6 +21,28 @@ export const TOUCH_MIN = 44;
 // 42.
 export const TOUCH_MIN_COMPACT = 54;
 
+// The Play Ace tag's own floor, and the only control that needs one.
+// The two constants above are read as "desktop" and "phone", but the
+// variable they are really tracking is FitBox's scale, and that is
+// below 1 well before a layout is stacked: measured 0.81 at 1280x720
+// and 0.90 on a portrait iPad, both of which take TOUCH_MIN. So the
+// tag came in at 42 real px on a 1280x720 laptop and 43 on a 375x667
+// iPhone SE — the same 2px miss the note above recorded and left.
+//
+// 62 is 44 divided by 0.72, the lowest scale the game produces in the
+// orientations it is designed for, with a little margin for the fact
+// that a taller tag lowers that scale slightly itself. Re-measured
+// after the change rather than predicted; see the numbers in
+// PROJECT-BRIEF.md.
+//
+// The one case it does not rescue is a 844x390 landscape phone, where
+// the whole table renders at 0.55 and a 44px control would have to
+// declare 80 to survive the trip. That is the same trade CLAUDE.md's
+// known-issues entry already records for every control in landscape,
+// and buying it here would cost every card on the table height on the
+// screen that has the least of it.
+export const ACE_TAG_MIN = 62;
+
 // ─────────────────────────────────────────────────────────────
 // pressStyles — pointer-driven visual states.
 //
@@ -235,7 +257,7 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
 // which is what the You've-Drawn-an-Ace lightbox shows so the
 // player learns the shape before meeting it on the table.
 // ─────────────────────────────────────────────────────────────
-export function AceTag({ onClick, disabled=false, live=true, width=104, compact=false }) {
+export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
   const interactive = live && !disabled;
   const hIn = (el) => {
     if (!interactive) return;
@@ -266,7 +288,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104, compact=
         color: disabled ? DS.slate : DS.ink,
         border: disabled ? `1px solid ${DS.slate}55` : 'none',
         borderRadius:8, padding:'6px 4px',
-        minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
+        minHeight:ACE_TAG_MIN,
         display:'flex', flexDirection:'column', justifyContent:'center',
         fontFamily:F.ui, fontWeight:700, fontSize:13, lineHeight:1.12,
         letterSpacing:'0.08em', textTransform:'uppercase', textAlign:'center',

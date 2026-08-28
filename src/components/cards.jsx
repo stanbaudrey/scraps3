@@ -17,6 +17,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
 import { playSelect } from "../audio.js";
 import { evaluateBestHand } from "../game/engine.js";
+import { ACE_TAG_MIN } from "./buttons.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // CARD_DIMS — the four card sizes, exported because two other
@@ -237,10 +238,12 @@ export function GlowPulse({ active, color=DS.voltage, children, style:extStyle={
 const LIFT_RATIO = 0.19;
 // A hand carrying the Play Ace tag has to clear it: the tag is a
 // real touch target now (it used to be a 39px cursor target) plus
-// its offset above the card. Sized for the taller compact tag, so
-// the reservation is the same in both layouts and an orientation
-// change does not move the fan under the player's thumb.
-const SLOT_ROOM = 59;
+// the 5px it floats above the card. One reservation for both
+// layouts, so an orientation change does not move the fan under the
+// player's thumb — which is also why this tracks ACE_TAG_MIN rather
+// than either touch constant, the tag having stopped varying with
+// the layout when it got a floor of its own.
+const SLOT_ROOM = ACE_TAG_MIN + 5;
 // A card never shows less of itself than this fraction of its
 // width, however tight the fan gets: below it the rank in the
 // top-left corner starts disappearing under the next card and the

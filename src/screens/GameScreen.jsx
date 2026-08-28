@@ -779,8 +779,8 @@ export function GameScreen({ difficulty, onExit }) {
   const aceSlot = useCallback((card, width) => {
     if (!canOfferAce || card.rank !== 'A') return null;
     return <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2}
-      width={width} compact={tight}/>;
-  }, [canOfferAce, aiScraps.length, tight]);
+      width={width}/>;
+  }, [canOfferAce, aiScraps.length]);
   const glowPlayerScraps = isScrapsDiscardMode;
   const glowOppScraps = aceMode;
 
@@ -1186,20 +1186,36 @@ export function GameScreen({ difficulty, onExit }) {
                 </div>
               </div>
 
-              {/* ── MIDDLE BAND: deck + discard center-left, action zone center ── */}
+              {/* ── MIDDLE BAND: action zone centred, piles in the left gutter ──
+                  All three bands share ONE centre axis: both hands and
+                  this panel sit on it, each side's Scraps hangs in the
+                  right gutter, the table furniture hangs in the left.
+                  That only holds while the two gutters are the same
+                  width, so both are `flex:'1 1 0'` and neither is a
+                  content-sized column.
+
+                  Session 5 made this one `flex:'0 1 auto'` to stop the
+                  rail colliding with the panel at 1024x662. It did —
+                  but it also packed the panel hard against the rail and
+                  dumped every spare pixel into the right gutter, and
+                  the offset grows with the window: measured 12px left
+                  of the axis at 1024 (invisible, which is why it
+                  survived a session), 224px at 1440, 464px at 1920,
+                  where the whole table plainly read as shoved left.
+
+                  The collision is held off by the MISSING `minWidth:0`
+                  instead, unlike its mirror on the right: a flex item's
+                  default `min-width:auto` stops this column shrinking
+                  below the rail, so the panel — `flexShrink:1` with
+                  760px of slack — is the one that gives way, and a flex
+                  item cannot overlap its sibling in any case.
+                  `flex-end` mirrors the right gutter's `flex-start`:
+                  both gutters hold their contents against the centre
+                  column, so the table stays one mass rather than one
+                  object pinned to each edge of a 1920px screen. */}
               <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0,
                 minHeight:tight?0:150}}>
-                {/* No `minWidth:0` on the pile column, unlike its
-                    mirror on the right. That one property is what
-                    caused the narrator panel to run into the discard:
-                    the column was allowed to shrink below its own
-                    contents, and the rail — centred inside it —
-                    overflowed both edges. Letting it hold its content
-                    width makes the panel (which is already
-                    `flexShrink:1`) give way instead, which is the
-                    correct loser: it has 760px of slack and the rail
-                    has none. */}
-                <div style={{flex:'0 1 auto',display:'flex',justifyContent:'center',
+                <div style={{flex:'1 1 0',display:'flex',justifyContent:'flex-end',
                   alignItems:'center'}}>
                   {pilesEl}
                 </div>
