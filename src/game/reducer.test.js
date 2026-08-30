@@ -8,7 +8,7 @@ import {
   firstActorForRound, tradeOrder, nextPhaseAfterTrade,
   scoreScrapsOutcome, checkWin,
 } from './reducer.js';
-import { tradeInValue, RANK_VALUES } from './engine.js';
+import { tradeInValue, RANK_VALUES, shouldCounterAce } from './engine.js';
 
 let nextId = 0;
 const c = (rank, suit = '♠') => ({ id: nextId++, rank, suit, value: RANK_VALUES[rank] });
@@ -224,5 +224,145 @@ describe('discard pile resets every round', () => {
     s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal(), alternate: true });
     expect(s.discard).toHaveLength(0);
     expect(s.roundNum).toBe(2);
+  });
+});
+
+// ── An empty Scraps pile ─────────────────────────────────────
+// Reachable in normal play: an Ace strips two cards and every Ace
+// guard admits a pile of exactly 2. This used to return null, and the
+// screen answered that by logging and returning, stranding the game in
+// `scraps-reveal` with no exit control.
+describe('an empty Scraps pile scores instead of dead-ending', () => {
+  const none = { player: 0, ai: 0 };
+
+  it('gives the 2 points to the player whose pile is not empty', () => {
+    const out = scoreScrapsOutcome([], cards('7','9'), none);
+    expect(out).not.toBeNull();
+    expect(out.winner).toBe('ai');
+    expect(out.aPts).toBe(2);
+    expect(out.pPts).toBe(0);
+    expect(out.pB.name).toBe('Empty Scraps hand');
+  });
+
+  it('works in the other direction too', () => {
+    const out = scoreScrapsOutcome(cards('7','9'), [], none);
+    expect(out.winner).toBe('player');
+    expect(out.pPts).toBe(2);
+    expect(out.aB.name).toBe('Empty Scraps hand');
+  });
+
+  it('loses to the weakest possible real hand', () => {
+    const out = scoreScrapsOutcome([], cards('2'), none);
+    expect(out.winner).toBe('ai');
+  });
+
+  it('ties when both piles are empty, awarding nothing', () => {
+    const out = scoreScrapsOutcome([], [], none);
+    expect(out).not.toBeNull();
+    expect(out.winner).toBe('tie');
+    expect(out.pPts).toBe(0);
+    expect(out.aPts).toBe(0);
+  });
+});
+
+// ── The AI's Ace counter ─────────────────────────────────────
+// AI_COUNTER_ACE had no case at all: GameScreen dispatched it, the
+// reducer fell through to `default: return state`, and the counter did
+// nothing while the UI announced it. Neither the engine nor the
+// reducer was individually wrong, which is exactly why the existing
+// tests missed it.
+describe('AI_COUNTER_ACE cancels both Aces', () => {
+  // Put a known hand on the table in a player trade phase.
+  function armed(playerAces) {
+    let s = freshRound(1);
+    const pAces = Array.from({ length: playerAces }, (_, i) => c('A', ['♠','♥','♦'][i]));
+    return {
+      ...s,
+      phase: 'player-turn-1a',
+      playerHand: [...pAces, c('7','♣'), c('9','♦')],
+      aiHand: [c('A','♣'), c('5','♥')],
+    };
+  }
+
+  it('discards both Aces and strips nothing from either pile', () => {
+    const s = armed(1);
+    const before = { p: s.playerScraps.length, a: s.aiScraps.length };
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out.playerHand.some(x => x.rank === 'A')).toBe(false);
+    expect(out.aiHand.some(x => x.rank === 'A')).toBe(false);
+    expect(out.discard).toHaveLength(2);
+    expect(out.playerScraps).toHaveLength(before.p);
+    expect(out.aiScraps).toHaveLength(before.a);
+  });
+
+  it('ends the turn when the player holds no other Ace', () => {
+    const s = armed(1);
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out.phase).not.toBe(s.phase);
+    expect(out.phase).toBe(nextPhaseAfterTrade(s.phase, s.roundNum));
+    expect(out.currentTurn).toBe(s.currentTurn + 1);
+  });
+
+  it('keeps the turn live when the player still holds an Ace', () => {
+    const s = armed(2);
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out.phase).toBe(s.phase);
+    expect(out.currentTurn).toBe(s.currentTurn);
+    expect(out.playerHand.filter(x => x.rank === 'A')).toHaveLength(1);
+  });
+
+  it('is a real case, not a fall-through to default', () => {
+    const s = armed(1);
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out).not.toBe(s);
+  });
+
+  it('ignores the action when either Ace is not actually held', () => {
+    const s = armed(1);
+    expect(gameReducer(s, { type: 'AI_COUNTER_ACE', playerAceId: 99999, aiAceId: s.aiHand[0].id })).toBe(s);
+    expect(gameReducer(s, { type: 'AI_COUNTER_ACE', playerAceId: s.playerHand[0].id, aiAceId: 99999 })).toBe(s);
+  });
+});
+
+// ── shouldCounterAce is called correctly ─────────────────────
+// The call site passed (difficulty, aiHand, <nonexistent field>) into
+// a (aiScraps, opponentScraps, aiScore, opponentScore) signature. The
+// guard tests the shape the SCREEN passes, so a regression to the old
+// argument order fails here rather than in a playthrough.
+describe('shouldCounterAce reads the board, not the difficulty', () => {
+  it('returns false when the AI has nothing worth defending', () => {
+    expect(shouldCounterAce([], [], 0, 0)).toBe(false);
+    expect(shouldCounterAce(cards('7'), cards('2','3'), 0, 0)).toBe(false);
+  });
+
+  it('is not decided by a difficulty string', () => {
+    // The old bug: a string has .length, so the < 2 guard never tripped
+    // and the answer was constant per difficulty and blind to the table.
+    for (const d of ['easy', 'medium', 'hard']) {
+      expect(() => shouldCounterAce(d, [], 0, 0)).not.toThrow();
+      expect(shouldCounterAce(d, [], 0, 0)).not.toBe(undefined);
+    }
+    // Two genuinely different boards must be able to disagree.
+    const weak   = shouldCounterAce(cards('2','3'), cards('4','5'), 0, 0);
+    const strong = shouldCounterAce(cards('K','K','K','K'), cards('A','A','A','A'), 0, 9);
+    expect(typeof weak).toBe('boolean');
+    expect(typeof strong).toBe('boolean');
+    expect(strong).toBe(true);
   });
 });

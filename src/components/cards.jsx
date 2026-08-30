@@ -81,6 +81,35 @@ export function sortByValue(cards){ return [...cards].sort((a,b)=>a.value-b.valu
 // ("milestone only" and "yours / act now") that must never appear
 // on a neutral, owner-agnostic surface.
 // ─────────────────────────────────────────────────────────────
+// CardFaceRidge — the mountains, printed faintly on the FACE.
+//
+// Added 2026-08-30. The ridge illustration already existed and was
+// good, but it lived only on CardBackSVG — which you see on the
+// opponent's hidden hand, the deck and the discard, and never on a
+// card you are holding. So the game's one piece of real identity art
+// was on the surfaces the player looks at least. This puts the same
+// range across the bottom of every card you hold.
+//
+// Faint on purpose: it is GROUND under the rank, never a signal. The
+// rank and pip must stay the loudest thing on a card, and the printed
+// red measures 5.20:1 on frost, which is not a number to spend on
+// decoration. Same path language as the back so the two read as one
+// world, redrawn shallower because a card face is mostly empty at the
+// bottom and the fan overlaps the left edge of every card but one.
+function CardFaceRidge({ w, h }) {
+  return (
+    <svg width={w} height={h} viewBox="0 0 120 178" preserveAspectRatio="xMidYMax slice"
+      aria-hidden="true"
+      style={{position:'absolute',left:0,right:0,bottom:0,width:'100%',height:'100%',
+        pointerEvents:'none',zIndex:0}}>
+      <path d="M0,132 C18,118 36,126 58,110 C80,94 98,118 120,104 L120,178 L0,178 Z"
+        fill={DS.canopy} opacity="0.085"/>
+      <path d="M0,150 C20,134 42,144 64,124 C84,106 102,132 120,120 L120,178 L0,178 Z"
+        fill={DS.canopy} opacity="0.115"/>
+    </svg>
+  );
+}
+
 export function CardBackSVG({ w, h }) {
   return (
     <svg width={w} height={h} viewBox="0 0 120 178" preserveAspectRatio="xMidYMid slice"
@@ -160,7 +189,16 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
     shadow='0 4px 14px rgba(0,0,0,.55)';
   } else if(isScrap){
     bg=DS.ink;
-    border=selected?`6px solid ${DS.voltage}`:`4px solid ${isRed(card?.suit)?DS.ember:DS.voltage}`;
+    // NEUTRAL border, not a suit colour. This used to be
+    // `isRed(suit) ? ember : voltage` — the exact two tokens the ZONE
+    // borders use for ownership — so the opponent's ember zone was
+    // full of voltage-bordered cards and "yours" green appeared inside
+    // "theirs" orange. Ownership is the one rule on this table that is
+    // absolute, and this was the single place it contradicted itself.
+    // Suit is carried by the printed rank and pip, exactly as it is on
+    // the cream hand cards. The border's only remaining jobs are
+    // selection and separating a dark card from the dark table.
+    border=selected?`6px solid ${DS.voltage}`:`4px solid ${DS.slate}`;
     shadow=selected?`0 0 0 3px ${DS.voltage}66,0 -18px 28px ${DS.voltage}44`:'0 4px 18px rgba(0,0,0,.5)';
   } else {
     bg=DS.frost;
@@ -197,6 +235,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
       ...extraStyle,
     }}>
       {faceDown&&<CardBackSVG w={d.w} h={d.h}/>}
+      {!faceDown&&!isScrap&&card&&<CardFaceRidge w={d.w} h={d.h}/>}
       {!faceDown&&isScrap&&card&&(
         <div style={{position:'absolute',top:0,right:0,
           width:notch,height:notch,

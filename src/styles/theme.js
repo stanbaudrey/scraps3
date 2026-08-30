@@ -18,8 +18,32 @@
 //   slate   — warm sage-grey — muted / secondary
 //   gold, goldHover, canopy — new: gold marks a milestone ONLY
 //   (Full Scrap, the win screen, playing your own Ace) — never a
-//   general UI color. canopy is decorative pine green for
-//   illustration (card back, backdrop), not UI chrome.
+//   general UI color.
+//
+// THE CANOPY RULE, amended 2026-08-30 (Stan's call, during the audit):
+//   canopy MAY CARRY GROUND, NEVER STATE.
+//   It was previously fenced to "decorative illustration only, not UI
+//   chrome". The consequence was that this project's actual identity
+//   green appeared on NO player-facing surface: it lived on the card
+//   BACK, which you only ever see on the opponent's hidden hand, the
+//   deck and the discard. The brand was invisible during play, and the
+//   table read as a green felt card table rather than a forest.
+//   GROUND means the table surface and the ridge motif printed faintly
+//   on a card face — things that are always there and mean nothing on
+//   their own. STATE stays off-limits: canopy must never indicate whose
+//   turn it is, what is selected, what is legal, or who owns a zone.
+//   Those remain voltage / ember / gold.
+//
+// TIMBER — the table itself, added 2026-08-30.
+//   The table used to be one two-stop radial gradient and nothing else:
+//   no material, no grain, no seams. These draw a weathered,
+//   sun-silvered picnic table seen from directly overhead.
+//   Deliberately NOT a pale bleached driftwood: this palette is
+//   light-on-dark and 27 contrast pairings are tuned against dark
+//   grounds, so a light tabletop would have inverted the whole game.
+//   The sun-bleaching reads in the SILVERED GRAIN over weathered
+//   boards, which is what old outdoor timber actually looks like.
+//   frost on timber measures ~10:1.
 //
 // Colors pushed brighter + past AA into AAA territory (2026-08-25
 // pass), verified by a live in-DOM contrast check, not just computed
@@ -64,6 +88,13 @@ export const DS = {
   gold:       '#F4C771',
   goldHover:  '#F7D697',
   canopy:     '#3E5C46',
+  // The table. `timber` is the board base, `timberLight` the
+  // sun-silvered grain and the lighter boards, `timberSeam` the gap
+  // between two boards. Ground only — never state. See the canopy
+  // rule above, which these live under.
+  timber:      '#3B3025',
+  timberLight: '#6B5C48',
+  timberSeam:  '#191309',
 };
 export const F = {
   title:   "'Bungee Shade', sans-serif",

@@ -672,6 +672,47 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- NOSCRIPT:BEGIN
+         A crawler that does not run JavaScript used to see an entirely
+         empty body — zero words about what this is. `llms.txt` carried
+         the whole description of the game and nothing else did, which
+         is thin for a launch that leans on Show HN and Reddit link
+         previews. This never renders for a real player.
+         Keep the rules here in step with public/llms.txt. -->
+    <noscript>
+      <div style="max-width:44rem;margin:0 auto;padding:2rem 1.25rem;
+        font-family:'Work Sans',system-ui,sans-serif;color:#EDE3D0;line-height:1.6">
+        <h1 style="font-family:'Fjalla One',sans-serif;font-size:2.5rem;margin:0 0 .5rem">SCRAPS</h1>
+        <p style="font-size:1.15rem;color:#C9C2AE;margin:0 0 1.5rem">
+          Poker with two hands at once. This turn's discards are next turn's hand.
+        </p>
+        <p>
+          SCRAPS is a two-player card game played in the browser against an AI
+          opponent. Its creator and his wife invented it themselves, so the
+          mechanics are original rather than a digital version of an existing
+          game. It is free, needs no account and no download, and runs entirely
+          in your browser.
+        </p>
+        <h2 style="font-family:'Fjalla One',sans-serif;margin:1.75rem 0 .5rem">How it plays</h2>
+        <ul>
+          <li>You always have two poker hands running at once: your private
+            small hand, and your face-up Scraps hand that everybody can see.</li>
+          <li>Move cards from your small hand into your Scraps pile to draw
+            fresh ones. Cards 2&ndash;9 draw one, 10&ndash;K draw two, an Ace
+            draws three. Both piles cap at 7 cards.</li>
+          <li>Aces are a weapon: discard one to strip two cards from your
+            opponent's Scraps pile. They can counter with an Ace of their own.</li>
+          <li><strong>Flushes are never valid.</strong> A five-card suited
+            straight scores as a plain straight, never a straight flush.</li>
+          <li>Each round scores two small hands worth 1 point each and the
+            Scraps hand worth 2. First to 10 points, win by 2. Winning all
+            three hands in one round is a FULL SCRAP, worth 5.</li>
+        </ul>
+        <p><strong>This game needs JavaScript to play.</strong> Enable it and
+          reload to start a match.</p>
+      </div>
+    </noscript>
+    <!-- NOSCRIPT:END -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

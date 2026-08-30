@@ -32,7 +32,7 @@ export function SplashScreen({ onStart }) {
       <SwirlBg/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-          <div style={{fontFamily:F.display,fontWeight:600,fontSize:'clamp(24px,min(9vw,7vh),64px)',
+          <div style={{fontFamily:F.display,fontSize:'clamp(24px,min(9vw,7vh),64px)',
             color:DS.slate,letterSpacing:'0.18em',marginBottom:'clamp(4px,1.4vh,10px)',
             whiteSpace:'nowrap'}}>♠ ♥ ♦ ♣</div>
           <AnimatedTitle/>

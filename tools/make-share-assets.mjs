@@ -278,7 +278,8 @@ original, not a digital version of an existing game.
 
 ## How it plays
 
-- Each round runs three hands at once: two private "small hands" worth 1
+- You always have two hands running at once: your private "small hand"
+  and your face-up "Scraps" hand. A round scores two small hands worth 1
   point each, and one public "Scraps" hand worth 2 points.
 - You move cards from your hidden hand into your face-up Scraps pile to draw
   fresh cards. Both piles cap at 7 cards.

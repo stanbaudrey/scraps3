@@ -125,3 +125,43 @@ describe('AI respects the same limits as the player', () => {
     });
   }
 });
+
+// ── The wheel straight ───────────────────────────────────────
+// Regression guard: A-2-3-4-5 used to take its tiebreaker from
+// Math.max(...ranks), reading the Ace as 14, so the LOWEST straight in
+// the game beat every straight up to king-high and tied Broadway.
+describe('the wheel is the lowest straight, not the highest', () => {
+  const wheel    = () => cards(['A','♠'],['2','♥'],['3','♦'],['4','♣'],['5','♠']);
+  const sixHigh  = () => cards(['2','♠'],['3','♥'],['4','♦'],['5','♣'],['6','♠']);
+  const kingHigh = () => cards(['9','♠'],['10','♥'],['J','♦'],['Q','♣'],['K','♠']);
+  const broadway = () => cards(['10','♠'],['J','♥'],['Q','♦'],['K','♣'],['A','♠']);
+
+  it('scores the wheel as a Straight with a high of 5', () => {
+    const h = evaluateBestHand(wheel());
+    expect(h.rank).toBe(4);
+    expect(h.name).toBe('Straight');
+    expect(h.tiebreakers).toEqual([5]);
+  });
+
+  it('loses to every other straight', () => {
+    for (const better of [sixHigh(), kingHigh(), broadway()]) {
+      expect(compareHands(evaluateBestHand(wheel()), evaluateBestHand(better))).toBeLessThan(0);
+    }
+  });
+
+  it('does not tie Broadway', () => {
+    expect(compareHands(evaluateBestHand(wheel()), evaluateBestHand(broadway()))).not.toBe(0);
+  });
+
+  it('picks the better straight out of a pile that contains both', () => {
+    // A,2,3,4,5,6,K holds the wheel AND 2-3-4-5-6. The six-high wins.
+    const pile = cards(['A','♠'],['2','♥'],['3','♦'],['4','♣'],['5','♠'],['6','♥'],['K','♣']);
+    const best = evaluateBestHand(pile);
+    expect(best.rank).toBe(4);
+    expect(best.tiebreakers).toEqual([6]);
+  });
+
+  it('still ranks Broadway as the highest straight', () => {
+    expect(evaluateBestHand(broadway()).tiebreakers).toEqual([14]);
+  });
+});

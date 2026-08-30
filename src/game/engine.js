@@ -133,7 +133,10 @@ function evaluateHand(cards) {
   for (const r of ranks) rankCounts[r] = (rankCounts[r] || 0) + 1;
   const counts = Object.values(rankCounts).sort((a, b) => b - a);
   const uniqueRanks = Object.keys(rankCounts).map(Number).sort((a, b) => b - a);
-  const isStraight = cards.length === 5 && checkStraight(ranks);
+  // The straight's HIGH card, or 0 for "not a straight". This is a
+  // value rather than a boolean because the wheel needs a high of 5,
+  // not the Ace's 14 — see straightHigh().
+  const straightTop = cards.length === 5 ? straightHigh(ranks) : 0;
   const tiebreakers = ranks;
   if (counts[0] === 4) {
     const quad = uniqueRanks.find(r => rankCounts[r] === 4);
@@ -145,7 +148,7 @@ function evaluateHand(cards) {
     const two = uniqueRanks.find(r => rankCounts[r] === 2);
     return { rank: 6, name: 'Full House', cards: sorted, tiebreakers: [three, two] };
   }
-  if (isStraight) return { rank: 4, name: 'Straight', cards: sorted, tiebreakers: [Math.max(...ranks)] };
+  if (straightTop) return { rank: 4, name: 'Straight', cards: sorted, tiebreakers: [straightTop] };
   if (counts[0] === 3) {
     const three = uniqueRanks.find(r => rankCounts[r] === 3);
     const kickers = uniqueRanks.filter(r => rankCounts[r] !== 3);
@@ -164,15 +167,27 @@ function evaluateHand(cards) {
   return { rank: 0, name: 'High Card', cards: sorted, tiebreakers: ranks };
 }
 
-function checkStraight(ranks) {
+// Returns the straight's HIGH card value, or 0 when these ranks are
+// not a straight.
+//
+// The wheel (A-2-3-4-5) returns 5, not 14. The Ace plays LOW there, so
+// the wheel is the lowest straight in the game. This function used to
+// return a boolean and the caller took `Math.max(...ranks)` as the
+// tiebreaker, which read the Ace as 14 — so the wheel beat every
+// straight up to king-high and TIED Broadway. It also corrupted
+// selection inside one pile: given A,2,3,4,5,6,K the evaluator
+// preferred the wheel over the genuinely better 2-3-4-5-6, so the
+// reveal highlighted the wrong five cards.
+function straightHigh(ranks) {
   const sorted = [...new Set(ranks)].sort((a, b) => a - b);
-  if (sorted.length < 5) return false;
-  if (sorted.join(',') === '2,3,4,5,14') return true;
+  if (sorted.length < 5) return 0;
+  if (sorted.join(',') === '2,3,4,5,14') return 5;
+  let high = 0;
   for (let i = 0; i <= sorted.length - 5; i++) {
     const slice = sorted.slice(i, i + 5);
-    if (slice[4] - slice[0] === 4) return true;
+    if (slice[4] - slice[0] === 4) high = Math.max(high, slice[4]);
   }
-  return false;
+  return high;
 }
 
 function compareKickers(a, b) {

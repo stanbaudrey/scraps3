@@ -21,19 +21,22 @@ import {
   AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
-import { playSelect, playTransfer, playDraw, playAceStrike, playAceCounter,
+import { setAudioMuted, isAudioMuted,
+  playSelect, playTransfer, playDraw, playAceStrike, playAceCounter,
   playInvalid, playHandWon, playHandLost, playRoundWon, playRoundLost,
   playFullScrap, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
-import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge } from "../components/cards.jsx";
+import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, TradeInBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
+import { TableSurface } from "../components/backdrop.jsx";
+import { Walkthrough } from "./Walkthrough.jsx";
 import { recordGame } from "../game/stats.js";
 import { useViewport, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
   RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
-  AceCounterModal, RulesModal, SkipTurnModal,
+  AceCounterModal, SkipTurnModal, QuitConfirmModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
 
@@ -65,7 +68,7 @@ export function GameScreen({ difficulty, onExit }) {
     deck, playerHand, aiHand, playerScraps, aiScraps, discard,
     playerScore, aiScore, roundWins, phase, roundNum,
     playerSignal, aiSignal, playerPlayed, aiPlayed, signalLocked,
-    pendingTrade, scrapsOverflow, pendingAiAce, gameOver, log,
+    pendingTrade, scrapsOverflow, pendingAiAce, gameOver, log, currentTurn,
   } = state;
 
   // Timers read the freshest state through this ref, so a timeout
@@ -80,7 +83,15 @@ export function GameScreen({ difficulty, onExit }) {
   const [aceTargets, setAceTargets]         = useState([]);
   const [aiAceReveal, setAiAceReveal]       = useState(null); // { ace, targets } — step 2 of the opponent-Ace sequence
   const [aiCounterNotice, setAiCounterNotice] = useState(null); // { playerAce, aiAce } — AI countered the player's Ace
+  // Which round's full narrator instruction has been shown, and on
+  // which turn. Both, because the full text has to survive the WHOLE
+  // of the turn that shows it — keyed on the round alone it retired
+  // itself in the same tick it appeared, so the long form flashed and
+  // collapsed before anyone could read it.
+  const [fullHint, setFullHint] = useState({ round: 0, turn: -1 });
   const [showRules, setShowRules]           = useState(false);
+  const [muted, setMuted]                   = useState(isAudioMuted);
+  const [confirmQuit, setConfirmQuit]       = useState(false);
   const [revealData, setRevealData]         = useState(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
   const [showFullScrap, setShowFullScrap]   = useState(false);
@@ -426,12 +437,19 @@ export function GameScreen({ difficulty, onExit }) {
       || playerHand.find(c => c.rank === 'A');
     if (!ace) return;
 
-    // The AI may counter. Hard counters every player Ace it can;
-    // Easy counters at most one per round. The counter cancels the
-    // Ace: both Aces are discarded, nothing is removed from either
-    // Scraps pile, and the player's action is consumed.
+    // The AI may counter, deciding from the board: how strong the pile
+    // being defended is, how strong yours is, and the score.
+    //
+    // This call used to pass `(difficulty, s.aiHand, s.aiCountersThisRound)`
+    // against a signature of `(aiScraps, opponentScraps, aiScore,
+    // opponentScore)` — a difficulty STRING where a card array belongs,
+    // the AI's hand where its Scraps belonged, and a field that existed
+    // nowhere in state. `'hard'.length` is 4, so the `< 2` guard never
+    // tripped and scrapsStrength walked the characters of the word into
+    // a bogus hand. The result was constant per difficulty and blind to
+    // the table: easy true, hard true, i.e. always countered.
     const s = stateRef.current;
-    if (shouldCounterAce(difficulty, s.aiHand, s.aiCountersThisRound)) {
+    if (shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)) {
       const aiAce = s.aiHand.find(c => c.rank === 'A');
       if (aiAce) {
         setAceMode(null); setAceTargets([]); setSelected([]);
@@ -558,8 +576,9 @@ export function GameScreen({ difficulty, onExit }) {
   useEffect(() => {
     if (!AI_TURN_PHASES.includes(phase)) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
+    if (aiCounterNotice) return;      // you are still reading the counter
     setAiGo(phase);
-  }, [phase, animating]);
+  }, [phase, animating, aiCounterNotice]);
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
@@ -723,8 +742,11 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   function resolveScrap() {
+    // Always resolves now, including when a pile is empty: an empty
+    // pile is a hand that loses to anything, and the other player takes
+    // the 2 points. This used to bail out on a null and leave the game
+    // stranded in `scraps-reveal` with no way forward.
     const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
-    if (!out) { dispatch({ type: 'LOG', msg: 'Not enough cards in Scraps.' }); return; }
     const { pPts, aPts, winner, fullScrap, aiSweep, pB, aB } = out;
     if (winner === 'player') playRoundWon();
     else if (winner === 'ai') playRoundLost();
@@ -792,6 +814,15 @@ export function GameScreen({ difficulty, onExit }) {
   const forcedAce = noLegalTrade && playerHasAce && aiScraps.length >= 2;
   const mustSkip  = noLegalTrade && !forcedAce && !pendingAiAce;
 
+  // Retire the full narrator instruction after the player turn that
+  // showed it. Effect rather than render-time mutation, so the render
+  // that displays the long form stays pure.
+  useEffect(() => {
+    if (!isPlayerTurn || aceMode || isScrapsDiscardMode || settling) return;
+    if (fullHint.round === roundNum) return;
+    setFullHint({ round: roundNum, turn: currentTurn });
+  }, [isPlayerTurn, aceMode, isScrapsDiscardMode, settling, roundNum, currentTurn, fullHint.round]);
+
   // ── First-time-per-game hint (regular play only) ────────────
   useEffect(() => {
     if (aceHintShownRef.current) return;
@@ -831,6 +862,10 @@ export function GameScreen({ difficulty, onExit }) {
   }, [phase]);
 
   let hint = '';
+  // Set when the narrator is running its collapsed form, so the
+  // panel can step down in size with it rather than leaving a
+  // short line floating in a box built for three sentences.
+  let hintShort = false;
   // Settling keeps its own branch with an empty string on purpose:
   // dropping the branch entirely would let the next condition fill the
   // hint line while cards are still mid-flight. Silent, not absent.
@@ -847,10 +882,26 @@ export function GameScreen({ difficulty, onExit }) {
   else if (aceMode) hint = `Select 2 cards from opponent's Scraps to remove. (${aceTargets.length}/2 selected)`;
   else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
-    const base = 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
-    if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
-    else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
-    else hint = base;
+    // The instruction runs in FULL on the first player turn of a round
+    // and collapses to a short reminder for the rest of it.
+    //
+    // It used to restate all three sentences on every player turn, all
+    // match, at 25px — which made a block of tutorial prose the largest
+    // and brightest object on the table, permanently, sitting in the
+    // middle of the surface where the game wants room. Session 5 cut
+    // the score numerals 60 → 44 for exactly this reason and never came
+    // back for the narrator. A first-timer needs the full sentence; by
+    // the fourth trade of a round nobody is reading it.
+    if (fullHint.round !== roundNum || fullHint.turn === currentTurn) {
+      const base = 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
+      if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
+      else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
+      else hint = base;
+    } else {
+      hintShort = true;
+      if (playerHasAce && aiScraps.length >= 2) hint = 'Your turn. Transfer cards, or strike with your Ace.';
+      else hint = 'Your turn. Transfer cards to your Scraps.';
+    }
   }
   else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
   else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals that their hand contains ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Pick your own hand, then hit SIGNAL.`;
@@ -863,6 +914,21 @@ export function GameScreen({ difficulty, onExit }) {
   else if (phase === 'replenish') hint = 'Small hand scored. Deal the second hand?';
   else if (phase === 'scraps-reveal') hint = 'Time to play the Scraps hand — best 5-card hand wins. Flushes never count.';
   else if (phase === 'round-end') hint = 'Round complete. Ready for the next round?';
+
+  // The three bottom-bar discs (rules, sound, quit) share one shape.
+  // 30px reads as the control; the 44px button around it is the target,
+  // per TOUCH_MIN — the disc alone would be half a fingertip.
+  const discStyle = {
+    background:'transparent',border:'none',color:DS.slateLight,
+    width:TOUCH_MIN,height:TOUCH_MIN,cursor:'pointer',flexShrink:0,
+    display:'flex',alignItems:'center',justifyContent:'center',padding:0,
+  };
+  const discInner = {
+    display:'flex',alignItems:'center',justifyContent:'center',
+    width:30,height:30,borderRadius:'50%',
+    background:DS.duskMid,border:`1px solid ${DS.slate}66`,
+    fontFamily:F.ui,fontSize:15,fontWeight:700,
+  };
 
   const showNearWin = !gameOver && (playerScore >= WIN_SCORE || aiScore >= WIN_SCORE);
 
@@ -968,7 +1034,8 @@ export function GameScreen({ difficulty, onExit }) {
           {tradeError}
         </div>
       ) : (
-        <div key={phase} style={{fontFamily:F.ui,fontSize:tight?17:25,
+        <div key={phase} style={{fontFamily:F.ui,
+          fontSize:hintShort?(tight?14:17):(tight?17:25),
           color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
           fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
           maxWidth:720,
@@ -1143,7 +1210,13 @@ export function GameScreen({ difficulty, onExit }) {
           reskin; they are gone, and nothing replaces them, because
           there is no longer a case where the table does not fit. */}
       <FitBox modeMinW={MODE_MIN_W[mode]}
-        style={{background:`radial-gradient(ellipse at 50% 40%,${DS.duskLight} 0%,${DS.dusk} 100%)`}}>
+        // The table is a real surface now, not a gradient. `backdrop`
+        // paints behind the scaled content and is NOT scaled with it,
+        // so the wood reaches the edges of the viewport however far
+        // the table itself is scaled down; the BOARDS are sized from
+        // the card so the furniture stays in proportion to the game.
+        backdrop={<TableSurface cardW={CARD_DIMS[SZ.hand].w}/>}
+        style={{background:DS.timber}}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
           justifyContent:'space-evenly',
           padding:stack?'5px 10px':'8px 14px',gap:stack?5:4}}>
@@ -1278,20 +1351,33 @@ export function GameScreen({ difficulty, onExit }) {
               cursor, half a fingertip on a phone. The disc still
               reads at 30px; the BUTTON around it is 44. */}
           <button onClick={()=>setShowRules(true)} title="Rules"
-            aria-label="Rules" style={{
-            background:'transparent',border:'none',color:DS.slateLight,
-            width:TOUCH_MIN,height:TOUCH_MIN,cursor:'pointer',flexShrink:0,
-            display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
-            <span aria-hidden="true" style={{
-              display:'flex',alignItems:'center',justifyContent:'center',
-              width:30,height:30,borderRadius:'50%',
-              background:DS.duskMid,border:`1px solid ${DS.slate}66`,
-              fontFamily:F.ui,fontSize:15,fontWeight:900}}>?</span>
+            aria-label="Rules" style={discStyle}>
+            <span aria-hidden="true" style={discInner}>?</span>
+          </button>
+          {/* Sound and Quit. Until 2026-08-30 a match could not be
+              left, paused or silenced: `onExit` fired only from the
+              win and lose screens, and no mute existed anywhere. So an
+              accidental tap on HARD committed you to a full match to
+              10, and a game that makes a sound on every card tap could
+              not be opened quietly. */}
+          <button onClick={()=>setMuted(m=>{const n=!m;setAudioMuted(n);return n;})}
+            title={muted?'Sound off':'Sound on'}
+            aria-label={muted?'Turn sound on':'Turn sound off'}
+            aria-pressed={muted} style={discStyle}>
+            <span aria-hidden="true" style={discInner}>{muted?'\u2715':'\u266A'}</span>
+          </button>
+          <button onClick={()=>setConfirmQuit(true)} title="Quit to menu"
+            aria-label="Quit to menu" style={discStyle}>
+            <span aria-hidden="true" style={{...discInner,fontSize:13}}>{'\u23CF'}</span>
           </button>
         </PlayerBar>
       </div>
 
-      {showRules&&<RulesModal onClose={()=>setShowRules(false)}/>}
+      {/* The rules ARE the storyboard now. RulesModal was a separate,
+          worse explanation of the same rules that truncated on a phone
+          before it reached the house rule. */}
+      {showRules&&<Walkthrough asReference onDone={()=>setShowRules(false)}/>}
+      {confirmQuit&&<QuitConfirmModal onCancel={()=>setConfirmQuit(false)} onQuit={onExit}/>}
       {revealData&&<RevealOverlay {...revealData} onDismiss={revealData.onContinue}
         playerBestIds={revealData.playerBestIds||null}
         aiBestIds={revealData.aiBestIds||null}/>}

@@ -133,7 +133,12 @@ export const MODE_MIN_W = { wide: 1000, stack: 360 };
 // already correct, and the ghosts derive their own scale from
 // those same rects (see flight.jsx).
 // ─────────────────────────────────────────────────────────────
-export function FitBox({ children, modeMinW = 360, min = 0.3, max = 1, style = {} }) {
+// `backdrop` paints behind the scaled content and is NOT scaled with
+// it — it fills the outer box, so the table surface always reaches the
+// edges of the viewport no matter how far the table itself is scaled
+// down. Anything that should shrink with the cards belongs in
+// `children` instead.
+export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, max = 1, style = {} }) {
   const outerRef = useRef(null);
   const innerRef = useRef(null);
   const contentRef = useRef(null);
@@ -185,6 +190,7 @@ export function FitBox({ children, modeMinW = 360, min = 0.3, max = 1, style = {
       display:'flex', justifyContent:'center',
       ...style,
     }}>
+      {backdrop}
       {/* The scaled box. It is at least as tall as the space it is
           given, so children can still distribute themselves into
           spare height; anything past that overflows and is scaled
@@ -194,6 +200,7 @@ export function FitBox({ children, modeMinW = 360, min = 0.3, max = 1, style = {
           shrinking. */}
       <div ref={innerRef} style={{
         width: fit.w, flexShrink:0, minHeight:'100%',
+        position:'relative', zIndex:1,
         display:'flex', flexDirection:'column',
         transform: fit.k === 1 ? undefined : `scale(${fit.k})`,
         transformOrigin: 'center top',

@@ -166,10 +166,15 @@ for (const r of results) {
   if (r.errors) { console.log(`!! ${r.vp} JS ERROR ${r.errors[0]}`); bad++; continue; }
   const flags = [];
   if (r.doc[0] > 1 || r.doc[1] > 1) flags.push(`document scrolls ${r.doc}`);
-  const s = r.scrollers.filter(x => !/rules/i.test(r.label));
   if (r.label !== '6-rules' && r.scrollers.length) flags.push(`inner scroller ${JSON.stringify(r.scrollers)}`);
   if (r.clipped.length) flags.push(`clipped ${JSON.stringify(r.clipped)}`);
   if (r.small.length) flags.push(`small targets ${JSON.stringify(r.small)}`);
   if (flags.length) { bad++; console.log(`FAIL ${r.vp} ${r.label}: ${flags.join(' | ')}`); }
 }
 console.log(bad === 0 ? 'ALL CLEAR' : `${bad} problem screens`);
+
+// Exit non-zero on failure. Without this the harness printed its
+// failures and still exited 0, so a `&&` chain, CI, or an npm script
+// read a failing run as a pass — in the one tool here whose entire
+// job is to assert.
+if (bad > 0) process.exit(1);

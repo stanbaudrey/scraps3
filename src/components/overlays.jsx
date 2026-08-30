@@ -140,7 +140,6 @@ export function RoundInterstitial({ roundNum, onDone }) {
       }}>
         <div style={{
           fontFamily:F.display,
-          fontWeight:700,
           fontSize:'clamp(34px,11vw,96px)',
           color:DS.voltage,
           letterSpacing:'0.08em',
@@ -193,7 +192,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             </div>
           ))}
         </div>
-        <div style={{fontFamily:F.display,fontWeight:600,fontSize:26,color:winner==='ai'?DS.ember:DS.slate,letterSpacing:'0.06em'}}>{aiHandName}</div>
+        <div style={{fontFamily:F.display,fontSize:26,color:winner==='ai'?DS.ember:DS.slate,letterSpacing:'0.06em'}}>{aiHandName}</div>
       </div>
       <div style={{padding:'16px 40px',borderRadius:12,textAlign:'center',
         background:winner==='player'?DS.voltage+'18':winner==='ai'?DS.ember+'18':DS.slate+'18',
@@ -202,7 +201,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
         // The one overlay that is sometimes good news and sometimes
         // not, so it picks: the win bounces, the loss and the tie land.
         animation:`popIn 0.4s ${winner==='player'?'cubic-bezier(.34,1.6,.64,1)':SETTLE}`}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:42,letterSpacing:'0.04em',
+        <div style={{fontFamily:F.display,fontSize:42,letterSpacing:'0.04em',
           color:winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}}>
           {winner==='player'?'YOU WIN!':winner==='ai'?'OPPONENT WINS.':'TIE'}
         </div>
@@ -223,7 +222,7 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
             </div>
           ))}
         </div>
-        <div style={{fontFamily:F.display,fontWeight:600,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
+        <div style={{fontFamily:F.display,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
         <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>YOU</div>
       </div>
       <button onClick={onDismiss} style={{background:DS.voltage,color:DS.ink,border:'none',
@@ -289,7 +288,6 @@ export function FullScrapLightbox({ onDone }) {
             justifyContent:'center',flexDirection:'column',gap:'clamp(12px,2.6vh,20px)'}}>
           <div style={{
             fontFamily:F.display,
-            fontWeight:700,
             fontSize:'clamp(40px,12vw,112px)',
             color:DS.gold,
             textShadow:`0 0 40px ${DS.gold},0 0 80px ${DS.gold}88`,
@@ -305,7 +303,7 @@ export function FullScrapLightbox({ onDone }) {
             <div style={{fontFamily:F.ui,color:DS.frost,fontSize:22,fontWeight:700,lineHeight:1.6}}>
               You won both small hands<br/>and the Scraps hand!
             </div>
-            <div style={{fontFamily:F.display,fontWeight:700,color:DS.gold,fontSize:36,
+            <div style={{fontFamily:F.display,color:DS.gold,fontSize:36,
               letterSpacing:'0.08em',marginTop:12}}>
               ENJOY THIS BONUS POINT!
             </div>
@@ -392,7 +390,6 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
               {lines.map((l,i)=>(
                 <div key={i} style={{
                   fontFamily:F.display,
-                  fontWeight:700,
                   fontSize:i<=1?'clamp(34px,7vw,64px)':i===2?'clamp(28px,6vw,52px)':'clamp(24px,5vw,46px)',
                   color:i===0||i===1?DS.gold:i===2?DS.ember:DS.frost,
                   textShadow:`0 0 30px ${i<=1?DS.gold:DS.ember}`,
@@ -406,7 +403,7 @@ export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMa
               animation:'slideUp 0.4s ease 0.7s both'}}>
               <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
                 letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-              <div style={{fontFamily:F.display,fontWeight:700,color:DS.gold,lineHeight:1,
+              <div style={{fontFamily:F.display,color:DS.gold,lineHeight:1,
                 fontSize:'clamp(110px,22vw,220px)',letterSpacing:'0.03em',
                 textShadow:`0 0 50px ${DS.gold}aa, 0 0 100px ${DS.gold}55`}}>
                 {playerScore}–{aiScore}
@@ -465,11 +462,11 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
       <FitBox modeMinW={300} style={{zIndex:1}}>
       <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',textAlign:'center'}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:'clamp(34px,7vw,60px)',
+        <div style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,60px)',
           color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
         <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
           letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-        <div style={{fontFamily:F.display,fontWeight:700,color:DS.frost,lineHeight:1,
+        <div style={{fontFamily:F.display,color:DS.frost,lineHeight:1,
           fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
           marginBottom:'clamp(18px,4vh,36px)',textShadow:'0 0 40px rgba(237,227,208,0.25)'}}>
           {playerScore}–{aiScore}
@@ -502,7 +499,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
       <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.gold,
+        <div style={{fontFamily:F.display,fontSize:32,color:DS.gold,
           letterSpacing:'0.06em',marginBottom:24}}>You've drawn an Ace!</div>
         <div style={{display:'flex',justifyContent:'center',marginBottom:26}}>
           <div className="live-cue-card"
@@ -544,7 +541,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:36,color:DS.ember,
+        <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
           They will remove two cards from your Scraps pile.
@@ -595,7 +592,7 @@ export function OpponentAceReveal({ targets, onOk }) {
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
+        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           OPPONENT plays an Ace and removes two cards from your Scraps
         </div>
@@ -622,7 +619,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:32,color:DS.ember,
+        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
           Opponent counters your Ace!
         </div>
@@ -695,7 +692,7 @@ export function RulesModal({ onClose }) {
         maxWidth:820,width:'100%',maxHeight:'min(88vh, 88dvh)',overflowY:'auto'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
           gap:12,marginBottom:20}}>
-          <h2 style={{fontFamily:F.display,fontWeight:700,color:DS.voltage,
+          <h2 style={{fontFamily:F.display,color:DS.voltage,
             fontSize:'clamp(28px,6vw,40px)',letterSpacing:'0.06em'}}>
             {privacy?'Privacy':'Rules'}</h2>
           <div style={{display:'flex',gap:10,alignItems:'center',flexShrink:0}}>
@@ -730,13 +727,40 @@ export function RulesModal({ onClose }) {
 // ─────────────────────────────────────────────────────────────
 // SkipTurnModal — shown when the player has no legal trade
 // ─────────────────────────────────────────────────────────────
+// QuitConfirmModal — leaving a match in progress.
+//
+// Behind a confirm because quitting forfeits a match that can run
+// several minutes, and the control sits in the same bar as the rules
+// and sound buttons, which are both harmless. It uses the same Shell
+// as every other blocking overlay, so it inherits the focus trap.
+export function QuitConfirmModal({ onQuit, onCancel }) {
+  return (
+    <Shell zIndex={96} background="rgba(20,31,25,.92)" dialogLabel="Quit this match?">
+      <div style={{background:DS.duskMid,border:`3px solid ${DS.slate}`,
+        borderRadius:16,padding:CARD_PAD,maxWidth:520,width:'100%',textAlign:'center',
+        boxShadow:`0 0 40px ${DS.slate}44`}}>
+        <div style={{fontFamily:F.display,fontSize:34,color:DS.frost,
+          letterSpacing:'0.06em',marginBottom:14}}>QUIT THIS MATCH?</div>
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
+          The current match ends and this round's score is lost. Your win/loss
+          record is only updated for matches played to a finish.
+        </p>
+        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+          <Btn onClick={onCancel}>Keep Playing</Btn>
+          <Btn variant="danger" onClick={onQuit}>Quit to Menu</Btn>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
 export function SkipTurnModal({ onOk }) {
   return (
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="No legal trades — your turn is skipped">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.slate}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:520,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.slate}44`}}>
-        <div style={{fontFamily:F.display,fontWeight:700,fontSize:34,color:DS.frost,
+        <div style={{fontFamily:F.display,fontSize:34,color:DS.frost,
           letterSpacing:'0.06em',marginBottom:14}}>NO LEGAL TRADES</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
           Every card in your hand draws more than you have room for. Even the

@@ -2847,6 +2847,308 @@ card overshoot is this game's physical vocabulary. `/impeccable critique`
 was deliberately NOT run — this push restores an intended composition
 rather than reworking UI, and `audit` had already run at preview time.
 
+### Unplanned session — Whole-experience audit ✅ Done (2026-08-30)
+
+**Not one of the planned sessions. Read-only: no source file was changed.**
+Stan ran `/audit` with four creative questions attached (title/naming, the
+"boring cards on a felt table" complaint, a wordmark on the table, and the
+origin story / About page). The audit answered all four and found something
+none of them were about.
+
+**THE HEADLINE: the Ace counter has never worked, and it is live in
+production.** Two bugs twelve lines apart in `GameScreen.jsx`, both
+confirmed twice — once by the code-review agent, then independently by
+running the real modules under Node and by grepping the deployed bundle.
+
+- **`GameScreen.jsx:434` calls `shouldCounterAce` with three wrong
+  arguments.** The engine signature (`engine.js:449`) is `(aiScraps,
+  opponentScraps, aiScore, opponentScore)`. It is called as
+  `(difficulty, s.aiHand, s.aiCountersThisRound)` — a *string* where a
+  card array belongs, the AI's *hand* where its *Scraps* belongs, and a
+  field that exists nowhere in reducer state. `'hard'.length` is 4 so the
+  `< 2` guard never trips, and `scrapsStrength` walks the characters of
+  the string into a bogus hand. Measured, invariant to the board:
+  **easy → `true`, medium → `false`, hard → `true`.**
+- **`AI_COUNTER_ACE` has no case in the reducer.** Dispatched at
+  `GameScreen.jsx:439`; the reducer has 24 cases and this is not one, so
+  it hits `default: return state`. Nothing is discarded, no phase
+  advances, and `AiCounterNotice`'s `onOk` only clears local state — no
+  dispatch either.
+- **Net effect: the Ace does nothing on both difficulties a player can
+  select.** The picker offers only `easy` and `hard` (`MenuScreens.jsx:79,81`);
+  `medium`, the one value that returns `false`, is unreachable. The player
+  gets the counter sound and the notice, the board does not change, and
+  the Ace is not even spent.
+- **Verified in production, not the build log:** the live bundle contains
+  `AI_COUNTER_ACE` once (the dispatch) with **zero** `case"AI_COUNTER_ACE"`,
+  against exactly one for `PLAYER_COUNTER_ACE`. `aiCountersThisRound` ships too.
+
+**Why eight sessions and several audits missed it:** the 37 tests cover the
+engine and the reducer, and both are innocent — the engine function is
+correct and the reducer correctly ignores an action it was never taught.
+The defect lives in the *wiring between them*, which is the one layer of
+this project with no test coverage at all. That is the durable lesson here,
+above the fix itself.
+
+**Three more P1s from the same review, all independently re-verified:**
+
+- **The wheel straight outranks almost every other straight.**
+  `engine.js:148` sets a straight's tiebreaker to `Math.max(...ranks)`, and
+  the Ace is 14 — so A-2-3-4-5 scores 14. Measured: the wheel **beats**
+  9-10-J-Q-K and **ties** Broadway. It also corrupts selection inside one
+  pile: given A,2,3,4,5,6,K the evaluator picks the wheel over the better
+  2-3-4-5-6, so `getActiveHandCards` highlights the wrong five in the
+  reveal. `checkStraight` recognises the wheel correctly at line 170;
+  nothing carries that into the rank.
+- **An emptied Scraps pile dead-ends the round.** `scoreScrapsOutcome`
+  returns `null` for an empty pile and `resolveScrap`
+  (`GameScreen.jsx:725`) answers with a `LOG` and a bare `return`, leaving
+  the phase at `scraps-reveal` whose only control is the button that just
+  did nothing. Reachable because every Ace guard is `>= 2` and an Ace
+  strips 2, and `aiDecide` will play one into a 2-card pile.
+- **Fjalla One is a single-weight family and the game asks it for bold
+  everywhere.** The generated `@font-face` block declares `font-weight:
+  400` only; **at least 15 of 28 `fontFamily:F.display` sites request 600
+  or 700** (12 at 700, 3 at 600) — both 44px score numerals, every round
+  interstitial, every win/lose heading, FULL SCRAP, every modal title. All
+  synthetic bold. This *subsumes* the long-open Work Sans 900 item on the
+  `?` button, which is one instance of the same bug.
+
+**Two tooling defects:** `tools/responsive-qa.mjs` never calls
+`process.exit`, so it prints its failures and exits 0 — the one tool whose
+whole job is to assert is the only one that cannot fail a CI chain (it does
+genuinely pass today; it would have said the same thing if it didn't). And
+`tools/fetch-fonts.mjs` detects a `STALE` font file and tells you to run
+`npm run fonts`, but nothing ever unlinks it, so a renamed upstream font
+would wedge `fonts:check` until someone deleted the file by hand.
+
+**Lower severity, recorded not fixed:** AI Scraps can reach 8 cards when a
+7-card pile has no eligible discards (`reducer.js:316`); corrupted
+`localStorage` crashes the game-over screen (`stats.js:21` — the
+quota-exceeded half *is* handled correctly, contrary to the file's header
+promising both).
+
+**`/impeccable critique` was run on the game table** (dual-agent, handed
+the audit's evidence file rather than re-walking the site). **28/40 Good**,
+audit dimensions **15/20**. Trend `29 → 28`, which reads as flat rather
+than a regression: keyboard play now works end to end, while this pass
+caught two pre-existing gaps the last run missed. Snapshot at
+`.impeccable/critique/2026-08-30T05-54-58Z__src-screens-gamescreen-jsx.md`.
+Its new findings: the Scraps card borders encode *suit colour* with the
+same two tokens the zone borders use for *ownership* (`cards.jsx:163`), so
+an ember "theirs" zone contains voltage "yours" cards; there is **no way
+to quit, pause or mute a match** (`onExit` fires only from the win/lose
+screens, and no mute exists anywhere in `src/`); and the rules modal
+truncates on a phone at rule 4 of 6, cutting off the no-flushes house rule.
+
+**The design answer, and it is not a reskin.** The felt reading is caused
+by thinness, not hue. Measured at 1920 the table paints **one gradient**,
+one elevation step across seventeen elements, and **zero** patterns,
+filters, masks, blend modes or text-shadows. Two corrections came out of
+this and both are worth recording because each was a confident claim read
+off source rather than measured:
+
+- **`SwirlBg` is NOT rendered on the table.** This audit's own evidence
+  file said it was; the critique caught it and it was verified by grep —
+  zero occurrences in `GameScreen.jsx`. Its call sites are the splash, the
+  picker, the walkthrough and the *lose* screen. The table's entire ground
+  is the one `radial-gradient(ellipse at 50% 40%, duskLight, dusk)` at
+  `GameScreen.jsx:1146`. **The losing screen has more atmosphere than the
+  game.**
+- **The critique's claim that Stan's Reduce Transparency setting flattens
+  the narrator panel is wrong**, and was not propagated. Browsers never
+  override author colours; `prefers-reduced-transparency` is a query an
+  author must answer, and this project answers it nowhere. The panel's
+  `rgba(20,31,25,0.7)` composites identically for everyone. Measured at
+  Stan's 1024×662: FitBox **0.7299**, the **wide** arrangement (not
+  stacked, as the critique said), no document scroll. **The one genuinely
+  his-screen-only factor is the 0.73 scale.**
+
+`canopy` — the actual pine green — is fenced by `theme.js:19-22` to
+decorative illustration only, which is why the identity token appears on
+no player-facing surface at all. Amending that fence to "may carry ground,
+never state" is a prerequisite for most of the fix, and is Stan's call.
+
+**On the naming question, the answer is keep SCRAPS, with evidence.** Six
+candidates were checked against live sources and all six are taken:
+**CAIRN** (Matagot, a *two-player duel*), **KINDLING** (a *campfire-themed*
+card game), **DEADFALL** (Cheapass, a bluffing card game), **WINDFALL** (a
+Kickstarter card game and a Magic card), **SPOILS** (an out-of-print CCG),
+**OFFCUTS** (no game, but "Offcut Games" is a publisher). SCRAPS' own
+collisions — a Gwent ability, a BGG title, an itch.io game — are the
+**mildest of the set**, so on the ownability test Stan set, the current
+name scores better than every alternative. It also already satisfies his
+stated structure: a single noun naming both the game and the pile.
+
+**Re-verified rather than re-derived** (cheap checks against existing
+harnesses): `tools/responsive-qa.mjs` **ALL CLEAR** at six viewports;
+`tools/contrast-audit.mjs` **27 pairings, 0 below AA**; the storyboard's
+draw tiers match `tradeInValue` exactly. The **no-flushes house rule is
+provably airtight** — `evaluateHand` never reads `suit`, and 4,000 random
+hands re-evaluated with every card forced to one suit produced zero
+changed evaluations.
+
+**Content/metadata:** the `<title>` and OG tags say "two hands at once"
+while `llms.txt` says "three hands at once" and the page's own JSON-LD
+enumerates three — a live contradiction on the crawler surface. The title
+matches what the storyboard teaches, so `llms.txt` is the one to align. A
+no-JS crawler still sees an **entirely empty body**; a `<noscript>` block
+is the cheapest discoverability win available and matters given the launch
+plan leans on Show HN.
+
+**CLAUDE.md has drifted in two places** and both would send a future
+session chasing fixed problems: it still says the menu options are
+`<div>`s not findable by role (they have been real `<button
+class="pick-box">` elements since 2026-08-27), and that `flight.jsx`
+hardcodes every hex (it renders real `PlayingCard`s now and contains no
+hex at all). The palette does still live in two declared places, which is
+the documented deliberate ceiling.
+
+**Deliverable:** the full audit, with live in-token mockups of the ground
+options, is at
+https://claude.ai/code/artifact/b1256a45-53e7-4fef-816e-60456c558e47
+
+**Nothing was fixed. No file in `src/` was touched.** Everything above is a
+recommendation awaiting Stan's direction, except that the Ace bug should
+be treated as launch-blocking.
+
+
+### Unplanned session — Audit fixes: the Ace, the wheel, and the table ✅ Done (2026-08-30)
+
+**Stan's work order off the audit above, taken in one pass.** Everything
+below is built, tested and verified in a real browser.
+
+**The four P1s, all fixed:**
+
+- **`shouldCounterAce` is called with the board now**, not the difficulty
+  string: `(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)`.
+- **`AI_COUNTER_ACE` has a reducer case.** Both Aces are discarded, nothing
+  is stripped from either pile. **Turn handling per Stan's rule, and it is
+  deliberately not the same as `PLAYER_ACE_APPLY`'s:** playing an Ace always
+  ends your turn, but having one *countered* ends it only if you are out of
+  Aces. Still holding one keeps the turn live so you may spend it, and the
+  opponent may counter that one too if it still holds an Ace. A gate was
+  added to the AI effect (`if (aiCounterNotice) return;`) so the opponent
+  cannot start moving while the counter notice is still on screen.
+- **The wheel straight scores 5, not 14.** `checkStraight` became
+  `straightHigh`, returning the straight's high card — 5 for A-2-3-4-5,
+  because the Ace plays low there. The wheel now loses to every other
+  straight and no longer ties Broadway, and `evaluateBestHand` picks
+  2-3-4-5-6 out of A,2,3,4,5,6,K instead of the wheel.
+- **An empty Scraps pile scores instead of dead-ending.** `EMPTY_SCRAPS_HAND`
+  (rank -1) is a real hand that loses to anything, so the other player takes
+  the 2 points and the round resolves; two empty piles tie. `resolveScrap`'s
+  bail-out is gone.
+
+**Tests: 37 → 53.** The new ones are written as regression guards, not
+coverage padding: one asserts `gameReducer(s, AI_COUNTER_ACE) !== s`, which
+is exactly what the old `default: return state` fall-through would fail.
+**Verified end to end at the logic level too** — a script replays
+`confirmAce()`'s real sequence (decide with `shouldCounterAce`, dispatch
+`AI_COUNTER_ACE`, assert the board changed) against the real modules: 10/10.
+**Not** observed as a countered Ace in a live deal; that needs a specific
+deal and a scripted UI driver that stalled on click handling. Stated rather
+than implied.
+
+**The felt-table problem — option C, built.** `TableSurface` in
+`backdrop.jsx` draws a weathered picnic table from directly overhead:
+individual boards running top-to-bottom, sized at **1.7 × the current card
+width** so the furniture stays in proportion to the game at every viewport,
+procedural knots and lengthwise grain, warm light from the top edge, a
+vignette at the far edge. **Seeded xorshift, same as the audio exciter** —
+wood that reshuffled itself on every render would shimmer. It is passed to
+`FitBox` as a new `backdrop` prop, which paints behind the scaled content
+and is NOT scaled with it, so the table always reaches the viewport edges.
+
+**Deliberately not a pale "sun-bleached driftwood", and this is a real
+departure from the brief wording.** This palette is light-on-dark with 27
+contrast pairings tuned against dark grounds; a light tabletop would have
+inverted the entire game. The sun-bleaching reads in **silvered grain and
+per-board tint variance** over weathered boards instead, which is what old
+outdoor timber actually looks like. `frost` on `timber` measures ~10:1.
+If Stan wants it genuinely lighter, that is a palette-wide job, not a
+token swap.
+
+**The mountains are on the card FACES now** (`CardFaceRidge`), faint
+(canopy at 0.085 / 0.115) across the bottom of every card you hold. The
+ridge art existed only on the card BACK, which you see on the opponent's
+hand, the deck and the discard — never on a card you hold — so the one
+piece of real identity art was on the surfaces the player looks at least.
+
+**`theme.js`'s canopy rule was amended, per Stan:** from "decorative
+illustration only, never UI chrome" to **"may carry ground, never state."**
+Ground is the table and the printed ridge; state stays voltage / ember /
+gold. Without this amendment neither the table nor the card ridge is legal
+under the project's own token law. New tokens: `timber`, `timberLight`,
+`timberSeam`.
+
+**Everything else in the order:**
+
+- **The narrator collapses.** Full instruction on the first player turn of
+  each round, then a short form at a smaller size. Keyed on `{round, turn}`
+  and **not** on round alone — the first version retired the long text in
+  the same tick it appeared, so it flashed and collapsed before anyone
+  could read it. Caught in the browser, not in the code.
+- **The rules modal is gone.** The `?` opens the four-beat storyboard as a
+  reference (`<Walkthrough asReference/>`), so there is one explanation of
+  the rules instead of two, and the phone truncation that cut off the
+  no-flushes house rule at item 4 of 6 goes with it. **This introduced a
+  real bug that the harness caught:** the storyboard had no `z-index`, so
+  the table's fixed bottom bar painted through it and swallowed clicks on
+  CLOSE. Fixed at `zIndex:100`.
+- **Quit and mute exist.** Two discs beside the `?`, all three sharing one
+  44px target. Quit is behind a confirm (`QuitConfirmModal`, same `Shell`
+  so it inherits the focus trap); mute is one flag on the audio master bus
+  rather than a guard at thirty call sites, because cues are scheduled
+  ahead on the audio clock.
+- **Fake bold is gone.** Fjalla One declares `font-weight: 400` and nothing
+  else, and **15 sites were asking it for 600/700** — both score numerals,
+  every interstitial, every win/lose heading, FULL SCRAP, every modal
+  title, all rendering as browser-smeared synthetic bold. All stripped to
+  the real 400. The `?` button's Work Sans 900 (open since Session 6) is
+  fixed by the same pass and that brief entry is marked subsumed.
+- **Scraps card borders are neutral.** They used to be
+  `isRed(suit) ? ember : voltage` — the exact two tokens the zone borders
+  use for *ownership* — so "yours" green appeared inside "theirs" orange.
+  Suit is carried by the printed rank and pip, as on the cream cards.
+- **`responsive-qa.mjs` exits non-zero when `bad > 0`,** and the dead
+  `const s = ...filter(x => ...r.label)` line that ignored its own
+  parameter is deleted. **Broken on purpose to watch it fail: exit 1.**
+  Worth recording that the first check of this read `EXIT=0` because `$?`
+  after a pipe reports `tail`, not `node` — the same blindness that let the
+  original bug sit there.
+- **Walkthrough's DRAW 3 CARDS is `frost`, not `gold`** — gold is reserved
+  for milestones and trading an Ace in is not one. The tiers now climb in
+  brightness: muted, fern, brightest.
+- **Metadata contradiction resolved.** `llms.txt` said "three hands at
+  once" while the `<title>` said "two"; the title matches what the
+  storyboard teaches, so the generator was aligned down to the
+  player-facing framing and `npm run share` re-ran. `share:check` clean.
+- **A `<noscript>` block ships**, between `NOSCRIPT:BEGIN/END` sentinels in
+  `index.html`: name, pitch, full ruleset including the house rule. A no-JS
+  crawler saw an entirely empty body before this.
+- **CLAUDE.md's two drifted notes are deleted** — the menu-`<div>`s claim
+  (they have been real `<button>`s since 2026-08-27) and the
+  three-places-palette claim (`flight.jsx` has held no hex since it was
+  rewritten). The palette entry now states the deliberate two-source
+  ceiling.
+
+**Verified:** 53/53 tests, clean build, `contrast-audit` **27 pairings 0
+below AA** (no regression from the new surface), `share:check` clean, and
+`tools/responsive-qa.mjs` **ALL CLEAR at all six viewports** after the
+change — including the storyboard-as-rules step it now walks.
+
+**Deferred to post-launch, per Stan:** the About page, the origin story,
+and the email capture (**he already has a Neon email list project ready to
+go**, so the capture should point at that rather than anything new here),
+plus the analytics-vs-privacy-notice decision. **The name stays SCRAPS.**
+
+**Known asymmetry, flagged not fixed:** the second-Ace rule is the
+player's only. If the player counters the AI's Ace, the AI's turn ends and
+it does not get to play a second Ace, because that would mean changing
+`aiDecide`'s flow and Stan specified the player's side. Worth a decision
+later.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -2864,6 +3166,8 @@ rather than reworking UI, and `audit` had already run at preview time.
 | — | *Unplanned:* Splash identity (subtitle, animated wordmark) | Done |
 | — | *Unplanned:* Ghost launch frame + Foley Bench sound lab | Done |
 | — | *Unplanned:* Table centre axis + Ace tag touch target | Done + **PUBLISHED** (2026-08-28) — closes Session 5's last open visual finding. Live bundle verified byte-identical to the tested build |
+| — | *Unplanned:* Whole-experience audit (`/audit`) | Done (2026-08-30) — **read-only, nothing fixed.** Found the Ace counter has never worked and is live in production, plus three more P1s. Answered Stan's four creative questions. Critique 28/40 |
+| — | *Unplanned:* Audit fixes (Ace, wheel, empty Scraps, wood table) | Done (2026-08-30) — all four P1s fixed with tests 37→53, the table rebuilt as a picnic-table surface, rules modal retired, quit/mute added |
 
 
 ---
@@ -2941,25 +3245,48 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-08-28 `main` and `dev` are level,
-the working tree is clean, and production is deployed from the same
-commit with its bundle checked byte-identical to the tested build. There
-is no half-finished branch to pick up and nothing waiting on a preview.
-Every item below is new work. (No SHA named on purpose: whichever commit
-writes this line is one behind the moment it lands. `git fetch` and
-compare the branches — that is the check, not this sentence.)
+**Work IS in flight.** As of 2026-08-30 the audit-fix session is committed
+to `dev` and has NOT been previewed or published. `main` is still the
+pre-fix state, which means **the Ace bug is still live in production** until
+this ships. Fetch and compare the branches before planning anything — that
+is the check, not this sentence.
 
-**Start here: Session 7 part two, the launch itself.** Everything the
-launch needs is built, published and verified — metadata, share card,
-favicons, `robots.txt`, `sitemap.xml`, `llms.txt`, the monthly Actions
-check — and the drafted posts in Section 8 have had their two copy
-errors fixed. What is left is not code. It is the **cold smoke test on
-CELLULAR, which only Stan can run**, on his phone, off wifi: every walk
-done so far went over a fast connection and proves the layout and the
-game, not the load on a slow radio. Then the posts go out. Do not
-re-verify the metadata; it was checked against the live URL with
-`og.png` byte-identical, and `npm run share:check` re-derives it on
-demand.
+**✅ The Ace is fixed. Start here: preview, then launch.** The 2026-08-30
+fix session cleared all four P1s the audit found — the counter call, the
+missing reducer case, the wheel straight and the `scraps-reveal` dead end —
+with tests 37 → 53 and the whole thing verified in a real browser. The
+table was rebuilt as a wooden picnic-table surface, the rules modal was
+retired in favour of the storyboard, and quit/mute now exist. **None of it
+has been previewed or published yet.**
+
+**So: put it on a preview, look at it, then publish.** The things most
+worth Stan's eyes are the wood table at his own window width, the faint
+mountain ridge now printed on every card face, and the narrator collapsing
+to its short form after the first turn of a round.
+
+**Then Session 7 part two, the launch.** What is left is not code: the
+**cold smoke test on CELLULAR, which only Stan can run**, on his phone,
+off wifi. Then the posts. Do not re-verify the metadata; `npm run
+share:check` re-derives it on demand and ran clean after the `llms.txt`
+copy fix.
+
+**Post-launch backlog, agreed 2026-08-30:** an About page carrying the
+Sisters, OR origin story; email capture pointed at **Stan's existing Neon
+email list project** rather than anything new built here; and the
+analytics-vs-privacy-notice decision, which has to be made deliberately
+because the notice he approved describes a site with no analytics.
+
+**One open question nobody has answered:** the second-Ace rule is the
+player's only. If the player counters the AI's Ace, the AI's turn ends and
+it does not get to play a second Ace. Symmetric behaviour would mean
+changing `aiDecide`'s flow, and Stan specified the player's side.
+
+**Awaiting Stan's direction, not blocking:** the whole design answer to
+the felt-table complaint (thinness, not hue — the table paints one
+gradient and one elevation step), whether to amend the `canopy` fence at
+`theme.js:19-22`, the About page and its email-capture conflict with the
+signed privacy notice, and the naming question (recommendation: keep
+SCRAPS; all six alternatives tested are already card games).
 
 **Decide analytics explicitly, before the posts, not after.** The
 privacy notice Stan approved describes a site with no analytics, which
@@ -2969,12 +3296,18 @@ real legal edge. So this is a decision to make on purpose — including
 deciding on none — rather than one to inherit. Vercel's own request
 logs are already named in the notice and are not the question.
 
-**One small open item, never called either way.** The `?` help button
-asks for Work Sans 900, which was never declared as a `@font-face`, so
-it renders as synthetic bold. Work Sans is variable and already on
-disk, so a real 900 face costs zero bytes. Open since Session 6. Run
-`npm run fonts` after any change there; the rules are generated and
-`npm run fonts:check` fails on drift.
+**~~One small open item~~ — SUBSUMED 2026-08-30, and it was never small.**
+This entry said the `?` help button asks for Work Sans 900 against a
+family declaring 700, rendering synthetic bold. True, but it is one
+instance of a much larger problem the audit found: **Fjalla One is a
+single-weight family declaring `font-weight: 400` only, and at least 15
+of 28 `fontFamily:F.display` sites request 600 or 700** — both score
+numerals, every interstitial, every win/lose heading, FULL SCRAP, every
+modal title. The branded typeface is faking bold on the game's loudest
+moments. Now tracked as a P1 in the audit entry above, and it should
+land **before** any atmosphere work, because it changes how every
+subsequent screenshot reads. Run `npm run fonts` after any change; the
+rules are generated and `npm run fonts:check` fails on drift.
 
 **Feed the remaining lessons into the `minigame` skill.** The third of
 three is **done (2026-08-28)** — the skill's touch-target bullet now says

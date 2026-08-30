@@ -23,6 +23,21 @@
 let ctx = null;
 let bus = null;
 
+// Mute. One flag on the master bus rather than a guard at every call
+// site: cues are scheduled ahead on the audio clock, so silencing the
+// output is both simpler and more complete than trying to not-start
+// thirty individual sounds. The gain stays 0.6 in the muted state's
+// memory so unmuting restores the mix exactly.
+const BUS_GAIN = 0.6;
+let muted = false;
+
+export function setAudioMuted(next) {
+  muted = !!next;
+  if (bus) bus.gain.value = muted ? 0 : BUS_GAIN;
+  return muted;
+}
+export function isAudioMuted() { return muted; }
+
 function getAudioCtx() {
   if (typeof window === 'undefined') return null;
   const AC = window.AudioContext || window.webkitAudioContext;
@@ -41,7 +56,7 @@ function getAudioCtx() {
     comp.attack.value = 0.003;
     comp.release.value = 0.18;
     bus = ctx.createGain();
-    bus.gain.value = 0.6;
+    bus.gain.value = muted ? 0 : BUS_GAIN;
     bus.connect(comp);
     comp.connect(ctx.destination);
   }

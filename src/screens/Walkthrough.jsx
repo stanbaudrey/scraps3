@@ -38,7 +38,12 @@ const SCRAPS_HAND = [C('3','♠',3), C('8','♦',8), C('Q','♥',12), C('Q','♠
 const DRAW_TIERS = [
   { cards: [C('2','♥',2), C('5','♠',5), C('7','♦',7), C('9','♣',9)], label: 'DRAW 1 CARD', tone: DS.slateLight },
   { cards: [C('10','♠',10), C('J','♥',11), C('Q','♣',12), C('K','♦',13)], label: 'DRAW 2 CARDS', tone: DS.voltage },
-  { cards: [C('A','♣',14)], label: 'DRAW 3 CARDS', tone: DS.gold },
+  // frost, not gold. gold is reserved for milestones only — Full
+  // Scrap, the win screen, and PLAYING your own Ace as a weapon.
+  // Trading an Ace in for three cards is none of those, and the
+  // reserved-token rule has drifted here before. The tiers now climb
+  // in brightness instead: muted, fern, brightest.
+  { cards: [C('A','♣',14)], label: 'DRAW 3 CARDS', tone: DS.frost },
 ];
 
 const OPP_SCRAPS = [C('2','♣',2), C('3','♥',3), C('4','♣',4), C('5','♦',5), C('6','♠',6)];
@@ -283,7 +288,14 @@ const BEATS = [
 // ─────────────────────────────────────────────────────────────
 // Walkthrough
 // ─────────────────────────────────────────────────────────────
-export function Walkthrough({ onDone }) {
+// `asReference` runs the same storyboard as the in-game rules, opened
+// from the `?` on the table rather than before a first game. Added
+// 2026-08-30, when the separate RulesModal was retired: that modal was
+// a six-item text wall that truncated on a phone at item 4, cutting off
+// the no-flushes house rule — so a first-timer could lose to a rule the
+// game had never shown them. There is no reason to maintain a second,
+// worse explanation of the rules beside this one.
+export function Walkthrough({ onDone, asReference = false }) {
   const [i, setI] = useState(0);
   const beat = BEATS[i];
   const last = i === BEATS.length - 1;
@@ -332,7 +344,13 @@ export function Walkthrough({ onDone }) {
   });
 
   return (
+    // zIndex matters when this runs as the in-game rules: the table's
+    // own fixed bottom bar carries a z-index of its own, so without one
+    // here the bar painted straight through the storyboard and, where
+    // the two collided, swallowed the clicks meant for CLOSE. Harmless
+    // as a standalone screen, where nothing else is on the page.
     <div onClick={advance} className="app-vh" style={{position:'fixed',inset:0,background:DS.dusk,
+      zIndex:100,
       display:'flex',flexDirection:'column',cursor:'pointer',overflow:'hidden',userSelect:'none'}}>
       <SwirlBg/>
       <h1 className="sr-only">SCRAPS — how to play</h1>
@@ -369,7 +387,7 @@ export function Walkthrough({ onDone }) {
             <button onClick={advance} style={{background:DS.voltage,color:DS.ink,border:'none',
               padding:'17px 46px',borderRadius:12,cursor:'pointer',fontFamily:F.ui,fontWeight:700,
               fontSize:20,minHeight:TOUCH_MIN,letterSpacing:'0.1em',textTransform:'uppercase',
-              boxShadow:`0 0 28px ${DS.voltage}88`}}>{beat.cta}</button>
+              boxShadow:`0 0 28px ${DS.voltage}88`}}>{asReference && last ? 'Back to game' : beat.cta}</button>
           )}
         </div>
       </FitBox>
@@ -393,7 +411,7 @@ export function Walkthrough({ onDone }) {
         )}
         {last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
-            color:DS.slate,textTransform:'uppercase'}}>Tap anywhere to begin</div>
+            color:DS.slate,textTransform:'uppercase'}}>{asReference ? 'Tap anywhere to close' : 'Tap anywhere to begin'}</div>
         )}
         {/* BACK is always rendered, merely invisible on the first
             beat, so SKIP does not jump sideways the moment a reader
@@ -411,7 +429,7 @@ export function Walkthrough({ onDone }) {
             border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
             padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',
             fontFamily:F.ui,fontWeight:700,fontSize:14,
-            letterSpacing:'0.14em',textTransform:'uppercase'}}>Skip</button>
+            letterSpacing:'0.14em',textTransform:'uppercase'}}>{asReference ? 'Close' : 'Skip'}</button>
         </div>
       </div>
     </div>

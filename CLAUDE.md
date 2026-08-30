@@ -231,9 +231,6 @@ looks broken locally, it is not a missing-secret problem.
 - **Controls are `TOUCH_MIN` (44px) on their short axis**, or
   `TOUCH_MIN_COMPACT` (54px) in the stacked layout — deliberately
   larger, because that layout is often scaled and 44 × 0.73 is 32.
-- **Menu options are `<div>`s, not `<button>`s.** They work with a mouse but
-  are not keyboard-focusable and screen readers won't announce them as
-  controls. Browser automation can't find them by role either.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 
@@ -279,13 +276,14 @@ versions and should not be deployed to.
   split the table's markup into named pieces — `oppHandEl`, `actionEl`,
   `playerHandEl` and so on — composed two ways, which makes that lift
   easier than it was.)
-- **The color palette exists in three places.** `src/styles/theme.js` has the
-  `DS` tokens; `index.html` repeats the same hex values as CSS literals; and
-  `src/components/flight.jsx` hardcodes all of them again (`#FF3D5A`,
-  `#C8FF00`, `#1A1A2E`, `#F5F5FA`, `#8A8FA855`) with no import of `DS` at
-  all. `buttons.jsx` also introduces two hover tints (`#d4ff33`, `#ff6070`)
-  that aren't tokens anywhere. Changing a brand color today means editing at
-  least three files and hoping you found them all.
+- **The color palette is declared in two places, deliberately.**
+  `src/styles/theme.js` holds the `DS` tokens and `index.html` repeats the
+  same hex values as CSS literals, because plain CSS cannot import a JS
+  module and still load before first paint. Two declared sources is the
+  documented ceiling without a build step, not an accident. (This entry used
+  to name a third, `flight.jsx`, hardcoding every hex — that has not been
+  true since it was rewritten to render real `PlayingCard`s, and it now
+  contains no hex at all.)
 - **Landscape on a phone is playable but small.** Session 3's rule is
   that everything fits with no scrolling, and on a 844×390 landscape
   phone there is ~300px of height for two hands, two piles and the

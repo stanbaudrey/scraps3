@@ -82,10 +82,25 @@ export function checkWin(pScore, aScore) {
 // hands AND the Scraps hand is a Full Scrap: 2 + 1 bonus = 3
 // points at the Scraps reveal, for 5 total on the round. The AI
 // sweeping all three works the same way.
+// An EMPTY Scraps pile is a hand, not an error — it simply loses to
+// anything. Reaching zero is reachable in normal play: an Ace strips
+// two cards and every Ace guard admits a pile of exactly 2, so a pile
+// can be emptied on the last trade turn with no turn left to refill.
+//
+// This used to return `null` for an empty pile, and `resolveScrap`
+// answered that by logging and returning — which stranded the game at
+// the `scraps-reveal` phase whose only control was the button that had
+// just done nothing. A dead end with no exit.
+//
+// rank -1 sorts below High Card (0), so compareHands gives the point
+// to the other player. Two empty piles compare equal and tie.
+export const EMPTY_SCRAPS_HAND = {
+  rank: -1, name: 'Empty Scraps hand', cards: [], tiebreakers: [],
+};
+
 export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins) {
-  const pB = evaluateBestHand(playerScraps);
-  const aB = evaluateBestHand(aiScraps);
-  if (!pB || !aB) return null;
+  const pB = evaluateBestHand(playerScraps) || EMPTY_SCRAPS_HAND;
+  const aB = evaluateBestHand(aiScraps) || EMPTY_SCRAPS_HAND;
   const res = compareHands(pB, aB);
   let pPts = 0, aPts = 0, winner = 'tie';
   const rw = { ...roundWins };
@@ -354,6 +369,46 @@ export function gameReducer(state, action) {
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank + c.suit).join(', ')} from opponent's Scraps.`),
+      };
+    }
+
+    // The AI countered the player's Ace. Counter = CANCEL: both Aces
+    // are discarded and nothing leaves either Scraps pile.
+    //
+    // This case did not exist until 2026-08-30. `GameScreen` had been
+    // dispatching AI_COUNTER_ACE since the mechanic was written, it
+    // fell through to `default: return state`, and so the counter did
+    // nothing at all while the UI announced it. Paired with a call to
+    // shouldCounterAce that passed the difficulty STRING where the AI's
+    // Scraps belonged, that made the Ace inert on both selectable
+    // difficulties. Neither the engine nor the reducer was at fault,
+    // which is why 37 tests missed it: the defect lived in the wiring
+    // between them.
+    //
+    // Turn handling, and it is deliberately NOT the same as
+    // PLAYER_ACE_APPLY's: playing an Ace always ends your turn, but
+    // having one COUNTERED only ends it if you are out of Aces. Still
+    // holding one means you still have a strike, so the turn stays live
+    // and you may spend it — and the opponent may counter that one too,
+    // if it still holds an Ace of its own.
+    case 'AI_COUNTER_ACE': {
+      const playerAce = state.playerHand.find(c => c.id === action.playerAceId);
+      const aiAce     = state.aiHand.find(c => c.id === action.aiAceId);
+      if (!playerAce || !aiAce) return state;
+      const playerHand = state.playerHand.filter(c => c.id !== playerAce.id);
+      const stillArmed = playerHand.some(c => c.rank === 'A');
+      return {
+        ...state,
+        playerHand,
+        aiHand: state.aiHand.filter(c => c.id !== aiAce.id),
+        discard: [...state.discard, playerAce, aiAce],
+        ...(stillArmed ? {} : {
+          currentTurn: state.currentTurn + 1,
+          phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        }),
+        log: addLog(state, stillArmed
+          ? 'Opponent counters your Ace! Both Aces discarded. You still hold an Ace — play it or trade.'
+          : 'Opponent counters your Ace! Both Aces discarded. Your turn ends.'),
       };
     }
 
