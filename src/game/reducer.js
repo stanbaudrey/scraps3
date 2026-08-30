@@ -296,6 +296,19 @@ export function gameReducer(state, action) {
       return { ...state, pendingTrade: null, scrapsOverflow: 0, log: addLog(state, 'Trade cancelled.') };
 
     // ── No legal trade: the turn is skipped ──────────────────
+    // Ending your turn by choice, after the opponent countered your Ace
+    // and you chose not to spend another one. Distinct from PLAYER_SKIP,
+    // which is the forced case and logs a different reason.
+    case 'PLAYER_END_TURN': {
+      if (!PLAYER_TURN_PHASES.includes(state.phase)) return state;
+      return {
+        ...state,
+        currentTurn: state.currentTurn + 1,
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        log: addLog(state, 'You end your turn.'),
+      };
+    }
+
     case 'PLAYER_SKIP': {
       if (!PLAYER_TURN_PHASES.includes(state.phase)) return state;
       return {

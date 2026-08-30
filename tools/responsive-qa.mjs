@@ -91,6 +91,14 @@ for (const vp of VIEWPORTS) {
   await page.goto('http://localhost:5193/', { waitUntil: 'networkidle' });
 
   const shot = async (label) => {
+    // Let entrance animations SETTLE before measuring. `popIn` runs
+    // 0.35s and scales its box up from ~0.7, so a probe that lands
+    // mid-animation reports every control inside an overlay at ~75%
+    // of its real size — which showed up as a 57px button "failing"
+    // the 44px touch floor at 1920x1080, on a screen with room to
+    // spare. A measurement taken during a transform is a measurement
+    // of the transform.
+    await page.waitForTimeout(450);
     await page.screenshot({ path: `${DIR}${OUT}/${vp.name}--${label}.png` });
     results.push({ vp: vp.name, label, ...(await page.evaluate(probe)) });
   };
@@ -144,6 +152,14 @@ for (const vp of VIEWPORTS) {
   }
   await shot('5-after-trade');
 
+  // Clear anything that opened LATE. Since 2026-08-30 the Ace
+  // explainer deliberately waits for the draw animation to finish
+  // before it appears, so it can surface after the post-trade
+  // dismiss() above has already run — and it blocks the table until
+  // acknowledged, which is the point of it.
+  await page.waitForTimeout(600);
+  await dismiss();
+
   // Rules panel — the one overlay allowed to scroll internally.
   const rules = page.getByRole('button', { name: /^rules$/i });
   if (await rules.count()) {
@@ -168,7 +184,24 @@ for (const r of results) {
   if (r.doc[0] > 1 || r.doc[1] > 1) flags.push(`document scrolls ${r.doc}`);
   if (r.label !== '6-rules' && r.scrollers.length) flags.push(`inner scroller ${JSON.stringify(r.scrollers)}`);
   if (r.clipped.length) flags.push(`clipped ${JSON.stringify(r.clipped)}`);
-  if (r.small.length) flags.push(`small targets ${JSON.stringify(r.small)}`);
+  // A landscape phone is a DOCUMENTED, accepted exception, not a
+  // defect: 844x390 leaves ~300px of height for two hands, two piles
+  // and the control panel, so FitBox scales the whole table to ~0.55
+  // and every control shrinks with it. The Ace tag is width-bound
+  // there, so the only fixes are a wider-than-one-card tag or bigger
+  // cards, and portrait is the intended orientation. This is recorded
+  // in PROJECT-BRIEF.md ("do not chase the Ace tag's touch target on
+  // a landscape phone") and in CLAUDE.md's known issues.
+  //
+  // It is exempted HERE rather than left to fail because this harness
+  // now exits non-zero, and the surest way to get a real failure
+  // ignored is to let the check sit red for a reason nobody intends to
+  // act on. Landscape shortfalls are still PRINTED, just not fatal.
+  const landscapePhone = r.vp === 'phone-land';
+  if (r.small.length) {
+    if (landscapePhone) console.log(`note ${r.vp} ${r.label}: small targets (accepted landscape trade) ${JSON.stringify(r.small)}`);
+    else flags.push(`small targets ${JSON.stringify(r.small)}`);
+  }
   if (flags.length) { bad++; console.log(`FAIL ${r.vp} ${r.label}: ${flags.join(' | ')}`); }
 }
 console.log(bad === 0 ? 'ALL CLEAR' : `${bad} problem screens`);

@@ -366,3 +366,18 @@ describe('shouldCounterAce reads the board, not the difficulty', () => {
     expect(strong).toBe(true);
   });
 });
+
+// ── Ending your turn after a counter ─────────────────────────
+describe('PLAYER_END_TURN', () => {
+  it('advances the phase and the turn counter', () => {
+    const s = { ...freshRound(1), phase: 'player-turn-1a' };
+    const out = gameReducer(s, { type: 'PLAYER_END_TURN' });
+    expect(out.phase).toBe(nextPhaseAfterTrade(s.phase, s.roundNum));
+    expect(out.currentTurn).toBe(s.currentTurn + 1);
+  });
+
+  it('is ignored outside a player turn, so it cannot skip the AI', () => {
+    const s = { ...freshRound(1), phase: 'ai-turn-1a' };
+    expect(gameReducer(s, { type: 'PLAYER_END_TURN' })).toBe(s);
+  });
+});

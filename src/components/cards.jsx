@@ -149,7 +149,7 @@ export function CardBackSVG({ w, h }) {
 // rotated bottom index.
 // ─────────────────────────────────────────────────────────────
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
-  selectable=false, dimmed=false, onClick, size='normal',
+  selectable=false, dimmed=false, onClick, size='normal', inkOverride=null,
   extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true,
   registerEl=null, hidden=false }) {
 
@@ -175,7 +175,11 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
   }, [registerEl, card && card.id]);
 
   const d=CARD_DIMS[size]||CARD_DIMS.normal;
-  const ink=card?cardInk(card.suit,isScrap):DS.ink;
+  // `inkOverride` lets a whole zone print in ONE colour regardless of
+  // suit. The Scraps piles use it so a pile reads as a pile — its
+  // owner's colour — rather than as four suits. Suit is still legible
+  // from the pip glyph itself, which is a shape, not a hue.
+  const ink=inkOverride||(card?cardInk(card.suit,isScrap):DS.ink);
   const isTwoDigit=card&&card.rank==='10';
   const rankFs=isTwoDigit?d.rank*.82:d.rank;
   const notch=Math.round(d.w*.2);
@@ -223,7 +227,15 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
       border,boxShadow:shadow,
       transform:selected?(liftTransform?'translateY(-22px) scale(1.07)':'none'):'none',
       transition:'transform 0.44s cubic-bezier(.34,1.4,.64,1),box-shadow 0.4s,border-color 0.3s,opacity 0.6s',
-      opacity:fading?0:fadingIn?0.15:dimmed?.28:1,
+      // Cards are fully opaque. `dimmed` (an ineligible card in discard
+      // mode) used to drop to 0.28 alpha, which let the table show
+      // through the card and made it read as a hole rather than a
+      // card that cannot be picked. It desaturates and darkens
+      // instead, so the signal survives without any transparency.
+      // `fading`/`fadingIn` stay: those are the FLIP flight and the
+      // deal, transient by definition rather than a resting state.
+      opacity:fading?0:fadingIn?0.15:1,
+      filter:dimmed?'grayscale(1) brightness(0.5)':undefined,
       animation:fadingIn?'cardFadeIn 0.5s ease forwards':animName?`${animName} 0.5s ease-in-out infinite alternate`:undefined,
 
       display:'flex',flexDirection:'column',justifyContent:'flex-start',
@@ -451,7 +463,7 @@ export function DiscardPile({ count, size='small', abbrev=null }) {
   const layers=Math.min(count,4);
   const rots=[-11,6,-4,1];
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,opacity:0.8,
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
       minWidth:d.w}}>
       <div style={{position:'relative',width:d.w,height:d.h}}>
         {count===0?(
@@ -464,7 +476,7 @@ export function DiscardPile({ count, size='small', abbrev=null }) {
           Array.from({length:layers},(_,i)=>(
             <div key={i} style={{position:'absolute',top:0,left:0,
               transform:`rotate(${rots[i]||0}deg) translate(${i*1.5-2}px,${i-1}px)`,
-              zIndex:i,opacity:0.6}}>
+              zIndex:i}}>
               <PlayingCard card={null} faceDown={true} size={size}/>
             </div>
           ))
@@ -676,6 +688,7 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                 } : {})}
                 onClick={()=>{ if(isElig){ playSelect(); onCardClick&&onCardClick(card); }}}>
                 <PlayingCard card={card} size={size} isScrap={true}
+                  inkOverride={isOpponent?DS.ember:DS.voltage}
                   selectable={isElig} selected={isSel} liftTransform={false}
                   registerEl={registerEl} hidden={hiddenIds.has(card.id)}
                   dimmed={selectable&&!isElig}/>

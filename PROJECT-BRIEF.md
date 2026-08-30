@@ -3155,6 +3155,68 @@ it does not get to play a second Ace, because that would mean changing
 `aiDecide`'s flow and Stan specified the player's side. Worth a decision
 later.
 
+
+### Unplanned session — Ace flow, card colour and narrator pass ✅ Done (2026-08-30)
+
+**Stan's second work order, same day.** All of it built and verified.
+
+- **Scraps piles print in ONE colour per owner**, not per suit: yours in
+  `voltage`, theirs in `ember`, via a new `inkOverride` on `PlayingCard`.
+  Hand cards keep their suit colours. A pile now reads as a pile.
+- **Cards are fully opaque.** `dimmed` (an ineligible card in discard mode)
+  dropped to 0.28 alpha and let the table show through; it desaturates and
+  darkens instead, so the signal survives with no transparency. The discard
+  stack's 0.8/0.6 washes are gone too.
+- **The narrator is one type size**, always. The collapse changes the words
+  only; resizing made the panel jump between turns.
+- **The narrator panel only renders when it has something in it.** A
+  translucent empty box used to sit in the middle of the table through every
+  AI turn. Measured after: 0 empty boxes across a 24-sample sweep, and the
+  panel is genuinely absent while settling.
+- **Full instruction only in ROUND 1.** Round 2 onward is the short form.
+- **The Ace explainer waits for the deal to finish** (`if (animating) return`)
+  and now freezes the table while it is up — the AI gate takes `aceDrawnCard`
+  alongside `animating` and `aiCounterNotice`. New copy, Stan's words.
+- **The counter has two outcomes and says which.** Out of Aces:
+  "Opponent countered your Ace, ending your turn," button END TURN. Still
+  holding one: "Opponent countered your Ace. Play another Ace or end your
+  turn." A new `counterStand` state then makes the ONLY legal continuations
+  another attack or END TURN — TRADE IN is withdrawn, and a new
+  `PLAYER_END_TURN` action advances the phase.
+- **`PLAY ACE` is `ATTACK`**, tag and aria-label, and in the walkthrough.
+- **The AI can re-counter too**, mirroring the player's rule: counter its Ace
+  while it still holds another and your Scraps is a legal target, and it
+  comes straight back with it after a 900ms beat. That closes the asymmetry
+  flagged in the previous session.
+
+**Three defects found by the harness, all mine, all fixed:**
+
+- **Modal buttons declared 44 and rendered less**, because `Shell` wraps every
+  overlay in its own `FitBox`. New `MODAL_BTN_MIN` (54) with the same
+  reasoning as `ACE_TAG_MIN`. The Ace explainer also drops its illustration
+  below 560px of height rather than letting the whole box scale to ~0.48,
+  which had crushed its button to 26px on a landscape phone.
+- **The harness could not survive its own subject.** The Ace explainer now
+  appears *later* (after the deal animation), so it opened after the
+  post-trade `dismiss()` and blocked the next click. It dismisses late
+  overlays now.
+- **The harness was measuring mid-animation.** `popIn` scales a box up from
+  ~0.7 over 0.35s, so a probe landing inside it reported a 57px button as 42
+  and failed the touch floor at 1920x1080, on a screen with room to spare.
+  `shot()` waits 450ms for entrances to settle before measuring. **This is
+  the same class of error CLAUDE.md's own rule warns about, committed by the
+  project's own QA tool.**
+
+**And one honest exemption:** the harness now exits non-zero, which meant the
+*documented, accepted* landscape-phone touch-target shortfall would fail CI
+intermittently forever. Landscape small-target shortfalls are printed as
+`note` rather than flagged, with the reasoning inline. A check that sits red
+for a reason nobody intends to act on is a check that gets ignored.
+
+**Verified:** 55 tests, `responsive-qa` clean across **seven consecutive
+runs** (it is deal-dependent, so one green run proves little), contrast 27
+pairings 0 below AA, `share:check` clean, clean build.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3174,6 +3236,7 @@ later.
 | — | *Unplanned:* Table centre axis + Ace tag touch target | Done + **PUBLISHED** (2026-08-28) — closes Session 5's last open visual finding. Live bundle verified byte-identical to the tested build |
 | — | *Unplanned:* Whole-experience audit (`/audit`) | Done (2026-08-30) — **read-only, nothing fixed.** Found the Ace counter has never worked and is live in production, plus three more P1s. Answered Stan's four creative questions. Critique 28/40 |
 | — | *Unplanned:* Audit fixes (Ace, wheel, empty Scraps, wood table) | Done (2026-08-30) — all four P1s fixed with tests 37→53, the table rebuilt as a picnic-table surface, rules modal retired, quit/mute added |
+| — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
 
 
 ---

@@ -14,7 +14,7 @@ import { useReducer, useState, useEffect, useCallback, useRef, useMemo } from "r
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
   aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, tradeInValue,
-  shouldCounterAce,
+  shouldCounterAce, chooseAceTargets,
 } from "../game/engine.js";
 import {
   gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
@@ -92,6 +92,11 @@ export function GameScreen({ difficulty, onExit }) {
   const [showRules, setShowRules]           = useState(false);
   const [muted, setMuted]                   = useState(isAudioMuted);
   const [confirmQuit, setConfirmQuit]       = useState(false);
+  // After the opponent counters and you are STILL holding an Ace, the
+  // turn stays live but it is not a normal turn: the only way to carry
+  // on is to spend another Ace. Trading is off the table until you
+  // either attack again or end the turn.
+  const [counterStand, setCounterStand]     = useState(false);
   const [revealData, setRevealData]         = useState(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
   const [showFullScrap, setShowFullScrap]   = useState(false);
@@ -454,8 +459,10 @@ export function GameScreen({ difficulty, onExit }) {
       if (aiAce) {
         setAceMode(null); setAceTargets([]); setSelected([]);
         playAceCounter();
+        const stillArmed = s.playerHand.filter(c => c.rank === 'A' && c.id !== ace.id).length > 0;
         dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
-        setAiCounterNotice({ playerAce: ace, aiAce });
+        setAiCounterNotice({ playerAce: ace, aiAce, stillArmed });
+        setCounterStand(stillArmed);
         return;
       }
     }
@@ -467,6 +474,7 @@ export function GameScreen({ difficulty, onExit }) {
     // 520ms later — the shake is the visual of this sound, and the
     // crush is 360ms so it finishes inside it.
     playAceStrike();
+    setCounterStand(false);
     setScrapsShakeIds(new Set(targets.map(c => c.id)));
     setTimeout(() => {
       const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
@@ -525,7 +533,29 @@ export function GameScreen({ difficulty, onExit }) {
     if (!pendingAiAce) return;
     playAceCounter();
     dispatch({ type: 'PLAYER_COUNTER_ACE' });
-    // Player's turn is NOT consumed — they still need to trade or act
+    // Player's turn is NOT consumed — they still need to trade or act.
+    //
+    // RE-COUNTER, the mirror of the rule on the player's side: being
+    // countered does not end an attacker's option if they are still
+    // holding an Ace. If the opponent has another and your Scraps is
+    // still a legal target, it comes straight back with it, and you may
+    // counter that one too. Scheduled rather than dispatched inline so
+    // the cancelled Aces are visibly gone before the next one lands.
+    const s = stateRef.current;
+    const spent = pendingAiAce.ace.id;
+    const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== spent);
+    if (nextAce && s.playerScraps.length >= 2) {
+      setTimeout(() => {
+        const cur = stateRef.current;
+        if (cur.gameOver || cur.pendingAiAce) return;
+        if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
+        if (cur.playerScraps.length < 2) return;
+        const targets = chooseAceTargets(cur.playerScraps);
+        if (!targets || targets.length < 2) return;
+        playAceStrike();
+        dispatch({ type: 'AI_ACE_PENDING', ace: nextAce, targets });
+      }, 900);
+    }
   }
 
   function onPlayerAllowAce() {
@@ -577,8 +607,9 @@ export function GameScreen({ difficulty, onExit }) {
     if (!AI_TURN_PHASES.includes(phase)) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
+    if (aceDrawnCard) return;         // the Ace explainer is up; nothing moves
     setAiGo(phase);
-  }, [phase, animating, aiCounterNotice]);
+  }, [phase, animating, aiCounterNotice, aceDrawnCard]);
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
@@ -827,11 +858,16 @@ export function GameScreen({ difficulty, onExit }) {
   useEffect(() => {
     if (aceHintShownRef.current) return;
     if (showInterstitial || pendingAiAce || aiAceReveal || aceMode) return;
+    // Wait for the cards to finish flying in. The box used to open the
+    // moment an Ace entered state, which is BEFORE the draw animation
+    // runs — so it covered the table while your own cards were still
+    // in the air behind it.
+    if (animating) return;
     if (playerHasAce) {
       aceHintShownRef.current = true;
       setAceDrawnCard(playerHand.find(c => c.rank === 'A'));
     }
-  }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode]);
+  }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode, animating]);
 
   // ── Skip the animation ─────────────────────────────────────
   // A click anywhere, Enter, or Space lands every in-flight card
@@ -862,9 +898,9 @@ export function GameScreen({ difficulty, onExit }) {
   }, [phase]);
 
   let hint = '';
-  // Set when the narrator is running its collapsed form, so the
-  // panel can step down in size with it rather than leaving a
-  // short line floating in a box built for three sentences.
+  // Set when the narrator is running its collapsed form. It changes the
+  // WORDS only — the type size is fixed, because a narrator that also
+  // resized made the panel jump between turns.
   let hintShort = false;
   // Settling keeps its own branch with an empty string on purpose:
   // dropping the branch entirely would let the next condition fill the
@@ -892,7 +928,10 @@ export function GameScreen({ difficulty, onExit }) {
     // the score numerals 60 → 44 for exactly this reason and never came
     // back for the narrator. A first-timer needs the full sentence; by
     // the fourth trade of a round nobody is reading it.
-    if (fullHint.round !== roundNum || fullHint.turn === currentTurn) {
+    // Full text on the first player turn of ROUND 1 only. By round 2 a
+    // player has taken four trade turns and does not need the sentence
+    // again; the short form carries from there on.
+    if (roundNum === 1 && (fullHint.round !== roundNum || fullHint.turn === currentTurn)) {
       const base = 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
       if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
       else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
@@ -1010,7 +1049,18 @@ export function GameScreen({ difficulty, onExit }) {
   // ACTION ZONE — the game's narrator. In the wide layout it is a
   // fixed-width panel in the middle of the table; stacked, it is
   // a full-width band, because there is nothing to sit beside it.
-  const actionEl = (
+  // Does the narrator band have anything in it this turn? The panel
+  // used to render its background, border and padding unconditionally,
+  // so a translucent empty box sat in the middle of the table during
+  // every AI turn and every settle. It renders only when it has
+  // something to say or something to press.
+  const hasActionButtons = isScrapsDiscardMode
+    || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
+    || aceMode || counterStand
+    || (isSignal && !signalLocked) || isReveal
+    || phase === 'replenish' || phase === 'scraps-reveal' || phase === 'round-end'
+    || (pendingAiAce && !aiAceReveal);
+  const actionEl = (!hint && !tradeError && !hasActionButtons) ? null : (
     <div style={{
       ...(stack
         ? {width:'100%', flexShrink:0}
@@ -1035,7 +1085,7 @@ export function GameScreen({ difficulty, onExit }) {
         </div>
       ) : (
         <div key={phase} style={{fontFamily:F.ui,
-          fontSize:hintShort?(tight?14:17):(tight?17:25),
+          fontSize:tight?17:25,
           color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
           fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
           maxWidth:720,
@@ -1057,7 +1107,16 @@ export function GameScreen({ difficulty, onExit }) {
             <BigBtn variant="ghost" compact={tight} onClick={cancelScrapsDiscard}>Cancel</BigBtn>
           </>
         )}
-        {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&(
+        {/* After a counter, END TURN is the only alternative to spending
+            another Ace. It sits in the middle of the action row; the
+            ATTACK tags stay above the Aces still in hand. */}
+        {counterStand&&isPlayerTurn&&!aceMode&&(
+          <BigBtn variant="ghost" compact={tight}
+            onClick={()=>{ setCounterStand(false); setSelected([]); dispatch({ type:'PLAYER_END_TURN' }); }}>
+            End Turn
+          </BigBtn>
+        )}
+        {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand&&(
           <>
             {!forcedAce&&(
               <TradeInBtn onClick={doTradeIn} disabled={selectedInHand.length===0} compact={tight}
@@ -1398,6 +1457,7 @@ export function GameScreen({ difficulty, onExit }) {
         <AiCounterNotice
           playerAce={aiCounterNotice.playerAce}
           aiAce={aiCounterNotice.aiAce}
+          stillArmed={aiCounterNotice.stillArmed}
           onOk={()=>setAiCounterNotice(null)}
         />
       )}

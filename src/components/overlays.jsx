@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playGameWon, playFireworkPop, playGameLost } from "../audio.js";
-import { Btn, AceTag } from "./buttons.jsx";
+import { Btn, AceTag, MODAL_BTN_MIN } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
 import { SwirlBg } from "./backdrop.jsx";
 import { FitBox } from "../ui/viewport.jsx";
@@ -494,36 +494,54 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
 // The only thing to press is OKAY, at the bottom.
 // ─────────────────────────────────────────────────────────────
 export function AceDrawnLightbox({ ace, onDismiss }) {
+  // A short screen (a landscape phone) cannot hold the illustration AND
+  // the explanation. The Shell's FitBox would otherwise scale the whole
+  // box to ~0.48 to make it fit, which drags the OK button down to 26px
+  // — a third of the touch floor. Dropping the decorative card is the
+  // cheaper loss than an unpressable button: the words are the point
+  // here, and the real Ace is sitting in the hand behind this box.
+  const { h } = useViewport();
+  const roomy = h >= 560;
   return (
     <Shell zIndex={95} background="rgba(20,31,25,.92)" dialogLabel="You drew an Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontSize:32,color:DS.gold,
-          letterSpacing:'0.06em',marginBottom:24}}>You've drawn an Ace!</div>
-        <div style={{display:'flex',justifyContent:'center',marginBottom:26}}>
-          <div className="live-cue-card"
-            style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
-            animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
-            <AceTag live={false} width={124}/>
-            {ace && <PlayingCard card={ace} size="large" liftTransform={false}/>}
+          letterSpacing:'0.06em',marginBottom:roomy?16:10}}>You've drawn an Ace!</div>
+        {roomy && (
+          <div style={{display:'flex',justifyContent:'center',marginBottom:18}}>
+            <div className="live-cue-card"
+              style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
+              animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
+              <AceTag live={false} width={104}/>
+              {ace && <PlayingCard card={ace} size="normal" liftTransform={false}/>}
+            </div>
           </div>
-        </div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:12}}>
-          On your turn, you can play your Ace and select two cards to remove
-          from your opponent's Scraps pile. If your opponent has an Ace, they
-          can "counter," causing both Aces to be discarded and your turn to end.
+        )}
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
+          You can play your Ace in a normal hand, or you can use your Ace to{' '}
+          <strong style={{color:DS.frost}}>attack</strong> your opponent and move
+          two of their Scraps cards to the discard pile.
         </p>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:18,lineHeight:1.6,marginBottom:28}}>
-          You can also play an Ace in a hand or transfer it to your Scraps pile,
-          worth 3 cards.
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
+          If your opponent also has an Ace, they can &ldquo;counter,&rdquo; causing
+          both Aces to be discarded and your turn to end.
         </p>
+        {roomy && (
+          <p style={{fontFamily:F.ui,color:DS.slate,fontSize:16,lineHeight:1.5,marginBottom:6}}>
+            Traded into your Scraps, an Ace is worth 3 cards.
+          </p>
+        )}
         <button onClick={onDismiss} style={{
           background:DS.gold,color:DS.ink,border:'none',
           padding:'16px 44px',borderRadius:10,cursor:'pointer',
           fontFamily:F.ui,fontWeight:700,fontSize:18,
           letterSpacing:'0.1em',textTransform:'uppercase',
           boxShadow:`0 0 24px ${DS.gold}88`,
+          // Declares more than the 44px floor because Shell scales this
+          // whole box on a short screen. See MODAL_BTN_MIN.
+          minHeight:MODAL_BTN_MIN, marginTop:12,
         }}>
           Okay
         </button>
@@ -613,7 +631,7 @@ export function OpponentAceReveal({ targets, onOk }) {
 // AiCounterNotice — the AI countered the player's Ace.
 // Both Aces are shown cancelled; nothing was removed.
 // ─────────────────────────────────────────────────────────────
-export function AiCounterNotice({ playerAce, aiAce, onOk }) {
+export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) {
   return (
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
@@ -621,7 +639,9 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
         <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
-          Opponent counters your Ace!
+          {stillArmed
+            ? 'Opponent countered your Ace. Play another Ace or end your turn.'
+            : 'Opponent countered your Ace, ending your turn.'}
         </div>
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:18}}>
           {[playerAce,aiAce].filter(Boolean).map((c,i)=>(
@@ -637,9 +657,15 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
           ))}
         </div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
-          Both Aces discarded. Nothing removed.
+          {/* The two outcomes are genuinely different moves, so they get
+              genuinely different sentences. Holding another Ace does NOT
+              return you to a normal turn — the only way to carry on is to
+              spend another Ace, which the opponent may counter again. */}
+          {stillArmed
+            ? 'Both Aces discarded. Nothing removed. Play another Ace or end your turn.'
+            : 'Both Aces discarded. Nothing removed. Your turn ends.'}
         </p>
-        <Btn onClick={onOk}>OK</Btn>
+        <Btn onClick={onOk}>{stillArmed ? 'Okay' : 'End Turn'}</Btn>
       </div>
     </Shell>
   );

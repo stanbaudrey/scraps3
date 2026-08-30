@@ -20,6 +20,14 @@ export const TOUCH_MIN = 44;
 // scale. Measured on a 375x667 iPhone SE: 44 -> 34 real px, 54 ->
 // 42.
 export const TOUCH_MIN_COMPACT = 54;
+// Modal buttons declare MORE than the 44px floor, for the same reason
+// ACE_TAG_MIN exists: every overlay is wrapped in its own FitBox by
+// `Shell`, so a tall modal on a short phone is SCALED, and a control
+// that declares 44 renders under it. Measured: the Ace explainer at
+// 375x667 scaled to ~0.93 and its 44px button rendered 41. 54 survives
+// a scale of 0.82, which is below anything a modal has been observed
+// to take. A declared size is not a rendered size inside a scaled box.
+export const MODAL_BTN_MIN = 54;
 
 // The Play Ace tag's own floor, and the only control that needs one.
 // The two constants above are read as "desktop" and "phone", but the
@@ -95,7 +103,7 @@ export function Btn({ children, onClick, variant='primary', disabled=false, smal
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
     padding:small?'10px 20px':'14px 28px',
     fontSize:small?15:17,borderRadius:8,opacity:disabled?0.35:1,
-    minHeight:TOUCH_MIN,
+    minHeight:MODAL_BTN_MIN,
     transition:'transform 60ms,box-shadow 60ms,background 60ms'};
   const V={
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}55`},
@@ -277,8 +285,8 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
   return (
     <Tag
       {...(live ? { type:'button', disabled, 'aria-label': disabled
-        ? 'Play Ace — unavailable until their Scraps has 2 or more cards'
-        : 'Play Ace to strike their Scraps' } : { 'aria-hidden': true })}
+        ? 'Attack with this Ace — unavailable until their Scraps has 2 or more cards'
+        : 'Attack with this Ace, discarding two of their Scraps cards' } : { 'aria-hidden': true })}
       {...pressStyles(hIn,hOut)}
       onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
       title={disabled ? "Their Scraps needs 2+ cards before an Ace can strike" : undefined}
@@ -298,7 +306,10 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         userSelect:'none',
         transition:'background 80ms, box-shadow 80ms',
       }}>
-      <span>Play<br/>Ace</span>
+      {/* ATTACK, not 'Play Ace': an Ace can also just be traded or
+          played in a hand, so the tag has to name the aggressive
+          move specifically rather than the card. */}
+      <span>Attack</span>
     </Tag>
   );
 }

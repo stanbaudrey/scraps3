@@ -166,7 +166,7 @@ function BeatAce() {
               letterSpacing:'0.08em',textTransform:'uppercase',
               boxShadow:`0 0 26px ${DS.gold}88`,
               display:'inline-flex',alignItems:'center',gap:10}}>
-              Play Ace <IconBolt size={18}/>
+              Attack <IconBolt size={18}/>
             </div>
             <TapGlyph/>
           </div>
