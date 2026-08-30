@@ -3052,10 +3052,16 @@ than implied.
 
 **The felt-table problem — option C, built.** `TableSurface` in
 `backdrop.jsx` draws a weathered picnic table from directly overhead:
-individual boards running top-to-bottom, sized at **1.7 × the current card
-width** so the furniture stays in proportion to the game at every viewport,
-procedural knots and lengthwise grain, warm light from the top edge, a
-vignette at the far edge. **Seeded xorshift, same as the audio exciter** —
+**horizontal slats**, sized at **1.25 × the current card height** so the
+furniture stays in proportion to the game at every viewport, grain running
+along each board, small tight knots with the crack that usually runs out of
+one, **nails in columns** (their x positions are shared by every board,
+because nails follow the joist underneath — randomising them per board is
+the tell that it is drawn), warm light from the top edge, a vignette at the
+far edge. Built vertical first and corrected against a reference photo Stan
+sent; board tints are a **blend** rather than a choice between two tokens,
+because two discrete shades read as a striped UI element rather than as
+timber. **Seeded xorshift, same as the audio exciter** —
 wood that reshuffled itself on every render would shimmer. It is passed to
 `FitBox` as a new `backdrop` prop, which paints behind the scaled content
 and is NOT scaled with it, so the table always reaches the viewport edges.

@@ -1215,7 +1215,7 @@ export function GameScreen({ difficulty, onExit }) {
         // so the wood reaches the edges of the viewport however far
         // the table itself is scaled down; the BOARDS are sized from
         // the card so the furniture stays in proportion to the game.
-        backdrop={<TableSurface cardW={CARD_DIMS[SZ.hand].w}/>}
+        backdrop={<TableSurface cardH={CARD_DIMS[SZ.hand].h}/>}
         style={{background:DS.timber}}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
           justifyContent:'space-evenly',

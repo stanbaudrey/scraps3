@@ -66,97 +66,134 @@ function woodRand(seed) {
   };
 }
 
-// One board: base tint, lengthwise grain, and the occasional knot.
-function Board({ w, h, seed }) {
+// Mix two hex colours. Board tints are a BLEND rather than a choice
+// between two tokens: real boards differ from each other by a little,
+// and two discrete shades read as a striped UI element instead of as
+// timber. Nothing here may look like a control.
+function mix(a, b, t) {
+  const p = h => [1,3,5].map(i => parseInt(h.slice(i, i+2), 16));
+  const [ar,ag,ab] = p(a), [br,bg,bb] = p(b);
+  const c = (x,y) => Math.round(x + (y-x)*t).toString(16).padStart(2,'0');
+  return `#${c(ar,br)}${c(ag,bg)}${c(ab,bb)}`;
+}
+
+// One horizontal slat: its own tint, grain running along its length,
+// knots, and the occasional nail head.
+function Board({ w, h, seed, nailXs }) {
   const rnd = woodRand(seed);
-  // Board-to-board tint variation. Real boards are cut from different
-  // stock and weather unevenly; identical boards read as a texture map.
-  const tint = rnd();
-  const base = tint > 0.66 ? DS.timberLight : DS.timber;
-  // Sun-bleaching: a per-board wash of frost. Old outdoor timber
-  // silvers unevenly, board by board, which is what stops a row of
-  // planks reading as one flat panel with lines drawn on it.
-  const lift = (rnd() * 9 + 1);
+  // Close together on purpose. Distinct enough to read as separate
+  // boards, never so distinct that a board reads as a panel.
+  const base = mix(DS.timber, DS.timberLight, rnd() * 0.42);
+  const wash = (rnd() * 5).toFixed(2);
 
   const grain = [];
-  const lines = 10 + Math.floor(rnd() * 8);
+  const lines = 12 + Math.floor(rnd() * 9);
   for (let i = 0; i < lines; i++) {
-    // Grain runs the length of the board, wandering slightly. The
-    // wander is what stops it reading as pinstripes.
-    const x = (rnd() * 0.92 + 0.04) * w;
-    const sway = (rnd() * 2 - 1) * w * 0.16;
-    const sway2 = (rnd() * 2 - 1) * w * 0.12;
-    const light = rnd() > 0.55;
+    const y = (rnd() * 0.94 + 0.03) * h;
+    const s1 = (rnd() * 2 - 1) * h * 0.18;
+    const s2 = (rnd() * 2 - 1) * h * 0.14;
+    const light = rnd() > 0.5;
     grain.push(
-      <path key={'g' + i}
-        d={`M${x.toFixed(1)},-4 C${(x + sway).toFixed(1)},${(h * 0.32).toFixed(1)} ${(x + sway2).toFixed(1)},${(h * 0.68).toFixed(1)} ${(x + sway * 0.4).toFixed(1)},${h + 4}`}
+      <path key={'g'+i}
+        d={`M-4,${y.toFixed(1)} C${(w*0.3).toFixed(0)},${(y+s1).toFixed(1)} ${(w*0.68).toFixed(0)},${(y+s2).toFixed(1)} ${w+4},${(y+s1*0.35).toFixed(1)}`}
         fill="none"
         stroke={light ? DS.timberLight : DS.timberSeam}
-        strokeWidth={(rnd() * 1.5 + 0.5).toFixed(2)}
-        opacity={((light ? 0.40 : 0.46) * (0.45 + rnd() * 0.55)).toFixed(3)}
+        strokeWidth={(rnd() * 1.4 + 0.45).toFixed(2)}
+        opacity={((light ? 0.34 : 0.40) * (0.4 + rnd() * 0.6)).toFixed(3)}
         strokeLinecap="round"/>
     );
   }
 
-  // Knots: concentric rings, the thing that most says "this is a
-  // real board" and the thing a repeating pattern can never have.
+  // Knots, with the short crack that usually runs out of one. This is
+  // the detail a repeating CSS pattern can never have.
   const knots = [];
-  const knotCount = rnd() > 0.22 ? (rnd() > 0.6 ? 2 : 1) : 0;
+  const knotCount = rnd() > 0.3 ? (rnd() > 0.62 ? 2 : 1) : 0;
   for (let k = 0; k < knotCount; k++) {
-    const kx = (rnd() * 0.7 + 0.15) * w;
-    const ky = (rnd() * 0.82 + 0.09) * h;
-    const kr = (rnd() * 0.05 + 0.045) * w;
-    for (let ring = 3; ring >= 1; ring--) {
+    const kx = (rnd() * 0.86 + 0.07) * w;
+    const ky = (rnd() * 0.6 + 0.2) * h;
+    // Small and tight. An over-large knot reads as a ripple or a
+    // planet rather than a flaw in a board.
+    const kr = (rnd() * 0.05 + 0.045) * h;
+    const rot = (rnd() * 50 - 25).toFixed(1);
+    for (let ring = 2; ring >= 1; ring--) {
       knots.push(
         <ellipse key={`k${k}-${ring}`} cx={kx.toFixed(1)} cy={ky.toFixed(1)}
-          rx={(kr * ring * 0.62).toFixed(1)} ry={(kr * ring).toFixed(1)}
+          rx={(kr * ring * 1.15).toFixed(1)} ry={(kr * ring * 0.72).toFixed(1)}
           fill={ring === 1 ? DS.timberSeam : 'none'}
-          stroke={DS.timberSeam} strokeWidth={(0.9 + rnd() * 0.7).toFixed(2)}
-          opacity={ring === 1 ? 0.72 : 0.44}
-          transform={`rotate(${(rnd() * 30 - 15).toFixed(1)} ${kx.toFixed(1)} ${ky.toFixed(1)})`}/>
+          stroke={DS.timberSeam} strokeWidth={(0.7 + rnd() * 0.6).toFixed(2)}
+          opacity={ring === 1 ? 0.66 : 0.30}
+          transform={`rotate(${rot} ${kx.toFixed(1)} ${ky.toFixed(1)})`}/>
+      );
+    }
+    if (rnd() > 0.45) {
+      const dir = rnd() > 0.5 ? 1 : -1;
+      knots.push(
+        <path key={`kc${k}`}
+          d={`M${kx.toFixed(1)},${ky.toFixed(1)} l${(dir*kr*3.4).toFixed(1)},${(rnd()*5-2.5).toFixed(1)}`}
+          stroke={DS.timberSeam} strokeWidth="1.2" opacity="0.42" fill="none" strokeLinecap="round"/>
       );
     }
   }
 
+  // Nails. Their x positions are passed IN, identical on every board,
+  // because nails follow the joist underneath — a column down the
+  // table. Randomising them per board is the tell that it is drawn.
+  const nails = nailXs.map((nx, i) => {
+    const ny = h * (0.42 + (rnd() * 0.16 - 0.08));
+    const r  = Math.max(1.6, h * 0.035);
+    return (
+      <g key={'n'+i}>
+        <ellipse cx={nx} cy={ny.toFixed(1)} rx={(r*1.15).toFixed(1)} ry={r.toFixed(1)}
+          fill={DS.timberSeam} opacity="0.62"/>
+        <ellipse cx={nx} cy={(ny - r*0.34).toFixed(1)} rx={(r*0.6).toFixed(1)} ry={(r*0.34).toFixed(1)}
+          fill={DS.frost} opacity="0.16"/>
+      </g>
+    );
+  });
+
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"
-      style={{display:'block',flex:`0 0 ${w}px`}}>
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
+      aria-hidden="true" style={{display:'block',flex:`0 0 ${h}px`}}>
       <rect width={w} height={h} fill={base}/>
-      <rect width={w} height={h} fill={DS.frost} opacity={(lift / 100).toFixed(3)}/>
+      <rect width={w} height={h} fill={DS.frost} opacity={(wash/100).toFixed(3)}/>
       {grain}
       {knots}
-      {/* Seam: the shadowed gap where this board meets the next. */}
-      <rect x={w - 2.5} y="0" width="2.5" height={h} fill={DS.timberSeam} opacity="0.85"/>
-      <rect x={w - 4.5} y="0" width="2" height={h} fill={DS.timberSeam} opacity="0.30"/>
-      <rect x="0" y="0" width="1.5" height={h} fill={DS.frost} opacity="0.045"/>
+      {nails}
+      {/* The shadowed gap where this board meets the next one down. */}
+      <rect x="0" y={h-2.5} width={w} height="2.5" fill={DS.timberSeam} opacity="0.85"/>
+      <rect x="0" y={h-4.5} width={w} height="2" fill={DS.timberSeam} opacity="0.28"/>
+      <rect x="0" y="0" width={w} height="1.4" fill={DS.frost} opacity="0.05"/>
     </svg>
   );
 }
 
-// `cardW` keeps the boards in proportion to the game. A board is a
-// little wider than a card, which is what makes the table read as
-// furniture the cards are lying ON rather than a backdrop behind them.
-export function TableSurface({ cardW = 120 }) {
-  const boardW = Math.max(64, Math.round(cardW * 1.7));
-  const H = 1400;                       // taller than any viewport; clipped
-  const count = Math.ceil(2800 / boardW) + 1;
+// `cardH` keeps the slats in proportion to the game: a board is a bit
+// taller than a card, so the table reads as furniture the cards are
+// lying ON rather than a backdrop behind them.
+export function TableSurface({ cardH = 146 }) {
+  const boardH = Math.max(70, Math.round(cardH * 1.25));
+  const W = 1600;                        // nominal; stretched to fit
+  const count = Math.ceil(1200 / boardH) + 2;
+  // Two to four nail columns, fixed for the whole table.
+  const nr = woodRand(0x2C0DE);
+  const cols = 2 + Math.floor(nr() * 3);
+  const nailXs = Array.from({length:cols},(_,i)=>
+    Math.round(W * ((i + 0.5) / cols + (nr() * 0.1 - 0.05))));
+
   return (
     <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:0,
       overflow:'hidden',pointerEvents:'none',background:DS.timber}}>
       <div style={{position:'absolute',inset:0,display:'flex',
-        alignItems:'stretch',justifyContent:'center'}}>
+        flexDirection:'column',justifyContent:'center'}}>
         {Array.from({length:count},(_,i)=>(
-          <Board key={i} w={boardW} h={H} seed={0x5CAA9 + i * 2654435761}/>
+          <Board key={i} w={W} h={boardH} nailXs={nailXs} seed={0x5CAA9 + i * 2654435761}/>
         ))}
       </div>
-      {/* Warm light from above, as if a lantern hangs over the table.
-          Two layers: the throw itself, then a floor of shadow at the
-          far edge so the surface recedes instead of sitting flat. */}
+      {/* Warm light from above, as if a lantern hangs over the table. */}
       <div style={{position:'absolute',inset:0,
         background:`radial-gradient(ellipse 78% 62% at 50% -6%, ${DS.gold}2E 0%, ${DS.ember}14 42%, transparent 72%)`}}/>
       <div style={{position:'absolute',inset:0,
         background:`linear-gradient(180deg, ${DS.frost}0F 0%, transparent 26%, ${DS.timberSeam}55 82%, ${DS.timberSeam}8C 100%)`}}/>
-      {/* Vignette, so the corners of the room fall away. */}
       <div style={{position:'absolute',inset:0,
         background:`radial-gradient(ellipse 74% 68% at 50% 42%, transparent 44%, ${DS.timberSeam}66 100%)`}}/>
     </div>
