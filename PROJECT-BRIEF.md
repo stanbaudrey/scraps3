@@ -2941,6 +2941,12 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
+**Nothing is in flight.** As of 2026-08-28 `main` and `dev` are level at
+`8a86685`, the working tree is clean, production is deployed from that
+commit, and the live bundle was checked byte-identical to the tested
+build. There is no half-finished branch to pick up and nothing waiting
+on a preview. Every item below is new work.
+
 **Start here: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified — metadata, share card,
 favicons, `robots.txt`, `sitemap.xml`, `llms.txt`, the monthly Actions
