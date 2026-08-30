@@ -2941,11 +2941,13 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-08-28 `main` and `dev` are level at
-`8a86685`, the working tree is clean, production is deployed from that
-commit, and the live bundle was checked byte-identical to the tested
-build. There is no half-finished branch to pick up and nothing waiting
-on a preview. Every item below is new work.
+**Nothing is in flight.** As of 2026-08-28 `main` and `dev` are level,
+the working tree is clean, and production is deployed from the same
+commit with its bundle checked byte-identical to the tested build. There
+is no half-finished branch to pick up and nothing waiting on a preview.
+Every item below is new work. (No SHA named on purpose: whichever commit
+writes this line is one behind the moment it lands. `git fetch` and
+compare the branches — that is the check, not this sentence.)
 
 **Start here: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified — metadata, share card,
