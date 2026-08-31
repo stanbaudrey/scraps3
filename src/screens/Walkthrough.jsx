@@ -65,12 +65,12 @@ function Caption({ children, color = DS.slate }) {
   );
 }
 
-function CardRow({ cards, isScrap = false, size = 'small', selectedIds = null, gap = 8, startDelay = 0 }) {
+function CardRow({ cards, isScrap = false, size = 'small', selectedIds = null, gap = 8, startDelay = 0, ink = null }) {
   return (
     <div style={{display:'flex',gap,justifyContent:'center',flexWrap:'wrap'}}>
       {cards.map((c, i) => (
         <Wig key={c.id} delay={startDelay + i * 110}>
-          <PlayingCard card={c} size={size} isScrap={isScrap}
+          <PlayingCard card={c} size={size} isScrap={isScrap} inkOverride={ink}
             selected={selectedIds ? selectedIds.has(c.id) : false} liftTransform={false}/>
         </Wig>
       ))}
@@ -104,7 +104,7 @@ function BeatHands() {
       </Panel>
       <Panel label="Your Scraps hand · everyone sees it" labelColor={DS.voltage}
         borderColor={`${DS.voltage}66`} footer="Three of a Kind">
-        <CardRow cards={SCRAPS_HAND} isScrap startDelay={60}/>
+        <CardRow cards={SCRAPS_HAND} isScrap startDelay={60} ink={DS.voltage}/>
       </Panel>
     </div>
   );
@@ -171,7 +171,6 @@ function BeatAce() {
             <TapGlyph/>
           </div>
         </Wig>
-        <Caption color={DS.gold}>1 · discard your Ace</Caption>
       </div>
 
       <span style={{fontFamily:F.display,fontSize:26,color:DS.slate}}>→</span>
@@ -190,14 +189,14 @@ function BeatAce() {
               if (!hit) {
                 return (
                   <div key={c.id} style={{opacity:0.4}}>
-                    <PlayingCard card={c} size="tiny" isScrap liftTransform={false}/>
+                    <PlayingCard card={c} size="tiny" isScrap inkOverride={DS.ember} liftTransform={false}/>
                   </div>
                 );
               }
               return (
                 <Wig key={c.id} delay={i * 120}>
                   <div style={{position:'relative'}}>
-                    <PlayingCard card={c} size="tiny" isScrap selected liftTransform={false}/>
+                    <PlayingCard card={c} size="tiny" isScrap selected inkOverride={DS.ember} liftTransform={false}/>
                     <span style={{position:'absolute',top:-11,left:'50%',transform:'translateX(-50%)',
                       background:DS.ember,color:DS.ink,borderRadius:11,width:22,height:22,
                       display:'flex',alignItems:'center',justifyContent:'center',
@@ -209,21 +208,20 @@ function BeatAce() {
             })}
           </div>
         </div>
-        <Caption color={DS.ember}>2 · mark two — they’re gone</Caption>
       </div>
     </div>
   );
 }
 
 // ── Beat 4 — how a round scores ──────────────────────────────
-function ScoreSlot({ label, points, cards, isScrap = false, tone, delay }) {
+function ScoreSlot({ label, points, cards, isScrap = false, tone, delay, ink = null }) {
   return (
     <div style={{background:DS.duskMid,border:`2px solid ${tone}55`,borderRadius:14,
       padding:'14px 18px 16px',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
       <div style={{display:'flex',gap:6}}>
         {cards.map((c, i) => (
           <Wig key={c.id} delay={delay + i * 110}>
-            <PlayingCard card={c} size="tiny" isScrap={isScrap} liftTransform={false}/>
+            <PlayingCard card={c} size="tiny" isScrap={isScrap} inkOverride={ink} liftTransform={false}/>
           </Wig>
         ))}
       </div>
@@ -243,15 +241,8 @@ function BeatScoring() {
         cards={[C('8','♠',8), C('8','♦',8)]}/>
       <ScoreSlot label="Small hand" points="1 PT" tone={DS.slateLight} delay={120}
         cards={[C('J','♣',11), C('J','♥',11)]}/>
-      <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap
+      <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap ink={DS.voltage}
         cards={[C('K','♠',13), C('K','♥',13), C('K','♦',13)]}/>
-      <span style={{fontFamily:F.display,fontSize:26,color:DS.slate}}>=</span>
-      <div style={{background:`${DS.gold}1F`,border:`2px solid ${DS.gold}`,borderRadius:14,
-        padding:'18px 20px',textAlign:'center'}}>
-        <div style={{fontFamily:F.mono,fontSize:11,letterSpacing:'0.16em',
-          color:DS.gold,textTransform:'uppercase',marginBottom:4}}>Win all three</div>
-        <div style={{fontFamily:F.display,fontSize:26,color:DS.gold,letterSpacing:'0.04em'}}>+1 PT</div>
-      </div>
     </div>
   );
 }
@@ -276,7 +267,7 @@ const BEATS = [
   },
   {
     copy: (
-      <>Play two small hands (1 point each) then your best Scraps hand (2 points).
+      <>Each round is two small hands (1 point each) then your best Scraps hand (2 points).
       <b style={{color:DS.frost}}> No flushes.</b> Win all three hands for a bonus point.
       First to {WIN_SCORE}, win by 2.</>
     ),
