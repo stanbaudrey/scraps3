@@ -3429,6 +3429,87 @@ glyph was mojibake. All three fixed and re-rendered.
 `/impeccable craft` run, which belongs to the build session rather than to
 this recommendation pass.
 
+### Unplanned session — The splash rebuild: RidgeBackdrop ✅ Done (2026-08-30)
+
+**Stan picked direction A off the bench and changed it in four ways:** the
+card-back art was too bland to reuse as-is, so build an augmented version;
+make the ridgeline more dramatic and defined; drop the setting sun; go
+night with more, twinkling stars. He supplied a low-poly reference PNG to
+trace. Plus true suit colour with a riffle, and `SwirlBg` deleted
+everywhere. Opened with `/impeccable craft`.
+
+**`RidgeBackdrop` replaces `SwirlBg` on all four screens** that used it:
+splash, difficulty picker, walkthrough, lose screen. `SwirlBg` and its
+three `swirlFlow` keyframes are gone rather than orphaned.
+
+**The one art-direction rule, and it is load-bearing: `frost` belongs to
+the wordmark.** The reference is a daylit sunset with near-white snow; the
+wordmark is `frost`. A literal trace puts near-white snow directly behind
+near-white type. So the range is lit one full step down, topping out at
+`slateLight`/`slate`, with `frost` spent only on summit shards a few units
+wide. The brightest thing on the screen has to be the word SCRAPS.
+
+**Composition is constrained by the slice, not by taste.** The SVG is
+`preserveAspectRatio="slice"`, so a 375-wide portrait phone sees only about
+56 of the 160 viewBox units, cropped to the middle. The dominant summit
+sits at x=68, inside that window on purpose, so the phone gets a whole
+mountain rather than an anonymous slope. Anything placed outside roughly
+x=52..108 does not exist on a phone.
+
+**Other decisions worth keeping:**
+- **Facets are painted generously and trimmed by a `clipPath`.** Fitting
+  each plane to the silhouette by hand is how low-poly art picks up
+  hairline seams between adjacent planes.
+- **No curves anywhere.** One bezier in a faceted range reads instantly as
+  a different drawing. The snowline is a polyline for that reason.
+- **No sun, per Stan.** A disc low on the horizon is exactly the
+  glow-behind-the-headline this component exists to remove. The sky's
+  warmth is a broad low `ember` afterglow at single-digit alpha instead.
+- **Both new animations rest at their 100% keyframe.** `index.html`'s
+  reduced-motion block collapses every animation to 1ms and one iteration,
+  which lands each element on its LAST keyframe. A twinkle written to fade
+  *up* would leave the whole sky stuck bright. Written this way, reduced
+  motion gets a still sky at its intended brightness for free.
+- **Stars, and the conifer bands, are seeded** like `TableSurface` and the
+  audio exciter. A sky that re-scatters on every render jumps visibly.
+- The suit riffle shares the wordmark's **28ms stagger**, which is also the
+  deal sound's tap stagger. One cadence across type, art and audio.
+
+**Verified by measuring, not by reading:**
+- **Contrast behind the wordmark**, which is the specific risk this change
+  introduced and which `contrast-audit` does not cover. Hid the glyphs,
+  screenshot what is behind them, sampled every pixel in the bounding box
+  for the brightest. Worst case **4.68:1** (844x390 landscape); desktop
+  7.40, Stan's 1024x662 5.06, phone 7.66. All four clear 4.5:1, which is
+  AAA for large text. The first build measured 4.26 on landscape and the
+  scrim was raised until it did not.
+- **Reduced motion**: 74 stars and 4 suits animating normally; with
+  `reducedMotion:'reduce'`, **0 animations running, 0 stars off resting
+  opacity, 0 suits out of position.**
+- 55 tests, clean build, `contrast-audit` 27 pairings 0 below AA,
+  `responsive-qa` **ALL CLEAR** at six viewports, `share:check` clean.
+- `scan_tells` on the changed files: **zero new hits.** The two it reports
+  are the pre-existing `TableSurface` false positives (a four-stop vertical
+  vignette read as a rainbow gradient, the word "shimmer" in a woodgrain
+  comment). The impeccable detector returns the same two pre-existing
+  findings Session 5 triaged as committed identity, neither on a touched
+  line.
+- **The two bans that were firing on this screen are gone**, and neither is
+  machine-checkable, so this is an inspection claim rather than a scanner
+  result: there is no blurred bloom behind the hero and no animated
+  gradient field.
+
+**A trap worth recording: `tools/responsive-qa.mjs` cannot run through the
+bundled `playwright-core` with only the import rewritten.** It also calls
+`chromium.launch()` with no arguments, which reaches for a headless shell
+that is not installed. It needs `executablePath` pointing at Chrome as
+well. The brief's existing note about rewriting "its one `from 'playwright'`
+import" is necessary but not sufficient.
+
+**Left open:** STRIKE vs ATTACK, still Stan's call. And the walkthrough's
+own beats now sit on the new range; they were checked at six viewports by
+`responsive-qa` but not art-directed against it.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3451,6 +3532,7 @@ this recommendation pass.
 | — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
 | — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
 | — | *Unplanned:* Splash directions + origin story recorded | Done (2026-08-30) — **read-only, no source changed.** Origin story written into Section 1 (not public). Four splash directions on a live bench; `SwirlBg` trips two lookbook bans. Open: Stan's pick, and STRIKE vs ATTACK |
+| — | *Unplanned:* The splash rebuild — `RidgeBackdrop` | Done (2026-08-30) — direction A built as a faceted night range traced from Stan's reference. `SwirlBg` deleted from all four screens; true suit colour + riffle. Wordmark contrast measured behind the glyphs at 4 viewports, worst 4.68:1. Not yet previewed |
 
 
 ---
@@ -3528,22 +3610,23 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-08-30 `main` and `dev` are level at
-`812c055` (the last code commit is `19ae1dd`; `812c055` and the splash
-session's entry are documentation only), the tree is clean, and production
-is deployed from `19ae1dd` with its bundle verified by hash against the
-locally built one. The Ace bug that blocked the launch is fixed and live.
+**IN FLIGHT: the splash rebuild sits on `dev` and not on `main`.** As of
+2026-08-30 `dev` is at `be84f6f` and `main` is still at `812c055`, so the
+two have diverged on purpose for the first time in a while. Production
+serves the pre-splash build from `19ae1dd`, verified by hash, and the Ace
+bug that blocked the launch is fixed and live there. **Nothing about the
+new backdrop is public yet.**
 
-**A decision is waiting before the launch, and it was not there before.**
-The splash session put four title-screen directions on a bench
-(https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d) and
-recommends **A, the ridgeline full-bleed**, plus true suit colour, plus
-deleting `SwirlBg`. The splash is the first screen a launch visitor sees
-and it currently trips two named lookbook bans, so it is worth settling
-before the posts rather than after. Once Stan picks, the build is its own
-session and opens with `/impeccable craft`. **Also waiting: STRIKE vs
-ATTACK**, one word on the Ace button, where his written note and the
-shipped code disagree.
+**Start here: put the new splash on a preview.** `RidgeBackdrop` is built,
+committed and pushed to `dev` at `be84f6f` but **has never been seen on a
+deployed URL** — every check so far was local. It changes the first screen
+a launch visitor sees, plus the picker, the walkthrough and the lose
+screen, so it wants Stan's eyes on a preview before `main`. The bench that
+led to it is at
+https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d.
+
+**Also waiting: STRIKE vs ATTACK**, one word on the Ace button, where his
+written note and the shipped code disagree.
 
 **Then: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified. What is left is not code:
