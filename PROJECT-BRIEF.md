@@ -53,6 +53,36 @@ an existing card game. That's confirmed by the prior art search below
 real hook for launch copy — "we invented a card game" is a far stronger
 story than "we built an app," and it's true.
 
+**The origin story itself, written down here for the first time
+(2026-08-30). NOT PUBLIC, and not to be published without Stan's say-so.**
+Stan and his wife took a weekend vacation to Sisters, Oregon, a small town
+that turned out to be far more rural than they had expected. They spent
+most of three days at a table inventing this card game. In his words it is
+a fond memory of one-on-one time in a campground.
+
+Until this entry, that story existed **only inside a chat transcript** —
+the `/audit` command arguments on 2026-08-30, in
+`~/.claude/projects/-Users-stan-Projects-scraps3/ea751ac9-*.jsonl`. The
+brief's post-launch backlog carried the phrase "the Sisters, OR origin
+story" and nothing else, which is unreadable without the transcript; a
+later session read "Sisters" as a proper noun rather than as a town in
+Oregon. A story that only lives in a transcript is a story the project has
+already lost.
+
+**What is public today is only the bare invention fact.** `public/llms.txt`
+says "Its creator and his wife invented it themselves" — no name, no place,
+matching Stan's own launch drafts and the personal-data-OUT grep run at the
+last publish. Sisters, the campground and the three days appear nowhere in
+`dist/`.
+
+**The audit's argument off the back of it, also worth keeping:** "forest"
+is an abstract palette with no story, which is why it drifted into felt.
+"A card table at a campground in Sisters, Oregon" is a *specific place*,
+and it hands the project a surface, a light source and a reason for the
+warmth already in the tokens. That reasoning is what `TableSurface` and its
+lantern gradient are already built on, and it is the argument behind the
+splash directions in the session below.
+
 **Scope for this pass:** originally scoped as a tight weekend of pure
 polish. Stan then added four real workstreams on top — mobile QA, a
 comprehensive sound identity pass, a formal color/design audit, and a
@@ -3300,6 +3330,105 @@ of the wrong property reads exactly like a passing test. The tell was in
 Stan's own words the whole time: "from left to right" is a stagger, and
 "only ONE card does NOT disappear" is a layout fact, not an opacity one.
 
+
+### Unplanned session — Splash directions, and the origin story written down ✅ Done (2026-08-30)
+
+**Not a planned session. Read-only on `src/`: no source file was changed.**
+Stan asked to evaluate status and start the next session, and separately
+where the origin story lives. The reconcile turned up an unactioned note;
+this session answered it with a recommendation bench rather than a build,
+because the note itself asks for recommendations.
+
+**The origin story lived nowhere but a chat transcript.** Now written into
+Section 1 above, marked not-public. See that entry for the story, for where
+it had been hiding, and for exactly how much of it is already public
+(only the bare invention fact, in `llms.txt`).
+
+**Notion's newest block was three-quarters done and entirely unmarked.**
+Four items. The mono step captions, the "Each round is two small hands"
+rewrite and the "= win all three, +1PT" badge were all shipped by the
+polish-rounds session and verified here by grep: no `Mark Two` / `Discard
+your ace` strings anywhere, `Walkthrough.jsx:294` carries the new copy, and
+`BeatScoring` renders three score slots with no bonus badge. The fourth,
+**"Title screen is now boring... scan the lookbook and bring back some
+recommendations,"** had never been touched. It is the only live unactioned
+note on the project.
+
+**A divergence worth a decision: Stan asked for STRIKE, the build shipped
+ATTACK.** His note reads "Change the action button tethered to each ace
+from 'PLAY ACE' to 'STRIKE'". The code, the `aria-label` and the
+walkthrough all say ATTACK, and the entry above records it as "ATTACK
+rename" with no note that a different word was requested. No decision was
+written down either way. **Open: rename to STRIKE, or record ATTACK as a
+deliberate call.**
+
+**The splash diagnosis, and it is the same one the audit made about the
+table.** `SwirlBg` is three blurred radial gradients on near-black green,
+looping on 16s / 20s / 24s, and it is the entire background. It trips two
+of the lookbook's named bans: *large coloured glows behind hero content*
+("filler standing in for a composition") and *aurora / mesh gradient
+fields*. The table was fixed for exactly this — thinness, not hue — and the
+splash never got the same pass, so **the game's first screen is now its
+least-drawn one.** `SwirlBg` also runs on the picker, the walkthrough and
+the lose screen.
+
+**`scan_tells.py` reported six banned hits and all six are false
+positives**, which is the skill's own warning about a clean scan earning
+its keep. "Inter" matched inside *r/InternetIsBeautiful* and
+*RoundInterstitial*; "Space Grotesk" matched a brief entry recording that
+the face was *removed*; "emoji as icons" matched the ✅ in this file's own
+headings; "skeleton shimmer" matched the word "shimmer" in a woodgrain
+comment; "multi-stop rainbow gradient" matched a four-stop vertical
+vignette in two tokens. **Neither ban that actually fires on this screen is
+machine-checkable**, so the scanner was silent on both.
+
+**Nothing in the lookbook fits, and that is a finding rather than a gap.**
+The Aesthetics drawer has 21 directions and none is a campground; Mystical
+western is the nearest (Sisters is high desert) and its terracotta/indigo
+palette and tarot motifs would fight Forest Dusk. The right move is not a
+new aesthetic but extending the material vocabulary this project already
+invented for the table.
+
+**The answer was already in the repo.** `CardBackSVG` is a dusk campground
+scene: an ember sun low on the horizon, a few stars, three receding
+`canopy` ridges, an ember river. It is the game's only piece of real
+identity art, and per `theme.js`'s own canopy-rule note you only ever see
+it on the opponent's hidden hand, the deck and the discard. Scaling it to
+the viewport costs no new art and puts the identity green on the screen
+everyone sees first.
+
+**Deliverable: a live comparison bench**, built in the real tokens at the
+real 16:10 proportion, per the standing rule that a taste decision with
+many candidates gets a comparison artifact rather than a prose menu:
+https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d
+
+- **A (recommended) — the ridgeline, full-bleed.** `CardBackSVG` rescaled.
+- **B — the table, before the deal.** `TableSurface` as the splash ground.
+  Costs the reveal: the table stops being something the game cuts to.
+- **C — type to the edges, no ground.** The riskiest, and the only one that
+  would read as a typographic decision rather than a scene.
+- **D — a table of backs.** Tiled and tilted; it demonstrates its own
+  stated risk, which is that it competes with the wordmark's motion.
+- Plus four suit-row treatments, since the row is four `slate` glyphs doing
+  no work at all.
+
+**Verified by rendering, not by reading.** The in-app pane went blank on
+every screenshot while its measurements stayed sound (the documented
+hidden-pane failure), and the Playwright MCP server refused with its
+profile locked by another session — **both failure modes this brief already
+records.** The third route worked: the server's bundled `playwright-core`
+at `~/.npm/_npx/9833c18b2d85bc59/node_modules/playwright-core`, driven
+against Chrome at 1280x900, deviceScaleFactor 2. That caught three real
+defects a source read would not have: the scaled sun was a huge bloom
+directly behind the wordmark (**it had re-created the exact ban the
+direction exists to remove**), B's two cards were cropped by
+`preserveAspectRatio="slice"` and read as dark rectangles, and every suit
+glyph was mojibake. All three fixed and re-rendered.
+
+**Left open:** which direction Stan picks; the STRIKE/ATTACK call; and the
+`/impeccable craft` run, which belongs to the build session rather than to
+this recommendation pass.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3321,6 +3450,7 @@ Stan's own words the whole time: "from left to right" is a stagger, and
 | — | *Unplanned:* Audit fixes (Ace, wheel, empty Scraps, wood table) | Done (2026-08-30) — all four P1s fixed with tests 37→53, the table rebuilt as a picnic-table surface, rules modal retired, quit/mute added |
 | — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
 | — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
+| — | *Unplanned:* Splash directions + origin story recorded | Done (2026-08-30) — **read-only, no source changed.** Origin story written into Section 1 (not public). Four splash directions on a live bench; `SwirlBg` trips two lookbook bans. Open: Stan's pick, and STRIKE vs ATTACK |
 
 
 ---
@@ -3399,11 +3529,23 @@ preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
 **Nothing is in flight.** As of 2026-08-30 `main` and `dev` are level at
-`19ae1dd`, the tree is clean, and production is deployed from that commit
-with its bundle verified by hash against the locally built one. The Ace
-bug that blocked the launch is fixed and live.
+`812c055` (the last code commit is `19ae1dd`; `812c055` and the splash
+session's entry are documentation only), the tree is clean, and production
+is deployed from `19ae1dd` with its bundle verified by hash against the
+locally built one. The Ace bug that blocked the launch is fixed and live.
 
-**Start here: Session 7 part two, the launch itself.** Everything the
+**A decision is waiting before the launch, and it was not there before.**
+The splash session put four title-screen directions on a bench
+(https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d) and
+recommends **A, the ridgeline full-bleed**, plus true suit colour, plus
+deleting `SwirlBg`. The splash is the first screen a launch visitor sees
+and it currently trips two named lookbook bans, so it is worth settling
+before the posts rather than after. Once Stan picks, the build is its own
+session and opens with `/impeccable craft`. **Also waiting: STRIKE vs
+ATTACK**, one word on the Ace button, where his written note and the
+shipped code disagree.
+
+**Then: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified. What is left is not code:
 the **cold smoke test on CELLULAR, which only Stan can run**, on his
 phone, off wifi — every walk so far went over a fast connection and
@@ -3418,9 +3560,19 @@ any afterwards makes a shipped legal document wrong on the day it lands,
 so this is a decision to make on purpose, including deciding on none.
 
 **Post-launch backlog, agreed 2026-08-30:**
-- An **About page** carrying the Sisters, OR origin story — a fourth
-  screen reached from the splash and the game-over screen, NOT a route
-  (this project has no router by deliberate choice).
+- An **About page** carrying the origin story — the weekend in **Sisters,
+  Oregon**, now written out in full in Section 1 above rather than left as
+  a three-word pointer nobody could read. A fourth screen reached from the
+  splash and the game-over screen, NOT a route (this project has no router
+  by deliberate choice).
+- **The splash pass.** Stan's last unactioned Notion note. Four directions
+  are on the bench at
+  https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d and
+  A is recommended; the build is a separate session and should open with
+  `/impeccable craft`. Not strictly post-launch: it is the first screen a
+  launch visitor sees, so it is worth deciding before the posts go out.
+- **STRIKE vs ATTACK on the Ace button.** Stan's note asked for STRIKE and
+  the build shipped ATTACK. One word, one line, needs his call.
 - **Email capture pointed at Stan's existing Neon email list project**,
   not anything new built here. It conflicts with the signed privacy
   notice and the no-backend rule, so link out rather than collecting.
