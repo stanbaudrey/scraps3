@@ -472,7 +472,10 @@
       @keyframes zonePulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb, var(--voltage) 27%, transparent),0 0 16px color-mix(in srgb, var(--voltage) 20%, transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb, var(--voltage) 60%, transparent),0 0 30px color-mix(in srgb, var(--voltage) 40%, transparent)}}
       @keyframes fullScrapPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
-      @keyframes waveUp{0%{transform:translateY(0)}40%{transform:translateY(-22px)}80%{transform:translateY(2px)}100%{transform:translateY(0)}}
+      /* One card's share of the opponent's ruffle. Small on purpose:
+         at 22px of lift, staggered across five cards, this read as the
+         hand jumping around rather than as a hand being riffled. */
+      @keyframes cardRuffle{0%{transform:translateY(0) rotate(0deg)}45%{transform:translateY(-6px) rotate(-2.5deg)}100%{transform:translateY(0) rotate(0deg)}}
       @keyframes cardFadeIn{0%{opacity:0.1;transform:translateY(-12px) scale(0.92)}60%{opacity:0.9}100%{opacity:1;transform:translateY(0) scale(1)}}
       @keyframes scorePop{0%{transform:scale(1)}40%{transform:scale(1.5)}70%{transform:scale(0.95)}100%{transform:scale(1)}}
       @keyframes roundEndScorePop{0%{transform:scale(1) rotate(0deg)}22%{transform:scale(1.9) rotate(-4deg)}42%{transform:scale(1.9) rotate(4deg)}62%{transform:scale(1.85) rotate(-3deg)}85%{transform:scale(1.15) rotate(0deg)}100%{transform:scale(1) rotate(0deg)}}
@@ -617,7 +620,7 @@
 
          1. ONE-SHOT ENTRANCES that end where the element already
             belongs — fadeUp, cardFadeIn, slideUp/Down, popIn,
-            fullScrapPop, letterAppear, panelDeal, waveUp, errRise,
+            fullScrapPop, letterAppear, panelDeal, cardRuffle, errRise,
             the score and badge pops. Collapsing the duration lands
             the final frame immediately. Nothing is lost: these
             animate an element INTO the state it would have had

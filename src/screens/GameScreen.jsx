@@ -617,17 +617,24 @@ export function GameScreen({ difficulty, onExit }) {
     const T = (fn, ms) => timers.push(setTimeout(fn, ms));
 
     const FLIGHT_SETTLE = 120;   // the board is already still here
-    const WAVE_DURATION = 800;   // full wave animation
+    // ONE ruffle, not a wave. The old gesture lifted every card 22px
+    // in sequence over 800ms, which read as the opponent's cards
+    // jumping around on their own rather than as somebody thinking.
+    // A ruffle is one quick pass across the hand — a small lift and
+    // lean, tightly staggered, done once — the way a real hand gets
+    // riffled while its owner decides. It resolves before the transfer
+    // animation starts, so the two never overlap.
+    const RUFFLE_MS = 340;       // one card's pass
+    const RUFFLE_STAGGER = 38;   // card-to-card offset across the fan
 
-    // Step 1: the AI hand does the wave after the player's cards land
+    // Step 1: the opponent ruffles their hand once, after your cards land
     T(() => {
       const cards = [...stateRef.current.aiHand];
       cards.forEach((card, i) => {
-        const delay = i * Math.floor(WAVE_DURATION / Math.max(cards.length, 1));
         T(() => {
           setWaveIds(prev => { const n = new Set(prev); n.add(card.id); return n; });
-          T(() => setWaveIds(prev => { const n = new Set(prev); n.delete(card.id); return n; }), 450);
-        }, delay);
+          T(() => setWaveIds(prev => { const n = new Set(prev); n.delete(card.id); return n; }), RUFFLE_MS);
+        }, i * RUFFLE_STAGGER);
       });
     }, FLIGHT_SETTLE);
 

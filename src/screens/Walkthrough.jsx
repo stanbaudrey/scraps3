@@ -114,7 +114,13 @@ function HandIntro({ children, color }) {
 
 function BeatHands() {
   return (
-    <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-start',flexWrap:'wrap'}}>
+    // `flex-end`, not `flex-start`: the two intro lines are different
+    // lengths and the Scraps one wraps to two lines on a narrower
+    // window, which pushed its whole column — cards included — down
+    // by a line. Aligning the columns by their BOTTOMS keeps both
+    // hands on one level and lets the taller caption grow upward
+    // instead, which is the direction with space in it.
+    <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-end',flexWrap:'wrap'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
         <HandIntro>Your <b style={{color:DS.frost}}>small hand</b> (private)</HandIntro>
         <Panel labelColor={DS.slate}>

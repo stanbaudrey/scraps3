@@ -394,7 +394,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
               transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
               zIndex:slot?count+5:i,
-              animation: waveIds.has(card.id) ? 'waveUp 0.4s ease' : undefined,
+              animation: waveIds.has(card.id) ? 'cardRuffle 0.34s cubic-bezier(.33,.9,.4,1)' : undefined,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
               {slot?(
                 <div className={doWiggle ? 'live-cue-card' : undefined}
