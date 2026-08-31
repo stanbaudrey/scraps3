@@ -3217,6 +3217,89 @@ for a reason nobody intends to act on is a check that gets ignored.
 runs** (it is deal-dependent, so one green run proves little), contrast 27
 pairings 0 below AA, `share:check` clean, clean build.
 
+
+### Unplanned session — Polish rounds on the audit fixes ✅ Done + **PUBLISHED** (2026-08-30)
+
+**Seven rounds of Stan's review notes on the audit work, then published.**
+`main` at `19ae1dd`; production serves `index-BRr89cXc.js`, byte-identical
+to the locally built bundle, which is transitive proof every change in the
+ten-commit push shipped.
+
+**Copy and layout:** the storyboard lost its two numbered mono step
+captions and its "= win all three, +1PT" badge; beat 4 opens "Each round
+is two small hands"; beat 1 names each hand in body type above it, with
+the mono captions and both poker rankings gone, and its two columns
+bottom-align so a wrapped caption no longer pushes one hand down a line.
+"Scraps pile" is "Scraps" everywhere a player sees it, including
+`llms.txt` via its generator. The narrator holds one type size, shows its
+full instruction in round 1 only, renders nothing when it has nothing to
+say, and reserves three lines' room so its height stops feeding FitBox.
+
+**Sound:** the Ace strike opened at 6000 Hz with Q 1.4, a bright crack on
+the loudest cue in the game. Now 3000 Hz, gentler Q, slower fall, and its
+declared target went .80 → .56. **The trim was re-measured offline, not
+scaled** — retuning invalidates it — and verified to render at exactly
+0.56.
+
+**Four bugs, all self-inflicted, each found by measuring rather than
+reading. Worth recording because three of the four are the same mistake:**
+
+- **The deck drifted to the middle of the table.** Returning `null` for a
+  silent narrator collapsed the two flex gutters together, and the left
+  gutter aligns `flex-end`, so the pile rail travelled to the centre line
+  and sat under the text that arrived next. The panel keeps its slot now
+  and only drops its chrome. Deck holds at one x across 22 samples.
+- **THE BIG ONE — the ruffle was stripping each card's fan placement.**
+  A running CSS animation's `transform` REPLACES the element's own for its
+  whole duration. The ruffle ran on the element that carries
+  `translateX(calc(-50% + tx))`, so for 340ms each card lost its offset and
+  dropped to `left:50%` on top of its neighbours, left to right. The old
+  `waveUp` had the identical flaw, so this long predated the ruffle.
+  Animation now lives on an inner element with no placement of its own.
+  **Measured: max horizontal drift 0.6px, against roughly 230px before.**
+- **Two wrong fixes shipped before the right one**, because the symptom was
+  read as "cards disappearing" and checked with a visibility/opacity count
+  — which came back clean every time, since the cards were fully opaque and
+  merely stacked somewhere else. **The property being measured was wrong,
+  not the measurement.** See the process note below.
+- **Modal buttons declared 44px and rendered less**, because `Shell` wraps
+  every overlay in its own `FitBox`. New `MODAL_BTN_MIN` (54), same
+  reasoning as `ACE_TAG_MIN`.
+
+**Ace flow, per Stan's spec:** ATTACK waits for its card to land and for
+the explainer to close, then rises in over 260ms. The explainer waits for
+the deal, freezes the table while up, and turns on its side — illustration
+left, copy right — on a short but wide screen rather than dropping the
+illustration; it stacks again on a roomy one. The opponent's trade got its
+gap back: transferred cards fly out, their slots stand empty, then the
+deck fills them. Measured 7 → 6 → 7.
+
+**Publish checks:** personal-data-OUT grep over `dist/` clean — the origin
+story ships as "its creator and his wife", no name, matching Stan's own
+launch drafts. Detector **full strength, no DEGRADED banner: 14 findings,
+13 bounce-easing + 1 dark-glow**, all in the two categories Session 5
+triaged as the committed identity, and none added by this push.
+`share:check` **broken on purpose twice** and confirmed to fail by name: a
+rename exits 1 naming `title` and `og:title`; a repaint exits 1 naming
+`palette.dusk` and `favicon.svg`. 55 tests, `responsive-qa` ALL CLEAR
+across repeated runs, contrast 27 pairings 0 below AA. No env vars, no
+scheduled jobs — nothing to confirm on that side.
+
+**`/impeccable critique` was deliberately NOT run at this publish.** The
+push does rework UI, which normally calls for it, but a full critique ran
+on this exact surface earlier the same day (28/40, snapshot under
+`.impeccable/critique/`) and most of this push is Stan's picks off that
+critique and his own review. Re-running it would mostly re-derive what it
+just said. The mechanical detector did run, at full strength, above.
+
+**Process note worth carrying: measure the property the symptom is
+actually about.** Three consecutive fixes failed because "cards
+disappearing" was checked as visibility and opacity, and the cards were
+neither hidden nor transparent — they were displaced. A clean measurement
+of the wrong property reads exactly like a passing test. The tell was in
+Stan's own words the whole time: "from left to right" is a stagger, and
+"only ONE card does NOT disappear" is a layout fact, not an opacity one.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3237,6 +3320,7 @@ pairings 0 below AA, `share:check` clean, clean build.
 | — | *Unplanned:* Whole-experience audit (`/audit`) | Done (2026-08-30) — **read-only, nothing fixed.** Found the Ace counter has never worked and is live in production, plus three more P1s. Answered Stan's four creative questions. Critique 28/40 |
 | — | *Unplanned:* Audit fixes (Ace, wheel, empty Scraps, wood table) | Done (2026-08-30) — all four P1s fixed with tests 37→53, the table rebuilt as a picnic-table surface, rules modal retired, quit/mute added |
 | — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
+| — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
 
 
 ---
@@ -3314,79 +3398,46 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Work IS in flight.** As of 2026-08-30 the audit-fix session is committed
-to `dev` and has NOT been previewed or published. `main` is still the
-pre-fix state, which means **the Ace bug is still live in production** until
-this ships. Fetch and compare the branches before planning anything — that
-is the check, not this sentence.
+**Nothing is in flight.** As of 2026-08-30 `main` and `dev` are level at
+`19ae1dd`, the tree is clean, and production is deployed from that commit
+with its bundle verified by hash against the locally built one. The Ace
+bug that blocked the launch is fixed and live.
 
-**✅ The Ace is fixed. Start here: preview, then launch.** The 2026-08-30
-fix session cleared all four P1s the audit found — the counter call, the
-missing reducer case, the wheel straight and the `scraps-reveal` dead end —
-with tests 37 → 53 and the whole thing verified in a real browser. The
-table was rebuilt as a wooden picnic-table surface, the rules modal was
-retired in favour of the storyboard, and quit/mute now exist. **None of it
-has been previewed or published yet.**
+**Start here: Session 7 part two, the launch itself.** Everything the
+launch needs is built, published and verified. What is left is not code:
+the **cold smoke test on CELLULAR, which only Stan can run**, on his
+phone, off wifi — every walk so far went over a fast connection and
+proves the layout and the game, not the load on a slow radio. Then the
+posts in Section 8 go out. Do not re-verify the metadata; `npm run
+share:check` re-derives it on demand and was broken-on-purpose twice at
+the last publish to confirm it still fails by name.
 
-**So: put it on a preview, look at it, then publish.** The things most
-worth Stan's eyes are the wood table at his own window width, the faint
-mountain ridge now printed on every card face, and the narrator collapsing
-to its short form after the first turn of a round.
+**Decide analytics before the posts, not after.** The privacy notice Stan
+approved describes a site with no analytics, which is true today. Adding
+any afterwards makes a shipped legal document wrong on the day it lands,
+so this is a decision to make on purpose, including deciding on none.
 
-**Then Session 7 part two, the launch.** What is left is not code: the
-**cold smoke test on CELLULAR, which only Stan can run**, on his phone,
-off wifi. Then the posts. Do not re-verify the metadata; `npm run
-share:check` re-derives it on demand and ran clean after the `llms.txt`
-copy fix.
+**Post-launch backlog, agreed 2026-08-30:**
+- An **About page** carrying the Sisters, OR origin story — a fourth
+  screen reached from the splash and the game-over screen, NOT a route
+  (this project has no router by deliberate choice).
+- **Email capture pointed at Stan's existing Neon email list project**,
+  not anything new built here. It conflicts with the signed privacy
+  notice and the no-backend rule, so link out rather than collecting.
+- The **`GameScreen.jsx` three-way split**, still deliberately deferred.
+- Two remaining `minigame` skill lessons: fake-`disabled` buttons as an
+  accessibility trap, and computing contrast against the CURRENT palette.
 
-**Post-launch backlog, agreed 2026-08-30:** an About page carrying the
-Sisters, OR origin story; email capture pointed at **Stan's existing Neon
-email list project** rather than anything new built here; and the
-analytics-vs-privacy-notice decision, which has to be made deliberately
-because the notice he approved describes a site with no analytics.
-
-**One open question nobody has answered:** the second-Ace rule is the
-player's only. If the player counters the AI's Ace, the AI's turn ends and
-it does not get to play a second Ace. Symmetric behaviour would mean
-changing `aiDecide`'s flow, and Stan specified the player's side.
-
-**Awaiting Stan's direction, not blocking:** the whole design answer to
-the felt-table complaint (thinness, not hue — the table paints one
-gradient and one elevation step), whether to amend the `canopy` fence at
-`theme.js:19-22`, the About page and its email-capture conflict with the
-signed privacy notice, and the naming question (recommendation: keep
-SCRAPS; all six alternatives tested are already card games).
-
-**Decide analytics explicitly, before the posts, not after.** The
-privacy notice Stan approved describes a site with no analytics, which
-is true today. Adding any after launch makes the shipped notice wrong
-the moment it lands, and the notice is the one document here with a
-real legal edge. So this is a decision to make on purpose — including
-deciding on none — rather than one to inherit. Vercel's own request
-logs are already named in the notice and are not the question.
-
-**~~One small open item~~ — SUBSUMED 2026-08-30, and it was never small.**
-This entry said the `?` help button asks for Work Sans 900 against a
-family declaring 700, rendering synthetic bold. True, but it is one
-instance of a much larger problem the audit found: **Fjalla One is a
-single-weight family declaring `font-weight: 400` only, and at least 15
-of 28 `fontFamily:F.display` sites request 600 or 700** — both score
-numerals, every interstitial, every win/lose heading, FULL SCRAP, every
-modal title. The branded typeface is faking bold on the game's loudest
-moments. Now tracked as a P1 in the audit entry above, and it should
-land **before** any atmosphere work, because it changes how every
-subsequent screenshot reads. Run `npm run fonts` after any change; the
-rules are generated and `npm run fonts:check` fails on drift.
-
-**Feed the remaining lessons into the `minigame` skill.** The third of
-three is **done (2026-08-28)** — the skill's touch-target bullet now says
-a control's declared size is not its rendered size inside a scaled
-fit-box, with this project's 42-and-43-real-px numbers as the evidence,
-plus the corollary that a screen-walking harness only sees controls the
-current game state happens to render. **Two still to carry, post-launch:**
-fake-`disabled` buttons as an accessibility trap, and computing contrast
-against the CURRENT palette rather than whatever the brief last named.
-Both are Session 5 findings and neither is in the skill yet.
+**Open questions nobody has answered:**
+- The **second-Ace rule is the player's only** in one direction: the AI
+  re-counters when the player counters it, but if the player counters and
+  the AI has no Ace, nothing further happens — which is correct. What is
+  untested is a long re-counter chain on both sides.
+- The **log still reads "Opponent traded 1 card(s) to Scraps"** — the one
+  place in the game that punts on pluralisation.
+- The AI's replacement draws now fly from the deck again. That was
+  removed and restored during this session; if it ever looks busy on a
+  big trade, the fix is sequencing, not hiding them.
 
 ### Do not do these next, and why
 
