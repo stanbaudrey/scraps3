@@ -204,6 +204,16 @@ export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, m
         display:'flex', flexDirection:'column',
         transform: fit.k === 1 ? undefined : `scale(${fit.k})`,
         transformOrigin: 'center top',
+        // Glide between scales instead of snapping. The fit is
+        // recomputed whenever the content's natural height changes, so
+        // anything that grows or shrinks a band — the narrator's copy
+        // being longer on one turn than the next — used to resize the
+        // entire table in a single frame. The band now reserves its
+        // tall case, which removes most of the changes; this makes the
+        // ones that remain read as settling rather than as a jolt.
+        // `transition-duration` is collapsed to 1ms by the
+        // reduced-motion block in index.html, so this is opt-out.
+        transition: 'transform 260ms cubic-bezier(.4,0,.2,1)',
       }}>
         <div ref={contentRef} style={{flex:'1 0 auto',display:'flex',flexDirection:'column'}}>
           {children}

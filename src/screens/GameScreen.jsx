@@ -112,6 +112,10 @@ export function GameScreen({ difficulty, onExit }) {
   // own hiddenIds takes over the instant the wave launches.
   const [pendingDealIds, setPendingDealIds] = useState(new Set());
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
+  // Cards the opponent has just drawn. They are hidden while the
+  // transferred cards fly, then fade up in place — see the AI trade
+  // step for why they no longer fly in from the deck.
+  const [aiFadeInIds, setAiFadeInIds]       = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
   const [playerScoreFlash, setPlayerScoreFlash] = useState(false);
@@ -665,16 +669,28 @@ export function GameScreen({ difficulty, onExit }) {
             arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
             delay: i * STEP,
           }));
-          // The AI's replacement draws fly face-down from the deck so
-          // the opponent's card intake stays visible information.
+          // ONLY the transferred cards fly. The replacement draws used
+          // to fly face-down from the deck as well, so that the
+          // opponent's intake stayed visible — but the motion system
+          // hides a card while it is in flight, and the new cards are
+          // already in `aiHand` the moment the trade commits. So on a
+          // three or four card trade most of the opponent's hand went
+          // invisible at once and the fan looked like it had emptied
+          // itself, which is what read as "the cards jump around".
+          //
+          // The intake is still visible; it simply arrives rather than
+          // travels. The drawn cards are hidden from the commit, then
+          // fade up in place once the transferred cards have landed.
           const LAND = Math.max(0, first.length - 1) * STEP + 320;
-          if (deckRect) {
-            drawn.forEach((card, i) => moves.push({
-              card: null, faceDown: true, fromRect: deckRect, toId: card.id,
-              fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
-              arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
-            }));
-            scheduleDraws(drawn.length, LAND);
+          const drawnIds = drawn.map(c => c.id);
+          if (drawnIds.length) {
+            setPendingDealIds(prev => { const n = new Set(prev); drawnIds.forEach(id => n.add(id)); return n; });
+            T(() => {
+              setPendingDealIds(prev => { const n = new Set(prev); drawnIds.forEach(id => n.delete(id)); return n; });
+              setAiFadeInIds(new Set(drawnIds));
+              T(() => setAiFadeInIds(new Set()), 620);
+            }, LAND);
+            scheduleDraws(drawnIds.length, LAND);
           }
           fly(moves);
         }, 700);
@@ -1014,7 +1030,7 @@ export function GameScreen({ difficulty, onExit }) {
       flexShrink:0}}>
       <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
         activeWiggle={isAiThinking} waveIds={waveIds}
-        registerEl={registerCard} hiddenIds={allHiddenIds}
+        registerEl={registerCard} hiddenIds={allHiddenIds} fadingInIds={aiFadeInIds}
         size={SZ.oppHand} maxWidth={stack?Math.max(120,railW-152):null}/>
     </div>
   );
@@ -1121,6 +1137,13 @@ export function GameScreen({ difficulty, onExit }) {
       ) : (
         <div key={phase} style={{fontFamily:F.ui,
           fontSize:tight?17:25,
+          // Hold three lines' worth of room whatever the copy is. The
+          // narrator's height feeds FitBox's scale, so a one-line turn
+          // followed by a three-line one resized the WHOLE table —
+          // opponent's hand included — between turns. Reserving the
+          // tall case means the common turns cost no relayout at all.
+          minHeight:'3.9em',display:'flex',alignItems:'center',
+          justifyContent:'center',
           color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
           fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
           maxWidth:720,
