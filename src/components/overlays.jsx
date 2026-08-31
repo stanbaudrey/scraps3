@@ -6,7 +6,7 @@ import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playGameWon, playFireworkPop, playGameLost } from "../audio.js";
 import { Btn, AceTag, MODAL_BTN_MIN } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
-import { SwirlBg } from "./backdrop.jsx";
+import { RidgeBackdrop } from "./backdrop.jsx";
 import { FitBox } from "../ui/viewport.jsx";
 import { useViewport } from "../ui/viewport.jsx";
 import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
@@ -458,7 +458,7 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
       display:'flex',flexDirection:'column',padding:16}}>
-      <SwirlBg/>
+      <RidgeBackdrop/>
       <FitBox modeMinW={300} style={{zIndex:1}}>
       <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',textAlign:'center'}}>

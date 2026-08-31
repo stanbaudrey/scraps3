@@ -6,27 +6,253 @@ import { DS, F } from "../styles/theme.js";
 import { playSquareUp } from "../audio.js";
 
 // ─────────────────────────────────────────────────────────────
-// SwirlBg + AnimatedTitle
+// RidgeBackdrop — the night range behind every menu screen
 // ─────────────────────────────────────────────────────────────
-// SwirlBg — flowing, pulsating color swaths. Three separate composited
-// layers, each animating ONLY opacity + transform (translate/scale) via
-// CSS keyframes in index.html — never background-position, blur, or the
-// gradient string itself. That distinction matters: an earlier version
-// of this component animated properties that forced a repaint every
-// frame and caused real hover lag; opacity/transform are compositor-only
-// and stay cheap regardless of how long the animation runs.
-export function SwirlBg() {
+// Added 2026-08-30, replacing `SwirlBg` on all four screens that used
+// it (splash, difficulty picker, walkthrough, lose screen). SwirlBg was
+// three blurred radial gradients on near-black green and was the entire
+// background, which is two of the lookbook's named tells at once: a
+// coloured glow parked behind hero content, and an aurora/mesh gradient
+// field. It is also the same defect the audit found on the TABLE —
+// thinness, not hue — and the table was rebuilt as real material while
+// the splash kept the old treatment, so the game's first screen had
+// become its least-drawn one.
+//
+// Traced and re-cut from a low-poly reference Stan supplied, then
+// re-lit: his reference is a DAYLIT sunset, this is a moonlit night.
+// Every value is a Forest Dusk token or a blend of two.
+//
+// THE ONE ART-DIRECTION RULE HERE, and it is load-bearing:
+// `frost` BELONGS TO THE WORDMARK. The snow is lit in `slateLight`
+// and `slate` and never goes brighter, with `frost` spent only on a
+// handful of summit shards a few units across. A literal reading of the
+// reference would put a field of near-white snow directly behind
+// near-white type. The brightest thing on this screen has to be the
+// word SCRAPS, so the range is lit one full step below it.
+//
+// No sun, by Stan's call: a disc low on the horizon reads as exactly
+// the glow-behind-the-headline this component exists to remove. The
+// sky's warmth is a broad low afterglow band instead, at single-digit
+// alpha, which is a gradient rather than a bloom.
+//
+// Drawn with a clipPath rather than by fitting each facet to the
+// silhouette: facets are painted as generous overlapping polygons and
+// the clip trims them to the mountain. Fitting them by hand is how
+// low-poly art picks up hairline seams between planes.
+//
+// The PRNG is seeded, exactly as `TableSurface` and the audio exciter
+// are: stars that re-scatter on every render would visibly jump on any
+// re-render, and a background that reshuffles itself is a background
+// nobody trusts. Same seed, same sky, forever.
+
+// Weighted toward the top of the frame: a real sky has more visible
+// sky where there is more sky, and an even scatter reads as a texture.
+const STARS = (() => {
+  const r = woodRand(0x51A25);
+  return Array.from({ length: 74 }, () => {
+    const t = r();
+    return {
+      x: +(r() * 160).toFixed(2),
+      y: +(t * t * 62 + 1).toFixed(2),          // squared: crowds the top
+      r: +(r() * 0.40 + 0.15).toFixed(2),
+      o: +(r() * 0.46 + 0.26).toFixed(2),
+      dur: +(r() * 4.4 + 2.8).toFixed(2),
+      delay: +(r() * 7).toFixed(2),
+    };
+  });
+})();
+
+// One band of conifers whose tops run along a line, filled to the
+// bottom of the frame. Heights and widths vary per tree and the seed is
+// fixed, so the treeline is irregular the way a real one is without
+// being different on every paint. This is the reference's strongest
+// single device and it is what stops the ridges reading as bare shapes.
+function conifers({ x0, y0, x1, y1, count, minH, maxH, seed, fill, opacity = 1 }) {
+  const r = woodRand(seed);
+  let d = `M${x0 - 6},110 L${x0 - 6},${y0.toFixed(1)}`;
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    const bx = x0 + (x1 - x0) * t;
+    const by = y0 + (y1 - y0) * t;
+    const h = minH + r() * (maxH - minH);
+    const w = (0.34 + r() * 0.30) * h;          // narrow: spruce, not oak
+    const lean = (r() - 0.5) * w * 0.30;
+    d += ` L${(bx - w / 2).toFixed(1)},${by.toFixed(1)}`
+      +  ` L${(bx + lean).toFixed(1)},${(by - h).toFixed(1)}`
+      +  ` L${(bx + w / 2).toFixed(1)},${by.toFixed(1)}`;
+  }
+  d += ` L${(x1 + 6).toFixed(1)},${y1.toFixed(1)} L${(x1 + 6).toFixed(1)},110 Z`;
+  return <path d={d} fill={fill} opacity={opacity}/>;
+}
+
+// The range silhouette. A sharp dominant summit left of centre and a
+// second massif right of it, both held inside the middle 60% of the
+// frame on purpose: the SVG is sliced, so on a portrait phone the outer
+// thirds are cropped away and anything important out there is simply
+// gone.
+// Two summits carry the frame, at x=68 and x=119, with a lesser one at
+// x=34. That spread is not decorative: the SVG is SLICED, so a 375-wide
+// portrait phone sees only about 56 viewBox units, cropped to the
+// middle — roughly x=52 to x=108. The dominant summit sits inside that
+// window on purpose, so the phone gets a whole mountain rather than an
+// anonymous slope, while a desktop sees the full range.
+//
+// Every vertex is a straight line. The reference has no curves in it
+// and neither does this: one bezier anywhere in a faceted range reads
+// instantly as a different drawing.
+const MAIN_RIDGE =
+  'M0,78 L10,74 L18,76 L26,66 L34,58 L40,62 ' +
+  'L48,46 L56,32 L62,22 L68,13 ' +
+  'L74,24 L79,33 L84,29 L90,42 L96,52 ' +
+  'L102,52 L110,44 L118,33 L126,21 ' +
+  'L132,32 L138,41 L144,37 L150,49 L156,57 L160,54 ' +
+  'L160,110 L0,110 Z';
+
+const FAR_RIDGE =
+  'M0,84 L12,76 L21,81 L32,71 L44,77 L54,68 L64,74 L73,64 ' +
+  'L84,72 L95,64 L106,71 L118,62 L129,70 L140,64 L151,71 L160,67 ' +
+  'L160,110 L0,110 Z';
+
+export function RidgeBackdrop() {
+  // Snow greys, one full step below `frost` so the wordmark stays the
+  // brightest thing on the screen. `shard` is the only near-white and
+  // it is spent on slivers a few units wide.
+  const shard   = DS.frost;
+  const lit     = DS.slateLight;
+  const litMid  = DS.slate;
+  const body    = mix(DS.slate, DS.inkLight, 0.52);
+  const shade   = DS.inkLight;
+  const deep    = mix(DS.inkLight, DS.dusk, 0.55);
+  const rock    = mix(DS.dusk, DS.ink, 0.45);
+  const far     = mix(DS.dusk, DS.inkLight, 0.42);
+  const treeMid = mix(DS.canopy, DS.dusk, 0.52);
+  const treeNear= mix(DS.ink, DS.dusk, 0.35);
+
   return (
-    <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',overflow:'hidden'}}>
-      <div style={{position:'absolute',inset:'-12%',
-        background:`radial-gradient(ellipse 60% 50% at 25% 30%, ${DS.canopy}66 0%, transparent 70%)`,
-        animation:'swirlFlowA 16s ease-in-out infinite',willChange:'opacity, transform'}}/>
-      <div style={{position:'absolute',inset:'-12%',
-        background:`radial-gradient(ellipse 55% 45% at 75% 70%, ${DS.ember}55 0%, transparent 70%)`,
-        animation:'swirlFlowB 20s ease-in-out infinite',willChange:'opacity, transform'}}/>
-      <div style={{position:'absolute',inset:'-12%',
-        background:`radial-gradient(ellipse 50% 40% at 50% 92%, ${DS.gold}4a 0%, transparent 70%)`,
-        animation:'swirlFlowC 24s ease-in-out infinite',willChange:'opacity, transform'}}/>
+    <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:0,
+      pointerEvents:'none',overflow:'hidden'}}>
+      <svg viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice"
+        style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}>
+        <defs>
+          <linearGradient id="sc-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={mix(DS.ink, DS.dusk, 0.30)}/>
+            <stop offset="46%"  stopColor={DS.dusk}/>
+            <stop offset="82%"  stopColor={mix(DS.dusk, DS.inkLight, 0.55)}/>
+            <stop offset="100%" stopColor={mix(DS.dusk, DS.inkLight, 0.80)}/>
+          </linearGradient>
+          {/* The afterglow. A wide, low, single-digit-alpha band, NOT a
+              disc: it says the sun set an hour ago and went down over
+              there, without putting a bloom behind the type. */}
+          <radialGradient id="sc-afterglow" cx="0.68" cy="0.86" r="0.62">
+            <stop offset="0%"   stopColor={DS.ember} stopOpacity="0.16"/>
+            <stop offset="55%"  stopColor={DS.ember} stopOpacity="0.05"/>
+            <stop offset="100%" stopColor={DS.ember} stopOpacity="0"/>
+          </radialGradient>
+          <clipPath id="sc-main"><path d={MAIN_RIDGE}/></clipPath>
+          {/* Legibility. The content sits in the middle, so the middle
+              is held down a step. Same job the table's vignette does. */}
+          <radialGradient id="sc-scrim" cx="0.5" cy="0.52" r="0.66">
+            <stop offset="0%"   stopColor={DS.dusk} stopOpacity="0.66"/>
+            <stop offset="42%"  stopColor={DS.dusk} stopOpacity="0.48"/>
+            <stop offset="76%"  stopColor={DS.dusk} stopOpacity="0.18"/>
+            <stop offset="100%" stopColor={DS.dusk} stopOpacity="0"/>
+          </radialGradient>
+          {/* A full-width band, not only the radial. The wordmark runs
+              nearly edge to edge on a wide screen, so a centred radial
+              leaves its last letters sitting on a lit snow plane at
+              almost exactly their own value — `frost` type on
+              `slateLight` snow, which is the one collision this whole
+              component has to avoid. The band holds the entire
+              wordmark line down regardless of viewport width. */}
+          <linearGradient id="sc-band" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={DS.dusk} stopOpacity="0"/>
+            <stop offset="26%"  stopColor={DS.dusk} stopOpacity="0.50"/>
+            <stop offset="52%"  stopColor={DS.dusk} stopOpacity="0.62"/>
+            <stop offset="76%"  stopColor={DS.dusk} stopOpacity="0.42"/>
+            <stop offset="100%" stopColor={DS.dusk} stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <rect width="160" height="100" fill="url(#sc-sky)"/>
+        <rect width="160" height="100" fill="url(#sc-afterglow)"/>
+
+        {STARS.map((s, i) => (
+          <circle key={i} className="sc-star" cx={s.x} cy={s.y} r={s.r} fill={DS.frost}
+            style={{'--o': s.o, animationDuration:`${s.dur}s`, animationDelay:`${s.delay}s`}}/>
+        ))}
+
+        {/* Far range: one flat value, no facets. Depth comes from the
+            value gap to the main range, not from detail. */}
+        <path d={FAR_RIDGE} fill={far}/>
+
+        <g clipPath="url(#sc-main)">
+          <path d={MAIN_RIDGE} fill={body}/>
+
+          {/* Lit planes: everything facing left, toward the moon.
+              Painted generously and trimmed by the clip — fitting each
+              plane to the silhouette by hand is how faceted art picks
+              up hairline seams between adjacent planes. */}
+          <path d="M68,13 L48,46 L58,56 L64,30 Z" fill={lit}/>
+          <path d="M58,56 L48,46 L34,58 L28,80 L56,80 Z" fill={litMid}/>
+          <path d="M68,13 L64,30 L69,33 L70,16 Z" fill={lit}/>
+          <path d="M126,21 L110,44 L119,54 L123,35 Z" fill={lit}/>
+          <path d="M119,54 L110,44 L102,52 L100,80 L125,78 Z" fill={litMid}/>
+          <path d="M34,58 L26,66 L20,76 L33,78 L39,67 Z" fill={litMid}/>
+          {/* Two extra planes low on the dominant peak's left flank.
+              Without them that flank is one unbroken mid-grey field
+              the width of the wordmark, which is where the whole range
+              stopped reading as faceted. */}
+          <path d="M48,46 L40,58 L46,66 L54,54 Z" fill={lit} opacity="0.55"/>
+          <path d="M40,58 L30,68 L36,78 L46,66 Z" fill={shade} opacity="0.45"/>
+
+          {/* Shadow planes: everything facing right, away from it. Two
+              depths, so a flank steps down twice rather than once —
+              that second step is most of what separates a faceted
+              range from two flat cones. */}
+          <path d="M68,13 L74,24 L79,33 L72,52 L65,36 Z" fill={shade}/>
+          <path d="M79,33 L84,29 L90,42 L96,52 L85,74 L73,58 Z" fill={deep}/>
+          <path d="M72,52 L85,74 L60,80 L59,58 Z" fill={shade}/>
+          <path d="M126,21 L132,32 L138,41 L131,60 L123,38 Z" fill={shade}/>
+          <path d="M138,41 L144,37 L150,49 L156,57 L146,78 L133,68 Z" fill={deep}/>
+          <path d="M34,58 L40,62 L45,74 L33,78 Z" fill={shade}/>
+
+          {/* Shards. The reference's signature move: thin angular
+              slivers running down the lit faces, which is what makes
+              faceted art read as carved rather than as flat shapes.
+              Narrow on purpose, and the ONLY place `frost` appears —
+              see the note at the top about the wordmark owning it. */}
+          <path d="M68,14 L62,40 L64.8,37 Z" fill={shard} opacity="0.88"/>
+          <path d="M67,18 L55,48 L58.6,44 Z" fill={shard} opacity="0.60"/>
+          <path d="M65,25 L47,60 L51,56 Z" fill={shard} opacity="0.40"/>
+          <path d="M62,33 L38,70 L42.5,67 Z" fill={shard} opacity="0.26"/>
+          <path d="M69,15 L72,44 L74,37 Z" fill={shard} opacity="0.30"/>
+          <path d="M126,22 L120,46 L122.6,43 Z" fill={shard} opacity="0.74"/>
+          <path d="M125,26 L114,55 L117.4,51 Z" fill={shard} opacity="0.48"/>
+          <path d="M123,33 L106,68 L110,65 Z" fill={shard} opacity="0.26"/>
+          <path d="M127,24 L130,48 L132,42 Z" fill={shard} opacity="0.28"/>
+          <path d="M34,59 L29,74 L31,72 Z" fill={shard} opacity="0.34"/>
+
+          {/* Snowline. Below it the range is rock, not snow, which is
+              what gives the white above it a reason to stop. Angular,
+              like everything else here. */}
+          <path d="M-2,70 L14,78 L28,72 L42,80 L54,74 L66,82 L78,76
+                   L92,84 L106,77 L120,84 L134,78 L148,85 L162,80
+                   L162,110 L-2,110 Z" fill={rock}/>
+        </g>
+
+        {/* Mid treeline, sitting on the snowline. */}
+        {conifers({ x0:-4, y0:79, x1:164, y1:86, count:64, minH:3.2, maxH:7.4,
+                    seed:0x7E3D1, fill:treeMid })}
+
+        {/* The near slope: the reference's foreground mass, high on the
+            left and falling away to the right, with taller trees along
+            its edge. This is what gives the frame a foreground at all. */}
+        {conifers({ x0:-6, y0:70, x1:170, y1:101, count:52, minH:5.5, maxH:13,
+                    seed:0x2B91C, fill:treeNear })}
+
+        <rect x="0" y="24" width="160" height="52" fill="url(#sc-band)"/>
+        <rect width="160" height="100" fill="url(#sc-scrim)"/>
+      </svg>
     </div>
   );
 }
