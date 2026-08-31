@@ -394,17 +394,31 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
               transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
               zIndex:slot?count+5:i,
-              animation: waveIds.has(card.id) ? 'cardRuffle 0.34s cubic-bezier(.33,.9,.4,1)' : undefined,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
-              {slot?(
-                <div className={doWiggle ? 'live-cue-card' : undefined}
-                  style={{position:'relative',
-                  animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
-                  <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
-                    marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
-                  {body}
-                </div>
-              ):body}
+              {/* The ruffle animates `transform`, and so does THIS card's
+                  fan placement — `translateX(calc(-50% + tx))` is what
+                  puts it in its slot. A running animation's transform
+                  REPLACES the element's own for its whole duration, so
+                  running the ruffle on the positioned wrapper stripped
+                  each card's translateX in turn and dropped it at
+                  `left:50%`, on top of its neighbours. Left to right,
+                  card after card, which read as the hand blinking out
+                  and back. The old `waveUp` had the same flaw.
+                  So the animation lives on an INNER element with no
+                  placement of its own, and the two transforms compose
+                  instead of one overwriting the other. */}
+              <div style={{animation: waveIds.has(card.id)
+                ? 'cardRuffle 0.34s cubic-bezier(.33,.9,.4,1)' : undefined}}>
+                {slot?(
+                  <div className={doWiggle ? 'live-cue-card' : undefined}
+                    style={{position:'relative',
+                    animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
+                    <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
+                      marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
+                    {body}
+                  </div>
+                ):body}
+              </div>
             </div>
           );
         })}

@@ -524,7 +524,12 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
         <div style={{fontFamily:F.display,fontSize:side?26:32,color:DS.gold,
           letterSpacing:'0.06em',marginBottom:roomy?16:10}}>You've drawn an Ace!</div>
-        <div style={{display:'flex',alignItems:'center',gap:side?22:0,
+        {/* ROW only when the box has turned on its side. It was a row
+            unconditionally, which put the illustration next to the copy
+            with a zero gap on a normal desktop and let the Ace's wobble
+            run into the text. */}
+        <div style={{display:'flex',flexDirection:side?'row':'column',
+          alignItems:'center',gap:side?34:0,
           justifyContent:'center',textAlign:side?'left':'center'}}>
           {(roomy || side) && (
             side ? illo : <div style={{display:'flex',justifyContent:'center',marginBottom:18}}>{illo}</div>
