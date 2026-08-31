@@ -195,6 +195,22 @@ const HILL_FAR = ridgePath(
 const HILL_FORE = ridgePath(
   [{ c:36, w:66, h:14 }, { c:118, w:58, h:18 }], 100, 0x7F318, 1.6);
 
+// The hatching is built ONCE, at module load, not per render. It is 610
+// <path> elements, it takes no props, and it is seeded — so it is the
+// same 610 elements every time. Left inside the component it was being
+// rebuilt on every render of a backdrop that four screens mount, and
+// the walkthrough re-renders on every beat.
+const HATCH_R_SHADE = hatch({ x0:92, x1:172, yTop:50, yBot:100, count:120,
+  seed:0x3C71A, stroke:DS.ink, opacity:0.13 });
+const HATCH_R_LIGHT = hatch({ x0:114, x1:152, yTop:50, yBot:82, count:60,
+  seed:0x77B12, stroke:DS.gold, opacity:0.13 });
+const HATCH_L_SHADE = hatch({ x0:-14, x1:116, yTop:38, yBot:100, count:250,
+  seed:0x5A20D, stroke:DS.ink, opacity:0.12 });
+const HATCH_L_LIGHT = hatch({ x0:46, x1:100, yTop:40, yBot:90, count:110,
+  seed:0x11D9F, stroke:DS.gold, opacity:0.15 });
+const HATCH_L_HAZE = hatch({ x0:-8, x1:48, yTop:46, yBot:98, count:70,
+  seed:0x2FA84, stroke:DS.frost, opacity:0.05 });
+
 export function RidgeBackdrop() {
   // Sunset ramp. Deep at the top, blazing at the horizon — which is how
   // a sunset actually reads once the sun is down, and which is also the
@@ -373,25 +389,20 @@ export function RidgeBackdrop() {
         <g clipPath="url(#sc-cr)">
           <path d={HILL_R} fill="url(#sc-capR)"/>
           <path d={HILL_R} fill="url(#sc-castR)"/>
-          {hatch({ x0:92, x1:172, yTop:50, yBot:100, count:120, seed:0x3C71A,
-                   stroke:DS.ink, opacity:0.13 })}
-          {hatch({ x0:114, x1:152, yTop:50, yBot:82, count:60, seed:0x77B12,
-                   stroke:DS.gold, opacity:0.13 })}
+          {HATCH_R_SHADE}
+          {HATCH_R_LIGHT}
         </g>
 
         <path d={HILL_L} fill="url(#sc-gl)"/>
         <g clipPath="url(#sc-cl)">
           <path d={HILL_L} fill="url(#sc-capL)"/>
           <path d={HILL_L} fill="url(#sc-shadowL)"/>
-          {hatch({ x0:-14, x1:116, yTop:38, yBot:100, count:250, seed:0x5A20D,
-                   stroke:DS.ink, opacity:0.12 })}
+          {HATCH_L_SHADE}
           {/* Warm light down the sunward flank as strokes rather than a
               band: a hard highlight edge is the low-poly move this pass
               exists to get away from. */}
-          {hatch({ x0:46, x1:100, yTop:40, yBot:90, count:110, seed:0x11D9F,
-                   stroke:DS.gold, opacity:0.15 })}
-          {hatch({ x0:-8, x1:48, yTop:46, yBot:98, count:70, seed:0x2FA84,
-                   stroke:DS.frost, opacity:0.05 })}
+          {HATCH_L_LIGHT}
+          {HATCH_L_HAZE}
         </g>
 
         {/* The foreground roll, in front of both peaks. */}
