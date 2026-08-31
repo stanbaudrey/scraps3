@@ -513,23 +513,31 @@
          below collapses it to its filled end state, which is correct:
          the tag is still there, it simply does not travel. */
       @keyframes aceTagIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
-      /* RidgeBackdrop stars. Each star carries its own resting opacity
-         as --o and its own duration and delay from a seeded PRNG, so
-         the sky never pulses in unison — that reads as a flashing
-         panel rather than as a sky.
+      /* RidgeBackdrop treeline. A gust crosses the frame every few
+         seconds: the band is drawn as four segments, each starting a
+         beat after the one to its left, so the lean travels instead of
+         the whole forest tipping at once like a board.
+
+         `transform-box: fill-box` with a bottom origin is what makes
+         this read as trees rather than as a sheared picture — each
+         segment pivots about its OWN base, so trunks stay planted and
+         only the tops move. Without fill-box the origin resolves
+         against the SVG viewport and the whole band slides sideways.
 
          100% IS the resting state, deliberately. The reduced-motion
          block below collapses every animation to 1ms and one
-         iteration, which lands each element on its LAST keyframe, so a
-         twinkle written to fade UP would leave the whole sky stuck
-         bright. Written this way, reduced motion gets a still night
-         sky at its intended brightness for free. */
-      @keyframes starTwinkle{
-        0%,100%{opacity:var(--o,.5)}
-        44%{opacity:calc(var(--o,.5) * 0.20)}
+         iteration, which lands each element on its LAST keyframe — so
+         a sway written to END leaned would freeze the forest
+         permanently bent. Written this way, reduced motion gets a
+         still, upright treeline for free. */
+      @keyframes treeSway{
+        0%,100%{transform:skewX(0deg)}
+        34%{transform:skewX(var(--sway,2deg))}
+        67%{transform:skewX(calc(var(--sway,2deg) * -0.42))}
       }
-      .sc-star{animation-name:starTwinkle;animation-timing-function:ease-in-out;
-        animation-iteration-count:infinite;opacity:var(--o,.5)}
+      .sc-tree{transform-box:fill-box;transform-origin:50% 100%;
+        animation-name:treeSway;animation-timing-function:ease-in-out;
+        animation-iteration-count:infinite;will-change:transform}
 
       /* The four suits under the wordmark riffle in sequence, on the
          SAME 28ms stagger as the wordmark's letters and as the deal
