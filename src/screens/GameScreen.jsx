@@ -684,12 +684,20 @@ export function GameScreen({ difficulty, onExit }) {
           const LAND = Math.max(0, first.length - 1) * STEP + 320;
           const drawnIds = drawn.map(c => c.id);
           if (drawnIds.length) {
-            setPendingDealIds(prev => { const n = new Set(prev); drawnIds.forEach(id => n.add(id)); return n; });
-            T(() => {
-              setPendingDealIds(prev => { const n = new Set(prev); drawnIds.forEach(id => n.delete(id)); return n; });
-              setAiFadeInIds(new Set(drawnIds));
-              T(() => setAiFadeInIds(new Set()), 620);
-            }, LAND);
+            // The draws are NOT hidden. `AI_TRADE_APPLY` puts them into
+            // aiHand at the commit, so hiding them leaves only the cards
+            // the AI did not trade — exactly one of them when it trades
+            // four of five, which is why the fan looked like it blinked
+            // out of existence with a single survivor. Hiding them with
+            // pendingDealIds instead of with the flight moved the
+            // mechanism and kept the symptom.
+            //
+            // They fade up in place from the commit instead. The hand
+            // holds a full count throughout: the cards leaving are
+            // ghosts in flight, the cards arriving are already here and
+            // simply becoming visible.
+            setAiFadeInIds(new Set(drawnIds));
+            T(() => setAiFadeInIds(new Set()), 620);
             scheduleDraws(drawnIds.length, LAND);
           }
           fly(moves);

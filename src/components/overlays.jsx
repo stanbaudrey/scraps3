@@ -500,25 +500,36 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
   // — a third of the touch floor. Dropping the decorative card is the
   // cheaper loss than an unpressable button: the words are the point
   // here, and the real Ace is sitting in the hand behind this box.
-  const { h } = useViewport();
+  const { w, h } = useViewport();
   const roomy = h >= 560;
+  // Short screens have no vertical room for the illustration ABOVE the
+  // copy, but a short WIDE one has plenty beside it. So the box turns
+  // on its side rather than dropping the Ace: illustration left, words
+  // right. Only a screen that is short AND narrow loses it, because
+  // there the words are the point and an unpressable button is the
+  // worse trade.
+  const side = !roomy && w >= 620;
+  const illo = (
+    <div className="live-cue-card"
+      style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,flexShrink:0,
+      animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
+      <AceTag live={false} width={side ? 92 : 104}/>
+      {ace && <PlayingCard card={ace} size={side ? 'small' : 'normal'} liftTransform={false}/>}
+    </div>
+  );
   return (
     <Shell zIndex={95} background="rgba(20,31,25,.92)" dialogLabel="You drew an Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.gold}`,
-        borderRadius:16,padding:CARD_PAD,maxWidth:480,width:'100%',textAlign:'center',
+        borderRadius:16,padding:CARD_PAD,maxWidth:side?700:480,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.gold}66`,animation:'popIn 0.35s cubic-bezier(.34,1.6,.64,1)'}}>
-        <div style={{fontFamily:F.display,fontSize:32,color:DS.gold,
+        <div style={{fontFamily:F.display,fontSize:side?26:32,color:DS.gold,
           letterSpacing:'0.06em',marginBottom:roomy?16:10}}>You've drawn an Ace!</div>
-        {roomy && (
-          <div style={{display:'flex',justifyContent:'center',marginBottom:18}}>
-            <div className="live-cue-card"
-              style={{display:'flex',flexDirection:'column',alignItems:'center',gap:7,
-              animation:'cardWiggle 0.5s ease-in-out infinite alternate'}}>
-              <AceTag live={false} width={104}/>
-              {ace && <PlayingCard card={ace} size="normal" liftTransform={false}/>}
-            </div>
-          </div>
-        )}
+        <div style={{display:'flex',alignItems:'center',gap:side?22:0,
+          justifyContent:'center',textAlign:side?'left':'center'}}>
+          {(roomy || side) && (
+            side ? illo : <div style={{display:'flex',justifyContent:'center',marginBottom:18}}>{illo}</div>
+          )}
+          <div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
           You can play your Ace in a normal hand, or you can use your Ace to{' '}
           <strong style={{color:DS.frost}}>attack</strong> your opponent and move
@@ -528,6 +539,8 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           If your opponent also has an Ace, they can &ldquo;counter,&rdquo; causing
           both Aces to be discarded and your turn to end.
         </p>
+          </div>
+        </div>
 
         <button onClick={onDismiss} style={{
           background:DS.gold,color:DS.ink,border:'none',
