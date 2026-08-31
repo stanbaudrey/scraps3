@@ -3429,7 +3429,87 @@ glyph was mojibake. All three fixed and re-rendered.
 `/impeccable craft` run, which belongs to the build session rather than to
 this recommendation pass.
 
-### Unplanned session — The splash rebuild: RidgeBackdrop ✅ Done (2026-08-30)
+### Unplanned session — Splash pass 2: sunset foothills ✅ Done (2026-08-31)
+
+**Stan sent the night version back.** Keep the reference's DAYTIME
+sunset, omit the stars, make the mountains less pointy (rounded, less
+extreme, "like foothills"), two distinct peaks with the left bigger,
+more dimension, less low-poly-futuristic and more rustic and natural,
+"the style comes from the coloring", and give the trees a collective
+sway like a breeze crossing every few seconds. Everything else from
+pass 1 stands: true suit colour, riffle, `SwirlBg` gone from all four
+screens.
+
+**Ridgelines are GENERATED now, and that is the headline.** Hand-placed
+beziers were tried twice and produced a cone, then a narrow rounded
+thumb. The reason is structural rather than clumsiness: with a curve you
+choose TANGENTS and only infer the silhouette, so span and rise are
+never actually under your hand. Each mass is now a sum of raised-cosine
+bumps sampled into a dense polyline, where `w` is literally half-width
+and `h` literally the rise. The left spans 124 and rises 50, the right
+96 and 34, both near 2.5:1. **A foothill is a ratio, and once it was a
+number it took one try.** Seeded low-frequency roughness on top keeps
+them lopsided; real ground is not a cosine.
+
+**The foreground roll was the missing piece.** Two peaks alone read as
+two objects on a plain. Hill country is rounded land overlapping itself,
+each layer darker and less hazy than the one behind, so a low mass
+crossing in front of both is what turns two shapes into terrain.
+
+**THE BUG THAT MADE "more dimension" IMPOSSIBLE, worth knowing before
+anyone touches this file again: every hill gradient was in the default
+`objectBoundingBox` units.** Each ridge path closes across the FULL
+frame width to make its filled body, so every one of those bounding
+boxes was the entire viewport, and a gradient meant to model one hill
+was being stretched across all 160 units. Two separate attempts at
+"light the masses better" changed stops that were never landing where
+they were aimed. They are `gradientUnits="userSpaceOnUse"` now with real
+viewBox coordinates per mass, and the modelling appeared immediately.
+**Nothing about the symptom pointed at units.**
+
+**Composition, and why the sky is arranged the way it is.** Foothills
+are low, so the wordmark sits on SKY rather than on a mountain. A sunset
+ramp that starts warm high up therefore puts near-white type on bright
+gold. The blaze is kept as a narrow band low down with the deep half
+tall — which is also how a sunset actually looks once the sun is under
+the horizon. `frost` still belongs to the wordmark.
+
+**The breeze.** Each treeline is four segments, each starting a beat
+after the one to its left, pivoting about its own base via
+`transform-box: fill-box`. Without fill-box the origin resolves against
+the SVG viewport and the whole band slides sideways instead of bending.
+Segments overlap by 16 units of solid fill, because out-of-phase skew
+opens a visible notch at a shared edge otherwise.
+
+**Verified by measuring:**
+- **Sway, sampled every 320ms across 12 frames in one call** (two
+  round-trips would miss the loop entirely, per this file's own rule):
+  all 8 bands sweeping, widest 3.26°, and **2.15° of spread BETWEEN
+  segments at a single instant** — that spread is the difference between
+  a travelling gust and a board tipping, and it is the thing worth
+  measuring rather than eyeballing.
+- **Reduced motion:** 0 animations running, **0 bands left bent**, 0
+  suits out of position. Both keyframes rest at 100%, which is where the
+  global collapse lands them.
+- **Wordmark contrast**, sampled from the pixels behind the hidden
+  glyphs at four viewports: worst **5.91:1** (Stan's 1024x662), desktop
+  6.50, phone 7.81, landscape 7.03. Better than the night version's
+  4.68 and all clearing AAA for large text.
+- 55 tests, clean build, `contrast-audit` 27 pairings 0 below AA,
+  `responsive-qa` **ALL CLEAR** at six viewports, `share:check` clean.
+
+**Left open:** STRIKE vs ATTACK, still Stan's call. Nothing is on a
+preview URL yet.
+
+
+### Unplanned session — The splash rebuild: RidgeBackdrop ✅ Superseded same-week (2026-08-30)
+
+**Superseded on 2026-08-31 by the sunset pass above. Kept because its
+reasoning still applies and because it is the record of why the night
+direction was tried.** What survives from it: `SwirlBg` deleted from all
+four screens, the true-suit-colour riffle, and the rule that `frost`
+belongs to the wordmark. What did not: the faceted geometry, the night
+sky, and the stars.
 
 **Stan picked direction A off the bench and changed it in four ways:** the
 card-back art was too bland to reuse as-is, so build an augmented version;
@@ -3532,7 +3612,8 @@ own beats now sit on the new range; they were checked at six viewports by
 | — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
 | — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
 | — | *Unplanned:* Splash directions + origin story recorded | Done (2026-08-30) — **read-only, no source changed.** Origin story written into Section 1 (not public). Four splash directions on a live bench; `SwirlBg` trips two lookbook bans. Open: Stan's pick, and STRIKE vs ATTACK |
-| — | *Unplanned:* The splash rebuild — `RidgeBackdrop` | Done (2026-08-30) — direction A built as a faceted night range traced from Stan's reference. `SwirlBg` deleted from all four screens; true suit colour + riffle. Wordmark contrast measured behind the glyphs at 4 viewports, worst 4.68:1. Not yet previewed |
+| — | *Unplanned:* The splash rebuild — `RidgeBackdrop` (night) | **Superseded 2026-08-31.** Faceted night range; `SwirlBg` deleted from all four screens, true suit colour + riffle kept |
+| — | *Unplanned:* Splash pass 2 — sunset foothills | Done (2026-08-31) — daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug that had made "more dimension" impossible. Contrast worst 5.91:1; sway measured at 2.15° spread between segments. Not yet previewed |
 
 
 ---
@@ -3611,19 +3692,26 @@ preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
 **IN FLIGHT: the splash rebuild sits on `dev` and not on `main`.** As of
-2026-08-30 `dev` is at `be84f6f` and `main` is still at `812c055`, so the
+2026-08-31 `dev` is at `ef34063` and `main` is still at `812c055`, so the
 two have diverged on purpose for the first time in a while. Production
 serves the pre-splash build from `19ae1dd`, verified by hash, and the Ace
 bug that blocked the launch is fixed and live there. **Nothing about the
 new backdrop is public yet.**
 
-**Start here: put the new splash on a preview.** `RidgeBackdrop` is built,
-committed and pushed to `dev` at `be84f6f` but **has never been seen on a
-deployed URL** — every check so far was local. It changes the first screen
-a launch visitor sees, plus the picker, the walkthrough and the lose
-screen, so it wants Stan's eyes on a preview before `main`. The bench that
-led to it is at
+**Start here: put the new splash on a preview.** `RidgeBackdrop` is now on
+its second direction (sunset foothills, `ef34063`) and **has never been
+seen on a deployed URL** — every check so far was local. It changes the
+first screen a launch visitor sees, plus the picker, the walkthrough and
+the lose screen, so it wants Stan's eyes on a preview before `main`. The
+bench that started it is at
 https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d.
+
+**Do not hand-place beziers in `backdrop.jsx`.** The ridgelines are
+generated from cosine bumps for a reason recorded in the 2026-08-31 entry,
+and two passes were lost to hand-drawn curves before that. And any new
+gradient on a hill must be `gradientUnits="userSpaceOnUse"`: every ridge
+path closes across the full frame width, so `objectBoundingBox` units
+resolve against the whole viewport rather than the hill.
 
 **Also waiting: STRIKE vs ATTACK**, one word on the Ace button, where his
 written note and the shipped code disagree.
