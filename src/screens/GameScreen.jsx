@@ -112,10 +112,6 @@ export function GameScreen({ difficulty, onExit }) {
   // own hiddenIds takes over the instant the wave launches.
   const [pendingDealIds, setPendingDealIds] = useState(new Set());
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
-  // Cards the opponent has just drawn. They are hidden while the
-  // transferred cards fly, then fade up in place — see the AI trade
-  // step for why they no longer fly in from the deck.
-  const [aiFadeInIds, setAiFadeInIds]       = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
   const [playerScoreFlash, setPlayerScoreFlash] = useState(false);
@@ -681,24 +677,27 @@ export function GameScreen({ difficulty, onExit }) {
           // The intake is still visible; it simply arrives rather than
           // travels. The drawn cards are hidden from the commit, then
           // fade up in place once the transferred cards have landed.
+          // The replacement draws fly in from the deck AFTER the
+          // transferred cards have landed, exactly as the player's own
+          // trade does (see executeTrade). That ordering is the whole
+          // point of the gesture: cards leave the hand and their slots
+          // stand empty, then new ones arrive from the deck to fill
+          // them. A card is hidden while it is in flight, so the gap is
+          // real rather than drawn.
+          //
+          // They briefly faded in place instead, which removed the gap
+          // entirely — the hand refilled itself the instant the trade
+          // committed, so nothing ever looked like it left. That was a
+          // wrong fix for the vanishing-cards bug, whose real cause was
+          // the ruffle stripping each card's fan transform.
           const LAND = Math.max(0, first.length - 1) * STEP + 320;
-          const drawnIds = drawn.map(c => c.id);
-          if (drawnIds.length) {
-            // The draws are NOT hidden. `AI_TRADE_APPLY` puts them into
-            // aiHand at the commit, so hiding them leaves only the cards
-            // the AI did not trade — exactly one of them when it trades
-            // four of five, which is why the fan looked like it blinked
-            // out of existence with a single survivor. Hiding them with
-            // pendingDealIds instead of with the flight moved the
-            // mechanism and kept the symptom.
-            //
-            // They fade up in place from the commit instead. The hand
-            // holds a full count throughout: the cards leaving are
-            // ghosts in flight, the cards arriving are already here and
-            // simply becoming visible.
-            setAiFadeInIds(new Set(drawnIds));
-            T(() => setAiFadeInIds(new Set()), 620);
-            scheduleDraws(drawnIds.length, LAND);
+          if (deckRect && drawn.length) {
+            drawn.forEach((card, i) => moves.push({
+              card: null, faceDown: true, fromRect: deckRect, toId: card.id,
+              fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
+              arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
+            }));
+            scheduleDraws(drawn.length, LAND);
           }
           fly(moves);
         }, 700);
@@ -1038,7 +1037,7 @@ export function GameScreen({ difficulty, onExit }) {
       flexShrink:0}}>
       <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
         activeWiggle={isAiThinking} waveIds={waveIds}
-        registerEl={registerCard} hiddenIds={allHiddenIds} fadingInIds={aiFadeInIds}
+        registerEl={registerCard} hiddenIds={allHiddenIds}
         size={SZ.oppHand} maxWidth={stack?Math.max(120,railW-152):null}/>
     </div>
   );
