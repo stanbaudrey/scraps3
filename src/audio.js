@@ -200,7 +200,10 @@ function crack(c, out, t, mat, { gain = 1, sub = true, k = 1, seed = 1 } = {}) {
 //
 //   select .16 · draw .22 · invalid/handWon/handLost .34
 //   transfer .30 · roundLost .46 · roundWon .50
-//   gameLost .66 · gameWon .72 · aces .80 · fullScrap .94
+//   gameLost .66 · gameWon .72 · aceCounter .80 · fullScrap .94
+//   aceStrike .56  (was .80 — softened and dropped 30% on
+//                   2026-08-30 at Stan's call; it was the
+//                   loudest thing on the table)
 //
 // So the cue you hear thirty times a game can never end up
 // louder than the one you may never hear at all.
@@ -219,7 +222,7 @@ const TRIM = {
   select:     3.4706,
   transfer:   2.2417,
   draw:       2.1066,
-  aceStrike:  2.1678,
+  aceStrike:  2.6548,   // re-measured 2026-08-30 after the softening
   aceCounter: 2.7208,
   invalid:    2.1378,
   handWon:   14.5225,
@@ -292,13 +295,21 @@ const VOICES = {
    *  card box being stood on. The least sharp option, and the
    *  most violent. */
   aceStrike: (c, o, t) => {
-    const speed = 0.125;
-    const g = src(c, noiseBuf(c, speed + .06, 2.2, .01), t, 0.42);
-    const f = lp(c, 6000, 1.4);
-    f.frequency.setValueAtTime(6000, t);
-    f.frequency.exponentialRampToValueAtTime(200, t + speed);
+    // Softened 2026-08-30: the sweep used to open at 6000 Hz with a
+    // Q of 1.4, which put a bright crack on top of the impact and made
+    // the loudest cue in the game also the sharpest. It opens at 3000
+    // now with a gentler Q and a slower fall, so it reads as weight
+    // rather than as a snap. The declared TARGET dropped .80 → .56 in
+    // the same pass; both changes are in the trim below, which was
+    // RE-MEASURED rather than scaled — retuning a cue's parameters
+    // invalidates its old trim, and nothing warns you.
+    const speed = 0.155;
+    const g = src(c, noiseBuf(c, speed + .06, 2.2, .01), t, 0.34);
+    const f = lp(c, 3000, 0.85);
+    f.frequency.setValueAtTime(3000, t);
+    f.frequency.exponentialRampToValueAtTime(180, t + speed);
     g.connect(f); f.connect(o);
-    thud(c, o, t + speed * .6, 90, 32, .16, 0.24);
+    thud(c, o, t + speed * .6, 84, 30, .17, 0.22);
   },
 
   /** The strike answered with an Ace of their own. The same crack

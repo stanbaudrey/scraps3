@@ -528,11 +528,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           If your opponent also has an Ace, they can &ldquo;counter,&rdquo; causing
           both Aces to be discarded and your turn to end.
         </p>
-        {roomy && (
-          <p style={{fontFamily:F.ui,color:DS.slate,fontSize:16,lineHeight:1.5,marginBottom:6}}>
-            Traded into your Scraps, an Ace is worth 3 cards.
-          </p>
-        )}
+
         <button onClick={onDismiss} style={{
           background:DS.gold,color:DS.ink,border:'none',
           padding:'16px 44px',borderRadius:10,cursor:'pointer',
@@ -562,7 +558,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
         <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
-          They will remove two cards from your Scraps pile.
+          They will remove two cards from your Scraps.
         </p>
         {/* Show player's scraps so they know what's at stake */}
         {playerScraps&&playerScraps.length>0&&(
@@ -699,8 +695,8 @@ export function RulesModal({ onClose }) {
   const rules=[
     {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
     {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
-    {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps pile, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
-    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps pile. They can counter with their own Ace."},
+    {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps. They can counter with their own Ace."},
     {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
     {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];

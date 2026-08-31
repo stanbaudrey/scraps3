@@ -828,11 +828,22 @@ export function GameScreen({ difficulty, onExit }) {
   const glowHand = (isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked);
   // The Play Ace control is rendered by FannedHand, inside the same
   // wrapper as its card, so the two lean together.
-  const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce;
+  // ATTACK waits for its own card. The tag used to mount the instant
+  // an Ace entered state — which is BEFORE the card has flown into the
+  // fan — so the button hung in the air over an empty slot and the Ace
+  // arrived underneath it afterwards. It now waits for the flight to
+  // land (`!animating`) and for the Ace explainer to be dismissed, and
+  // then fades and lifts into place over ~260ms rather than snapping in.
+  const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode
+    && !pendingAiAce && !animating && !aceDrawnCard;
   const aceSlot = useCallback((card, width) => {
     if (!canOfferAce || card.rank !== 'A') return null;
-    return <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2}
-      width={width}/>;
+    return (
+      <div style={{animation:'aceTagIn 0.26s cubic-bezier(.22,1,.36,1) both'}}>
+        <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2}
+          width={width}/>
+      </div>
+    );
   }, [canOfferAce, aiScraps.length]);
   const glowPlayerScraps = isScrapsDiscardMode;
   const glowOppScraps = aceMode;
@@ -932,7 +943,7 @@ export function GameScreen({ difficulty, onExit }) {
     // player has taken four trade turns and does not need the sentence
     // again; the short form carries from there on.
     if (roundNum === 1 && (fullHint.round !== roundNum || fullHint.turn === currentTurn)) {
-      const base = 'Select cards to transfer from your small hand to your Scraps pile. Both are limited to seven cards.';
+      const base = 'Select cards to transfer from your small hand to your Scraps. Both are limited to seven cards.';
       if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
       else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
       else hint = base;
@@ -1060,15 +1071,32 @@ export function GameScreen({ difficulty, onExit }) {
     || (isSignal && !signalLocked) || isReveal
     || phase === 'replenish' || phase === 'scraps-reveal' || phase === 'round-end'
     || (pendingAiAce && !aiAceReveal);
-  const actionEl = (!hint && !tradeError && !hasActionButtons) ? null : (
+  // The narrator's CHROME comes and goes; its SLOT never does.
+  //
+  // Returning null when the band had nothing to say collapsed the two
+  // gutters together, and because the left gutter aligns its contents
+  // `flex-end`, the deck slid from the left margin to the middle of the
+  // table and sat under the narrator text that arrived a moment later.
+  // The panel keeps its flex-basis at all times and only drops its
+  // background, border and padding when empty, so the three bands stay
+  // on the one centre axis the layout is built around.
+  const narratorSilent = !hint && !tradeError && !hasActionButtons;
+  const actionEl = (
     <div style={{
       ...(stack
         ? {width:'100%', flexShrink:0}
         : {flexShrink:1, flexBasis:760, maxWidth:760}),
       display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
       padding:stack?'10px 12px':'14px 20px',
-      background:`rgba(20,31,25,0.7)`,
-      border:`1px solid ${DS.slate}22`,
+      ...(narratorSilent ? {
+        background:'transparent', border:'1px solid transparent',
+        // Hold the height too, so the band does not jump as the
+        // narrator comes and goes between turns.
+        minHeight: tight ? 64 : 92,
+      } : {
+        background:`rgba(20,31,25,0.7)`,
+        border:`1px solid ${DS.slate}22`,
+      }),
       borderRadius:14,
     }}>
       {/* Hint — the game's narrator owns this band (item 6).

@@ -281,10 +281,10 @@ original, not a digital version of an existing game.
 - You always have two hands running at once: your private "small hand"
   and your face-up "Scraps" hand. A round scores two small hands worth 1
   point each, and one public "Scraps" hand worth 2 points.
-- You move cards from your hidden hand into your face-up Scraps pile to draw
+- You move cards from your hidden hand into your face-up Scraps to draw
   fresh cards. Both piles cap at 7 cards.
 - Aces are a weapon: discard one to strip two cards from the opponent's
-  Scraps pile. They can counter with an Ace of their own.
+  Scraps. They can counter with an Ace of their own.
 - **Flushes are never valid.** A five-card suited straight scores as a plain
   straight, never a straight flush. This is a house rule and it is enforced
   everywhere in the engine.

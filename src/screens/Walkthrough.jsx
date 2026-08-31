@@ -84,7 +84,7 @@ function Panel({ label, labelColor = DS.slate, borderColor = `${DS.slate}44`, ch
   return (
     <div style={{background:DS.duskMid,border:`2px solid ${borderColor}`,borderRadius:14,
       padding:'16px 20px 18px',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
-      <Caption color={labelColor}>{label}</Caption>
+      {label && <Caption color={labelColor}>{label}</Caption>}
       {children}
       {footer && (
         <div style={{fontFamily:F.display,fontSize:20,color:labelColor,letterSpacing:'0.06em'}}>
@@ -96,16 +96,37 @@ function Panel({ label, labelColor = DS.slate, borderColor = `${DS.slate}44`, ch
 }
 
 // ── Beat 1 — the two hands ───────────────────────────────────
+// The naming sits ABOVE each hand in body type rather than in a mono
+// caption inside the panel. The sentence was doing the work twice —
+// once across the top of the beat and once as a label on each box —
+// so the label carries it and the top line is gone. The hand names
+// ("One Pair", "Three of a Kind") went with them: this beat is about
+// which hand is private and which is public, and a poker ranking on
+// each box invites the reader to work out the ranking instead.
+function HandIntro({ children, color }) {
+  return (
+    <div style={{fontFamily:F.ui,fontSize:'clamp(15px,2.2vw,19px)',lineHeight:1.4,
+      color:DS.slateLight,textAlign:'center',maxWidth:280,marginBottom:2}}>
+      {children}
+    </div>
+  );
+}
+
 function BeatHands() {
   return (
-    <div style={{display:'flex',gap:26,justifyContent:'center',flexWrap:'wrap'}}>
-      <Panel label="Your small hand · private" labelColor={DS.slate} footer="One Pair">
-        <CardRow cards={SMALL_HAND}/>
-      </Panel>
-      <Panel label="Your Scraps hand · everyone sees it" labelColor={DS.voltage}
-        borderColor={`${DS.voltage}66`} footer="Three of a Kind">
-        <CardRow cards={SCRAPS_HAND} isScrap startDelay={60} ink={DS.voltage}/>
-      </Panel>
+    <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-start',flexWrap:'wrap'}}>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+        <HandIntro>Your <b style={{color:DS.frost}}>small hand</b> (private)</HandIntro>
+        <Panel labelColor={DS.slate}>
+          <CardRow cards={SMALL_HAND}/>
+        </Panel>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+        <HandIntro>Your <b style={{color:DS.voltage}}>Scraps hand</b> (visible to everybody)</HandIntro>
+        <Panel labelColor={DS.voltage} borderColor={`${DS.voltage}66`}>
+          <CardRow cards={SCRAPS_HAND} isScrap startDelay={60} ink={DS.voltage}/>
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -250,10 +271,7 @@ function BeatScoring() {
 // ── The beats ────────────────────────────────────────────────
 const BEATS = [
   {
-    copy: (
-      <>SCRAPS always has two poker hands running: your <b style={{color:DS.frost}}>small hand</b> (private)
-      and your <b style={{color:DS.voltage}}>Scraps hand</b> (visible to everybody).</>
-    ),
+    copy: <>SCRAPS always has two poker hands running.</>,
     visual: <BeatHands/>,
   },
   {

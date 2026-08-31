@@ -47,7 +47,7 @@
       "@type": "VideoGame",
       "name": "SCRAPS",
       "url": "https://scraps3.vercel.app/",
-      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps pile worth two, and Aces that strip your opponent's board. First to 10, win by 2. Flushes are never valid.",
+      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps worth two, and Aces that strip your opponent's board. First to 10, win by 2. Flushes are never valid.",
       "genre": "Card game",
       "gamePlatform": "Web browser",
       "playMode": "SinglePlayer",
@@ -503,6 +503,13 @@
          detector's bounce-easing finding, restated in game terms.
          errRise arrives once and settles. */
       @keyframes errRise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+      /* ATTACK arriving on a freshly-landed Ace. It waits for the card
+         to be in place, then rises onto it — a settle, not a pop, so it
+         reads as the option becoming available rather than as a new
+         object appearing. Under reduced motion the blanket 1ms rule
+         below collapses it to its filled end state, which is correct:
+         the tag is still there, it simply does not travel. */
+      @keyframes aceTagIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
       /* SwirlBg flowing color swaths — opacity + transform only, compositor-safe */
       @keyframes swirlFlowA{0%,100%{opacity:.55;transform:translate(0,0) scale(1)}50%{opacity:.9;transform:translate(3%,-2%) scale(1.1)}}
       @keyframes swirlFlowB{0%,100%{opacity:.5;transform:translate(0,0) scale(1)}50%{opacity:.85;transform:translate(-2%,3%) scale(1.08)}}
@@ -697,11 +704,11 @@
         <ul>
           <li>You always have two poker hands running at once: your private
             small hand, and your face-up Scraps hand that everybody can see.</li>
-          <li>Move cards from your small hand into your Scraps pile to draw
+          <li>Move cards from your small hand into your Scraps to draw
             fresh ones. Cards 2&ndash;9 draw one, 10&ndash;K draw two, an Ace
             draws three. Both piles cap at 7 cards.</li>
           <li>Aces are a weapon: discard one to strip two cards from your
-            opponent's Scraps pile. They can counter with an Ace of their own.</li>
+            opponent's Scraps. They can counter with an Ace of their own.</li>
           <li><strong>Flushes are never valid.</strong> A five-card suited
             straight scores as a plain straight, never a straight flush.</li>
           <li>Each round scores two small hands worth 1 point each and the
