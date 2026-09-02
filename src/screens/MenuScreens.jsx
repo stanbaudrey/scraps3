@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn } from "../components/buttons.jsx";
-import { RidgeBackdrop, SceneBackdrop, AnimatedTitle } from "../components/backdrop.jsx";
+import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -106,7 +106,14 @@ export function DifficultyPicker({ onChoose }) {
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
       position:'relative',overflow:'hidden'}}>
-      <RidgeBackdrop/>
+      {/* The same table the game is played on. Two backgrounds in the
+          whole product, by Stan's call 2026-09-01: the scene carries
+          the title and the storyboard, the table carries the
+          difficulty pick and everything after it. Picking an opponent
+          is the first move at the table, so it belongs to the table. */}
+      <TableSurface/>
+      <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',
+        background:`radial-gradient(ellipse 74% 64% at 50% 50%, ${DS.ink}00 40%, ${DS.ink}59 100%)`}}/>
       <h1 className="sr-only">SCRAPS — choose your opponent</h1>
       {/* Gaps and box padding are viewport-relative so the two
           panels stay whole on a short screen instead of the second

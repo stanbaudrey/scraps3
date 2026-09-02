@@ -6,7 +6,7 @@ import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { playGameWon, playFireworkPop, playGameLost } from "../audio.js";
 import { Btn, AceTag, MODAL_BTN_MIN } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
-import { RidgeBackdrop } from "./backdrop.jsx";
+import { TableSurface } from "./backdrop.jsx";
 import { FitBox } from "../ui/viewport.jsx";
 import { useViewport } from "../ui/viewport.jsx";
 import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
@@ -458,13 +458,25 @@ export function LoseScreen({ playerScore, aiScore, onNewGame }) {
   return (
     <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
       display:'flex',flexDirection:'column',padding:16}}>
-      <RidgeBackdrop/>
+      {/* The table, not a landscape: losing happens at the table, and
+          Stan's 2026-09-01 call is that the product carries exactly two
+          backgrounds. A vignette seats the type, which sits straight on
+          the wood here rather than on a panel. */}
+      <TableSurface/>
+      <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',
+        background:`radial-gradient(ellipse 70% 60% at 50% 46%, ${DS.ink}00 34%, ${DS.ink}73 100%)`}}/>
       <FitBox modeMinW={300} style={{zIndex:1}}>
       <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',textAlign:'center'}}>
         <div style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,60px)',
           color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
-        <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
+        {/* slateLight, not slate. This label used to sit on the dark
+            foothill backdrop; on the table it measures 4.33:1 against
+            the lightest board tint the wood can produce, which fails AA
+            for 15px text. slateLight is 5.46:1 on that same worst case.
+            Moving a screen onto a lighter ground silently re-opens
+            every contrast pairing on it. */}
+        <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:15,
           letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
         <div style={{fontFamily:F.display,color:DS.frost,lineHeight:1,
           fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
