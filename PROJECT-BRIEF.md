@@ -3590,6 +3590,73 @@ import" is necessary but not sufficient.
 own beats now sit on the new range; they were checked at six viewports by
 `responsive-qa` but not art-directed against it.
 
+### Unplanned session — Stan's scene, and the cut to two backgrounds ✅ Done + **PUBLISHED** (2026-09-01)
+
+**Stan supplied his own vector illustration** (a sunset meadow with a
+picnic table) and rejected the hand-built trace this session had started.
+It now carries the title screen and the rules storyboard. Then, in a
+second instruction, he cut the product to **exactly two backgrounds**: the
+scene for those two screens, `TableSurface` for the difficulty pick, the
+game and the lose screen.
+
+**`RidgeBackdrop` is deleted, not orphaned.** The picker and the lose
+screen were its last two call sites, so the two-background rule left
+nothing pointing at it. 423 lines went: the cosine-generated foothills,
+the seeded treeline, the hatching, the four hill layers. The `.sc-tree` /
+`treeSway` rules came out of `index.html` with it. **This removes the only
+tree-sway animation in the project.** Recoverable in full from `ef34063`.
+
+**Two defects in the supplied SVG, both fixed before it could be a
+background:**
+- **No `viewBox` at all**, only `width`/`height`, so it could not cover a
+  viewport it was not authored at.
+- **54,042 numbers carrying 6+ decimal places.** Rounding to 2dp is
+  lossless at any display size and took it from 1,053,936 to 719,002
+  bytes raw, **419KB to 252KB gzipped**. The unrounded original is kept
+  at `tools/art/scene-sunset.source.svg`.
+
+It is also a genuine vector rather than an embedded raster: 1146 paths,
+zero `<image>`, zero base64. Checked, because a 1MB "SVG" from an image
+generator is usually a PNG in a costume and that would have made it
+unusable for this entirely.
+
+**THE SCRIM IS LOAD-BEARING.** Measured on the raw image at the real
+splash layout, the brightest pixel under the type band is **1.11:1**
+against `frost` — the near-white suits and parts of the wordmark were
+simply not there. Three layers bring it to **5.37:1** on desktop, Stan's
+1024x662 and a portrait phone, and **4.93:1** on a landscape phone.
+
+- **It was tuned DOWN, not up.** A first pass measured 8.28:1, well past
+  the bar, and had flattened the picture into a dark rectangle.
+- **Landscape needed its own layer.** `object-fit: cover` on a 1.5:1
+  image inside a 2.16:1 phone crops away the top and bottom and shows
+  only the bright middle, so a band tuned by percentage on a tall screen
+  lands on sky there. It measured **1.69:1** before a flat floor was
+  added that applies whatever the crop does.
+
+**ONE REAL REGRESSION, caught by measuring rather than looking.** Moving
+the lose screen onto wood silently re-opened every contrast pairing on
+it — its text sits straight on the boards with no panel behind it, unlike
+the picker's. `FINAL SCORE` was `slate` at 15px, **4.33:1 against the
+lightest board tint the table can produce**, which fails AA. It is
+`slateLight` now, **5.46:1** on that same worst case. Worth carrying: a
+screen that changes ground has to have its pairings re-checked, and
+nothing about the change looks wrong.
+
+**Verified:** 55 tests, clean build, `contrast-audit` 27 pairings 0 below
+AA, `responsive-qa` **ALL CLEAR** at six viewports, `share:check` clean,
+personal-data-OUT grep over `dist/` clean (`llms.txt` ships "its creator
+and his wife", no name). The impeccable detector ran at **full strength,
+no DEGRADED banner**, returning one pre-existing finding — the wordmark's
+overshoot easing, which Session 5 triaged as committed identity.
+**Correction to the commit message on `b4ff3e5`, which says "0 findings":
+the accurate number is 1 pre-existing.**
+
+**Known cost, flagged and accepted:** at 252KB gzipped the scene is by far
+the largest asset in a project that shipped **zero image files** before
+today, and it is on the first screen. The cellular smoke test is still
+outstanding and this is exactly what it would catch.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3613,7 +3680,8 @@ own beats now sit on the new range; they were checked at six viewports by
 | — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
 | — | *Unplanned:* Splash directions + origin story recorded | Done (2026-08-30) — **read-only, no source changed.** Origin story written into Section 1 (not public). Four splash directions on a live bench; `SwirlBg` trips two lookbook bans. Open: Stan's pick, and STRIKE vs ATTACK |
 | — | *Unplanned:* The splash rebuild — `RidgeBackdrop` (night) | **Superseded 2026-08-31.** Faceted night range; `SwirlBg` deleted from all four screens, true suit colour + riffle kept |
-| — | *Unplanned:* Splash pass 2 — sunset foothills | Done (2026-08-31) — daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug that had made "more dimension" impossible. Contrast worst 5.91:1; sway measured at 2.15° spread between segments. Not yet previewed |
+| — | *Unplanned:* Splash pass 2 — sunset foothills | **Superseded 2026-09-01.** Daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug. Deleted when the product went to two backgrounds; recoverable at `ef34063` |
+| — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
 
 
 ---
@@ -3691,30 +3759,19 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**IN FLIGHT: the splash rebuild sits on `dev` and not on `main`.** As of
-2026-08-31 `dev` is at `ef34063` and `main` is still at `812c055`, so the
-two have diverged on purpose for the first time in a while. Production
-serves the pre-splash build from `19ae1dd`, verified by hash, and the Ace
-bug that blocked the launch is fixed and live there. **Nothing about the
-new backdrop is public yet.**
+**Nothing is in flight.** As of 2026-09-01 `main` and `dev` are level at
+`917dc4e` and the tree is clean. The backgrounds work is live in
+production.
 
-**Start here: put the new splash on a preview.** `RidgeBackdrop` is now on
-its second direction (sunset foothills, `ef34063`) and **has never been
-seen on a deployed URL** — every check so far was local. It changes the
-first screen a launch visitor sees, plus the picker, the walkthrough and
-the lose screen, so it wants Stan's eyes on a preview before `main`. The
-bench that started it is at
-https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d.
+**The product carries exactly TWO backgrounds, and that is a decision
+rather than a state.** Stan's supplied scene holds the title screen and
+the rules storyboard; `TableSurface` holds the difficulty pick, the game
+and the lose screen. `RidgeBackdrop` was deleted when that rule left
+nothing pointing at it — do not reintroduce a third without his say-so.
 
-**Do not hand-place beziers in `backdrop.jsx`.** The ridgelines are
-generated from cosine bumps for a reason recorded in the 2026-08-31 entry,
-and two passes were lost to hand-drawn curves before that. And any new
-gradient on a hill must be `gradientUnits="userSpaceOnUse"`: every ridge
-path closes across the full frame width, so `objectBoundingBox` units
-resolve against the whole viewport rather than the hill.
-
-**Also waiting: STRIKE vs ATTACK**, one word on the Ace button, where his
-written note and the shipped code disagree.
+**Do not hand-place beziers or use `objectBoundingBox` gradients if the
+foothills are ever restored** from `ef34063`; the 2026-08-31 entry
+records why both cost a pass.
 
 **Then: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified. What is left is not code:
