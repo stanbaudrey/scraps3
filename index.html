@@ -513,10 +513,25 @@
          below collapses it to its filled end state, which is correct:
          the tag is still there, it simply does not travel. */
       @keyframes aceTagIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
-      /* SwirlBg flowing color swaths — opacity + transform only, compositor-safe */
-      @keyframes swirlFlowA{0%,100%{opacity:.55;transform:translate(0,0) scale(1)}50%{opacity:.9;transform:translate(3%,-2%) scale(1.1)}}
-      @keyframes swirlFlowB{0%,100%{opacity:.5;transform:translate(0,0) scale(1)}50%{opacity:.85;transform:translate(-2%,3%) scale(1.08)}}
-      @keyframes swirlFlowC{0%,100%{opacity:.45;transform:translate(0,0) scale(1)}50%{opacity:.8;transform:translate(2%,2%) scale(1.06)}}
+      /* The treeline sway lived here until 2026-09-01. It belonged to
+         `RidgeBackdrop`, which was retired when Stan cut the product to
+         two backgrounds; nothing renders `.sc-tree` any more, so the
+         rule went with it rather than sitting here unused. Recoverable
+         from git at ef34063. The suit riffle below stays: the splash
+         still uses it. */
+
+      /* The four suits under the wordmark riffle in sequence, on the
+         SAME 28ms stagger as the wordmark's letters and as the deal
+         sound's taps — one cadence shared by the type, the art and the
+         audio rather than three near-misses. Rests at 0 so reduced
+         motion lands them flush. */
+      .suit-riffle span{display:inline-block;animation:suitRiffle 3.6s
+        cubic-bezier(.3,.9,.4,1) infinite}
+      @keyframes suitRiffle{
+        0%,64%,100%{transform:translateY(0) rotate(0deg)}
+        72%{transform:translateY(-22%) rotate(-8deg)}
+        82%{transform:translateY(0) rotate(0deg)}
+      }
 
       /* ========================================================
          SCRAPS wordmark — three nested layers per letter, because

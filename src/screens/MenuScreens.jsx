@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn } from "../components/buttons.jsx";
-import { SwirlBg, AnimatedTitle } from "../components/backdrop.jsx";
+import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -21,6 +21,16 @@ import { loadStats } from "../game/stats.js";
 // ─────────────────────────────────────────────────────────────
 const SUBTITLE = "Build two hands at once.";
 
+// The suit row under the wordmark, in the colours the cards actually
+// print. `ember` is the game's red everywhere else; `frost` is its
+// black-on-dark. Order matches a fresh deck.
+const SUITS = [
+  { g:'♠', c:DS.frost },
+  { g:'♥', c:DS.ember },
+  { g:'♦', c:DS.ember },
+  { g:'♣', c:DS.frost },
+];
+
 // ─────────────────────────────────────────────────────────────
 // SplashScreen
 // ─────────────────────────────────────────────────────────────
@@ -29,12 +39,22 @@ export function SplashScreen({ onStart }) {
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
       position:'relative',overflow:'hidden'}}>
-      <SwirlBg/>
+      <SceneBackdrop/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-          <div style={{fontFamily:F.display,fontSize:'clamp(24px,min(9vw,7vh),64px)',
-            color:DS.slate,letterSpacing:'0.18em',marginBottom:'clamp(4px,1.4vh,10px)',
-            whiteSpace:'nowrap'}}>♠ ♥ ♦ ♣</div>
+          {/* True suit colour, not four grey glyphs: red suits in
+              `ember` and black in `frost`, exactly as every card face
+              in the game prints them. The row used to be the one thing
+              on this screen doing no work at all. The riffle is in
+              index.html and shares the wordmark's 28ms stagger. */}
+          <div className="suit-riffle"
+            style={{fontFamily:F.display,fontSize:'clamp(24px,min(9vw,7vh),64px)',
+            letterSpacing:'0.18em',marginBottom:'clamp(4px,1.4vh,10px)',
+            whiteSpace:'nowrap'}}>
+            {SUITS.map((s,i)=>(
+              <span key={s.g} style={{color:s.c,animationDelay:`${i*0.028}s`}}>{s.g}</span>
+            ))}
+          </div>
           <AnimatedTitle/>
           <p style={{fontFamily:F.display,fontSize:'clamp(15px,min(4.4vw,2.6vh),22px)',color:DS.slateLight,
             letterSpacing:'0.04em',marginBottom:'clamp(10px,3.5vh,30px)',animation:'fadeUp .5s ease .7s both'}}>{SUBTITLE}</p>
@@ -86,7 +106,14 @@ export function DifficultyPicker({ onChoose }) {
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
       position:'relative',overflow:'hidden'}}>
-      <SwirlBg/>
+      {/* The same table the game is played on. Two backgrounds in the
+          whole product, by Stan's call 2026-09-01: the scene carries
+          the title and the storyboard, the table carries the
+          difficulty pick and everything after it. Picking an opponent
+          is the first move at the table, so it belongs to the table. */}
+      <TableSurface/>
+      <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',
+        background:`radial-gradient(ellipse 74% 64% at 50% 50%, ${DS.ink}00 40%, ${DS.ink}59 100%)`}}/>
       <h1 className="sr-only">SCRAPS — choose your opponent</h1>
       {/* Gaps and box padding are viewport-relative so the two
           panels stay whole on a short screen instead of the second

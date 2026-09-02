@@ -53,6 +53,36 @@ an existing card game. That's confirmed by the prior art search below
 real hook for launch copy — "we invented a card game" is a far stronger
 story than "we built an app," and it's true.
 
+**The origin story itself, written down here for the first time
+(2026-08-30). NOT PUBLIC, and not to be published without Stan's say-so.**
+Stan and his wife took a weekend vacation to Sisters, Oregon, a small town
+that turned out to be far more rural than they had expected. They spent
+most of three days at a table inventing this card game. In his words it is
+a fond memory of one-on-one time in a campground.
+
+Until this entry, that story existed **only inside a chat transcript** —
+the `/audit` command arguments on 2026-08-30, in
+`~/.claude/projects/-Users-stan-Projects-scraps3/ea751ac9-*.jsonl`. The
+brief's post-launch backlog carried the phrase "the Sisters, OR origin
+story" and nothing else, which is unreadable without the transcript; a
+later session read "Sisters" as a proper noun rather than as a town in
+Oregon. A story that only lives in a transcript is a story the project has
+already lost.
+
+**What is public today is only the bare invention fact.** `public/llms.txt`
+says "Its creator and his wife invented it themselves" — no name, no place,
+matching Stan's own launch drafts and the personal-data-OUT grep run at the
+last publish. Sisters, the campground and the three days appear nowhere in
+`dist/`.
+
+**The audit's argument off the back of it, also worth keeping:** "forest"
+is an abstract palette with no story, which is why it drifted into felt.
+"A card table at a campground in Sisters, Oregon" is a *specific place*,
+and it hands the project a surface, a light source and a reason for the
+warmth already in the tokens. That reasoning is what `TableSurface` and its
+lantern gradient are already built on, and it is the argument behind the
+splash directions in the session below.
+
 **Scope for this pass:** originally scoped as a tight weekend of pure
 polish. Stan then added four real workstreams on top — mobile QA, a
 comprehensive sound identity pass, a formal color/design audit, and a
@@ -3300,6 +3330,266 @@ of the wrong property reads exactly like a passing test. The tell was in
 Stan's own words the whole time: "from left to right" is a stagger, and
 "only ONE card does NOT disappear" is a layout fact, not an opacity one.
 
+
+### Unplanned session — Splash directions, and the origin story written down ✅ Done (2026-08-30)
+
+**Not a planned session. Read-only on `src/`: no source file was changed.**
+Stan asked to evaluate status and start the next session, and separately
+where the origin story lives. The reconcile turned up an unactioned note;
+this session answered it with a recommendation bench rather than a build,
+because the note itself asks for recommendations.
+
+**The origin story lived nowhere but a chat transcript.** Now written into
+Section 1 above, marked not-public. See that entry for the story, for where
+it had been hiding, and for exactly how much of it is already public
+(only the bare invention fact, in `llms.txt`).
+
+**Notion's newest block was three-quarters done and entirely unmarked.**
+Four items. The mono step captions, the "Each round is two small hands"
+rewrite and the "= win all three, +1PT" badge were all shipped by the
+polish-rounds session and verified here by grep: no `Mark Two` / `Discard
+your ace` strings anywhere, `Walkthrough.jsx:294` carries the new copy, and
+`BeatScoring` renders three score slots with no bonus badge. The fourth,
+**"Title screen is now boring... scan the lookbook and bring back some
+recommendations,"** had never been touched. It is the only live unactioned
+note on the project.
+
+**A divergence worth a decision: Stan asked for STRIKE, the build shipped
+ATTACK.** His note reads "Change the action button tethered to each ace
+from 'PLAY ACE' to 'STRIKE'". The code, the `aria-label` and the
+walkthrough all say ATTACK, and the entry above records it as "ATTACK
+rename" with no note that a different word was requested. No decision was
+written down either way. **Open: rename to STRIKE, or record ATTACK as a
+deliberate call.**
+
+**The splash diagnosis, and it is the same one the audit made about the
+table.** `SwirlBg` is three blurred radial gradients on near-black green,
+looping on 16s / 20s / 24s, and it is the entire background. It trips two
+of the lookbook's named bans: *large coloured glows behind hero content*
+("filler standing in for a composition") and *aurora / mesh gradient
+fields*. The table was fixed for exactly this — thinness, not hue — and the
+splash never got the same pass, so **the game's first screen is now its
+least-drawn one.** `SwirlBg` also runs on the picker, the walkthrough and
+the lose screen.
+
+**`scan_tells.py` reported six banned hits and all six are false
+positives**, which is the skill's own warning about a clean scan earning
+its keep. "Inter" matched inside *r/InternetIsBeautiful* and
+*RoundInterstitial*; "Space Grotesk" matched a brief entry recording that
+the face was *removed*; "emoji as icons" matched the ✅ in this file's own
+headings; "skeleton shimmer" matched the word "shimmer" in a woodgrain
+comment; "multi-stop rainbow gradient" matched a four-stop vertical
+vignette in two tokens. **Neither ban that actually fires on this screen is
+machine-checkable**, so the scanner was silent on both.
+
+**Nothing in the lookbook fits, and that is a finding rather than a gap.**
+The Aesthetics drawer has 21 directions and none is a campground; Mystical
+western is the nearest (Sisters is high desert) and its terracotta/indigo
+palette and tarot motifs would fight Forest Dusk. The right move is not a
+new aesthetic but extending the material vocabulary this project already
+invented for the table.
+
+**The answer was already in the repo.** `CardBackSVG` is a dusk campground
+scene: an ember sun low on the horizon, a few stars, three receding
+`canopy` ridges, an ember river. It is the game's only piece of real
+identity art, and per `theme.js`'s own canopy-rule note you only ever see
+it on the opponent's hidden hand, the deck and the discard. Scaling it to
+the viewport costs no new art and puts the identity green on the screen
+everyone sees first.
+
+**Deliverable: a live comparison bench**, built in the real tokens at the
+real 16:10 proportion, per the standing rule that a taste decision with
+many candidates gets a comparison artifact rather than a prose menu:
+https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d
+
+- **A (recommended) — the ridgeline, full-bleed.** `CardBackSVG` rescaled.
+- **B — the table, before the deal.** `TableSurface` as the splash ground.
+  Costs the reveal: the table stops being something the game cuts to.
+- **C — type to the edges, no ground.** The riskiest, and the only one that
+  would read as a typographic decision rather than a scene.
+- **D — a table of backs.** Tiled and tilted; it demonstrates its own
+  stated risk, which is that it competes with the wordmark's motion.
+- Plus four suit-row treatments, since the row is four `slate` glyphs doing
+  no work at all.
+
+**Verified by rendering, not by reading.** The in-app pane went blank on
+every screenshot while its measurements stayed sound (the documented
+hidden-pane failure), and the Playwright MCP server refused with its
+profile locked by another session — **both failure modes this brief already
+records.** The third route worked: the server's bundled `playwright-core`
+at `~/.npm/_npx/9833c18b2d85bc59/node_modules/playwright-core`, driven
+against Chrome at 1280x900, deviceScaleFactor 2. That caught three real
+defects a source read would not have: the scaled sun was a huge bloom
+directly behind the wordmark (**it had re-created the exact ban the
+direction exists to remove**), B's two cards were cropped by
+`preserveAspectRatio="slice"` and read as dark rectangles, and every suit
+glyph was mojibake. All three fixed and re-rendered.
+
+**Left open:** which direction Stan picks; the STRIKE/ATTACK call; and the
+`/impeccable craft` run, which belongs to the build session rather than to
+this recommendation pass.
+
+### Unplanned session — Splash pass 2: sunset foothills ✅ Done (2026-08-31)
+
+**Stan sent the night version back.** Keep the reference's DAYTIME
+sunset, omit the stars, make the mountains less pointy (rounded, less
+extreme, "like foothills"), two distinct peaks with the left bigger,
+more dimension, less low-poly-futuristic and more rustic and natural,
+"the style comes from the coloring", and give the trees a collective
+sway like a breeze crossing every few seconds. Everything else from
+pass 1 stands: true suit colour, riffle, `SwirlBg` gone from all four
+screens.
+
+**Ridgelines are GENERATED now, and that is the headline.** Hand-placed
+beziers were tried twice and produced a cone, then a narrow rounded
+thumb. The reason is structural rather than clumsiness: with a curve you
+choose TANGENTS and only infer the silhouette, so span and rise are
+never actually under your hand. Each mass is now a sum of raised-cosine
+bumps sampled into a dense polyline, where `w` is literally half-width
+and `h` literally the rise. The left spans 124 and rises 50, the right
+96 and 34, both near 2.5:1. **A foothill is a ratio, and once it was a
+number it took one try.** Seeded low-frequency roughness on top keeps
+them lopsided; real ground is not a cosine.
+
+**The foreground roll was the missing piece.** Two peaks alone read as
+two objects on a plain. Hill country is rounded land overlapping itself,
+each layer darker and less hazy than the one behind, so a low mass
+crossing in front of both is what turns two shapes into terrain.
+
+**THE BUG THAT MADE "more dimension" IMPOSSIBLE, worth knowing before
+anyone touches this file again: every hill gradient was in the default
+`objectBoundingBox` units.** Each ridge path closes across the FULL
+frame width to make its filled body, so every one of those bounding
+boxes was the entire viewport, and a gradient meant to model one hill
+was being stretched across all 160 units. Two separate attempts at
+"light the masses better" changed stops that were never landing where
+they were aimed. They are `gradientUnits="userSpaceOnUse"` now with real
+viewBox coordinates per mass, and the modelling appeared immediately.
+**Nothing about the symptom pointed at units.**
+
+**Composition, and why the sky is arranged the way it is.** Foothills
+are low, so the wordmark sits on SKY rather than on a mountain. A sunset
+ramp that starts warm high up therefore puts near-white type on bright
+gold. The blaze is kept as a narrow band low down with the deep half
+tall — which is also how a sunset actually looks once the sun is under
+the horizon. `frost` still belongs to the wordmark.
+
+**The breeze.** Each treeline is four segments, each starting a beat
+after the one to its left, pivoting about its own base via
+`transform-box: fill-box`. Without fill-box the origin resolves against
+the SVG viewport and the whole band slides sideways instead of bending.
+Segments overlap by 16 units of solid fill, because out-of-phase skew
+opens a visible notch at a shared edge otherwise.
+
+**Verified by measuring:**
+- **Sway, sampled every 320ms across 12 frames in one call** (two
+  round-trips would miss the loop entirely, per this file's own rule):
+  all 8 bands sweeping, widest 3.26°, and **2.15° of spread BETWEEN
+  segments at a single instant** — that spread is the difference between
+  a travelling gust and a board tipping, and it is the thing worth
+  measuring rather than eyeballing.
+- **Reduced motion:** 0 animations running, **0 bands left bent**, 0
+  suits out of position. Both keyframes rest at 100%, which is where the
+  global collapse lands them.
+- **Wordmark contrast**, sampled from the pixels behind the hidden
+  glyphs at four viewports: worst **5.91:1** (Stan's 1024x662), desktop
+  6.50, phone 7.81, landscape 7.03. Better than the night version's
+  4.68 and all clearing AAA for large text.
+- 55 tests, clean build, `contrast-audit` 27 pairings 0 below AA,
+  `responsive-qa` **ALL CLEAR** at six viewports, `share:check` clean.
+
+**Left open:** STRIKE vs ATTACK, still Stan's call. Nothing is on a
+preview URL yet.
+
+
+### Unplanned session — The splash rebuild: RidgeBackdrop ✅ Superseded same-week (2026-08-30)
+
+**Superseded on 2026-08-31 by the sunset pass above. Kept because its
+reasoning still applies and because it is the record of why the night
+direction was tried.** What survives from it: `SwirlBg` deleted from all
+four screens, the true-suit-colour riffle, and the rule that `frost`
+belongs to the wordmark. What did not: the faceted geometry, the night
+sky, and the stars.
+
+**Stan picked direction A off the bench and changed it in four ways:** the
+card-back art was too bland to reuse as-is, so build an augmented version;
+make the ridgeline more dramatic and defined; drop the setting sun; go
+night with more, twinkling stars. He supplied a low-poly reference PNG to
+trace. Plus true suit colour with a riffle, and `SwirlBg` deleted
+everywhere. Opened with `/impeccable craft`.
+
+**`RidgeBackdrop` replaces `SwirlBg` on all four screens** that used it:
+splash, difficulty picker, walkthrough, lose screen. `SwirlBg` and its
+three `swirlFlow` keyframes are gone rather than orphaned.
+
+**The one art-direction rule, and it is load-bearing: `frost` belongs to
+the wordmark.** The reference is a daylit sunset with near-white snow; the
+wordmark is `frost`. A literal trace puts near-white snow directly behind
+near-white type. So the range is lit one full step down, topping out at
+`slateLight`/`slate`, with `frost` spent only on summit shards a few units
+wide. The brightest thing on the screen has to be the word SCRAPS.
+
+**Composition is constrained by the slice, not by taste.** The SVG is
+`preserveAspectRatio="slice"`, so a 375-wide portrait phone sees only about
+56 of the 160 viewBox units, cropped to the middle. The dominant summit
+sits at x=68, inside that window on purpose, so the phone gets a whole
+mountain rather than an anonymous slope. Anything placed outside roughly
+x=52..108 does not exist on a phone.
+
+**Other decisions worth keeping:**
+- **Facets are painted generously and trimmed by a `clipPath`.** Fitting
+  each plane to the silhouette by hand is how low-poly art picks up
+  hairline seams between adjacent planes.
+- **No curves anywhere.** One bezier in a faceted range reads instantly as
+  a different drawing. The snowline is a polyline for that reason.
+- **No sun, per Stan.** A disc low on the horizon is exactly the
+  glow-behind-the-headline this component exists to remove. The sky's
+  warmth is a broad low `ember` afterglow at single-digit alpha instead.
+- **Both new animations rest at their 100% keyframe.** `index.html`'s
+  reduced-motion block collapses every animation to 1ms and one iteration,
+  which lands each element on its LAST keyframe. A twinkle written to fade
+  *up* would leave the whole sky stuck bright. Written this way, reduced
+  motion gets a still sky at its intended brightness for free.
+- **Stars, and the conifer bands, are seeded** like `TableSurface` and the
+  audio exciter. A sky that re-scatters on every render jumps visibly.
+- The suit riffle shares the wordmark's **28ms stagger**, which is also the
+  deal sound's tap stagger. One cadence across type, art and audio.
+
+**Verified by measuring, not by reading:**
+- **Contrast behind the wordmark**, which is the specific risk this change
+  introduced and which `contrast-audit` does not cover. Hid the glyphs,
+  screenshot what is behind them, sampled every pixel in the bounding box
+  for the brightest. Worst case **4.68:1** (844x390 landscape); desktop
+  7.40, Stan's 1024x662 5.06, phone 7.66. All four clear 4.5:1, which is
+  AAA for large text. The first build measured 4.26 on landscape and the
+  scrim was raised until it did not.
+- **Reduced motion**: 74 stars and 4 suits animating normally; with
+  `reducedMotion:'reduce'`, **0 animations running, 0 stars off resting
+  opacity, 0 suits out of position.**
+- 55 tests, clean build, `contrast-audit` 27 pairings 0 below AA,
+  `responsive-qa` **ALL CLEAR** at six viewports, `share:check` clean.
+- `scan_tells` on the changed files: **zero new hits.** The two it reports
+  are the pre-existing `TableSurface` false positives (a four-stop vertical
+  vignette read as a rainbow gradient, the word "shimmer" in a woodgrain
+  comment). The impeccable detector returns the same two pre-existing
+  findings Session 5 triaged as committed identity, neither on a touched
+  line.
+- **The two bans that were firing on this screen are gone**, and neither is
+  machine-checkable, so this is an inspection claim rather than a scanner
+  result: there is no blurred bloom behind the hero and no animated
+  gradient field.
+
+**A trap worth recording: `tools/responsive-qa.mjs` cannot run through the
+bundled `playwright-core` with only the import rewritten.** It also calls
+`chromium.launch()` with no arguments, which reaches for a headless shell
+that is not installed. It needs `executablePath` pointing at Chrome as
+well. The brief's existing note about rewriting "its one `from 'playwright'`
+import" is necessary but not sufficient.
+
+**Left open:** STRIKE vs ATTACK, still Stan's call. And the walkthrough's
+own beats now sit on the new range; they were checked at six viewports by
+`responsive-qa` but not art-directed against it.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3321,6 +3611,9 @@ Stan's own words the whole time: "from left to right" is a stagger, and
 | — | *Unplanned:* Audit fixes (Ace, wheel, empty Scraps, wood table) | Done (2026-08-30) — all four P1s fixed with tests 37→53, the table rebuilt as a picnic-table surface, rules modal retired, quit/mute added |
 | — | *Unplanned:* Ace flow, card colour, narrator | Done (2026-08-30) — counter/re-counter both directions, ATTACK rename, Scraps ink by owner, opaque cards, narrator only when it has copy |
 | — | *Unplanned:* Polish rounds on the audit fixes | Done + **PUBLISHED** (2026-08-30) — seven review rounds; the ruffle's transform-override bug was the big one. Live bundle verified by hash |
+| — | *Unplanned:* Splash directions + origin story recorded | Done (2026-08-30) — **read-only, no source changed.** Origin story written into Section 1 (not public). Four splash directions on a live bench; `SwirlBg` trips two lookbook bans. Open: Stan's pick, and STRIKE vs ATTACK |
+| — | *Unplanned:* The splash rebuild — `RidgeBackdrop` (night) | **Superseded 2026-08-31.** Faceted night range; `SwirlBg` deleted from all four screens, true suit colour + riffle kept |
+| — | *Unplanned:* Splash pass 2 — sunset foothills | Done (2026-08-31) — daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug that had made "more dimension" impossible. Contrast worst 5.91:1; sway measured at 2.15° spread between segments. Not yet previewed |
 
 
 ---
@@ -3398,12 +3691,32 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-08-30 `main` and `dev` are level at
-`19ae1dd`, the tree is clean, and production is deployed from that commit
-with its bundle verified by hash against the locally built one. The Ace
-bug that blocked the launch is fixed and live.
+**IN FLIGHT: the splash rebuild sits on `dev` and not on `main`.** As of
+2026-08-31 `dev` is at `ef34063` and `main` is still at `812c055`, so the
+two have diverged on purpose for the first time in a while. Production
+serves the pre-splash build from `19ae1dd`, verified by hash, and the Ace
+bug that blocked the launch is fixed and live there. **Nothing about the
+new backdrop is public yet.**
 
-**Start here: Session 7 part two, the launch itself.** Everything the
+**Start here: put the new splash on a preview.** `RidgeBackdrop` is now on
+its second direction (sunset foothills, `ef34063`) and **has never been
+seen on a deployed URL** — every check so far was local. It changes the
+first screen a launch visitor sees, plus the picker, the walkthrough and
+the lose screen, so it wants Stan's eyes on a preview before `main`. The
+bench that started it is at
+https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d.
+
+**Do not hand-place beziers in `backdrop.jsx`.** The ridgelines are
+generated from cosine bumps for a reason recorded in the 2026-08-31 entry,
+and two passes were lost to hand-drawn curves before that. And any new
+gradient on a hill must be `gradientUnits="userSpaceOnUse"`: every ridge
+path closes across the full frame width, so `objectBoundingBox` units
+resolve against the whole viewport rather than the hill.
+
+**Also waiting: STRIKE vs ATTACK**, one word on the Ace button, where his
+written note and the shipped code disagree.
+
+**Then: Session 7 part two, the launch itself.** Everything the
 launch needs is built, published and verified. What is left is not code:
 the **cold smoke test on CELLULAR, which only Stan can run**, on his
 phone, off wifi — every walk so far went over a fast connection and
@@ -3418,9 +3731,19 @@ any afterwards makes a shipped legal document wrong on the day it lands,
 so this is a decision to make on purpose, including deciding on none.
 
 **Post-launch backlog, agreed 2026-08-30:**
-- An **About page** carrying the Sisters, OR origin story — a fourth
-  screen reached from the splash and the game-over screen, NOT a route
-  (this project has no router by deliberate choice).
+- An **About page** carrying the origin story — the weekend in **Sisters,
+  Oregon**, now written out in full in Section 1 above rather than left as
+  a three-word pointer nobody could read. A fourth screen reached from the
+  splash and the game-over screen, NOT a route (this project has no router
+  by deliberate choice).
+- **The splash pass.** Stan's last unactioned Notion note. Four directions
+  are on the bench at
+  https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d and
+  A is recommended; the build is a separate session and should open with
+  `/impeccable craft`. Not strictly post-launch: it is the first screen a
+  launch visitor sees, so it is worth deciding before the posts go out.
+- **STRIKE vs ATTACK on the Ace button.** Stan's note asked for STRIKE and
+  the build shipped ATTACK. One word, one line, needs his call.
 - **Email capture pointed at Stan's existing Neon email list project**,
   not anything new built here. It conflicts with the signed privacy
   notice and the no-backend rule, so link out rather than collecting.
