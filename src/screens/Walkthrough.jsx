@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard } from "../components/cards.jsx";
-import { RidgeBackdrop } from "../components/backdrop.jsx";
+import { SceneBackdrop } from "../components/backdrop.jsx";
 import { IconBolt } from "../components/icons.jsx";
 import { TOUCH_MIN } from "../components/buttons.jsx";
 import { playSelect } from "../audio.js";
@@ -367,7 +367,7 @@ export function Walkthrough({ onDone, asReference = false }) {
     <div onClick={advance} className="app-vh" style={{position:'fixed',inset:0,background:DS.dusk,
       zIndex:100,
       display:'flex',flexDirection:'column',cursor:'pointer',overflow:'hidden',userSelect:'none'}}>
-      <RidgeBackdrop/>
+      <SceneBackdrop/>
       <h1 className="sr-only">SCRAPS — how to play</h1>
       {/* Each beat replaces the last in place, so the step count is a
           change a screen reader has to be told about rather than shown. */}

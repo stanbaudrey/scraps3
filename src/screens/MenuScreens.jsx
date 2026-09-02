@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn } from "../components/buttons.jsx";
-import { RidgeBackdrop, AnimatedTitle } from "../components/backdrop.jsx";
+import { RidgeBackdrop, SceneBackdrop, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ export function SplashScreen({ onStart }) {
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
       position:'relative',overflow:'hidden'}}>
-      <RidgeBackdrop/>
+      <SceneBackdrop/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
           {/* True suit colour, not four grey glyphs: red suits in

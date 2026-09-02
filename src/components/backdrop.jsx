@@ -6,6 +6,74 @@ import { DS, F } from "../styles/theme.js";
 import { playSquareUp } from "../audio.js";
 
 // ─────────────────────────────────────────────────────────────
+// SceneBackdrop — Stan's illustration, on the splash and the
+// storyboard only
+// ─────────────────────────────────────────────────────────────
+// Added 2026-09-01. Stan supplied a vector sunset meadow with a picnic
+// table and asked for it behind the title page and the rules
+// storyboard. `RidgeBackdrop` still runs the difficulty picker and the
+// lose screen. THAT SPLIT IS A LIVE MISMATCH, not a decision: splash →
+// storyboard → picker is one continuous flow, so the world currently
+// changes under the player at the picker. Flagged for Stan; extending
+// this to all four is a one-line change if he wants it.
+//
+// It is a <img>, not inlined. Inlining would put ~719KB of path data
+// into the JS bundle, which is the one thing this project has never
+// done — the game ships no image files at all and every graphic is
+// drawn in code. As a separate file it is cacheable and does not block
+// the bundle. It is still by far the largest asset in the project:
+// 252KB gzipped against an 85KB JS bundle.
+//
+// THE SCRIM IS LOAD-BEARING, NOT MOOD. Measured on the raw image at
+// the real splash layout, the brightest pixel under the type band is
+// 1.11:1 against `frost` — the near-white suits and parts of the
+// wordmark would simply not be there. With the three layers below it
+// measures 5.37:1 on desktop, Stan's 1024x662 and a portrait phone,
+// and 4.93:1 on a landscape phone: clear of AAA-for-large-text at
+// every viewport, with margin rather than exactly.
+//
+// It was tuned DOWN to get there, not up. A first pass measured
+// 8.28:1, which is well past the bar and had flattened the picture
+// into a dark rectangle. The band is shaped so the darkening sits on
+// the rows the type occupies and releases above and below, so the sky
+// and the meadow keep as much brightness as the requirement allows.
+//
+// The image is flat: 1146 paths, no groups. So the treeline cannot
+// sway here the way it does in `RidgeBackdrop` — nothing in the file
+// is addressable. That is a real trade and Stan knows about it.
+export function SceneBackdrop() {
+  return (
+    <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:0,
+      pointerEvents:'none',overflow:'hidden',background:DS.dusk}}>
+      <img src="/scene-sunset.svg" alt=""
+        style={{position:'absolute',inset:0,width:'100%',height:'100%',
+          objectFit:'cover',display:'block'}}/>
+      {/* Vertical band: heaviest across the suits, wordmark, subtitle
+          and button, easing off above and below. Percentages are the
+          rows those elements measure at on the live splash. */}
+      <div style={{position:'absolute',inset:0,background:
+        `linear-gradient(180deg,
+          ${DS.ink}00 0%,
+          ${DS.ink}59 16%,
+          ${DS.ink}9E 30%,
+          ${DS.ink}9E 70%,
+          ${DS.ink}59 86%,
+          ${DS.ink}00 100%)`}}/>
+      {/* A flat seat under everything, and it is the landscape fix.
+          `object-fit: cover` on a 1.5:1 image inside a 2.16:1 landscape
+          phone crops away the top and bottom and shows only the bright
+          middle of the picture, so a band tuned by percentage on a tall
+          screen lands on sky there. Measured 1.69:1 before this layer
+          existed. A floor that applies whatever the crop does is the
+          only thing that holds at every aspect ratio. */}
+      <div style={{position:'absolute',inset:0,background:`${DS.ink}24`}}/>
+      <div style={{position:'absolute',inset:0,background:
+        `radial-gradient(ellipse 78% 66% at 50% 50%, ${DS.ink}00 42%, ${DS.ink}4D 100%)`}}/>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // RidgeBackdrop — sunset foothills behind every menu screen
 // ─────────────────────────────────────────────────────────────
 // Rebuilt 2026-08-31 from Stan's reference, second pass. The first pass
