@@ -1,6 +1,6 @@
 {
   "note": "Written by tools/make-share-assets.mjs. Do not hand-edit — run `npm run share` to regenerate, `npm run share:check` to verify.",
-  "generated": "2026-08-31T02:13:33.311Z",
+  "generated": "2026-09-08T05:25:43.762Z",
   "sources": {
     "title": "SCRAPS - Poker with two hands at once.",
     "description": "This turn's discards are next turn's hand.",
@@ -41,10 +41,10 @@
       "sha256": "7f5d5855ff6e1a39"
     },
     "robots.txt": {
-      "sha256": "43a9d07417414369"
+      "sha256": "cf3d752d6fada362"
     },
     "llms.txt": {
-      "sha256": "128c83eac2d25e2e"
+      "sha256": "5acd1bca8f41a7ec"
     }
   }
 }

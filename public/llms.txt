@@ -32,4 +32,4 @@ original, not a digital version of an existing game.
 
 ## Links
 
-- Play: https://scraps3.vercel.app/
+- Play: https://scraps.games/
