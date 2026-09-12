@@ -3731,6 +3731,27 @@ is worse than one pointing at the old address that works, and a crawler
 that visits during the gap is not un-visited by the certificate arriving
 later.
 
+**A FIFTH TRAP, and the only one that would have shipped broken: the
+monthly CI check hardcoded the old URL.** `.github/workflows/monthly-check.yml`
+carried `BASE=https://scraps3.vercel.app` and fetches nine paths expecting
+`200`, with no `-L`. Simulated against the live redirect, **every single
+assertion fails**: nine `308`s, the `og:image` grep returns 0 matches
+because a redirect body has no tags, and `og.png` comes back as
+`text/plain`. The job would have gone red on **1 October** reading exactly
+like "the live site is down". It now points at `scraps.games` and carries a
+new assertion that the old URL still 3xx-redirects here, since every link
+shared before 2026-09-12 depends on that and a Vercel project can lose a
+domain assignment with nothing else looking wrong. The assertion was
+exercised against six values before being trusted: it passes a 301 or 308
+to the apex, and fails a `200`, a `000`, a redirect elsewhere, and the
+lookalike `scraps.games.evil.example`.
+
+**The general lesson, worth more than the fix:** changing a site's address
+silently invalidates every check written against the old one, and those
+checks live outside the app where no build step and no test touches them.
+`share:check` guards the URLs the *site* advertises; nothing guarded the URL
+the *CI* fetches. Grep the whole repo, `.github/` included, not just `src/`.
+
 **Two stale claims in `CLAUDE.md` corrected in the same pass**, both
 found while working rather than looked for: it said the suite is 37
 tests when it has been 55 since the 2026-08-30 audit fixes, and its

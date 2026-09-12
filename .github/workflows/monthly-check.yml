@@ -65,7 +65,8 @@ jobs:
         if: github.event_name != 'push' || github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          BASE=https://scraps3.vercel.app
+          BASE=https://scraps.games
+          OLDBASE=https://scraps3.vercel.app
           fail=0
           for p in / /og.png /favicon.svg /favicon-32.png /favicon-180.png \
                    /robots.txt /sitemap.xml /llms.txt /share-manifest.json; do
@@ -84,6 +85,16 @@ jobs:
           case "$ctype" in
             image/png*) echo "  ok   og.png is $ctype" ;;
             *) echo "  FAIL og.png served as '$ctype', expected image/png"; fail=1 ;;
+          esac
+          # The pre-domain URL must keep redirecting here rather than
+          # serving a second copy. Every link shared before 2026-09-12
+          # points at it, and a Vercel project can lose a domain
+          # assignment without anything else looking wrong.
+          rcode=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$OLDBASE/" || echo 000)
+          rloc=$(curl -sS -o /dev/null -w '%{redirect_url}' --max-time 25 "$OLDBASE/" || true)
+          case "$rcode:$rloc" in
+            30[178]:"$BASE"/*) echo "  ok   $OLDBASE $rcode -> $rloc" ;;
+            *) echo "  FAIL $OLDBASE returned '$rcode' to '$rloc', expected a 3xx to $BASE/"; fail=1 ;;
           esac
           exit $fail
 
