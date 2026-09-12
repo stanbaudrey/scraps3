@@ -1,5 +1,5 @@
-# SCRAPS — https://scraps3.vercel.app
+# SCRAPS — https://scraps.games
 User-agent: *
 Allow: /
 
-Sitemap: https://scraps3.vercel.app/sitemap.xml
+Sitemap: https://scraps.games/sitemap.xml

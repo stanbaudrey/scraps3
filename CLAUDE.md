@@ -17,7 +17,8 @@ five-card suited straight scores as a plain straight, never a straight flush.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. 37 tests cover the engine and the reducer.
+- Vitest for tests. 55 tests cover the engine and the reducer. (It was 37
+  until the 2026-08-30 audit-fix pass took it to 53, and later passes to 55.)
 - Fonts are **self-hosted** from `public/fonts` since Session 6 — **five**
   families, not four: Bungee Shade (the SCRAPS wordmark, and nothing
   else), Fjalla One (headings and subtitles), Baloo 2 (card ranks and
@@ -65,7 +66,7 @@ it fails loudly instead of drifting to another port). Running `npm run dev`
 by hand without those flags starts on 5173 instead.
 
 ```bash
-npm test          # vitest, 37 tests, runs in under a second
+npm test          # vitest, 55 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -238,11 +239,21 @@ looks broken locally, it is not a missing-secret problem.
 
 Connected to the Vercel project **scraps3** (team
 `samvaudrey-3466s-projects`), framework preset Vite, output `dist`. GitHub
-integration is already active on **`unclescrunch/scraps3`** — pushes to `main`
-auto-deploy to production at
-[scraps3.vercel.app](https://scraps3.vercel.app). The `dev` branch now exists
-and is pushed, so `/preview` has somewhere to deploy before anything reaches
-`main`.
+integration is already active on **`stanbaudrey/scraps3`**, which is what
+`origin` actually points at — pushes to `main` auto-deploy to production.
+
+**Production is [scraps.games](https://scraps.games)** since 2026-09-12, a
+real domain registered through Vercel and expiring 2027-09-08. The old
+`scraps3.vercel.app` still resolves but returns a **308 redirect** to it, as
+does `www.scraps.games`, so there is one canonical address. Every URL the
+site advertises — canonical tag, Open Graph, `sitemap.xml`, `robots.txt`,
+`llms.txt` — is generated from the single `SITE` constant in
+`tools/make-share-assets.mjs` and cross-checked against `index.html` by
+`npm run share:check`. To change the address, change `SITE` and run
+`npm run share`; never hand-edit the generated files.
+
+The `dev` branch exists and is pushed, so `/preview` has somewhere to deploy
+before anything reaches `main`.
 
 Note there are also older `scraps2` and `scraps-game` Vercel projects on the
 same account. This repo is `scraps3` — the other two are abandoned earlier

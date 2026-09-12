@@ -37,7 +37,7 @@ const ROOT   = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const CHECK  = process.argv.includes('--check');
 
-const SITE = 'https://scraps3.vercel.app';
+const SITE = 'https://scraps.games';
 
 // Chrome is looked up, never installed. If it is missing the
 // script says so and stops rather than writing a broken asset.

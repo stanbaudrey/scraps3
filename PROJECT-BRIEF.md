@@ -2,7 +2,9 @@
 
 **Shorthand name: SCRAPS.** This is not a from-scratch kickoff — SCRAPS already
 exists as a working proof of concept at `~/Projects/scraps3`, live at
-[scraps3.vercel.app](https://scraps3.vercel.app). This brief runs the usual
+[scraps.games](https://scraps.games) since 2026-09-12 (the older
+`scraps3.vercel.app` still resolves but 308-redirects there; historical
+entries below correctly name it as the address of their day). This brief runs the usual
 kickoff interview against an existing build instead of a blank page, then
 reconciles it against what's actually in the code (see [CLAUDE.md](CLAUDE.md)'s
 Known Issues section, which this brief absorbs and prioritizes rather than
@@ -3657,6 +3659,84 @@ the largest asset in a project that shipped **zero image files** before
 today, and it is on the first screen. The cellular smoke test is still
 outstanding and this is exactly what it would catch.
 
+### Unplanned session — The real domain: scraps.games ✅ Done + **PUBLISHED** (2026-09-12)
+
+**The game has its own address.** `https://scraps.games`, registered
+2026-09-08 through Vercel (registrar Name.com), $14.99 for the first
+year, auto-renew on, expiry 2027-09-08. Stan bought it himself through
+Vercel's checkout rather than passing registrant details through a
+chat transcript, and assigned it to the `scraps3` project in the same
+step.
+
+**Why this name.** `scraps.com` is taken, and so is every short form of
+the bare word — `.io`, `.net`, `.org`, `.cc`, `.gg`, `.app` — plus
+`scrapsgame.com`, `playscraps.com`, `getscraps.com` and
+`fullscrap.com`. Forty candidates were priced. `.games` was the only
+cheap TLD that keeps the wordmark intact and alone: **$14.99 against
+$349.99 for the singular `scraps.game`, $616 for `scraps.co` and $1375
+for `scraps.fun`**, all three registry-premium rather than resale.
+`scrapspoker.com` was available at $11.25 and deliberately passed over —
+the game uses poker hands but is not poker, and the name would have set
+the wrong expectation before anyone read a rule.
+
+**What changed in the source: eleven hardcoded references, from two
+places.** `SITE` in `tools/make-share-assets.mjs` drives `robots.txt`,
+`sitemap.xml` and `llms.txt`; `index.html` carries the canonical tag,
+`og:url`, `og:image`, `twitter:image` and the `VideoGame` ld+json block.
+The generator already cross-checks index.html against `SITE`, so the two
+cannot drift apart without `share:check` failing by name. `og.png` did
+not change a single byte, which is the right answer — the card art never
+depended on the URL.
+
+**Verified, and how.** DNS resolves at 8.8.8.8, 1.1.1.1 and locally.
+HTTPS returns 200 with `ssl_verify_result=0`, meaning curl validated
+both the chain and the hostname against the system trust store. A real
+Playwright browser loaded the page and rendered Stan's hillside scene,
+so what is being served is the playable game and not a placeholder.
+`www.scraps.games` and `scraps3.vercel.app` both return **308** to the
+apex, so there is one address and one only and the old URL cannot
+compete for ranking. Pre-release: 55 tests, clean build, `share:check`
+clean, `fonts:check` reporting 24 faces over 14 files, 0 changed, 0
+stale.
+
+**FOUR TRAPS, all of which read as failure and none of which was one.**
+
+- **`whois scraps.games` returns the IANA record for the `.games` TLD,
+  not for the domain.** It printed `status: ACTIVE` and `created:
+  2016-05-24` — the registry's own dates — which looks exactly like a
+  domain that has been registered by someone else for a decade. Use
+  **RDAP** (`https://rdap.org/domain/<name>`, parsed as JSON) for the
+  real registration event, status, nameservers and registrar.
+- **Vercel's project API does not list custom domains.** `get_project`
+  returned only the three `.vercel.app` aliases long after
+  `scraps.games` was correctly attached and serving. Its `domains` array
+  is not a check for whether a domain is wired up; fetching the domain
+  is.
+- **macOS caches negative DNS answers, so `dig` and `curl` disagreed for
+  about twenty minutes.** `dig` queries the configured nameserver
+  directly and said the domain resolved; `curl` goes through the system
+  resolver, which was still holding the earlier NXDOMAIN, and said
+  "Could not resolve host". Neither is wrong. Work around it with
+  `curl --resolve host:port:ip` rather than reaching for a cache flush.
+- **TLS lags DNS by minutes, and plain HTTP works first.** For a few
+  minutes the domain answered `200` on port 80 while every HTTPS
+  connection died with `SSL_ERROR_SYSCALL`. That is Vercel waiting to
+  see DNS before it requests the certificate, not a misconfiguration.
+  The certificate landed **~3.5 minutes** after DNS started answering,
+  which was ~3.5 minutes after registration.
+
+**Publishing was deliberately held until the certificate existed.** A
+canonical tag pointing at an `https://` address that refuses connections
+is worse than one pointing at the old address that works, and a crawler
+that visits during the gap is not un-visited by the certificate arriving
+later.
+
+**Two stale claims in `CLAUDE.md` corrected in the same pass**, both
+found while working rather than looked for: it said the suite is 37
+tests when it has been 55 since the 2026-08-30 audit fixes, and its
+Deploy section still described `scraps3.vercel.app` as the production
+address, which is now a 308 redirect.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3682,6 +3762,7 @@ outstanding and this is exactly what it would catch.
 | — | *Unplanned:* The splash rebuild — `RidgeBackdrop` (night) | **Superseded 2026-08-31.** Faceted night range; `SwirlBg` deleted from all four screens, true suit colour + riffle kept |
 | — | *Unplanned:* Splash pass 2 — sunset foothills | **Superseded 2026-09-01.** Daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug. Deleted when the product went to two backgrounds; recoverable at `ef34063` |
 | — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
+| — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
 
 
 ---
@@ -3759,9 +3840,18 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-09-01 `main` and `dev` are level at
-`917dc4e` and the tree is clean. The backgrounds work is live in
-production.
+**Nothing is in flight.** As of 2026-09-12 `main` and `dev` are level
+and the tree is clean. The backgrounds work and the domain move are both
+live in production.
+
+**The game's address is now `https://scraps.games`.** Registered
+2026-09-08, certificate valid, and `scraps3.vercel.app` 308-redirects to
+it — so the old URL still works but is no longer the site. Every
+canonical, Open Graph, sitemap and `llms.txt` reference points at the new
+name, generated from one `SITE` constant in
+`tools/make-share-assets.mjs` and cross-checked against `index.html` by
+`npm run share:check`. Do not hand-edit any of those; change `SITE` and
+regenerate.
 
 **The product carries exactly TWO backgrounds, and that is a decision
 rather than a state.** Stan's supplied scene holds the title screen and
@@ -3778,7 +3868,10 @@ launch needs is built, published and verified. What is left is not code:
 the **cold smoke test on CELLULAR, which only Stan can run**, on his
 phone, off wifi — every walk so far went over a fast connection and
 proves the layout and the game, not the load on a slow radio. Then the
-posts in Section 8 go out. Do not re-verify the metadata; `npm run
+posts in Section 8 go out — **pointing at `scraps.games`.** The drafts
+themselves contain no URL, so there is nothing to correct in them, but
+they were written when the only address was `scraps3.vercel.app` and
+that is now a redirect. Do not re-verify the metadata; `npm run
 share:check` re-derives it on demand and was broken-on-purpose twice at
 the last publish to confirm it still fails by name.
 
@@ -3793,12 +3886,14 @@ so this is a decision to make on purpose, including deciding on none.
   a three-word pointer nobody could read. A fourth screen reached from the
   splash and the game-over screen, NOT a route (this project has no router
   by deliberate choice).
-- **The splash pass.** Stan's last unactioned Notion note. Four directions
-  are on the bench at
-  https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d and
-  A is recommended; the build is a separate session and should open with
-  `/impeccable craft`. Not strictly post-launch: it is the first screen a
-  launch visitor sees, so it is worth deciding before the posts go out.
+- ~~**The splash pass.**~~ **CLOSED 2026-09-01, and this item was stale
+  from that date until 2026-09-12 when the domain pass caught it.** It
+  asked for a pick from four generated directions on a bench; what
+  actually happened is that Stan supplied his own illustration and it
+  went on the title screen and the storyboard. The bench at
+  https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d
+  is superseded, not pending — do not open a session to build direction
+  A.
 - **STRIKE vs ATTACK on the Ace button.** Stan's note asked for STRIKE and
   the build shipped ATTACK. One word, one line, needs his call.
 - **Email capture pointed at Stan's existing Neon email list project**,
