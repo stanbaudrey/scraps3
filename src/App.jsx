@@ -13,6 +13,7 @@ import { useState } from "react";
 import { SplashScreen, DifficultyPicker } from "./screens/MenuScreens.jsx";
 import { Walkthrough } from "./screens/Walkthrough.jsx";
 import { GameScreen } from "./screens/GameScreen.jsx";
+import { playHandWon } from "./audio.js";
 
 // "Session" is the browser tab: sessionStorage clears when it
 // closes, so a returning player next week gets the storyboard
@@ -38,7 +39,19 @@ export default function App() {
   // every time a new game starts
   const [gameKey,setGameKey]=useState(0);
 
+  // PLAY is the only button on the splash and was silent until
+  // 2026-09-13, when Stan asked for the hand-won cue on the way
+  // into the storyboard. It fires on EVERY press, not only the
+  // first-run one: the walkthrough is skipped on later trips, and
+  // a button that sounds different depending on a hidden session
+  // flag is worse than one that does not.
+  //
+  // It doubles as the gesture that unlocks audio. Browsers suspend
+  // a context created before a user interacts, so this is the
+  // first cue that can actually be heard, and everything after it
+  // inherits a running context.
   function handlePlay(){
+    playHandWon();
     setScreen(hasSeenWalkthrough() ? 'difficulty' : 'walkthrough');
   }
   function finishWalkthrough(){

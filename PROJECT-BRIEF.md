@@ -3893,6 +3893,140 @@ particular job. It records one call made rather than asked —
 `CardFaceRidge` stays on the hand card and goes from the Scraps card —
 with the reasoning, so it can be reversed in a line.
 
+### Unplanned session — The Woodshed: the sound kit retuned ✅ Done (2026-09-13)
+
+Requested directly by Stan, opening with "the sound effects for transferring +
+dealing are bad. don't emulate card sounds. just stick with woody sounds. even
+a xylophone-and-trumpet cue." He specified the bench himself: 3–4 woody options
+per action cue, 2 woody plus 3–4 xylophone/trumpet cues per messaging cue,
+organic and acoustic, and **"don't code anything until i make final
+selections."** This closes **FIX SOUND EFFECTS**, an item sitting unactioned in
+his own *BIG PICTURE* notes block on Notion.
+
+**The diagnosis he was reacting to, in one line.** `transfer` and `draw` were
+the only two cues in the kit built from `friction()` — a noise burst swept
+through a moving bandpass, which is a synthesised *slide across cloth*. They
+were the most literal card emulation in a kit whose whole premise was that it
+was not imitating cards. He heard it correctly.
+
+**The bench: The Woodshed**, published as an artifact rather than a repo file,
+matching the Foley Bench precedent —
+https://claude.ai/code/artifact/14df5fce-5d63-4932-8cb0-2ef264bd0213
+
+74 options across all 14 cues (20 action, 54 messaging), each with the shipping
+cue beside it for reference, a waveform drawn from its own offline render, a
+per-cue drop slot for importing real sample files, burst previews on the cues
+that fire in runs, and a "play a round" sequencer that fires the current picks
+in game order. Every option was peak-normalised to its cue's declared target
+before he heard it, so he was choosing character and never loudness. All 88
+voices were exercised under a stubbed Web Audio API before publishing, checking
+for non-finite values and for exponential ramps to zero, which throw in real
+browsers and silently kill a cue.
+
+**What he picked, and the shape it makes.** All 14, and the kit divides on a
+line nobody proposed in advance:
+
+> **A physical event is an untuned object. A score outcome is a tuned bar.**
+
+Wood: `select` (a xylophone bar damped at 30ms — a ghost of pitch, not a note),
+`transfer` (lift and set: a tick leaving, a hollow thunk landing 220ms later,
+**no slide at all**), `draw` (a yarn mallet on a lowpassed block), `aceStrike`
+(crate slam), `aceCounter` (the same crate a fourth down, 170ms later),
+`invalid` (dead drop on cloth), `revealBuild` (unchanged). Bars: `handWon`
+G5→D6, `handLost` D6→G5, `roundWon` G-A-D, `roundLost` D-A-G, `gameWon` a
+nine-bar run, `gameLost` two low marimba bars, `fullScrap` a ten-bar cascade.
+
+**He took NO brass.** Four brass options were offered on every one of the nine
+messaging cues — trumpet, cornet, flugelhorn, harmon mute — and none were
+chosen. The "xylophone-and-trumpet" idea resolved to xylophone only. That
+closes the question rather than leaving it open, and it is recorded in
+`audio.js` so nobody re-opens it speculatively.
+
+**The standing rule changed, and this was flagged before he listened, not
+after.** `audio.js` was built on "NO OSCILLATOR EVER PLAYS A NOTE." Six cues
+now do. The amendment is defensible rather than a capitulation: `bar()`
+synthesises a real bar's partials — 1 : 3.01 : 6.03 for a xylophone,
+1 : 3.99 : 9.18 for a marimba, the ratios a genuine undercut arch produces —
+and a xylophone bar *is* a struck piece of wood. The direction widened by one
+object. The tiny offsets (3.01, not 3.00) are load-bearing: a real bar is never
+perfect and that slow beat is most of what stops it sounding like a sine bank.
+
+**An accident worth keeping.** The bars are in **G major pentatonic**, chosen
+so any two cues can overlap without clashing. `playSquareUp` — the splash
+wordmark, untouched since the splash-identity session — has always played six
+taps on that exact set, and its comment carried an open question about whether
+they should become cardstock. They should not. The table moved into the title
+screen's key instead, and the question closed without a line of it changing.
+
+**Also shipped, at his request:** the splash PLAY button, silent since the game
+was built, now fires `handWon`. It plays on every press rather than only the
+first-run one, because a button that sounds different depending on a hidden
+session flag is worse than one that does not. It doubles as the gesture that
+unlocks the audio context.
+
+**Dead code removed** once the picks left it with no callers: `friction()`,
+`MAT.cardstock`, `MAT.felt`, `MAT.bone`. `boneLow` survives for one caller,
+`playFireworkPop`.
+
+#### The two findings worth carrying forward
+
+**1. TRIM was re-measured, and this time it was verified.** The file's own
+warning is that retuning a cue invalidates its trim and nothing tells you. All
+14 were re-rendered offline against *this file* — not against the bench the
+voices came from, which is exactly the mistake the 2026-08-26 port made when it
+carried the first bench's numbers over and landed nine of thirteen off target,
+one by 49%. A verification pass then re-rendered every cue *with its new trim
+applied*: **all 14 land on target to within 0.04%**, and every cue's tail
+measured 0.0000 at the end of its declared `CUE_DUR`, so nothing is truncated.
+`select` and `draw` have 3 and 4 variants (they fire in runs, and bit-identical
+repeats read as one sample retriggering); all variants were measured and the
+trim set by the loudest, so none can exceed target. `CUE_VARIANTS` is exported
+for whoever measures next.
+
+**2. Peak normalisation under-states a ringing bar, and the kit now contains
+both kinds of sound.** Post-trim, a wood cue's RMS is ~10% of its peak
+(`select` 9.6%, `invalid` 10.6%); a bar cue's is ~18–20% (`handWon` 18.0%,
+`roundWon` 19.4%). At equal peak a bar delivers roughly **twice the energy**.
+`handWon` and `invalid` are both declared .34 and will not sound equally loud.
+This was deliberately **not** corrected: Stan chose these options in a bench
+that peak-normalised the same way, so these are the levels he actually
+approved, and switching to a loudness-weighted target would silently change his
+picks. It is documented in `audio.js`. **If `handWon` is hot in play — it fires
+twice a round, more than any other outcome cue — the fix is to lower its TARGET
+and re-measure, never to scale the trim.**
+
+#### Instrument traps, all three of which cost time
+
+- **The in-app browser pane cannot run an `OfflineAudioContext` render.** The
+  measurement page loaded, the module executed, and `startRendering()` never
+  resolved. This is the same hidden-pane failure CLAUDE.md already documents
+  for `rAF` and `setTimeout`, and it extends to offline audio rendering, which
+  is worth knowing because that work is *not* timer-driven and looks like it
+  should be immune.
+- **The Playwright MCP profile was locked**, and per CLAUDE.md's own rule the
+  holder was checked before anything was killed: five live `playwright-mcp`
+  node processes belonging to other sessions. Nothing was killed. The rule
+  earned its place again.
+- **The fallback that worked is worth reusing verbatim:** a ~20-line Node
+  static server that also accepts `POST /result` and exits on receipt, plus
+  headless Chrome pointed at it. The page posts its JSON back and the numbers
+  arrive as data. This beats CLAUDE.md's "screenshot the figures" advice for
+  anything numeric — no OCR, no `--dump-dom` (which never returns), and no
+  hang. Add a `window.onerror` / `unhandledrejection` reporter that posts to
+  the same endpoint or a failing page is silent.
+
+**Verified:** `npm run build` clean, 55/55 tests passing (audio has no tests and
+did not need any — the offline render *is* the test), the app boots with no
+console errors, and all 14 trims verified on target. **Not verified by ear:
+Claude cannot hear any of this.** Every claim here is numerical. Stan's listen
+on the preview is the only real check.
+
+**Not changed:** `revealBuild` is byte-for-byte the cue that was already
+shipping — he auditioned five alternatives and picked the incumbent — so its
+trim of 9.0647 was left alone rather than retargeted to the bench's level.
+`playSquareUp` untouched. No audio files were imported, so the project's "no
+audio files, no licensing surface" position still holds.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3920,6 +4054,7 @@ with the reasoning, so it can be reversed in a line.
 | — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
 | — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
+| — | *Unplanned:* The Woodshed — sound kit retuned | Done (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x |
 
 
 ---
@@ -3997,15 +4132,22 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**In flight: a spec, not code.** `CARD-REDESIGN-SPEC.md` sits untracked
-at the repo root as of 2026-09-13. `main` and `dev` are level, the tree
-is otherwise clean, and nothing from that pass has been built or
-published. The file is the deliverable; commit it with the work.
+**In flight, as of 2026-09-13: two commits on `dev`, neither published.**
+`dev` is ahead of `main` and ahead of `origin/dev`; the tree is clean.
+The first commit is `CARD-REDESIGN-SPEC.md`, which is direction and a
+build handoff with **no source changed** — the file is that pass's whole
+deliverable. The second is the Woodshed sound port, which **does** change
+source (`audio.js`, `App.jsx`) and is the thing to get onto a preview and
+in front of Stan's ears first, because it is the only work here he has not
+yet experienced. Nothing from either pass is live.
 
 **Before anything else, read the notes block on the Notion page.** The wrap
 on 2026-09-13 found a long, largely unactioned set of Stan's own notes
 there under a heading reading *"BIG PICTURE: SOLVE THESE FIRST BEFORE
 FINE-TUNING EVERYTHING ELSE"*, and none of it is mirrored here by design.
+**Two of its items are now closed:** the card redesign (specced, not built)
+and **FIX SOUND EFFECTS** (built 2026-09-13, awaiting his listen). The rest
+of the list still stands.
 It contains the original complaint this redesign answers, in his words
 ("STYLE OF SCRAPS CARDS UNDERCUTS CONCEPT OF THEM BEING THE MESSY
 DISCARD"), and it is the real backlog: off-brand interstitials, the

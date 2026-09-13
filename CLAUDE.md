@@ -33,13 +33,25 @@ five-card suited straight scores as a plain straight, never a straight flush.
   file until Session 3 (see PROJECT-BRIEF.md's forest-reskin and specimen
   notes for the two changes that drifted from it).
 - Audio is generated live in `src/audio.js` with the Web Audio API. There are
-  no audio files in the project and none are needed. Since Session 4 the
-  table's sound is one direction, **Cardboard & Bone** — modal synthesis, not
-  melody. A seeded noise exciter is generated as raw sample data in JS and
-  played through parallel high-Q bandpass banks that act as the body of a
-  material (`MAT.cardstock`, `.wood`, `.woodHi`, `.bone`, `.boneLow`,
-  `.felt`). **No oscillator plays a note**; the single sine (`thud`) is a body
-  under an impact. See the file's own header and the Gotchas below.
+  no audio files in the project and none are needed. The direction is
+  **Cardboard & Bone** (Session 4), **amended 2026-09-13** by Stan's picks in
+  The Woodshed bench. Everything is still modal synthesis: a seeded noise
+  exciter generated as raw sample data in JS, through parallel high-Q
+  resonators acting as the body of an object.
+  **The rule is now: a physical event is an untuned object, a score outcome
+  is a tuned bar.** That is a real change from the old rule, which was the
+  flat "no oscillator ever plays a note" — six of the fourteen cues are now
+  xylophone or marimba bars in G major pentatonic, built by `bar()` from a
+  real bar's partials (1 : 3.01 : 6.03 for a xylophone, 1 : 3.99 : 9.18 for a
+  marimba — the ratios a genuine undercut arch produces). A xylophone bar is
+  still a struck piece of wood, so the direction widened rather than broke.
+  `thud` is still the one sine that is NOT a note, a body under an impact.
+  Materials are now `MAT.wood`, `.woodHi`, `.hollow`, `.dowel`, `.block`,
+  `.crate`, plus `.boneLow` for the firework pop alone; `cardstock`, `felt`,
+  `bone` and `friction()` were removed when the Woodshed picks left them with
+  no callers. **There is no brass anywhere** — the bench offered four brass
+  options on every messaging cue and Stan took none. See the file's own header
+  and the Gotchas below.
 - Asset files in the repo, and there are only two kinds: the **14
   self-hosted `.woff2` fonts** in `public/fonts` (Session 6), and the
   **three share/favicon PNGs plus `favicon.svg`** in `public/`
@@ -185,11 +197,20 @@ looks broken locally, it is not a missing-secret problem.
 - **`TRIM` is the mix, and it goes stale silently.** Each cue is normalised to
   a declared target peak (`select` .16 up to `fullScrap` .94) so the cue you
   hear thirty times a game can never be louder than the one you may never
-  hear. Raw peaks span 75:1 without it. **If you retune a cue's parameters,
+  hear. Raw peaks span 25:1 without it. **If you retune a cue's parameters,
   its trim is wrong until re-measured** — render `renderCue(name, offlineCtx,
-  gainAt1, 0)` and divide the target by the peak. Nothing will warn you; the
-  first port of this kit carried the design tool's numbers over and nine of
-  thirteen cues landed off target, one by 49%.
+  gainAt1, variantIndex)` and divide the target by the peak. Nothing will warn
+  you; the first port of this kit carried the design tool's numbers over and
+  nine of thirteen cues landed off target, one by 49%. The 2026-09-13 port
+  re-measured in headless Chrome instead and all 14 land within 0.04%.
+  Two things to know before touching it. `select` and `draw` have 3 and 4
+  variants each (see `CUE_VARIANTS`), because they fire in runs and
+  bit-identical repeats read as one sample retriggering; measure ALL variants
+  and trim by the loudest. And **the targets are PEAK, which under-states how
+  loud a ringing bar is**: post-trim, a wood cue's RMS is ~10% of its peak and
+  a bar cue's is ~18%, so `handWon` and `invalid` are both declared .34 and do
+  not sound equally loud. That is deliberate and documented in the file — if a
+  bar cue is hot, lower its TARGET and re-measure, never scale the trim.
 
 - **The reducer is pure on purpose.** Its header notes it replaced an older
   pattern of `setState` nested inside other `setState` updaters, which
