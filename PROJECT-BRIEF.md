@@ -3893,7 +3893,7 @@ particular job. It records one call made rather than asked —
 `CardFaceRidge` stays on the hand card and goes from the Scraps card —
 with the reasoning, so it can be reversed in a line.
 
-### Unplanned session — The Woodshed: the sound kit retuned ✅ Done (2026-09-13)
+### Unplanned session — The Woodshed: the sound kit retuned ✅ Done + **PUBLISHED** (2026-09-13)
 
 Requested directly by Stan, opening with "the sound effects for transferring +
 dealing are bad. don't emulate card sounds. just stick with woody sounds. even
@@ -4018,8 +4018,22 @@ and re-measure, never to scale the trim.**
 **Verified:** `npm run build` clean, 55/55 tests passing (audio has no tests and
 did not need any — the offline render *is* the test), the app boots with no
 console errors, and all 14 trims verified on target. **Not verified by ear:
-Claude cannot hear any of this.** Every claim here is numerical. Stan's listen
-on the preview is the only real check.
+Claude cannot hear any of this.** Every claim here is numerical.
+
+**Stan listened on the preview and approved it, then it was published the same
+day.** Production was confirmed three independent ways rather than one: the
+merge commit's git tree is identical to the previewed `dev` tree
+(`d7c06a51`), the served bundle filename matches the local build
+(`index-BHUaarfC.js` — Vite content-hashes, so the same name is the same
+bytes), and the downloaded live bundle diffs byte-identical to `dist/`. Read
+back off the live file for good measure: the new note frequencies and all three
+sampled new trims present, and every old trim plus `cardstock` absent.
+Publish-time checks all green — design detector zero and **confirmed not
+degraded** (all four parser modules resolve from `~/.claude/node_modules`, and
+the same run on `index.html` correctly surfaced the known deliberate
+`dark-glow`), `share:check` current, `fonts:check` 24 faces over 14 files with
+0 changed and 0 stale, no personal identifiers in `dist/`, and no new data
+collection in the diff.
 
 **Not changed:** `revealBuild` is byte-for-byte the cue that was already
 shipping — he auditioned five alternatives and picked the incumbent — so its
@@ -4054,7 +4068,7 @@ audio files, no licensing surface" position still holds.
 | — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
 | — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
-| — | *Unplanned:* The Woodshed — sound kit retuned | Done (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x |
+| — | *Unplanned:* The Woodshed — sound kit retuned | Done + **PUBLISHED** (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x. Live bundle verified byte-identical to the tested build |
 
 
 ---
@@ -4132,14 +4146,23 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**In flight, as of 2026-09-13: two commits on `dev`, neither published.**
-`dev` is ahead of `main` and ahead of `origin/dev`; the tree is clean.
-The first commit is `CARD-REDESIGN-SPEC.md`, which is direction and a
-build handoff with **no source changed** — the file is that pass's whole
-deliverable. The second is the Woodshed sound port, which **does** change
-source (`audio.js`, `App.jsx`) and is the thing to get onto a preview and
-in front of Stan's ears first, because it is the only work here he has not
-yet experienced. Nothing from either pass is live.
+**The sound kit is LIVE as of 2026-09-13**, listened to and approved by
+Stan on preview before merging. `main` and `dev` are level again and the
+tree is clean. `CARD-REDESIGN-SPEC.md` rode along in that merge — it
+changes no source and the site does not serve it, so it has no visitor-
+facing effect, but it means **the spec now sits on `main` unbuilt.**
+Delete it once the redesign ships and is logged, per its own header, so it
+cannot rot into a second source of truth.
+
+**One thing to watch on the new kit, and it is the only open question from
+that pass.** `handWon` fires twice a round, more than any other outcome
+cue, and it is now a ringing bar rather than a knock. The declared targets
+are PEAK, which under-states a bar by about 2x in RMS, so it may sit hotter
+in play than its .34 suggests. If Stan raises it, lower the TARGET in
+`audio.js` and RE-MEASURE — never scale the trim. Same for `revealBuild`
+in the other direction: it plays at .297, which is what it always shipped
+at, but the Woodshed bench played it at .42, so he heard it louder there
+than the game plays it. He was told and did not ask for it changed.
 
 **Before anything else, read the notes block on the Notion page.** The wrap
 on 2026-09-13 found a long, largely unactioned set of Stan's own notes
