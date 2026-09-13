@@ -3758,6 +3758,141 @@ tests when it has been 55 since the 2026-08-30 audit fixes, and its
 Deploy section still described `scraps3.vercel.app` as the production
 address, which is now a 308 redirect.
 
+### Unplanned session — The card and the Scraps pile: direction, decided (2026-09-12/13)
+
+**Read-only on the product. Nothing in `src/` changed.** The whole pass
+was direction-setting, and it ends with one new file,
+`CARD-REDESIGN-SPEC.md` at the repo root, which is the build handoff.
+`dev` and `main` are still level. Nothing is published.
+
+**What started it.** Stan: the Scraps pile "does not currently help the
+concept of it being the 'half-discarded' pile of scraps. It's neat and
+orderly, almost futuristic in dark tones." Three things were causing that
+and all three were subtractions, not additions. **The container:** each
+pile is a rounded panel with a coloured 2px border, a dark `inkLight`
+fill and a header row, which is a dashboard tile rather than a place
+things land. **The order:** cards render `sortByValue`, evenly stepped,
+zero rotation, identical top, and everything reflows when one arrives, so
+the pile is visibly a sorted array. **The material:** a Scraps card is
+near-black with a glowing corner notch while the card in your hand is
+cream paper, so the thing you threw away looks more expensive than the
+thing you are holding.
+
+**Three of the lookbook's 52 vibe-code tells land exactly on that
+component** — "everything wrapped in a card", "mono for labels and
+badges", and "neon-on-dark with glowing borders", which the list names as
+the v0 and Cursor house signature. Worth knowing that the ban list
+located the problem independently of anyone's taste.
+
+**Three benches were built and published, each in the project's own
+tokens against the real procedural timber**, because a pile judged on
+flat grey is a pile judged against nothing:
+
+- Pile Bench, where *no box* and *heap* were chosen —
+  https://claude.ai/code/artifact/c457cfac-2aed-49ad-94e9-d9ced3e5861f
+- Card Face Bench, where *big rank* and *no suits* were chosen —
+  https://claude.ai/code/artifact/5b44533d-acf2-4ed1-8b5f-cf2062ade652
+- Rank Type Bench, where *Rye* was chosen and the wear system lives —
+  https://claude.ai/code/artifact/1ef1d2e7-01a6-4e4b-a9ae-271350c23823
+
+**What Stan decided.** Rye for the card face; no box around the Scraps
+pile; no suits anywhere; one big left-anchored numeral on both card
+types; heap appearance with wear at maximum but rotation dialled back;
+ascending rank order kept, with a fluid re-sort animation; the hand card
+becomes a big numeral on crisp cream stock; the splash's four suit glyphs
+go with nothing replacing them; `GlowPulse` stays as the next-action
+indicator.
+
+**Suits do nothing, and this was verified rather than assumed.**
+`engine.js` reads `.suit` in exactly one place, `createDeck()`; every
+other mention in that file is a comment saying evaluation ignores suits.
+`reducer.js` touches it twice, both to name a card in a log line. Six
+tests in `engine.test.js` exist purely to prove flushes don't count.
+**So the no-flush house rule stops being a rule and becomes a thing that
+cannot arise** — the `llms.txt` bullet gets deleted rather than reworded,
+and the one genuinely counter-intuitive thing about this game goes with
+it.
+
+**The finding that tied the two halves together: weathered stock and red
+pips are incompatible.** Red-and-black is a two-ink printing convention
+that needs a bright sheet. Measured: a faded brick red clears AA at
+4.51:1 on bleached stock, is marginal on kraft, and on ash nothing that
+still reads as *red* clears the bar at pip size, because by the time it
+has enough contrast it is brown and looks like the black suits anyway.
+The current `emberInk` drops from 5.20:1 on `frost` to **3.72:1** on a
+bleached scrap and fails outright. Wanting the cards to look less fancy
+and wanting to keep suits pull against each other; dropping suits
+dissolves the constraint, since one ink prints on any stock.
+
+**The hard part of the build, worked out here so nobody hits it cold.**
+A numeral that fills the card gets eaten by the next card along.
+`FannedHand`'s step is `max(W x MIN_EXPOSED.up, min(openStep, room))`
+with `MIN_EXPOSED.up = 0.34`, so a face-up card shows between **81% and
+34%** of its width. A *centred* glyph needs `g <= 2*step - W`, which at
+the 0.34 floor is impossible. So the numeral is **left-anchored on both
+surfaces**. The counter-intuitive part, recorded because someone will
+try to undo it: going big makes the squeezed fan *more* robust, not
+less. The old worry was a small corner index being swallowed whole; a
+left-anchored numeral at full height is still identifiable from its left
+third. Do not "fix" the squeeze by shrinking the numeral back down.
+
+**Rye replaces Baloo 2 one-for-one.** `F.card` has exactly two consumers,
+the rank and suit spans at `cards.jsx:259-260`, so once suits go Baloo 2
+has no consumer at all. Rye serves two subsets and one weight exactly as
+Baloo 2 does, so the family count stays at five and `public/fonts` stays
+at 14 files.
+
+**The wear insight, which is the actual fix for "make the scraps look
+distinctive from one another".** The first bench gave every card the same
+amount of every effect, and ten independent randoms at equal strength
+average out, so the pile read as uniformly slightly-scruffy. Driving
+everything from **one seeded `wear` scalar per card**, skewed so most sit
+mid-range and a minority are wrecked, is what makes them read as
+individual objects. Variation in degree, not variation in kind at a
+constant degree. Every value stays a pure function of card id so FLIP
+keeps working.
+
+**One decision was made, reversed, and reinstated in the same pass, on
+purpose.** `GlowPulse` was specced for removal on the grounds that the
+border it ringed was gone; the removal was flagged as leaving the Ace
+strike with no "act here" cue, and Stan reversed it. It stays. But
+reading the code to write the reversal turned up the real problem:
+**both zone cues are hard rings**, `@keyframes zonePulse` at
+`index.html:472` and the `.live-cue-zone` reduced-motion substitute at
+`index.html:689`, and a ring around a boxless pile redraws the box as a
+glowing outline. The spec's recommendation is to move the glow onto the
+cards as a coloured `drop-shadow`, so it traces the real torn
+silhouettes, which also avoids colliding with the dark pooled contact
+shadow that would sit in the same place as a wrapper bloom.
+
+**Instrument traps hit, all three costing real time.** The Playwright MCP
+profile was locked; `ps -axo pid,ppid,command` showed a **live**
+`playwright-mcp` parent, so per the standing rule it was left alone
+rather than killed. The in-app Browser pane reported itself hidden for
+most of the session, which blocks `computer` scroll and hover outright,
+and a local file outside the project folder renders as a static snapshot
+that page tools cannot act on at all. And an artifact renders in a
+sandboxed iframe, so `javascript_tool` executes against the claude.ai
+host page and returns cheerful nonsense about the artifact's DOM —
+`document.querySelectorAll('.cell')` came back empty for a page that was
+visibly full of cells. When the pane will not cooperate, `node --check`
+on the extracted script and `curl` against the font API proved more per
+minute than fighting the browser.
+
+**One silent-failure trap worth keeping.** Setting
+`font-variation-settings: "WONK" 1, "SOFT" 20` on Fraunces does nothing
+unless those axes are named in the Google Fonts URL; the API serves only
+the axes you ask for. Caught by fetching the stylesheet and reading it,
+not by looking at the page.
+
+**What is open.** Everything. Nothing is built. The spec is the whole
+deliverable and it is self-contained: ten decisions with implementation,
+a file-by-file change list with verified line numbers, twelve acceptance
+criteria, and the traps above filtered to the ones that will bite this
+particular job. It records one call made rather than asked —
+`CardFaceRidge` stays on the hand card and goes from the Scraps card —
+with the reasoning, so it can be reversed in a line.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -3784,6 +3919,7 @@ address, which is now a 308 redirect.
 | — | *Unplanned:* Splash pass 2 — sunset foothills | **Superseded 2026-09-01.** Daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug. Deleted when the product went to two backgrounds; recoverable at `ef34063` |
 | — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
+| — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
 
 
 ---
@@ -3861,18 +3997,71 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**Nothing is in flight.** As of 2026-09-12 `main` and `dev` are level
-and the tree is clean. The backgrounds work and the domain move are both
-live in production.
+**In flight: a spec, not code.** `CARD-REDESIGN-SPEC.md` sits untracked
+at the repo root as of 2026-09-13. `main` and `dev` are level, the tree
+is otherwise clean, and nothing from that pass has been built or
+published. The file is the deliverable; commit it with the work.
 
-**The game's address is now `https://scraps.games`.** Registered
-2026-09-08, certificate valid, and `scraps3.vercel.app` 308-redirects to
-it — so the old URL still works but is no longer the site. Every
-canonical, Open Graph, sitemap and `llms.txt` reference points at the new
-name, generated from one `SITE` constant in
-`tools/make-share-assets.mjs` and cross-checked against `index.html` by
-`npm run share:check`. Do not hand-edit any of those; change `SITE` and
-regenerate.
+**Before anything else, read the notes block on the Notion page.** The wrap
+on 2026-09-13 found a long, largely unactioned set of Stan's own notes
+there under a heading reading *"BIG PICTURE: SOLVE THESE FIRST BEFORE
+FINE-TUNING EVERYTHING ELSE"*, and none of it is mirrored here by design.
+It contains the original complaint this redesign answers, in his words
+("STYLE OF SCRAPS CARDS UNDERCUTS CONCEPT OF THEM BEING THE MESSY
+DISCARD"), and it is the real backlog: off-brand interstitials, the
+opponent becoming female throughout, "small hand" becoming "hand",
+dropping the win-by-2 rule, removing the deck and discard piles in favour
+of cards dealing in from off-viewport, and a set of Ace copy changes.
+**One item in it blocks part of the redesign:** he asks whether Rye should
+replace Bungee Shade *everywhere*, not just Baloo 2 on the cards, which
+would change the wordmark and the family count. Spec section 6b has the
+detail.
+
+**Then: build the card and Scraps redesign from
+`CARD-REDESIGN-SPEC.md`.** Ten decisions, all Stan's, all confirmed, with
+a file-by-file change list carrying verified line numbers and twelve
+acceptance criteria. Nothing in it is open and nothing needs asking. Read
+section 4.1 before touching `FannedHand`: the fan's `MIN_EXPOSED.up` of
+0.34 makes a centred numeral geometrically impossible, and that is the
+part most likely to eat a session. Delete the spec file once the work has
+shipped and been logged, so it cannot rot into a second source of truth.
+
+**This outranks the launch, and the ordering matters.** The redesign
+changes every card in the game, the walkthrough's sample hands, and the
+splash. It also forces `npm run share` to regenerate `og.png`, because
+the share card renders a five-card hand with suits in it. So launching
+first would advertise a look that is about to change and a share card
+that is about to be replaced. **Redesign, then launch.**
+
+**When it ships, `CLAUDE.md` needs four corrections** that this pass
+already identified: the test count changes again (six flush tests go, a
+deck-shape test replaces them), the font family list loses Baloo 2 and
+gains Rye, the Gotchas entry describing the two-red-ink system stops
+being true, and the Stack section's claim that suits exist at all needs
+revisiting.
+
+**Then: Session 7 part two, the launch itself.** Everything the launch
+needs is built, published and verified. What is left is not code: the
+**cold smoke test on CELLULAR, which only Stan can run**, on his phone,
+off wifi — every walk so far went over a fast connection and proves the
+layout and the game, not the load on a slow radio. Then the posts in
+Section 8 go out — **pointing at `scraps.games`.** The drafts contain no
+URL so there is nothing to correct in them. Do not re-verify the
+metadata; `npm run share:check` re-derives it on demand and was
+broken-on-purpose twice at the last publish to confirm it still fails by
+name.
+
+**Decide analytics before the posts, not after.** The privacy notice Stan
+approved describes a site with no analytics, which is true today. Adding
+any afterwards makes a shipped legal document wrong on the day it lands,
+so this is a decision to make on purpose, including deciding on none.
+
+**The game's address is `https://scraps.games`.** Registered 2026-09-08,
+certificate valid, and `scraps3.vercel.app` 308-redirects to it. Every
+canonical, Open Graph, sitemap and `llms.txt` reference is generated from
+one `SITE` constant in `tools/make-share-assets.mjs` and cross-checked
+against `index.html` by `npm run share:check`. Do not hand-edit any of
+those; change `SITE` and regenerate.
 
 **The product carries exactly TWO backgrounds, and that is a decision
 rather than a state.** Stan's supplied scene holds the title screen and
@@ -3884,39 +4073,14 @@ nothing pointing at it — do not reintroduce a third without his say-so.
 foothills are ever restored** from `ef34063`; the 2026-08-31 entry
 records why both cost a pass.
 
-**Then: Session 7 part two, the launch itself.** Everything the
-launch needs is built, published and verified. What is left is not code:
-the **cold smoke test on CELLULAR, which only Stan can run**, on his
-phone, off wifi — every walk so far went over a fast connection and
-proves the layout and the game, not the load on a slow radio. Then the
-posts in Section 8 go out — **pointing at `scraps.games`.** The drafts
-themselves contain no URL, so there is nothing to correct in them, but
-they were written when the only address was `scraps3.vercel.app` and
-that is now a redirect. Do not re-verify the metadata; `npm run
-share:check` re-derives it on demand and was broken-on-purpose twice at
-the last publish to confirm it still fails by name.
-
-**Decide analytics before the posts, not after.** The privacy notice Stan
-approved describes a site with no analytics, which is true today. Adding
-any afterwards makes a shipped legal document wrong on the day it lands,
-so this is a decision to make on purpose, including deciding on none.
-
 **Post-launch backlog, agreed 2026-08-30:**
 - An **About page** carrying the origin story — the weekend in **Sisters,
-  Oregon**, now written out in full in Section 1 above rather than left as
-  a three-word pointer nobody could read. A fourth screen reached from the
-  splash and the game-over screen, NOT a route (this project has no router
-  by deliberate choice).
-- ~~**The splash pass.**~~ **CLOSED 2026-09-01, and this item was stale
-  from that date until 2026-09-12 when the domain pass caught it.** It
-  asked for a pick from four generated directions on a bench; what
-  actually happened is that Stan supplied his own illustration and it
-  went on the title screen and the storyboard. The bench at
-  https://claude.ai/code/artifact/decb8bb5-80d9-4933-9bfb-baa73bb7a91d
-  is superseded, not pending — do not open a session to build direction
-  A.
+  Oregon**, written out in full in Section 1 above. A fourth screen
+  reached from the splash and the game-over screen, NOT a route (this
+  project has no router by deliberate choice).
 - **STRIKE vs ATTACK on the Ace button.** Stan's note asked for STRIKE and
-  the build shipped ATTACK. One word, one line, needs his call.
+  the build shipped ATTACK. One word, one line, needs his call. Worth
+  folding into the redesign pass since that flow is being touched anyway.
 - **Email capture pointed at Stan's existing Neon email list project**,
   not anything new built here. It conflicts with the signed privacy
   notice and the no-backend rule, so link out rather than collecting.
@@ -3931,11 +4095,18 @@ so this is a decision to make on purpose, including deciding on none.
   untested is a long re-counter chain on both sides.
 - The **log still reads "Opponent traded 1 card(s) to Scraps"** — the one
   place in the game that punts on pluralisation.
-- The AI's replacement draws now fly from the deck again. That was
-  removed and restored during this session; if it ever looks busy on a
-  big trade, the fix is sequencing, not hiding them.
+- The AI's replacement draws fly from the deck. If that ever looks busy on
+  a big trade, the fix is sequencing, not hiding them.
 
 ### Do not do these next, and why
+
+**Do not re-litigate removing `GlowPulse`.** It was specced for removal
+on 2026-09-13 on the grounds that the border it ringed was going, then
+reinstated the same day once the cost was named: it is the only cue
+telling you which pile the Ace strike is acting on. It stays. The real
+work is making it stop painting a rectangle — see spec section 1.10,
+which has the two options and the reason the reduced-motion substitute
+has to change with it.
 
 **Do not re-open the table's composition.** It was examined on
 2026-08-28 and deliberately left half-changed: the narrator panel and
