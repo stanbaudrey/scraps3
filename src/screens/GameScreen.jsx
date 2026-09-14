@@ -26,7 +26,7 @@ import { setAudioMuted, isAudioMuted,
   playInvalid, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
-import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, GameAnnouncer } from "../components/hud.jsx";
+import { OpponentBar, PlayerBar, RoundProgressIndicator, GameLog, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
@@ -1263,7 +1263,10 @@ export function GameScreen({ difficulty, onExit }) {
   // The banner owns its own threshold now that it is a MATCH POINT
   // warning rather than a win-by-2 explainer — see hud.jsx. This only
   // has to know the game is still running.
-  const showNearWin = !gameOver;
+  // The MATCH POINT banner that sat under the top bar is gone
+  // (Stan, 2026-09-14): the stage covers the HUD exactly when the
+  // stakes peak, so the warning lives on the stage now — a line on
+  // the ROUND sign and under the reveal's score row.
 
   // `gameOver` used to short-circuit this whole render into WinScreen or
   // LoseScreen. It no longer does: the reveal that ended the match is
@@ -1551,7 +1554,16 @@ export function GameScreen({ difficulty, onExit }) {
   );
 
   return (
-    <div className="app-vh" style={{display:'flex',flexDirection:'column',
+    <>
+    {/* `inert` while a stage is up: the layer is opaque, so nothing
+        under it may take focus or be read. Without this a keyboard
+        user's Tab walked straight through the wood onto the HUD's
+        buttons, and Enter opened the rules behind the reveal. The
+        stage and the flights render OUTSIDE this div, below, so they
+        stay live. (React 18 passes `inert` through as a plain
+        attribute; an empty string sets it, undefined removes it.) */}
+    <div className="app-vh" inert={stage ? '' : undefined}
+      style={{display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'hidden'}}>
       {/* The table's one heading. The wordmark is on the splash, not
           here, so without this the game screen has no h1 at all and a
@@ -1560,7 +1572,6 @@ export function GameScreen({ difficulty, onExit }) {
       <GameAnnouncer messages={log} hint={hint}/>
       <OpponentBar aiScore={aiScore}
         difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
-      {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
       {/* Table. Ownership mapping is absolute in BOTH layouts: top
           of screen = opponent's stuff, bottom = yours, everywhere,
@@ -1746,13 +1757,6 @@ export function GameScreen({ difficulty, onExit }) {
       {/* The interstitial layer: ROUND N, every reveal, the Clean Sweep
           beat, the sweep, the match screen. Opaque wood over the whole
           viewport, aligned to the table's own boards. */}
-      {stage&&<TableStage stage={stage.kind==='sign'?{...stage,roundNum}:stage}
-        cardH={CARD_DIMS[SZ.hand].h} tableAnchorRef={tableWoodRef}
-        onSignDone={onInterstitialDone}
-        onContinue={stage.onContinue} onSwept={stage.onSwept}
-        onNewGame={()=>onExit('difficulty')}
-        difficulty={difficulty} winStats={winStats}/>}
-      {flightsOverlay}
       {pendingAiAce&&!aiAceReveal&&(
         <AceCounterModal
           onCounter={onPlayerCounterAce}
@@ -1776,5 +1780,15 @@ export function GameScreen({ difficulty, onExit }) {
       )}
       {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}
     </div>
+    {/* Outside the inert root, deliberately — see the comment on it.
+        The sign reads the scores for its MATCH POINT line. */}
+    {stage&&<TableStage stage={stage.kind==='sign'?{...stage,roundNum,playerScore,aiScore}:stage}
+      cardH={CARD_DIMS[SZ.hand].h} tableAnchorRef={tableWoodRef}
+      onSignDone={onInterstitialDone}
+      onContinue={stage.onContinue} onSwept={stage.onSwept}
+      onNewGame={()=>onExit('difficulty')}
+      difficulty={difficulty} winStats={winStats}/>}
+    {flightsOverlay}
+    </>
   );
 }

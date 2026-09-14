@@ -56,8 +56,9 @@ evaluator to make that true: it always read rank and value only.
   families over **12 files**: **Rye** (the SCRAPS wordmark, the storyboard's
   one HOW TO PLAY title, every card rank — the match screen's letter cards
   included — and, since 2026-09-14, three moments on the table: the ROUND N
-  sign, the CLEAN SWEEP beat and the match-winning score as it lands; the
-  `F` comment in `theme.js` carries that list and it is the rule), Fjalla
+  sign, the CLEAN SWEEP beat and the match-winning score as it lands, plus
+  the verdict on the share card `share.js` draws; the `F` comment in
+  `theme.js` carries that list and it is the rule), Fjalla
   One (headings and subtitles, and the splash subtitle "Poker with both
   hands"), Work Sans (UI), IBM Plex Mono (mono). Rye replaced **Bungee
   Shade** on the wordmark on 2026-09-13 and **Baloo 2** on the card ranks
@@ -222,13 +223,14 @@ gets none of them — the first frames off this bench showed fallback
 serifs, no motion and screen-reader text painted on screen, and any new
 page under `tools/` wants the same fetch.
 
-Measured 2026-09-14 after the interstitials pass: **no button renders
-under 44px on any portrait or desktop viewport.** Four fall short on
-landscape phone only, all inside the accepted landscape trade — the
-reveals' quiet Tap to continue at 30 and 33px (its natural 44 under
+Measured 2026-09-14 after the interstitials pass and its critique fixes:
+**no button renders under 44px on any portrait or desktop viewport.** Two
+fall short on landscape phone only, inside the accepted landscape trade —
+the reveals' quiet Tap to continue at 30 and 33px (its natural 44 under
 FitBox scales of 0.674 and 0.756; the whole screen is the tap target, the
-button exists for keyboards and screen readers) and the match screen's
-NEW GAME and SHARE at 42px (54 x 0.778).
+button exists for keyboards and screen readers). The match screen's NEW
+GAME and SHARE sit outside the scaled column, pinned to the bottom of the
+viewport, and render their full 54 everywhere.
 
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
@@ -288,9 +290,11 @@ looks broken locally, it is not a missing-secret problem.
   share — the round card, the reveal, the Clean Sweep lightbox and the
   win/lose screens with their canvas fireworks were **deleted** 2026-09-14
   in favour of `interstitials.jsx`), `hud.jsx` (scores, round progress,
-  match-point banner, game log — `SignalLegalityStrip` was deleted on
-  2026-09-13, and the score bars stopped flashing on 2026-09-14 because the
-  reveal now rolls the score up itself),
+  game log — `SignalLegalityStrip` was deleted on 2026-09-13; the score
+  bars stopped flashing on 2026-09-14 because the reveal now rolls the
+  score up itself, and the MATCH POINT banner went the same day: the stage
+  covers the HUD exactly when the stakes peak, so the warning lives on the
+  ROUND sign and under the reveal's score row now),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
   `flight.jsx` (card motion), `backdrop.jsx`.
 - **`src/ui/viewport.jsx`** — the responsive layer, added in Session 3.

@@ -42,13 +42,12 @@
 // score — it just does not travel.
 // ============================================================
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
-import { DS, F } from "../styles/theme.js";
+import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 import { TableSurface } from "./backdrop.jsx";
 import { FitBox, useViewport } from "../ui/viewport.jsx";
 import { useDialogFocus, SETTLE } from "./overlays.jsx";
 import { Btn } from "./buttons.jsx";
-import { IconTrophy } from "./icons.jsx";
 import {
   playSlap, playHandWon, playHandLost, playRoundWon, playRoundLost,
   playCleanSweep, playGameWon, playGameLost, playDraw, playSelect, playRoundSign,
@@ -80,6 +79,17 @@ const FLIP = { dur: 520, stagger: 85 };
 // ~0.88s, one riffle pass to ~1.26s, advance at 1.35s.
 const SIGN = { stagger: 55, riffleAt: 800, riffleStagger: 25, riffle: 380, lineAt: 650, advance: 1350 };
 const SWEEP_EASE = 'cubic-bezier(.5,0,.9,.6)';
+// Hard drop, no glow. The verdict, the Clean Sweep title, the winning
+// score and the final score all carried a coloured glow text-shadow,
+// the last trace of the neon palette; on wood a hard drop is what the
+// sign already used, and Stan asked for it everywhere (2026-09-14).
+const DROP = '0 3px 0 rgba(0,0,0,.4)';
+// Someone is one scoring event from the game. Two short of WIN_SCORE,
+// because the Scraps hand pays 2 and is the smallest hand that can end
+// a game from here: a player on 8 can be beaten in one reveal, a
+// player on 7 cannot. This used to be the HUD's banner; the stage
+// covers the HUD exactly when it matters, so it lives here now.
+const MATCH_POINT = WIN_SCORE - 2;
 
 // Tracked timers: every beat is a timeout, and a tap or an unmount
 // has to be able to drop all of them at once.
@@ -109,7 +119,12 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
   const rootRef = useRef(null);
   const R = useMemo(prefersReducedMotion, []);
   const dialogRef = useDialogFocus(true);
-  const label = stage.kind === 'sign' ? `Round ${stage.roundNum}`
+  // The sign's dealer line rides in the dialog's name, because the
+  // sign auto-advances before any live region would get to it and
+  // who acts first is real information.
+  const signMP = stage.kind === 'sign' && ((stage.playerScore || 0) >= MATCH_POINT || (stage.aiScore || 0) >= MATCH_POINT);
+  const label = stage.kind === 'sign'
+    ? `Round ${stage.roundNum}. ${stage.roundNum % 2 === 1 ? 'You go first.' : 'Opponent goes first.'}${signMP ? ' Match point.' : ''}`
     : stage.which === 'scraps' ? 'Scraps result' : `Hand ${stage.which === 'hand1' ? 1 : 2} result`;
 
   // Where the live table's wood is, measured once on mount and again
@@ -164,7 +179,8 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
       <div aria-hidden="true" style={{position:'absolute',inset:0,pointerEvents:'none',
         background:`radial-gradient(ellipse 72% 62% at 50% 46%, ${DS.ink}00 30%, ${DS.ink}80 100%)`}}/>
       {stage.kind === 'sign'
-        ? <RoundSign key={`sign-${stage.roundNum}`} roundNum={stage.roundNum} onDone={onSignDone} R={R} instant={instant}/>
+        ? <RoundSign key={`sign-${stage.roundNum}`} roundNum={stage.roundNum} matchPoint={signMP}
+            onDone={onSignDone} R={R} instant={instant}/>
         : <RevealScene key={stage.key} {...sceneProps(stage)} onContinue={onContinue} onSwept={onSwept}
             onNewGame={onNewGame} difficulty={difficulty} winStats={winStats}
             shake={shake} R={R} instant={instant}/>}
@@ -179,9 +195,17 @@ const sceneProps = ({ key, kind, ...rest }) => rest;
 // The quiet button. It is the only focusable thing on a stage, so
 // Enter and Space land here, a screen reader finds a control with a
 // name, and the pointer gets the whole viewport instead.
-function QuietButton({ onClick, children, show = true, style = {} }) {
+// While it is hidden it is DISABLED, not merely transparent: a
+// transparent button is still in the tab order and still what the
+// dialog's focus trap lands on, so a keyboard user was parked on a
+// control they could not see. Disabled, it leaves the tab order and
+// the trap falls back to the dialog itself; Enter there still goes
+// through the window handler to the same tap. `buttonRef` lets the
+// scene move focus onto it the moment it becomes real.
+function QuietButton({ onClick, children, show = true, style = {}, buttonRef = null }) {
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <button type="button" ref={buttonRef} disabled={!show}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       style={{background:'transparent',border:'none',cursor:'pointer',
         fontFamily:F.ui,fontSize:13,fontWeight:700,letterSpacing:'0.18em',
         textTransform:'uppercase',color:DS.slateLight,padding:'12px 18px',minHeight:44,
@@ -200,7 +224,7 @@ function QuietButton({ onClick, children, show = true, style = {} }) {
 // is real information and the log is the only other place it lives.
 // Under 1.5s from the first letter moving to the next screen.
 // ─────────────────────────────────────────────────────────────
-function RoundSign({ roundNum, onDone, R, instant }) {
+function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const letters = `ROUND ${roundNum}`.split('');
   const { at, clear } = useTimeline(1);
   const doneRef = useRef(false);
@@ -237,6 +261,7 @@ function RoundSign({ roundNum, onDone, R, instant }) {
         color:DS.slateLight,letterSpacing:'0.18em',
         animation: stop ? undefined : `scrapArrive 0.25s ease ${SIGN.lineAt}ms both`}}>
         {roundNum % 2 === 1 ? 'YOU GO FIRST' : 'OPPONENT GOES FIRST'}
+        {matchPoint && <span style={{color:DS.gold}}> · MATCH POINT</span>}
       </div>
       <div style={{position:'absolute',bottom:'clamp(8px,3vh,28px)'}}>
         <QuietButton onClick={finish} style={{opacity:.55}}>Skip</QuietButton>
@@ -265,6 +290,13 @@ function RoundSign({ roundNum, onDone, R, instant }) {
 // ─────────────────────────────────────────────────────────────
 function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, sweepDelay }) {
   const color = mine ? DS.voltage : DS.ember;
+  // The point itself, said once: a "+1" or "+2" ghost rising off the
+  // numeral as it rolls. It is the only place the game states what a
+  // hand is worth against what the Scraps are worth; before this the
+  // player subtracted to find out. Under reduced motion the blanket
+  // rule lands it on its final, invisible frame, which is fine — the
+  // number is the information and it is already there.
+  const delta = tick ? to - from : 0;
   const glow = mine ? DS.gold : DS.ember;
   const ease = mine ? OVER : SETTLE;
   const dur = instant ? 0 : ROLL;
@@ -298,9 +330,18 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
         )}
         <span key={`new-${to}-${tick ? 1 : 0}`} style={{...numStyle,
           animation: tick ? `scoreRollIn ${dur}ms ${ease} both` : undefined,
-          textShadow: rye ? `0 0 26px ${glow}88, 0 3px 0 rgba(0,0,0,.4)` : undefined}}>
+          textShadow: rye ? DROP : undefined}}>
           {tick ? to : from}
         </span>
+        {delta > 0 && (
+          <span key={`ghost-${to}`} aria-hidden="true" style={{position:'absolute',
+            [align === 'right' ? 'right' : 'left']: 0, top:-6,
+            fontFamily:F.display,fontSize:22,lineHeight:1,color:glow,
+            textShadow:'0 2px 0 rgba(0,0,0,.4)',pointerEvents:'none',
+            animation:`scoreGhost ${instant ? 0 : 1100}ms ease-out ${dur}ms both`}}>
+            +{delta}
+          </span>
+        )}
       </span>
     </div>
   );
@@ -361,7 +402,17 @@ function CardRow({ cards, size, isScrap, kraft, bestIds, slap, slapAt, availW, i
 // card, the front face hidden as it turns. Cards deal on into a
 // shallow arc — the ribbon spread — from over the top edge, the way
 // a round deals in.
-function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0 }) {
+// Rows deal and flip IN PARALLEL, a beat apart (ROW_OFFSET), rather
+// than one after the other: serially, OPPONENT / WINS. took 1.2s
+// longer to land than YOU WIN, so the loser got the longest ceremony
+// in the game. Now a loss lands in the win's time.
+const ROW_OFFSET = 120;
+// `pace` scales every stagger: 1 for the win, LOSS_PACE for the loss,
+// so that a loss — thirteen cards over two rows — lands SOONER than
+// the win's six, and NEW GAME is under the thumb first. The loser
+// gets the shorter ceremony on purpose.
+const LOSS_PACE = 0.5;
+function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, pace = 1 }) {
   const d = CARD_DIMS[size] || CARD_DIMS.small;
   const slots = word.split('');
   const n = slots.length;
@@ -376,8 +427,8 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0 }
         const y = lift - Math.sin(t * Math.PI) * lift;
         const rot = -9 + t * 18;
         const k = rowIndex * 10 + i;
-        const dealDelay = instant ? 0 : dealAt + k * DEAL.stagger;
-        const flipDelay = instant ? 0 : flipAt + k * FLIP.stagger;
+        const dealDelay = instant ? 0 : dealAt + (i * DEAL.stagger + rowIndex * ROW_OFFSET) * pace;
+        const flipDelay = instant ? 0 : flipAt + (i * FLIP.stagger + rowIndex * ROW_OFFSET) * pace;
         return (
           <div key={i} style={{position:'absolute',left:i * step,top:y,zIndex:i,
             perspective:800,
@@ -445,6 +496,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const [sweepDelays, setSweepDelays] = useState(null);
   const [shareState, setShareState] = useState('idle');
   const rootRef = useRef(null);
+  // Focus follows the beat: onto the quiet button when it becomes
+  // real at rest, onto NEW GAME when the match screen lands. Without
+  // this the dialog's trap had nothing to hold once the reveal's
+  // button unmounted, focus fell to the page, and the next Tab found
+  // the HUD's buttons under the wood.
+  const quietRef = useRef(null);
+  const finalBtnsRef = useRef(null);
   const { at, clear } = useTimeline(R ? 0.3 : 1);
   const cued = useRef({ outcome: !!instant, end: !!instant, sweep: !!instant });
   const stepRef = useRef(step);
@@ -512,6 +570,14 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   useEffect(() => {
+    if (step === 'rest' && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
+    if (step === 'final' && finalBtnsRef.current) {
+      const b = finalBtnsRef.current.querySelector('button');
+      if (b) b.focus();
+    }
+  }, [step]);
+
+  useEffect(() => {
     if (step !== 'cleanSweep') return;
     if (!fast.beat) playCleanSweep();
     // Title in (letters at 55ms), bonus line, the bonus point rolls
@@ -553,19 +619,23 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
   // ── The match screen ───────────────────────────────────────
   const word = mineWon ? ['YOU WIN'] : ['OPPONENT', 'WINS.'];
-  const lastK = (word.length - 1) * 10 + word[word.length - 1].length - 1;
+  const pace = mineWon ? 1 : LOSS_PACE;
+  const longest = Math.max(...word.map(r => r.length)) - 1;
+  const rowsExtra = (word.length - 1) * ROW_OFFSET;
   const dealAt = 0;
-  const dealEnd = dealAt + lastK * DEAL.stagger + DEAL.dur;
-  const flipAt = dealEnd + 160;
-  const flipEnd = flipAt + lastK * FLIP.stagger + FLIP.dur;
+  const dealEnd = dealAt + (longest * DEAL.stagger + rowsExtra) * pace + DEAL.dur;
+  const flipAt = dealEnd + 160 * pace;
+  const flipEnd = flipAt + (longest * FLIP.stagger + rowsExtra) * pace + FLIP.dur;
   useEffect(() => {
     if (step !== 'deal') return;
     if (fast.end) { setStep('final'); return; }
     word.forEach((row, ri) => row.split('').forEach((ch, i) => {
       if (ch === ' ') return;
-      const kk = ri * 10 + i;
-      if (!R) at(dealAt + kk * DEAL.stagger + DEAL.dur - 40, playDraw);
-      if (!R) at(flipAt + kk * FLIP.stagger + FLIP.dur * 0.55, playSelect);
+      // One cue per card on the longer row only; the two rows land a
+      // beat apart and doubling every tap read as a rattle.
+      if (ri > 0 && word[0].length > i) return;
+      if (!R) at(dealAt + (i * DEAL.stagger + ri * ROW_OFFSET) * pace + DEAL.dur - 40, playDraw);
+      if (!R) at(flipAt + (i * FLIP.stagger + ri * ROW_OFFSET) * pace + FLIP.dur * 0.55, playSelect);
     }));
     at(flipAt, () => setStep('flip'));
     at(flipEnd + 120, () => setStep('final'));
@@ -591,7 +661,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     }
     if (s === 'rest') {
       if (sweepBeat) { setStep('cleanSweep'); return; }
-      if (endsIt) return;                 // already running on by itself
+      if (endsIt) {
+        // The jump hold before the sweep. A tap here used to be
+        // swallowed; it now goes straight to the sweep, the same way
+        // a tap goes straight to anything else on this table.
+        clear(); cueEnd(); runSweep();
+        return;
+      }
       if (isScraps) { runSweep(); return; }
       onContinue();
       return;
@@ -605,13 +681,22 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       runSweep();
       return;
     }
+    if (s === 'sweep' && !endsIt) {
+      // The round's sweep hands off at once. Safe by construction —
+      // the layer stays mounted and the ROUND sign lands on the same
+      // boards — and it used to swallow the tap, which taught the
+      // player that taps do not work one beat before the sign, where
+      // they do.
+      clear();
+      onSwept();
+      return;
+    }
     if (s === 'sweep' || s === 'deal' || s === 'flip') {
-      if (!endsIt) return;                // the round's sweep is 1.7s and hands off itself
       clear();
       setFast(f => ({ ...f, end: true }));
       setStep('final');
     }
-  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, cueEnd]);
+  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, onSwept, cueEnd]);
 
   // Keys land on the quiet button through the dialog's focus trap;
   // this catches the case where focus has wandered (a screen reader
@@ -633,7 +718,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const r = await shareResult({ won: mineWon, p: bonus.p, a: bonus.a, difficulty, text });
     if (r === 'copied' || r === 'failed') {
       setShareState(r);
-      setTimeout(() => setShareState('idle'), 2200);
+      setTimeout(() => setShareState('idle'), 2600);
     } else setShareState('idle');
   }, [shareState, mineWon, bonus.p, bonus.a, difficulty]);
 
@@ -723,17 +808,23 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const showFinal = step === 'final';
     const fe = fast.end;
     const won = mineWon;
-    const total = `${won ? bonus.p : bonus.a}–${won ? bonus.a : bonus.p}`;
+    // On the loss the buttons come first and the score after; on the
+    // win the score lands first and the buttons follow it. The buttons
+    // sit at the bottom of the viewport either way — the thumb zone on
+    // a phone — rather than wherever the centred column ends.
+    const btnDelay = won ? 340 : 0;
+    const scoreDelay = won ? 120 : 300;
     return (
       <div ref={rootRef} onClick={onTap}
-        style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:14,cursor:'default'}}>
+        style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+          padding:'14px 14px clamp(84px,14vh,120px)',cursor:'default'}}>
         <FitBox modeMinW={300}>
           <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',alignItems:'center',
             justifyContent:'center',gap:'clamp(12px,2.6vh,22px)'}}>
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'clamp(8px,1.6vh,14px)'}}>
               {word.map((row, ri) => (
                 <LetterRow key={ri} word={row} size={letterSize} availW={availW}
-                  dealAt={dealAt} flipAt={flipAt} instant={fe} rowIndex={ri}/>
+                  dealAt={dealAt} flipAt={flipAt} instant={fe} rowIndex={ri} pace={pace}/>
               ))}
             </div>
             {!won && (
@@ -743,44 +834,52 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                 Opponent wins.
               </div>
             )}
+            {/* The final score keeps the reveal's geometry — OPP on the
+                left, YOU on the right, each labelled — rather than a
+                winner-first pair the player had to decode. The winner's
+                numeral carries the colour. */}
             <div className="stage-fade" style={{display:'flex',flexDirection:'column',alignItems:'center',
-              animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : 120}ms both` : undefined,
+              animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : scoreDelay}ms both` : undefined,
               opacity: showFinal ? 1 : 0}}>
-              <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:14,letterSpacing:'0.28em',marginBottom:4}}>FINAL SCORE</div>
-              <div style={{fontFamily:F.display,color: won ? DS.gold : DS.frost,lineHeight:1,
-                fontSize:'clamp(64px,14vw,132px)',letterSpacing:'0.03em',
-                textShadow: won ? `0 0 40px ${DS.gold}88` : '0 0 30px rgba(237,227,208,.2)'}}>{total}</div>
-              {won && winStats && winStats.margin != null && (
-                <div style={{display:'flex',alignItems:'center',gap:14,marginTop:8}}>
-                  <span style={{fontFamily:F.mono,fontSize:14,color:DS.slateLight,letterSpacing:'0.14em'}}>WON BY {winStats.margin}</span>
-                  {winStats.isNewRecord ? (
-                    <span style={{display:'inline-flex',alignItems:'center',gap:8,fontFamily:F.mono,fontSize:14,
-                      fontWeight:700,color:DS.gold,letterSpacing:'0.14em',background:DS.gold+'18',
-                      border:`1px solid ${DS.gold}88`,borderRadius:20,padding:'4px 14px'}}>
-                      <IconTrophy size={15}/> NEW BEST MARGIN
-                    </span>
-                  ) : winStats.bestMargin > 0 && (
-                    <span style={{fontFamily:F.mono,fontSize:14,color:DS.slate,letterSpacing:'0.14em'}}>BEST {winStats.bestMargin}</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="stage-fade" onClick={e => e.stopPropagation()}
-              style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',
-                animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : 340}ms both` : undefined,
-                opacity: showFinal ? 1 : 0, pointerEvents: showFinal ? 'auto' : 'none'}}>
-              <Btn variant={won ? 'gold' : 'primary'} onClick={onNewGame}>New Game</Btn>
-              <Btn variant="ghost" onClick={doShare} disabled={shareState === 'busy'}>
-                {shareState === 'copied' ? 'Copied' : 'Share'}
-              </Btn>
-            </div>
-            <div className="sr-only" role="status" aria-live="polite">
-              {showFinal ? `${won ? 'You win' : 'Opponent wins'}. Final score ${total}.` : ''}
-              {shareState === 'copied' ? ' Copied to the clipboard.' : ''}
-              {shareState === 'failed' ? ' Sharing is not available here.' : ''}
+              <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:14,letterSpacing:'0.28em',marginBottom:6}}>FINAL SCORE</div>
+              <div style={{display:'flex',alignItems:'baseline',gap:'clamp(18px,4vw,40px)'}}>
+                {[['OPP', bonus.a, !won], ['YOU', bonus.p, won]].map(([lbl, n, isWinner]) => (
+                  <div key={lbl} style={{display:'flex',alignItems:'baseline',gap:10,
+                    flexDirection: lbl === 'YOU' ? 'row-reverse' : 'row'}}>
+                    <span style={{fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>{lbl}</span>
+                    <span style={{fontFamily:F.display,lineHeight:1,fontSize:'clamp(56px,12vw,116px)',letterSpacing:'0.03em',
+                      color: isWinner ? (won ? DS.gold : DS.ember) : DS.frost,
+                      textShadow: DROP}}>{n}</span>
+                  </div>
+                ))}
+              </div>
+              {/* The margin, both ways. The NEW BEST MARGIN pill that used
+                  to sit beside it went on Stan's call (2026-09-14): a
+                  rounded, bordered badge with a trophy icon was web-app
+                  idiom on a picnic table. stats.js still records the
+                  best margin; nothing on this screen shows it. */}
+              <div style={{fontFamily:F.mono,fontSize:14,color:DS.slateLight,letterSpacing:'0.14em',marginTop:8}}>
+                {won ? `WON BY ${bonus.p - bonus.a}` : `LOST BY ${bonus.a - bonus.p}`}
+              </div>
             </div>
           </div>
         </FitBox>
+        {/* Bottom of the viewport, whatever the column above does. */}
+        <div className="stage-fade" onClick={e => e.stopPropagation()} ref={finalBtnsRef}
+          style={{position:'absolute',left:0,right:0,bottom:'clamp(18px,4vh,40px)',
+            display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',padding:'0 14px',
+            animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : btnDelay}ms both` : undefined,
+            opacity: showFinal ? 1 : 0, pointerEvents: showFinal ? 'auto' : 'none'}}>
+          <Btn variant={won ? 'gold' : 'primary'} onClick={onNewGame}>New Game</Btn>
+          <Btn variant="ghost" onClick={doShare} disabled={shareState === 'busy'}>
+            {shareState === 'copied' ? 'Copied' : shareState === 'failed' ? "Couldn't share" : 'Share'}
+          </Btn>
+        </div>
+        <div className="sr-only" role="status" aria-live="polite">
+          {showFinal ? `${won ? 'You win' : 'Opponent wins'}. Final score: you ${bonus.p}, opponent ${bonus.a}.` : ''}
+          {shareState === 'copied' ? ' Copied to the clipboard.' : ''}
+          {shareState === 'failed' ? " Couldn't share from here." : ''}
+        </div>
       </div>
     );
   }
@@ -811,25 +910,30 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                 <div data-sweep="text" data-sweep-id="cs-title" aria-label="Clean sweep"
                   style={{display:'flex',gap:'0.06em',perspective:'26em',fontFamily:F.title,lineHeight:1,
                     fontSize:'clamp(38px,min(9.5vw,14vh),88px)',color: cleanSweep ? DS.gold : DS.ember,
-                    textShadow:`0 0 30px ${cleanSweep ? DS.gold : DS.ember}66, 0 3px 0 rgba(0,0,0,.4)`,whiteSpace:'pre',
+                    textShadow:DROP,whiteSpace:'pre',
                     animation: textAnim('cs-title', undefined)}}>
+                  {/* Your sweep lands on the overshoot; hers on the settle
+                      curve. Same letters, same timing, no bounce on bad
+                      news — the split every other loss in the game keeps. */}
                   {'CLEAN SWEEP'.split('').map((l, k) => (
                     <span key={k} aria-hidden="true" style={{display:'inline-block',
                       animation: sd('cs-title') != null || fast.beat ? undefined
-                        : `letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${k * 55}ms both`}}>{l}</span>
+                        : `letterAppear 0.6s ${cleanSweep ? 'cubic-bezier(.34,1.6,.64,1)' : SETTLE} ${k * 55}ms both`}}>{l}</span>
                   ))}
                 </div>
+                {/* Names the feat as well as the price: a first-timer meets
+                    CLEAN SWEEP here before anything has taught it. */}
                 <div data-sweep="text" data-sweep-id="cs-line" className={fadeCls}
-                  style={{fontFamily:F.display,fontSize:'clamp(16px,2.8vw,24px)',letterSpacing:'0.16em',
-                    color: cleanSweep ? DS.gold : DS.ember,
+                  style={{fontFamily:F.display,fontSize:'clamp(15px,2.6vw,24px)',letterSpacing:'0.14em',
+                    color: cleanSweep ? DS.gold : DS.ember,whiteSpace:'nowrap',
                     animation: textAnim('cs-line', fadeIn(260, 520, fast.beat))}}>
-                  +1 BONUS POINT
+                  ALL THREE HANDS · +1 BONUS POINT
                 </div>
               </>
             ) : showVerdict && (
               <div data-sweep="text" data-sweep-id="verdict" className={fadeCls}
                 style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,56px)',letterSpacing:'0.04em',lineHeight:1,
-                  color:verdictColor,textShadow:`0 0 24px ${verdictColor}55, 0 2px 0 rgba(0,0,0,.4)`,
+                  color:verdictColor,textShadow:DROP,
                   animation: textAnim('verdict', `popIn ${fb ? 0 : 400}ms ${mineWon ? OVER : SETTLE} both`)}}>
                 {verdictText}
               </div>
@@ -841,13 +945,32 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
           <div style={{marginTop:'clamp(2px,1vh,8px)',width:'100%',display:'flex',justifyContent:'center'}}>
             {scoreRow}
           </div>
+          {/* MATCH POINT, on the stage rather than in the HUD it covers.
+              Reads off the post-roll totals, so it appears with the
+              point that created it. Colour follows ownership: voltage
+              when the threat is yours, ember when hers, frost when both.
+              Never gold — gold is a milestone, this is a warning. */}
+          {ticked && !endsIt && (sp.to >= MATCH_POINT || sa.to >= MATCH_POINT) && (() => {
+            const p = sp.to >= MATCH_POINT, a = sa.to >= MATCH_POINT;
+            const tone = p && a ? DS.frost : p ? DS.voltage : DS.ember;
+            return (
+              <div data-sweep="text" data-sweep-id="match-point" className={fadeCls}
+                style={{fontFamily:F.display,fontSize:'clamp(14px,2.4vw,20px)',letterSpacing:'0.18em',
+                  color:tone,textShadow:DROP,
+                  animation: textAnim('match-point', fadeIn(260, ROLL + 100, fb))}}>
+                MATCH POINT{p && a ? ' BOTH WAYS' : ''}
+              </div>
+            );
+          })()}
 
           <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : `opponent wins with ${aiHandName}`}.` : ''}
-            {beatOn ? ' Clean sweep, plus one bonus point.' : ''}
+            {ticked ? ` Score: you ${sp.to}, opponent ${sa.to}.` : ''}
+            {beatOn ? ' Clean sweep: all three hands, plus one bonus point.' : ''}
           </div>
           <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>
-            <QuietButton onClick={onTap} show={atRest && !(endsIt && !sweepBeat)}>Tap to continue</QuietButton>
+            <QuietButton onClick={onTap} buttonRef={quietRef}
+              show={atRest && !(endsIt && !sweepBeat)}>Tap to continue</QuietButton>
           </div>
         </div>
       </FitBox>

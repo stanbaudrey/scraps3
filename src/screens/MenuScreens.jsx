@@ -47,12 +47,14 @@ export function SplashScreen({ onStart }) {
               for the row that was removed. */}
           <div style={{height:'clamp(10px,4vh,40px)'}}/>
           <AnimatedTitle/>
-          {/* Fjalla, sentence case as Stan wrote it, tracked open so it
-              sits under the wordmark as a line rather than a caption.
+          {/* Fjalla, sentence case as Stan wrote it. Tracked at 0.06em,
+              not the 0.14em it first shipped with: wide tracking on a
+              sentence-case line read as a caption (the critique's note,
+              and Stan's call the same day).
               Pulled up into the wordmark's own bottom margin so the
               three things on this screen still read as one stack. */}
           <div style={{fontFamily:F.display,fontSize:'clamp(18px,3.4vw,28px)',
-            color:DS.slateLight,letterSpacing:'0.14em',lineHeight:1.1,
+            color:DS.slateLight,letterSpacing:'0.06em',lineHeight:1.1,
             marginTop:'clamp(-20px,-4vw,-10px)',marginBottom:'clamp(22px,5vw,34px)',
             textShadow:'0 2px 0 rgba(0,0,0,.4)',
             animation:'fadeUp .6s ease .35s both'}}>{TAGLINE}</div>

@@ -148,50 +148,13 @@ export function PlayerBar({ playerScore, children, compact=false }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MatchPointBanner — someone is one scoring event from the game.
-//
-// This used to be NearWinBanner, and it said "you've hit 10, win by
-// 2". Dropping the win-by-2 clause on 2026-09-13 made that state
-// unreachable: the game now ends the instant a score touches
-// WIN_SCORE, so a banner about play CONTINUING past it could never
-// render again. The tension beat it existed for is real, so it moved
-// two points earlier instead of being deleted.
-//
-// MATCH_POINT is WIN_SCORE - 2, because 2 is what the Scraps hand
-// pays and the smallest hand that can end a game from here. A player
-// on 8 can be beaten in one reveal; a player on 7 cannot.
-//
-// Colour follows ownership, the same rule as everything else on this
-// table: voltage when the threat is yours, ember when it is hers,
-// frost when it belongs to both of you. Never gold — gold is a
-// milestone token, and this is a warning.
+// The MATCH POINT banner (NearWinBanner) lived here until 2026-09-14.
+// It sat under the top bar, which the interstitial layer covers at
+// exactly the moment the stakes peak, so Stan moved the warning onto
+// the stage: a line on the ROUND sign and under the reveal's score
+// row (interstitials.jsx, MATCH_POINT). The threshold logic — two
+// short of WIN_SCORE, because the Scraps hand pays 2 — moved with it.
 // ─────────────────────────────────────────────────────────────
-const MATCH_POINT = WIN_SCORE - 2;
-
-export function NearWinBanner({ playerScore, aiScore }) {
-  const playerUp = playerScore >= MATCH_POINT;
-  const aiUp = aiScore >= MATCH_POINT;
-  if(!playerUp && !aiUp) return null;
-  let msg, tone;
-  if(playerUp && aiUp) {
-    msg = `Match point both ways. The next hand can end it.`;
-    tone = DS.frost;
-  } else if(playerUp) {
-    msg = `Match point. One hand takes you to ${WIN_SCORE}.`;
-    tone = DS.voltage;
-  } else {
-    msg = `Match point to her. One hand and it's over.`;
-    tone = DS.ember;
-  }
-  return (
-    <div style={{padding:'5px 16px',background:tone+'22',
-      border:`1px solid ${tone}66`,textAlign:'center',
-      fontFamily:F.ui,fontSize:13,color:tone,fontWeight:700,
-      letterSpacing:'0.06em',flexShrink:0,lineHeight:1.3}}>
-      {msg}
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────
 // GameLog — full round-by-round history, opened by tapping the

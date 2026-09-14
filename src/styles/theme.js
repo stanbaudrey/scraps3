@@ -61,13 +61,15 @@
 // ROUND N, win/lose screens, score numbers, hand names) now reads
 // F.display as "headers and subtitles."
 //
-// AMENDED 2026-09-14. Rye has exactly SIX consumers now, and the
+// AMENDED 2026-09-14. Rye has exactly SEVEN consumers now, and the
 // list is the rule: the wordmark; every card rank (F.card, the same
-// string); the storyboard's one HOW TO PLAY title; and three moments
-// on the table that Stan put in Rye off the Win bench — ROUND N, the
-// CLEAN SWEEP beat, and the MATCH-WINNING SCORE as it lands. Nothing
-// else. The letter cards of the match screen count as ranks. A
-// heading that wants Rye and is not on this list is wrong.
+// string); the storyboard's one HOW TO PLAY title; three moments on
+// the table that Stan put in Rye off the Win bench — ROUND N, the
+// CLEAN SWEEP beat, and the MATCH-WINNING SCORE as it lands; and the
+// verdict on the share card share.js draws, which is a torn Scraps
+// card and so sets its one word the way a rank is set. Nothing else.
+// The letter cards of the match screen count as ranks. A heading
+// that wants Rye and is not on this list is wrong.
 // ============================================================
 
 export const DS = {

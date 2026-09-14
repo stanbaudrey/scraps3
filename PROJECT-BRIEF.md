@@ -5164,6 +5164,34 @@ it serves `/assets/index-CtvV9P2o.js` — the same content-hashed filename
 the tested local build produced, so the deployed bundle is byte-identical
 to the one every check above ran against.
 
+**Critique and Stan's follow-up, the same day.** `/impeccable critique` ran
+on the new files as the preview step asks (dual-agent, **26/36**, snapshot
+in `.impeccable/critique/`): one P1 and four P2s, and Stan took all five
+plus eight notes of his own off the minor observations. All built, on the
+same preview: the table under the stage is `inert` and NEW GAME takes
+focus when the match screen lands, with the quiet button disabled while it
+is invisible (the P1 — Tab used to walk through the wood onto the HUD's
+buttons); a tap now skips the round's sweep and the match end's jump hold
+instead of being swallowed; a "+1" / "+2" ghost rises off the winning
+numeral as it rolls, the one place the game states what a hand is worth;
+FINAL SCORE keeps the reveal's OPP-left / YOU-right geometry with labels
+and WON BY / LOST BY N; the NEW BEST MARGIN pill is gone (stats.js still
+records it, nothing shows it); every glow text-shadow became the sign's
+hard drop (`DROP`); the loss deals both rows in parallel at half pace so it
+lands before the win, with NEW GAME at the bottom of the viewport before
+the score; the opponent's CLEAN SWEEP letters land on SETTLE; the beat's
+line reads ALL THREE HANDS · +1 BONUS POINT; MATCH POINT moved off the HUD
+banner (`NearWinBanner` deleted) onto the sign's dealer line and under the
+reveal's score row, in the threatened side's colour; the share card is a
+torn Scraps card rather than a cream panel; share failure shows "Couldn't
+share"; the splash subtitle's tracking dropped from 0.14em to 0.06em; and
+the score may run to 11 or 12 past the line, his call, no change. Verified
+in headless Chrome: focus on NEW GAME with Tab cycling inside the dialog,
+`inert` on the game root while the ROUND sign is up and off after, the
+share-failure label, the Clean Sweep line, frames of every changed screen,
+both gates ALL CLEAR — the match buttons no longer fall short on landscape
+phone at all, being outside the scaled column now.
+
 **Traps hit, for whoever is next.** The overlay bench harness page had **no
 stylesheet at all** — every `@keyframes`, the fonts and `.sr-only` live in
 `index.html`'s `<style>`, which a second HTML page never loads — so the
@@ -5221,7 +5249,7 @@ declare 44.1 kHz and re-measure there.
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
 | — | *Unplanned:* Terminology and tone pass | Done + **PUBLISHED** (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical. Live bundle verified byte-identical to the tested build, and `main`'s tree hash equal to `dev`'s. Found one live "burn" the spec never mentioned, in the Ace explainer, and a void detector run that reported 13 findings on an empty file list |
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
-| — | *Unplanned:* Interstitials onto the table, fireworks out | **Built, on preview** (2026-09-14) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. iPhone share sheet untested |
+| — | *Unplanned:* Interstitials onto the table, fireworks out | **Built, on preview** (2026-09-14) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 
 

@@ -62,13 +62,23 @@ async function fontsReady() {
   } catch { /* the system fallbacks draw instead */ }
 }
 
-function roundRect(g, x, y, w, h, r) {
+// A torn edge: the rectangle walked in short steps with a seeded
+// jitter, the way scrapLook tears a Scraps card. Same xorshift as
+// everything else in this project, so the card is stable.
+function tornPath(g, x, y, w, h, seed = 1) {
+  let s = (seed * 0x9E3779B9) >>> 0 || 1;
+  const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const jit = () => (rnd() * 2 - 1) * 7;
+  const step = 34;
   g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
+  g.moveTo(x + jit(), y + jit());
+  for (let px = x + step; px < x + w; px += step) g.lineTo(px, y + jit());
+  g.lineTo(x + w + jit(), y + jit());
+  for (let py = y + step; py < y + h; py += step) g.lineTo(x + w + jit(), py);
+  g.lineTo(x + w + jit(), y + h + jit());
+  for (let px = x + w - step; px > x; px -= step) g.lineTo(px, y + h + jit());
+  g.lineTo(x + jit(), y + h + jit());
+  for (let py = y + h - step; py > y; py -= step) g.lineTo(x + jit(), py);
   g.closePath();
 }
 
@@ -126,29 +136,53 @@ export async function renderShareCard({ won, p, a, difficulty }) {
   g.fillStyle = DS.slateLight;
   g.fillText(TAGLINE.toUpperCase().split('').join(' '), W / 2, 218);
 
-  // The result: a card lying on the wood with the verdict and score.
-  const cw = 560, ch = 262, cx = W / 2 - cw / 2, cy = 262;
-  g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 30; g.shadowOffsetY = 14;
-  g.fillStyle = DS.ink;
-  roundRect(g, cx, cy, cw, ch, 22); g.fill();
-  g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0;
-  g.fillStyle = DS.frost;
-  roundRect(g, cx + 8, cy + 8, cw - 16, ch - 16, 16); g.fill();
+  // The result on one of the game's own SCRAPS cards (Stan, 2026-09-14):
+  // torn pale stock, a shade of lean, a little grime at the edges, ink
+  // on it — not a rounded cream panel. The tear is seeded so the card
+  // is the same card every time.
+  const cw = 580, ch = 270, cx = W / 2 - cw / 2, cy = 258;
+  g.save();
+  g.translate(W / 2, cy + ch / 2);
+  g.rotate(-1.6 * Math.PI / 180);
+  g.translate(-W / 2, -(cy + ch / 2));
+  g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 22; g.shadowOffsetX = -4; g.shadowOffsetY = 10;
+  tornPath(g, cx, cy, cw, ch, 7);
+  g.fillStyle = DS.stockPale;
+  g.fill();
+  g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetX = 0; g.shadowOffsetY = 0;
+  // Edge grime and two faint stains, clipped to the tear.
+  g.save();
+  tornPath(g, cx, cy, cw, ch, 7);
+  g.clip();
+  const grime = g.createLinearGradient(cx, cy, cx + cw, cy + ch);
+  grime.addColorStop(0, `${DS.timberSeam}00`);
+  grime.addColorStop(1, `${DS.timberSeam}33`);
+  g.fillStyle = grime; g.fillRect(cx, cy, cw, ch);
+  for (const [sx, sy, sr] of [[cx + cw * 0.82, cy + ch * 0.22, 70], [cx + cw * 0.14, cy + ch * 0.8, 52]]) {
+    const st = g.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    st.addColorStop(0, `${DS.timberSeam}2E`);
+    st.addColorStop(1, `${DS.timberSeam}00`);
+    g.fillStyle = st; g.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+  }
+  g.lineWidth = 3; g.strokeStyle = `${DS.timberSeam}55`;
+  tornPath(g, cx + 1.5, cy + 1.5, cw - 3, ch - 3, 7); g.stroke();
+  g.restore();
 
   const verdict = won ? 'YOU WIN' : 'OPPONENT WINS';
   g.fillStyle = DS.ink;
   g.font = "400 58px 'Rye', serif";
-  g.fillText(verdict, W / 2, cy + 92);
+  g.fillText(verdict, W / 2, cy + 96);
   g.font = "400 96px 'Fjalla One', sans-serif";
-  g.fillStyle = won ? DS.canopy : DS.ink;
+  g.fillStyle = DS.ink;
   const score = won ? `${p}–${a}` : `${a}–${p}`;
-  g.fillText(score, W / 2, cy + 196);
+  g.fillText(score, W / 2, cy + 200);
   const d = DIFF[difficulty] || '';
   if (d) {
     g.font = "700 22px 'Work Sans', sans-serif";
     g.fillStyle = DS.inkLight;
-    g.fillText(d.toUpperCase().split('').join(' '), W / 2, cy + 236);
+    g.fillText(d.toUpperCase().split('').join(' '), W / 2, cy + 240);
   }
+  g.restore();
 
   // The address, small, bottom right.
   g.textAlign = 'right';
