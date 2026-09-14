@@ -73,10 +73,23 @@
          Only the splash's three families are preloaded; Baloo 2 (card faces)
          and IBM Plex Mono are not on the first screen and are left to be
          fetched when they are first used. crossorigin is required on a font
-         preload even same-origin, or the browser fetches the file twice. -->
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/bungee-shade-latin.woff2">
+         preload even same-origin, or the browser fetches the file twice.
+
+         THESE THREE LINES ARE GENERATED, between the sentinels below, and
+         they did not used to be. The comment above already said "never edit
+         by hand" while `npm run fonts` rewrote only the @font-face block
+         further down — so when Rye replaced Bungee Shade on 2026-09-13 the
+         preload was left pointing at a deleted file, and every visitor to
+         the live site fetched a 404 on the critical path while the font
+         that IS on the splash went unpreloaded. `fonts:check` could not see
+         it, because it only ever compared the @font-face block. Which
+         families get a preload is declared by `preload: true` in
+         tools/fetch-fonts.mjs. -->
+    <!-- PRELOAD:BEGIN -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/rye-latin.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/fjalla-one-latin.woff2">
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/work-sans-latin.woff2">
+    <!-- PRELOAD:END -->
     <style>
       /* ========================================================
          SELF-HOSTED WEBFONTS — generated, do not hand-edit.
