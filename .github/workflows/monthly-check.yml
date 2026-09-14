@@ -76,8 +76,28 @@ jobs:
           done
           # The page must still be the game, not a parked domain
           # or a Vercel error page returning 200.
-          if ! curl -sS --max-time 25 "$BASE/" | grep -q 'og:image'; then
+          #
+          # FETCHED TO A FILE, NEVER PIPED INTO `grep -q`, and that is a
+          # bug fix rather than a style choice. Under `set -o pipefail`,
+          # `curl | grep -q` is a race: grep exits the moment it matches,
+          # closing the pipe while curl is still writing, so curl dies
+          # with exit 23 ("Failure writing output to destination") and
+          # pipefail hands the pipeline's failure to the `if`. The check
+          # then reports NO og:image on a page that has one — which reads
+          # exactly like production is broken.
+          # It is timing-dependent, so it passed for weeks and then began
+          # failing every run on 2026-09-13 when the card redesign grew
+          # index.html from 38KB to 41KB and widened the window. A file
+          # has no reader to close the pipe, and lets the body be checked
+          # more than once.
+          body=$(mktemp)
+          curl -sS --max-time 25 "$BASE/" -o "$body"
+          if ! grep -q 'og:image' "$body"; then
             echo "  FAIL  / responded but carries no og:image tag"; fail=1
+          elif ! grep -q "og:image\" content=\"$BASE/og.png" "$body"; then
+            echo "  FAIL  / carries an og:image that does not point at $BASE/og.png"; fail=1
+          else
+            echo "  ok   / carries og:image -> $BASE/og.png"
           fi
           # And the card the live HTML points at must be a real
           # PNG of the right size, not an HTML error body.
