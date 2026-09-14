@@ -30,7 +30,17 @@ five-card suited straight scores as a plain straight, never a straight flush.
   `@font-face` rules live between the `FONT-FACE:BEGIN`/`END` sentinels in
   `index.html` and are **generated — never hand-edit them or the files in
   `public/fonts`**. `npm run fonts` rewrites both from Google;
-  `npm run fonts:check` exits non-zero if either has drifted. The
+  `npm run fonts:check` exits non-zero if either has drifted. **It owns the
+  three `<link rel="preload">` font lines too**, between
+  `PRELOAD:BEGIN`/`END` sentinels, driven by `preload: true` in
+  `fetch-fonts.mjs`'s SPEC. It did not until 2026-09-14, and the gap
+  shipped to production: the preload still pointed at
+  `bungee-shade-latin.woff2` after Rye replaced it, so every visitor
+  fetched a 404 on the critical path while the font the splash is made of
+  went unpreloaded. `fonts:check` was green throughout, because it only
+  ever compared the `@font-face` block — and the preload block carried a
+  comment saying "never edit by hand" beside three lines nothing
+  regenerated. Caught by a real browser on the LIVE url, by no check. The
   authoritative family list is those rules plus the `F` object in
   `src/styles/theme.js`, which must agree; both were named wrongly in this
   file until Session 3 (see PROJECT-BRIEF.md's forest-reskin and specimen

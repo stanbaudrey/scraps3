@@ -4049,7 +4049,7 @@ trim of 9.0647 was left alone rather than retargeted to the bench's level.
 `playSquareUp` untouched. No audio files were imported, so the project's "no
 audio files, no licensing surface" position still holds.
 
-### Unplanned session — The big pass: rules, opponent, wordmark, table ✅ Done (2026-09-13)
+### Unplanned session — The big pass: rules, opponent, wordmark, table ✅ Done + **PUBLISHED** (2026-09-13/14)
 
 Requested directly by Stan as one long list under the heading "Big session
 here", covering mobile fixes, one rule change, a global pronoun change, the
@@ -4249,9 +4249,9 @@ CLAUDE.md prescribes. A scripted driver played complete games end to end at
   the in-game rules on 2026-08-30, while `llms.txt` still points readers at "the
   Privacy notice inside the game's rules panel". Found here, not fixed: wording
   and placement are Stan's.
-- Not published. This is preview-ready, not live.
+- **Published 2026-09-14**, together with the six review notes below. See the publish postscript at the end of that entry.
 
-### Unplanned session — Six notes off the preview ✅ Done (2026-09-14)
+### Unplanned session — Six notes off the preview ✅ Done + **PUBLISHED** (2026-09-14)
 
 Stan's review of the big pass, six items, all built and verified in the same
 sitting. Then published to preview.
@@ -4327,6 +4327,67 @@ picked up a SECOND copy of both test files and reported 111 passing. That was a
 sibling git worktree under `.claude/worktrees/` from a spawned session, not
 anything in this tree. `--exclude '**/.claude/**'` gives the real 56.
 
+#### Published 2026-09-14 — and the one thing that got through
+
+Both entries above went live together at
+[scraps.games](https://scraps.games) as merge `594ed9b`. Production was
+confirmed by **bundle hash**: Vite names its output after a hash of the file's
+own contents, so the served `index-Bs5J94P_.js` matching the local build is
+transitive proof that every byte in the push shipped. The merge tree was also
+verified identical to the previewed commit's tree. `llms.txt`, the no-JS block
+and the served `@font-face` rules were read back as supplements.
+
+**A real defect shipped, and the live-browser check is what found it.** Minutes
+after the merge, a real browser on the live URL reported one console error:
+a **404 for `/fonts/bungee-shade-latin.woff2`** — the font deleted the day
+before — fetched by every visitor on the critical path, while **Rye, the font
+the splash is entirely made of, was not preloaded at all**.
+
+The cause is worth keeping, because every individual check was green. The three
+`<link rel="preload">` lines in `index.html` sat under a comment reading
+*"Regenerate them with `npm run fonts` — never edit either by hand"* — and
+`npm run fonts` **did not touch them**. It rewrites only the `@font-face` block,
+between its own sentinels further down. So the preloads were hand-maintained
+beside an instruction not to hand-maintain them, and the font swap moved one and
+left the other. `fonts:check` stayed green because it compared only the block it
+knew about. A publish-time grep for `Bungee` missed it too: the href is
+lowercase.
+
+Fixed the instance and the class in `04fdcb4`. The lines now live between
+`PRELOAD:BEGIN`/`END` sentinels, are derived from the same face list the
+`@font-face` rules come from, and are declared by `preload: true` in
+`fetch-fonts.mjs`'s SPEC — so a family joining or leaving the first screen moves
+both at once, and `--check` compares them.
+
+**Guards were broken on purpose before being trusted**, three classes across two
+scripts, each with the edit asserting the break actually landed first:
+
+| Guard | Break | Result |
+|---|---|---|
+| `fonts:check` | preload repointed at the deleted file (*the exact bug*) | exit 1, named |
+| `fonts:check` | a family's `preload: true` removed | exit 1, named |
+| `share:check` | `<title>` changed to SCRAPPY | exit 1, named the JSON-LD mismatch |
+| `share:check` | `voltage` token repainted | exit 1, named `favicon.svg` |
+| `share:check` | (observed live earlier in the session) `const SUBTITLE` deleted | generator failed by name |
+
+All restored to exit 0 afterwards. Post-fix, production reports **zero failed
+requests and zero console errors**, with all three splash fonts at 200.
+
+**Other publish-time checks.** The impeccable detector ran NOT degraded and
+returned **14 findings on the changed files — identical to the 14 already on
+`main`**, so this push added none; all are the deliberate `dark-glow` state
+tokens. No personal identifiers in `dist/`. No new data collection, no new
+environment variables. The monthly CI job was simulated against live and would
+pass: nine paths at 200, `og:image` present, `og.png` as `image/png`, and the
+old `scraps3.vercel.app` still 308-ing to the apex.
+
+**One process note.** A `git stash -q -u` on a clean tree creates no entry, so
+the matching `git stash pop` popped a pre-existing **`stash@{0}: On main:
+splash-identity-wip`** from an earlier session and conflicted. Nothing was lost
+— the session's work was committed, and the stash was kept — but that stash is
+still sitting on this repo and nobody has said what it is. **Never stash-pop in
+this repo without checking `git stash list` first.**
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4355,8 +4416,8 @@ anything in this tree. `--exclude '**/.claude/**'` gives the real 56.
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
 | — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
 | — | *Unplanned:* The Woodshed — sound kit retuned | Done + **PUBLISHED** (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x. Live bundle verified byte-identical to the tested build |
-| — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done (2026-09-13), **not published** — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off-left discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
-| — | *Unplanned:* Six notes off the preview | Done (2026-09-14), **not published** — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
+| — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done + **PUBLISHED** (2026-09-14) — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
+| — | *Unplanned:* Six notes off the preview | Done + **PUBLISHED** (2026-09-14) — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
 
 
 ---
