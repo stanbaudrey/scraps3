@@ -4388,7 +4388,7 @@ splash-identity-wip`** from an earlier session and conflicted. Nothing was lost
 still sitting on this repo and nobody has said what it is. **Never stash-pop in
 this repo without checking `git stash list` first.**
 
-### Unplanned session — The card redesign: torn scraps, one big rank, no suits ✅ Done (2026-09-13)
+### Unplanned session — The card redesign: torn scraps, one big rank, no suits ✅ Done + **PUBLISHED** (2026-09-13)
 
 Built from `CARD-REDESIGN-SPEC.md`, which was written by the 2026-09-12/13
 direction session and is **deleted now that this shipped**, so it cannot rot
@@ -4547,6 +4547,45 @@ where the tear takes a corner on a scrap). Worth a look on the preview to
 decide whether the numeral wants to sit lower.
 
 
+**The publish.** Live at [scraps.games](https://scraps.games) as `75869e8`.
+Verified by **bundle hash**, which is the strongest of the three available
+claims: Vite names its output after a hash of its own contents, and
+production serves `index-DI8nrcPS.js`, the same filename the local build
+produced — so the bytes are provably the same bytes and every change in the
+push shipped, without guessing which strings landed in which file. The merge
+tree was also confirmed identical to the previewed tree.
+
+A **real browser on the live URL** reported zero failed requests and zero
+console errors, with exactly four font families loaded. That check is here
+because it is what caught the last publish's only real bug — a 404 on a
+deleted font, on the critical path, while every offline check was green.
+This time the three preloads all point at fonts that exist, and
+`/fonts/baloo-2-latin.woff2` correctly 404s with nothing requesting it.
+All nine crawler paths return 200, `og.png` is `image/png`, and
+`scraps3.vercel.app` still 308s to the apex.
+
+**Guards broken on purpose before being trusted**, five of them, each
+grep-asserted to have actually landed before the check ran. `share:check`
+failed by name on a moved palette token (`✗ palette.voltage`), a changed
+product name (`✗ title`) and a changed card hand (`✗ hand`). `fonts:check`
+failed on a rewritten `@font-face` src and — the one that matters — on a
+preload pointing at a deleted font, which is the exact bug that shipped
+yesterday. All five passed again on restore.
+
+**Design detector: 5 findings, all pre-existing `bounce-easing`** on the
+card-physics curves, and the instrument was confirmed live first by scanning
+a deliberately bad control file (it named the planted `Inter`). No DEGRADED
+banner. Against `main` this push is **net one better**: it removed a
+`dark-glow` finding (the pile's old permanent ownership halo, gone with the
+box) and added one — a `transition: width` on the new pooled shadow, which
+was fixed here rather than shipped. Transitioning `width` runs layout on
+every frame of a 420ms curve, twice a table; it is a `scaleX` about a fixed
+box now, which is compositor-only and lands in the same place.
+
+**One stale string fixed in passing**: the monthly check's failure-issue body
+still told the reader to look at "one of the five families".
+
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4573,10 +4612,11 @@ decide whether the numeral wants to sit lower.
 | — | *Unplanned:* Splash pass 2 — sunset foothills | **Superseded 2026-09-01.** Daytime sunset, generated cosine ridgelines, foreground roll, tree breeze. Found the `objectBoundingBox` gradient bug. Deleted when the product went to two backgrounds; recoverable at `ef34063` |
 | — | *Unplanned:* Stan's scene + cut to two backgrounds | Done + **PUBLISHED** (2026-09-01) — his illustration on title and storyboard, table on picker/game/lose, `RidgeBackdrop` retired. Fixed a missing `viewBox` and 40% of the file size. Caught a real AA failure on the lose screen |
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
-| — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
+| — | *Unplanned:* Card + Scraps pile direction | **Decided, and now BUILT** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
 | — | *Unplanned:* The Woodshed — sound kit retuned | Done + **PUBLISHED** (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x. Live bundle verified byte-identical to the tested build |
 | — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done + **PUBLISHED** (2026-09-14) — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
 | — | *Unplanned:* Six notes off the preview | Done + **PUBLISHED** (2026-09-14) — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
+| — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
 
 
 ---
