@@ -5038,7 +5038,7 @@ run two browser harnesses at once against this project**; the walk is paced by
 real timers and it will lie to you.
 
 
-### Unplanned session — Interstitials onto the table, fireworks out ✅ Built, on preview (2026-09-14)
+### Unplanned session — Interstitials onto the table, fireworks out ✅ Done + **PUBLISHED** (2026-09-14)
 
 Built from Stan's picks off the Win bench, written up by the previous session
 as `NEXT-SESSION-interstitials.md` and **deleted at the end of this one**: its
@@ -5192,6 +5192,26 @@ share-failure label, the Clean Sweep line, frames of every changed screen,
 both gates ALL CLEAR — the match buttons no longer fall short on landscape
 phone at all, being outside the scaled column now.
 
+**✅ PUBLISHED 2026-09-14**, on Stan's `/publish` after the second preview.
+Merge commit `a7455b5` on `main`; Vercel deployment `scraps3-bi6zwh7p5`,
+target production, READY. **Proof by bundle hash:** `scraps.games` serves
+`/assets/index-CqazxhAx.js`, the content-hashed name the local build
+produced for the previewed commit `62da092`, so the live bytes are the
+tested bytes. `og.png` serves as `image/png`. Pre-flight: nothing
+uncommitted, `dev` level with origin, `main` ahead only by its own prior
+publish merges, no personal data in `dist/` (grep for the surname clean),
+the design detector live (control file named its planted Inter finding,
+stderr empty, no DEGRADED banner) with nine findings all `bounce-easing` —
+three in `interstitials.jsx` (the gated OVER curve, the sign's letters
+mirroring the wordmark, the player-only Clean Sweep curve) and six
+pre-existing in cards, overlays, backdrop and GameScreen; `npm run share`
+regenerated with only the run stamp moving (reverted) and `share:check`
+failed by name (`live now: "Poker with both hands BROKEN"`, exit 1) when
+the tagline was broken on purpose, then passed restored. Not a first
+launch and no new data collection, so the privacy and pre-launch
+checklists did not apply. No environment variables, nothing scheduled
+touched.
+
 **Traps hit, for whoever is next.** The overlay bench harness page had **no
 stylesheet at all** — every `@keyframes`, the fonts and `.sr-only` live in
 `index.html`'s `<style>`, which a second HTML page never loads — so the
@@ -5249,7 +5269,7 @@ declare 44.1 kHz and re-measure there.
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
 | — | *Unplanned:* Terminology and tone pass | Done + **PUBLISHED** (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical. Live bundle verified byte-identical to the tested build, and `main`'s tree hash equal to `dev`'s. Found one live "burn" the spec never mentioned, in the Ace explainer, and a void detector run that reported 13 findings on an empty file list |
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
-| — | *Unplanned:* Interstitials onto the table, fireworks out | **Built, on preview** (2026-09-14) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
+| — | *Unplanned:* Interstitials onto the table, fireworks out | Done + **PUBLISHED** (2026-09-14) at `a7455b5`, production serving `index-CqazxhAx.js` (the previewed bundle) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 
 
@@ -5328,30 +5348,35 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**The interstitials are BUILT and on the `dev` preview
-(https://scraps3-git-dev-samvaudrey-3466s-projects.vercel.app), waiting for
-Stan's look (2026-09-14).** The entry above the tracker has everything: every
-between-hands moment now plays on the table, the fireworks are gone, the
-splash has its subtitle back and SHARE exists. It is the largest
-player-visible change since the card redesign and it has not been
-published. What to look at on the preview, in order: a ROUND sign, one hand
-reveal end to end (loser, slap-down, verdict, the score rolling and waving,
-tap), the Scraps reveal's sweep into the next ROUND sign, and — if a game
-runs that far — the match screen with the letter cards, then SHARE on his
-phone, which is the one path no automated browser could reach. The
-"calls made without asking" paragraph in the entry lists what to judge.
+**The interstitials are LIVE (2026-09-14, `a7455b5`).** Every
+between-hands moment plays on the table, the fireworks are gone, the
+splash has its subtitle back, SHARE exists, and the same-day critique fixes
+(inert table under the stage, skippable sweep, the +N score ghost, a
+quicker quieter loss, MATCH POINT on the stage, a torn share card) shipped
+with it. The entry above the tracker has everything.
 
-**Three bugs from his own notes block outrank everything after that**, and
-none has a test yet: the black screen on a DISCARD attack (a crash,
-reproduce first), the Ace-counter prompt offered without an Ace in hand,
-and cards not shrinking to pile size on their way into Scraps. The fourth,
-the splash subtitle, closed in the interstitials pass.
+**Three bugs from his own notes block outrank everything else**, and none
+has a test yet: the black screen on a DISCARD attack (a crash, reproduce
+first), the Ace-counter prompt offered without an Ace in hand, and cards
+not shrinking to pile size on their way into Scraps. The fourth, the splash
+subtitle, closed in the interstitials pass.
 
-**In flight: `dev` is ahead of `main` by the interstitials pass** and
-production is still serving the 2026-09-14 QA-gate publish (`6bd985b`),
-which was byte-identical to the terminology pass before it — so the LIVE
-game still has the dusk scrims and the fireworks. Nothing reaches `main`
-until he has seen the preview.
+**Two things only Stan can check on the live game.** SHARE on his iPhone:
+the sheet should carry the drawn result card, the sentence and the address
+(Messages, Mail and AirDrop all take the picture); no automated browser can
+open that sheet, so it has been verified up to the call and not past it.
+And the sounds in play: `handWon` sits hotter than its target suggests (the
+standing note), and the two new cues, `slap` and `roundSign`, were placed
+by first principles rather than by a bench.
+
+**Copy call open:** the `<title>`, `og:title` and `twitter:title` still say
+"Poker with two hands at once." while the splash, the share sentence and
+the OG card say "Poker with both hands". One line in `index.html` plus
+`npm run share`; his to decide.
+
+**Nothing is in flight.** `dev` and `main` are level once the publish log
+merges, production is serving the interstitials pass, and the responsive
+and touch-target gates are clean on it.
 
 **The responsive gate is trustworthy again, and it was not before
 (2026-09-14).** It had been failing intermittently on a 54px button it was
