@@ -4895,7 +4895,7 @@ animating offscreen later." (4) "add a subtitle to splash" — reverses the
 
 ---
 
-### Unplanned session — The QA gate was measuring an animation ✅ Done (2026-09-14)
+### Unplanned session — The QA gate was measuring an animation ✅ Done + **PUBLISHED** (2026-09-14)
 
 **No game code changed.** One stale comment corrected in two files, the
 responsive harness fixed, and a new bench added. Nothing player-facing moved.
@@ -4959,11 +4959,41 @@ time": the deal has to be long AND the opening hand has to hold an Ace.
 - The run prints the viewport it is starting. A six-viewport run that threw
   part way used to report a bare Playwright timeout with no way to tell where.
 
-**Verified by running the gate, not by reading it.** Five clean runs, **ALL
-CLEAR** on every one, and `results.json` confirms the Ace lightbox
-(`dialogs: ["You drew an Ace"]`) was genuinely up and measured on runs that
-passed — the exact state that used to fail. `quiet` was `true` at every probe.
-53 tests, `npm run build` clean.
+**Verified by running the gate, not by reading it.** **Seven** runs came back
+**ALL CLEAR**; in the five where the recorded dialogs were checked,
+`results.json` confirms the Ace lightbox (`dialogs: ["You drew an Ace"]`) was
+genuinely up and measured on a passing run — the exact state that used to
+fail. `quiet` was `true` at every probe but one, and that one produced no
+failure. 53 tests, `npm run build` and `share:check` clean.
+
+**PUBLISHED 2026-09-14 at `6bd985b`, and the publish proves its own
+harmlessness.** Every change under `src/` is a comment, and the minifier
+strips JS comments, so the production bundle is **byte-identical** to what
+was already live: the served filename was `index-BZHg5qIX.js` before the
+push and the local build produced `index-BZHg5qIX.js`. A content-hashed
+bundler names a file after its own bytes, so matching names are the same
+bytes. That is the strongest available form of "there was nothing to
+preview", and it is worth reaching for on any tooling- or comment-only
+push. All three routes checked: asset hash identical, `main`'s tree equal to
+`dev`'s (`2ad931b`), and `og:image` read back off the served HTML.
+
+**Publish-time checks, and what they turned up.** The impeccable detector was
+confirmed live against a planted control (`font-family: Inter` → named
+`overused-font`), showed no DEGRADED banner and clean stderr, then reported
+**six `bounce-easing` warnings in `overlays.jsx`** — all six **identical on
+`main`**, same lines and snippets, so pre-existing and untouched by this
+push. They are the documented deliberate split the `SETTLE` constant records:
+overshoot for a win, ease-out-quint for a loss. The personal-data-OUT grep
+over `dist/` was clean.
+
+**One small finding about the share generator, worth knowing before trusting
+step 5b of `/publish`.** That step uses "regenerate the asset and check
+`git status`" as a drift detector. Here it cannot work: `npm run share`
+stamps a fresh `generated` timestamp into `public/share-manifest.json` on
+every run, so the file **always** shows as modified and real drift looks
+exactly like no drift. Every other value was identical, so the timestamp was
+reverted rather than committed. `npm run share:check` is the trustworthy
+signal, because it compares sources and ignores the stamp.
 
 **New: `tools/overlay-targets.mjs` + `tools/bench/overlay-targets.html`.**
 The gate walks a real game, so it only reaches a modal the random deal happens
@@ -5041,7 +5071,7 @@ real timers and it will lie to you.
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
 | — | *Unplanned:* Terminology and tone pass | Done + **PUBLISHED** (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical. Live bundle verified byte-identical to the tested build, and `main`'s tree hash equal to `dev`'s. Found one live "burn" the spec never mentioned, in the Ace explainer, and a void detector run that reported 13 findings on an empty file list |
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
-| — | *Unplanned:* The QA gate was measuring an animation | Done (2026-09-14) — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
+| — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 
 
 ---
@@ -5135,16 +5165,13 @@ the Ace-counter prompt offered without an Ace in hand, cards not shrinking to
 pile size on their way into Scraps, and the splash subtitle he has asked to
 have back.
 
-**No GAME CODE is in flight.** `main` and `origin/main` are both at
-`992c358`, production is serving exactly that, and both the card redesign
-and the terminology pass are LIVE as of 2026-09-13. `dev` is ahead of it
-by documentation only — the Signpost bench log and the publish log. The
-2026-09-14 QA-gate pass is committed on the worktree branch
-`claude/musing-colden-3b1adf` and **not yet on `dev`**: it changed
-`tools/responsive-qa.mjs`, added `tools/overlay-targets.mjs` and its
-bench page, and corrected two stale comments. **Nothing in `src/` that
-renders changed**, so there is still no unshipped player-visible work and
-a preview of it would show nothing. The one thing genuinely in
+**Nothing is in flight, and `dev` and `main` are level.** Both are at
+`6bd985b` with identical trees, production is serving exactly that, and
+the card redesign, the terminology pass and the 2026-09-14 QA-gate pass
+are all LIVE. The QA-gate publish shipped a **byte-identical bundle**, so
+the last player-visible change to the game is still the terminology pass
+of 2026-09-13. Nothing is waiting on a preview and nothing is waiting to
+be merged. The one thing genuinely in
 flight is the bench itself, and it is waiting on Stan rather than on code.
 
 **The responsive gate is trustworthy again, and it was not before
