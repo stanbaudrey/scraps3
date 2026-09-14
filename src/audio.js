@@ -288,13 +288,17 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // thirty times a game can never end up louder than the one you
 // may never hear at all:
 //
-//   select .16 · draw .22 · invalid/handWon/handLost .34
+//   select .12 · draw .22 · invalid/handWon/handLost .34
 //   transfer .30 · roundLost .46 · roundWon .50 · aceStrike .56
 //   gameLost .66 · gameWon .72 · aceCounter .80 · fullScrap .94
 //   revealBuild .297
 //
-// The targets are Stan's and did not change on 2026-09-13 — only
-// the voices under them did. `revealBuild` is the odd one out at
+// The targets are Stan's. None changed on 2026-09-13 — only the
+// voices under them did — and exactly one changed on 2026-09-14:
+// `select` went .16 -> .12, his "25% too loud". Taking it off the
+// TARGET rather than off the trim is the whole point of the
+// system: the trim is a derived number, and scaling it would have
+// left the file claiming a target it no longer hits. `revealBuild` is the odd one out at
 // .297: it has never been in the declared list above, that is
 // simply the target its long-standing trim of 9.0647 implies, and
 // since its voice is unchanged the number is left exactly alone.
@@ -330,7 +334,7 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // lower its TARGET and re-measure, not to scale the trim.
 // ─────────────────────────────────────────────────────────────
 const TRIM = {
-  select:      0.7983,
+  select:      0.5249,   // re-measured 2026-09-14 for A5 at target .12
   transfer:    1.2545,
   draw:        8.0773,
   aceStrike:   1.2125,
@@ -393,9 +397,23 @@ const VOICES = {
    *  340ms decay to about 30ms. It is a ghost of a pitch rather
    *  than a note — you cannot sing it, but a dozen of them are
    *  recognisably the same object. Replaces a cardstock tap,
-   *  which was card foley and is exactly what he asked to lose. */
+   *  which was card foley and is exactly what he asked to lose.
+   *
+   *  RETUNED 2026-09-14: "a little too high pitched and 25% too
+   *  loud." D6 (1174.66) down a fifth to A5 (880) — still in the
+   *  kit's G major pentatonic, so it cannot clash with an outcome
+   *  bar landing over it, and a fifth is a drop you hear rather
+   *  than a step down the scale that you do not. The bar's own
+   *  `ks` makes a lower bar ring slightly longer, which at len
+   *  0.12 is 30ms becoming 34ms — inaudible, and not worth
+   *  shortening `len` to chase.
+   *
+   *  The 25% came off the TARGET, not the trim: .16 -> .12. See
+   *  the TRIM header for why that is the only correct lever, and
+   *  note the trim below was RE-MEASURED across all three
+   *  variants afterwards rather than scaled. */
   select: (c, o, t, i = 0) =>
-    bar(c, o, t, NOTE.D6 * Math.pow(1.06, i % 2), 'xylo',
+    bar(c, o, t, NOTE.A5 * Math.pow(1.06, i % 2), 'xylo',
       { gain: 0.6, len: 0.12, mallet: 0.75, seed: 2 + i }),
 
   /** Trade commits; cards fly hand → Scraps.

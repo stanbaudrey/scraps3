@@ -81,8 +81,9 @@ const SIZES = {
 // bottom. (firstActorForRound in the reducer says it the other way
 // round — odd rounds the NON-dealer, you, acts first.)
 //
-// The DISCARD is off the left edge at all times, and cards thrown away
-// spin out to it — see `discardAnchor` below.
+// The DISCARD is off the RIGHT edge at all times (Stan moved it from the
+// left on 2026-09-14), and cards thrown away spin out to it — see
+// `discardAnchor` below.
 //
 // A rect literal rather than a DOMRect: Ghost only reads left/top/
 // width/height (plus the optional trueW/rot a real card carries), and
@@ -135,6 +136,13 @@ export function GameScreen({ difficulty, onExit }) {
   const [counterStand, setCounterStand]     = useState(false);
   const [revealData, setRevealData]         = useState(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
+  // Set when the player signals INTO an opponent signal that is already
+  // on the table. There is nothing left to decide at that point — both
+  // hands are committed — so the SHOW 'EM press was a button whose only
+  // job was to be pressed. Captured at the moment of signalling rather
+  // than derived at reveal time, because by then `aiSignal` is set in
+  // BOTH orders and can no longer tell you which came first.
+  const [autoReveal, setAutoReveal]         = useState(false);
   const [showFullScrap, setShowFullScrap]   = useState(false);
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [waveIds, setWaveIds]               = useState(new Set());
@@ -190,8 +198,11 @@ export function GameScreen({ difficulty, onExit }) {
   // angles; spinning in lockstep reads as one object, not two cards.
   const discardAnchor = useCallback((i = 0) => {
     const d = CARD_DIMS[szRef.current.pile];
-    return { ...rectAt(-d.w - OFF_MARGIN * 3, window.innerHeight * 0.42 - d.h / 2, d),
-      rot: -105 - (i % 2) * 55 };
+    // The spin turns the same way the card is travelling, so it reads as
+    // thrown rather than as flipped. It was negative while the discard
+    // sat off the LEFT edge; moving it right flips the sign with it.
+    return { ...rectAt(window.innerWidth + OFF_MARGIN * 3, window.innerHeight * 0.42 - d.h / 2, d),
+      rot: 105 + (i % 2) * 55 };
   }, []);
 
   // One set for every consumer, so no card component has to know
@@ -263,10 +274,15 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]); setScrapsDiscard([]);
     setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
-    setRevealData(null); setAiSignaledIds(new Set());
+    setRevealData(null); setAutoReveal(false); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
-    setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand].map(c => c.id)));
+    // The two cards that START in each Scraps pile are hidden with the
+    // hands and dealt with them (Stan, 2026-09-14). They used to be
+    // simply THERE the moment the interstitial lifted, which made the
+    // round look like it began with four cards already played.
+    setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand,
+      ...deal.playerScraps, ...deal.aiScraps].map(c => c.id)));
     setShowInterstitial(true);
   }, []);
 
@@ -279,7 +295,7 @@ export function GameScreen({ difficulty, onExit }) {
   // stagger is a per-card delay inside one batch, so `animating`
   // stays true across the whole deal rather than flickering off
   // between cards and letting the next turn start early.
-  function dealWave(playerCards, aiCards) {
+  function dealWave(playerCards, aiCards, playerScrapsCards = [], aiScrapsCards = []) {
     // The deck is a computed rect now, so there is no longer a "no
     // deck to fly from" case to fall back out of — see deckAnchor.
     const deckRect = deckAnchor();
@@ -296,6 +312,28 @@ export function GameScreen({ difficulty, onExit }) {
       fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
       arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
     }));
+    // The starting Scraps, after both hands and BOTH SIDES AT ONCE —
+    // two beats rather than four. Sequentially they added 360ms to a
+    // deal that was already 810, and the two piles are a single
+    // gesture at the end of a deal ("and two face up each"), not four
+    // more cards off the top. Face up on both sides, because a Scraps
+    // pile is public from the moment it exists.
+    const scrapStart = (pSorted.length + aiCards.length) * STEP;
+    const pScraps = [...playerScrapsCards].sort((a, b) => a.value - b.value);
+    const aScraps = [...aiScrapsCards].sort((a, b) => a.value - b.value);
+    for (let i = 0; i < Math.max(pScraps.length, aScraps.length); i++) {
+      const delay = scrapStart + i * STEP;
+      if (pScraps[i]) moves.push({
+        card: pScraps[i], fromRect: deckRect, toId: pScraps[i].id, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile,
+        arc: 0.45, delay,
+      });
+      if (aScraps[i]) moves.push({
+        card: aScraps[i], fromRect: deckRect, toId: aScraps[i].id, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile,
+        arc: -0.45, delay,
+      });
+    }
     fly(moves);
     // Batched with fly()'s own update: the motion hook builds its
     // flights in a LAYOUT effect, so the handoff lands before paint
@@ -307,7 +345,7 @@ export function GameScreen({ difficulty, onExit }) {
     setShowInterstitial(false);
     dispatch({ type: 'INTERSTITIAL_DONE' });
     const s = stateRef.current;
-    dealWave(s.playerHand, s.aiHand);
+    dealWave(s.playerHand, s.aiHand, s.playerScraps, s.aiScraps);
   }
 
   // ── Score flash + fanfare on score increases ───────────────
@@ -652,6 +690,20 @@ export function GameScreen({ difficulty, onExit }) {
   // is acting, so the runner starts exactly once. This is what
   // keeps the opponent from moving over the top of your own cards.
   const [aiGo, setAiGo] = useState(null);
+  // The AI phase in which the opponent has already COMMITTED her move.
+  //
+  // Her turn has two halves and the narrator only has copy for the
+  // first. Deciding: "Opponent is thinking...". Acting: her cards fly,
+  // `animating` goes true, `settling` silences the band. Then the cards
+  // land and `animating` drops — but the phase does not advance for
+  // another 2.1s, so the narrator came BACK with "Opponent is
+  // thinking..." over a move she had visibly already made. That is the
+  // flash Stan reported on 2026-09-14.
+  //
+  // Reset at the top of each runner pass rather than compared against
+  // the phase alone, because phase names repeat across rounds and a
+  // stale 'ai-turn-1a' would silence a genuine think in round three.
+  const [aiMoveDone, setAiMoveDone] = useState(null);
   // The explainer, mirrored into a ref so the RUNNER can check it too.
   // Effects flush in declaration order and this gate is declared above
   // the effect that opens the explainer, so on the tick where an Ace
@@ -678,6 +730,7 @@ export function GameScreen({ difficulty, onExit }) {
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
+    setAiMoveDone(null);
     const timers = [];
     const T = (fn, ms) => timers.push(setTimeout(fn, ms));
 
@@ -726,6 +779,7 @@ export function GameScreen({ difficulty, onExit }) {
           const drawCount = action.cards.reduce((sum, c) => sum + tradeInValue(c), 0);
           const drawn = stateRef.current.deck.slice(0, drawCount);
           setAiSignaledIds(new Set());
+          setAiMoveDone(phase);
           dispatch({ type: 'AI_TRADE_APPLY', cards: action.cards });
           const STEP = 90;
           const moves = first.filter(f => f.rect).map((f, i) => ({
@@ -778,6 +832,7 @@ export function GameScreen({ difficulty, onExit }) {
       } else if (action.type === 'skip') {
         // No legal move — the AI's trade is skipped (same rule the
         // player is bound by)
+        setAiMoveDone(phase);
         dispatch({ type: 'AI_SKIP' });
       }
 
@@ -813,7 +868,9 @@ export function GameScreen({ difficulty, onExit }) {
     const sig = cur.length;
     dispatch({ type: 'PLAYER_SIGNAL', cards: [...cur] });
     if (aiSignal != null) {
-      // AI already signaled first — both signals are in
+      // AI already signaled first — both signals are in, so there is
+      // nothing to press. The reveal runs itself; see the effect below.
+      setAutoReveal(true);
       setTimeout(() => {
         dispatch({ type: 'GO_REVEAL' });
       }, 700);
@@ -1030,6 +1087,30 @@ export function GameScreen({ difficulty, onExit }) {
   // a pause for thought: the overlay unmounts instantly, you see the
   // board it was covering, then the next thing happens.
   const HANDOFF = { deal: 220, scraps: 520, round: 380 };
+
+  // The reveal, when nobody has to ask for it. Same two steps the
+  // SHOW 'EM button runs — the 580ms build cue, then resolve — driven
+  // from the phase rather than from a press, so `resolveSmallHand`
+  // closes over the render where `playerPlayed` and `aiPlayed` are
+  // both real. Calling it from doSignal's own timer would have caught
+  // the pre-dispatch snapshot, which is the same trap the hand-off
+  // effect below exists to avoid.
+  useEffect(() => {
+    if (!autoReveal || !isReveal || revealData || revealBuilding || gameOver) return undefined;
+    // `autoReveal` is NOT cleared here, deliberately: it is what keeps
+    // the SHOW 'EM button unrendered, and clearing it up front put the
+    // button back on screen for the 580ms of the build — shaking, as
+    // '▶▶▶', which is the manual path's look on a screen nobody
+    // pressed anything on. `revealBuilding` guards the re-entry
+    // instead, and the flag is dropped when the reveal actually lands.
+    setRevealBuilding(true);
+    playRevealBuild(() => {
+      setRevealBuilding(false);
+      setAutoReveal(false);
+      resolveSmallHand();
+    });
+    return undefined;
+  }, [autoReveal, isReveal, revealData, revealBuilding, gameOver]);
   useEffect(() => {
     if (revealData || gameOver) return undefined;
     if (phase === 'replenish') {
@@ -1111,8 +1192,12 @@ export function GameScreen({ difficulty, onExit }) {
     }
   }
   else if (isAiSignaling) hint = 'Opponent is choosing her signal...';
+  // Stan's copy, 2026-09-14: the count and nothing else. The line used
+  // to append "Select any legal poker hand of your own", which is what
+  // the button beneath it already says, and the instruction crowded out
+  // the one number the beat is about.
   else if (isSignal && !signalLocked && aiSignal != null) {
-    hint = `She signals ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Select any legal poker hand of your own.`;
+    hint = `Opponent signals ${aiSignal}.`;
   }
   else if (isSignal && !signalLocked) {
     hint = 'Select any legal poker hand. Opponent sees how many cards you select before she makes her play.';
@@ -1125,9 +1210,22 @@ export function GameScreen({ difficulty, onExit }) {
     hintNode = (<>Select any legal poker hand. Opponent sees how <b style={{color:DS.frost}}>many</b> cards
       you select before she makes her play.</>);
   }
-  else if (isSignal && signalLocked) hint = 'Signal locked. Waiting for her...';
-  else if (isReveal) hint = 'Both signals in. Show \u2019em?';
-  else if (isAiThinking) hint = 'Opponent is thinking...';
+  // There is nobody to wait for when she signalled first: her count is
+  // already on the table and this is the 700ms before the reveal opens
+  // itself. The band holds ONE line from the moment you commit through
+  // to the cards turning over, rather than announcing a wait that is
+  // not happening.
+  else if (isSignal && signalLocked) hint = autoReveal ? 'Both signals in.' : 'Signal locked. Waiting for her...';
+  // "Show 'em?" came off this line on 2026-09-14. Where the button is
+  // still there it says so itself; where the opponent signalled first
+  // there is no button, and asking a question nobody can answer was the
+  // worse half of the two.
+  else if (isReveal) hint = 'Both signals in.';
+  // Only while she is actually deciding. Once she has committed, the
+  // band stays quiet through the handover — the log line already says
+  // what she did, and the alternative is the narrator announcing a
+  // thought after the move. See aiMoveDone.
+  else if (isAiThinking && aiMoveDone !== phase) hint = 'Opponent is thinking...';
   // The three hand-offs. Each of these phases now lasts a few hundred
   // milliseconds — the button that used to sit in them moved onto the
   // results screen that precedes them (see the `continueLabel` work in
@@ -1225,7 +1323,7 @@ export function GameScreen({ difficulty, onExit }) {
   const hasActionButtons = isScrapsDiscardMode
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
     || aceMode || counterStand
-    || (isSignal && !signalLocked) || isReveal
+    || (isSignal && !signalLocked) || (isReveal && !autoReveal)
     || (pendingAiAce && !aiAceReveal);
   // The narrator's CHROME comes and goes; its SLOT never does.
   //
@@ -1268,7 +1366,7 @@ export function GameScreen({ difficulty, onExit }) {
           {tradeError}
         </div>
       ) : (
-        <div key={phase} style={{fontFamily:F.ui,
+        <div key={phase} data-narrator="1" style={{fontFamily:F.ui,
           fontSize:tight?17:25,
           // Hold three lines' worth of room whatever the copy is. The
           // narrator's height feeds FitBox's scale, so a one-line turn
@@ -1342,7 +1440,7 @@ export function GameScreen({ difficulty, onExit }) {
           <SignalBtn onClick={doSignal} disabled={!selValid} compact={tight}
             handLabel={selValid?signalHandLabel(selectedInHand):null}/>
         )}
-        {isReveal&&(
+        {isReveal&&!autoReveal&&(
           <button
             type="button"
             // Busy, not disabled: the build is 580ms and disabling would

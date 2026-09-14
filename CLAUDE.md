@@ -239,7 +239,11 @@ looks broken locally, it is not a missing-secret problem.
   in from OFF the viewport, on the dealer's side — odd rounds the
   opponent deals and they come over the top edge, even rounds you deal
   and they come up past the bottom — and discarded cards spin off the
-  LEFT edge. Both anchors are computed rects (`deckAnchor` /
+  RIGHT edge (it was the LEFT until 2026-09-14; the toss rotation
+  carries the sign, so the two must move together or a card spins
+  against its own travel). The opening deal is all FOURTEEN cards of
+  the round, the two that start in each Scraps pile included — measured
+  as 14 simultaneous ghosts. Both anchors are computed rects (`deckAnchor` /
   `discardAnchor` in `GameScreen.jsx`), not measured elements, so there
   is no longer a "no deck to fly from" fallback to worry about. The
   spin is not a new animation: a flight already rotates a card from

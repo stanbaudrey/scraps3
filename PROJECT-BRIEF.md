@@ -4251,6 +4251,82 @@ CLAUDE.md prescribes. A scripted driver played complete games end to end at
   and placement are Stan's.
 - Not published. This is preview-ready, not live.
 
+### Unplanned session — Six notes off the preview ✅ Done (2026-09-14)
+
+Stan's review of the big pass, six items, all built and verified in the same
+sitting. Then published to preview.
+
+**The select cue was retuned properly rather than scaled.** "A little too high
+pitched and 25% too loud." Pitch dropped a fifth, D6 (1174.66) to A5 (880),
+staying inside the kit's G major pentatonic so it still cannot clash with an
+outcome bar landing over it. The 25% came off the **TARGET** (.16 → .12), never
+off the trim, because the trim is a derived number — and this is exactly the
+trap CLAUDE.md warns about: **the retune moved the raw peak from 0.2014 to
+0.2286, so the old trim would have made the cue 14% LOUDER while the file still
+claimed .16.** Re-measured in a real browser against this file, all three
+variants, trimmed by the loudest: post-trim peak **0.120007** against a target
+of .12, 0.006% off. The harness was validated first by reproducing the
+shipping cue's own numbers before anything changed.
+
+**Everything else, and what each was.**
+
+- *"Opponent signals N."* replaces the old line that also told you to pick a
+  hand — which is what the button under it already says.
+- *"Both signals in."* loses "Show 'em?", which was asking a question that on
+  half the paths has no button to answer it.
+- *The opening deal now deals all fourteen cards*, the two that start in each
+  Scraps included. They used to be simply THERE when the interstitial lifted,
+  so a round looked like it began with four cards already played. Both sides'
+  Scraps fly in together, two beats rather than four, because four sequential
+  cards added 360ms to a deal that was already 810.
+- *The discard moved to the right edge.* The toss rotation carried the sign
+  with it, so the spin still turns the way the card is travelling.
+- *SHOW 'EM is skipped when she signals first.* There is nothing left to decide
+  at that point — both hands are committed — so the press existed only to be
+  pressed. The 580ms build cue still runs; it is the drumroll, not the button.
+- *"Opponent is thinking..." no longer flashes after she has moved.* Her turn
+  has two halves and the narrator only had copy for the first: she decides, she
+  acts (cards fly, `settling` silences the band), the cards land — and then the
+  band came BACK with "thinking" over a move she had visibly already made,
+  because the phase does not advance for another 2.1s.
+
+**Two things adjacent to the list, found by measuring and fixed.** Clearing
+`autoReveal` at the start of the build put the SHOW 'EM button back on screen
+for 580ms in its shaking `▶▶▶` state — the manual path's look, on a screen
+nobody had pressed anything on. The flag is held through the build now. And
+"Signal locked. Waiting for her..." was showing for 700ms on the path where she
+had *already* signalled; it says "Both signals in." there instead, so the band
+holds one line from your commit through to the cards turning over.
+
+#### How it was verified
+
+The narrator is sampled **from inside the page** — a 60ms interval pushing
+`{t, hint, log, showEm}` onto `window` — rather than polled from the driver,
+which is the only way to catch a state that lives for a few hundred
+milliseconds. A `data-narrator` attribute was added to the band as a permanent
+hook, after a first attempt selecting on `min-height: 3.9em` found nothing
+(computed styles resolve that to pixels).
+
+- **Twelve AI turns across a full game, and "Opponent is thinking..." appears
+  on none of the log lines that say she traded.** Before the fix it appeared on
+  every one.
+- **Both signal orders walked.** She-first: "Opponent signals 1." → "Both
+  signals in." → reveal, with no button on screen at any sample. Me-first:
+  unchanged, "Signal locked. Waiting for her..." then SHOW 'EM. (The button
+  does re-render behind the open reveal overlay on both paths, as it always
+  has; the overlay is a focus-trapped modal, so it is contained.)
+- **The deal peaks at 14 simultaneous ghosts** — 5 + 5 hand, 2 + 2 Scraps —
+  and settles at 2/7 in both zones with 5 in hand.
+- **The toss runs rightward off a 375px viewport:** three ghosts measured at
+  240 → 482, 284 → 476 and 311 → 460.
+- 56 tests, clean build, `share:check` and `fonts:check` current, tells scan at
+  its six known false positives, zero console errors across the driven game.
+
+**Note for whoever runs the tests next:** `npx vitest run` at the repo root
+picked up a SECOND copy of both test files and reported 111 passing. That was a
+sibling git worktree under `.claude/worktrees/` from a spawned session, not
+anything in this tree. `--exclude '**/.claude/**'` gives the real 56.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4280,6 +4356,7 @@ CLAUDE.md prescribes. A scripted driver played complete games end to end at
 | — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
 | — | *Unplanned:* The Woodshed — sound kit retuned | Done + **PUBLISHED** (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x. Live bundle verified byte-identical to the tested build |
 | — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done (2026-09-13), **not published** — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off-left discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
+| — | *Unplanned:* Six notes off the preview | Done (2026-09-14), **not published** — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
 
 
 ---
