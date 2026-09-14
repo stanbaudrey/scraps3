@@ -657,7 +657,16 @@ export function playFireworkPop() {
 //
 // Still byte for byte as it was, including its direct connection
 // to ctx.destination rather than the trimmed bus, so its level is
-// unchanged. It plays on the splash, before a table exists.
+// unchanged.
+//
+// NO CALLER as of 2026-09-13. The wordmark's tap gesture was the
+// only thing that played it and Stan asked for that gesture to go
+// (see AnimatedTitle in backdrop.jsx). The cue is kept deliberately
+// rather than deleted: it is a tuned six-tap phrase in the same G
+// major pentatonic the table's outcome bars now use, and the
+// interstitial redesign is the obvious place for it. If that pass
+// finds no home for it, delete it there and drop the count in
+// CLAUDE.md rather than leaving it orphaned indefinitely.
 // ─────────────────────────────────────────────────────────────
 export function playSquareUp() {
   const ctx = getAudioCtx(); if(!ctx) return;

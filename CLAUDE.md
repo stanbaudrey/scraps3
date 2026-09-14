@@ -5,7 +5,7 @@ round runs two private "small hands" (worth 1 point each) plus one public
 "Scraps" hand (worth 2). You move cards from your hidden hand into your
 face-up Scraps pile to draw fresh cards, and both piles cap at 7. Aces are a
 weapon: discard one to strip two cards from the opponent's Scraps pile, and
-they can counter with an Ace of their own. First to 10, win by 2. Winning
+she can counter with an Ace of her own. First to 10. Winning
 both small hands *and* the Scraps hand is a FULL SCRAP, worth 5.
 
 House rule, enforced everywhere in the engine: **flushes are never valid**. A
@@ -17,12 +17,15 @@ five-card suited straight scores as a plain straight, never a straight flush.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. 55 tests cover the engine and the reducer. (It was 37
-  until the 2026-08-30 audit-fix pass took it to 53, and later passes to 55.)
+- Vitest for tests. 56 tests cover the engine and the reducer. (It was 37
+  until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56.)
 - Fonts are **self-hosted** from `public/fonts` since Session 6 — **five**
-  families, not four: Bungee Shade (the SCRAPS wordmark, and nothing
-  else), Fjalla One (headings and subtitles), Baloo 2 (card ranks and
-  suits), Work Sans (UI), IBM Plex Mono (mono). They used to load from
+  families, not four: **Rye** (the SCRAPS wordmark, and the storyboard's
+  one HOW TO PLAY title — nothing else), Fjalla One (headings and
+  subtitles), Baloo 2 (card ranks and suits), Work Sans (UI), IBM Plex
+  Mono (mono). Rye replaced **Bungee Shade** on 2026-09-13 at Stan's
+  request; the two `bungee-shade-*.woff2` files were deleted with it and
+  nothing in the project references that family any more. They used to load from
   `fonts.googleapis.com`; nothing in the app reaches off-origin now. The
   `@font-face` rules live between the `FONT-FACE:BEGIN`/`END` sentinels in
   `index.html` and are **generated — never hand-edit them or the files in
@@ -78,7 +81,7 @@ it fails loudly instead of drifting to another port). Running `npm run dev`
 by hand without those flags starts on 5173 instead.
 
 ```bash
-npm test          # vitest, 55 tests, runs in under a second
+npm test          # vitest, 56 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -132,24 +135,39 @@ looks broken locally, it is not a missing-secret problem.
 - **`src/screens/GameScreen.jsx`** (~980 lines) — the table. Holds only
   UI-local state (selections, animation flags, overlays), schedules the
   timers that dispatch actions, and renders. See Known Issues.
-- **`src/screens/MenuScreens.jsx`** — the splash (one button) and the
-  difficulty picker. The picker's two panels are inert for `ARM_MS`
-  (720ms) after mount so a click-streak carried over from the
-  walkthrough can't pick a difficulty by accident.
+- **`src/screens/MenuScreens.jsx`** — the splash (wordmark, suit row, one
+  button; **no subtitle** since 2026-09-13) and the difficulty picker.
+  The picker's two panels — and its **BACK** button, added the same day —
+  are inert for `ARM_MS` (720ms) after mount so a click-streak carried
+  over from the walkthrough can't pick a difficulty by accident. BACK
+  returns to the storyboard's LAST beat, which `App.jsx` arranges with
+  the `startAt` prop and `LAST_BEAT`.
 - **`src/screens/Walkthrough.jsx`** — the four-beat first-run storyboard
   shown between PLAY and the difficulty picker, once per browser session
   (`sessionStorage` key `scraps-walkthrough-seen-v1`, gated in
   `App.jsx`). Static beats; the only motion is the `.wt-wiggle` lean on
-  the cards each beat is talking about. There is no scripted tutorial
+  the cards each beat is talking about. **Beat order, set 2026-09-13:**
+  the two hands, scrapping to draw, how a round scores, then the Ace —
+  mechanics, flow, surprise rule, with the Ace last because it is the
+  thing the game turns on. Beat 1 is the only one with a title, and the
+  only place other than the wordmark that Rye appears. There is no scripted tutorial
   mode any more — `src/game/tutorial.js` and every `mode === 'tutorial'`
   branch were removed with it, so `buildRoundDeal()` now takes no
   arguments and always deals a straight round.
-- **`src/components/`** — `cards.jsx` (fanned hand, Scraps zone, deck and
-  discard piles), `overlays.jsx` (round interstitials, reveal, win/lose
-  screens, modals, fireworks), `hud.jsx` (scores, round progress, game log),
+- **`src/components/`** — `cards.jsx` (fanned hand, Scraps zone; the
+  `DeckPile` and `DiscardPile` components were **deleted** 2026-09-13
+  when the two piles came off the table), `overlays.jsx` (round
+  interstitials, reveal, win/lose screens, modals, fireworks), `hud.jsx`
+  (scores, round progress, match-point banner, game log —
+  `SignalLegalityStrip` was deleted in the same pass),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
   `flight.jsx` (card motion), `backdrop.jsx`.
 - **`src/ui/viewport.jsx`** — the responsive layer, added in Session 3.
+  `FitBox` measures the **content box**, not `clientHeight`: a caller
+  that passes padding through `style` (the storyboard does) would
+  otherwise be scaled to a box taller than its children actually get,
+  and the overflow clipped. Fixed 2026-09-13 after it sliced a line off
+  a storyboard beat.
   `useViewport()` is one shared window-size subscription;
   `layoutMode()` picks between the `wide` table (hand centred, Scraps
   beside it) and the `stack`ed one (hand above its own Scraps, full
@@ -217,6 +235,16 @@ looks broken locally, it is not a missing-secret problem.
   double-fired under React StrictMode and duplicated AI draws and log lines.
   Keep new game logic in the reducer, not in component callbacks, or that
   bug class comes back.
+- **The table has no deck and no discard pile** (2026-09-13). Cards deal
+  in from OFF the viewport, on the dealer's side — odd rounds the
+  opponent deals and they come over the top edge, even rounds you deal
+  and they come up past the bottom — and discarded cards spin off the
+  LEFT edge. Both anchors are computed rects (`deckAnchor` /
+  `discardAnchor` in `GameScreen.jsx`), not measured elements, so there
+  is no longer a "no deck to fly from" fallback to worry about. The
+  spin is not a new animation: a flight already rotates a card from
+  where it sat to its destination's `rot`, so `discardAnchor` just hands
+  back a big angle. The live deck COUNT is no longer shown anywhere.
 - **The opponent never moves over your cards.** The phase advances the
   instant your trade commits, so `GameScreen` derives `settling`
   (`animating && it-is-now-an-AI-phase`) and holds the table on your
@@ -253,6 +281,12 @@ looks broken locally, it is not a missing-secret problem.
 - **Controls are `TOUCH_MIN` (44px) on their short axis**, or
   `TOUCH_MIN_COMPACT` (54px) in the stacked layout — deliberately
   larger, because that layout is often scaled and 44 × 0.73 is 32.
+- **`playSquareUp` has no caller.** It was the wordmark's tap gesture,
+  removed 2026-09-13 with the gesture itself. The cue is kept on purpose
+  — it is a tuned six-tap phrase in the same G major pentatonic the
+  table's outcome bars use, and the interstitial redesign is the obvious
+  home for it. If that pass finds none, delete it there and drop the
+  count rather than leaving it orphaned for good.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 
@@ -282,6 +316,14 @@ versions and should not be deployed to.
 
 ## Known issues
 
+- **The privacy notice is unreachable in the shipped game.** It lives in
+  `RulesModal` (`overlays.jsx`), and `RulesModal` has had no importer
+  since the storyboard took over as the in-game rules on 2026-08-30 —
+  so the `?` button opens the storyboard, which has no privacy text.
+  `public/llms.txt` still tells readers to "see the Privacy notice
+  inside the game's rules panel". Found 2026-09-13, not fixed: the
+  wording and the placement are Stan's call, and deleting the dead
+  component would take the only copy of that text with it.
 - **There is no README, and never was one.** Nothing in git history has ever
   added a `.md` file. So there are no stale README claims to correct.
   The "rules are written down nowhere" half of this gap closed in Session 7:

@@ -67,14 +67,24 @@ export function nextPhaseAfterTrade(phase, roundNum) {
   return handNum === 1 ? 'signal-ai' : 'signal-ai-2';
 }
 
-// ── Win check: first to WIN_SCORE, win by 2 ──────────────────
+// ── Win check: first to WIN_SCORE, flat ──────────────────────
+//
+// The win-by-2 clause was dropped on 2026-09-13 (Stan's call). It is
+// a flat race now: the first score to reach WIN_SCORE takes the game.
+//
+// There is no tie to resolve and no simultaneous crossing to worry
+// about, and that is a property of the scoring rather than luck.
+// Every scoring event in this game pays exactly ONE side —
+// SMALL_HAND_SCORED credits a single winner, and scoreScrapsOutcome
+// fills either pPts or aPts but never both. So the scores can never
+// move together, and the trailing player cannot arrive at WIN_SCORE
+// in the same event as the leader. The old `>= 2` margin test was
+// the only thing standing between a 10-10 board and a deadlock, and
+// a 10-10 board was already unreachable.
 export function checkWin(pScore, aScore) {
   const maxScore = Math.max(pScore, aScore);
   if (maxScore < WIN_SCORE) return null;
-  if (Math.abs(pScore - aScore) >= 2) {
-    return pScore > aScore ? 'player' : 'ai';
-  }
-  return null; // no winner yet — need more points
+  return pScore > aScore ? 'player' : pScore < aScore ? 'ai' : null;
 }
 
 // ── Scraps scoring (pure, testable) ──────────────────────────
@@ -322,7 +332,7 @@ export function gameReducer(state, action) {
       if (!AI_TURN_PHASES.includes(state.phase)) return state;
       return {
         ...state,
-        log: addLog(state, 'Opponent has no legal trades. Their trade is skipped.'),
+        log: addLog(state, 'Opponent has no legal trades. Her trade is skipped.'),
       };
       // Phase advances via the usual ADVANCE_FROM timer.
     }

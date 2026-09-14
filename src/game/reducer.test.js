@@ -205,11 +205,32 @@ describe('scoring', () => {
     expect(out.winner).toBe('ai'); // the pair beats the would-be flush
   });
 
-  it('win requires reaching 11 AND leading by 2', () => {
-    expect(checkWin(11, 10)).toBeNull();
-    expect(checkWin(12, 10)).toBe('player');
+  it('win is a flat race to WIN_SCORE — no margin required', () => {
+    // The win-by-2 clause was dropped 2026-09-13. A single point at
+    // WIN_SCORE now ends it, whatever the other side is sitting on.
+    expect(checkWin(10, 9)).toBe('player');
+    expect(checkWin(9, 10)).toBe('ai');
+    expect(checkWin(11, 10)).toBe('player');
     expect(checkWin(10, 12)).toBe('ai');
-    expect(checkWin(10, 9)).toBeNull();
+    expect(checkWin(9, 9)).toBeNull();
+    expect(checkWin(9, 8)).toBeNull();
+  });
+
+  it('cannot deadlock: no scoring event pays both sides at once', () => {
+    // The only thing win-by-2 was protecting against was a tied board
+    // at WIN_SCORE, and scoring makes that unreachable. A small hand
+    // credits one winner; the Scraps hand fills pPts or aPts, never
+    // both. Guard the property rather than the old margin test.
+    const pWins = scoreScrapsOutcome(
+      cards(['K','♠'], ['K','♦'], ['4','♣'], ['7','♥'], ['9','♠']),
+      cards(['3','♠'], ['8','♦'], ['J','♣'], ['5','♥'], ['2','♠']),
+      { player: 0, ai: 0 });
+    expect(pWins.pPts > 0 && pWins.aPts > 0).toBe(false);
+    const aWins = scoreScrapsOutcome(
+      cards(['3','♠'], ['8','♦'], ['J','♣'], ['5','♥'], ['2','♠']),
+      cards(['K','♠'], ['K','♦'], ['4','♣'], ['7','♥'], ['9','♠']),
+      { player: 0, ai: 0 });
+    expect(aWins.pPts > 0 && aWins.aPts > 0).toBe(false);
   });
 });
 

@@ -167,7 +167,7 @@ export function RoundInterstitial({ roundNum, onDone }) {
 // ─────────────────────────────────────────────────────────────
 // RevealOverlay
 // ─────────────────────────────────────────────────────────────
-export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName, winner, points, onDismiss, playerBestIds=null, aiBestIds=null, bonusLine=null }) {
+export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName, winner, points, onDismiss, playerBestIds=null, aiBestIds=null, bonusLine=null, continueLabel='Continue' }) {
   const [vis,setVis]=useState(false);
   const { w } = useViewport();
   // Two five-card hands, a verdict and two labels do not fit a
@@ -225,10 +225,18 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
         <div style={{fontFamily:F.display,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
         <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>YOU</div>
       </div>
+      {/* The button names what happens next — DEAL SECOND HAND, PLAY
+          SCRAPS HAND, NEXT ROUND — rather than the generic CONTINUE it
+          carried until 2026-09-13. Each of those used to be a SECOND
+          button waiting on the table behind this screen; naming it here
+          collapses two presses into one. `continueLabel` falls back to
+          Continue, which is also what the caller passes when this
+          result is the one that ends the match and there is no next
+          hand to promise. */}
       <button onClick={onDismiss} style={{background:DS.voltage,color:DS.ink,border:'none',
         padding:'13px 40px',minHeight:44,borderRadius:8,cursor:'pointer',fontFamily:F.ui,
         fontWeight:700,fontSize:17,letterSpacing:'0.1em',textTransform:'uppercase',
-        boxShadow:`0 0 20px ${DS.voltage}88`}}>Continue →</button>
+        boxShadow:`0 0 20px ${DS.voltage}88`}}>{continueLabel} →</button>
       </div>
     </Shell>
   );
@@ -548,12 +556,12 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           )}
           <div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
-          You can play your Ace in a normal hand, or you can use your Ace to{' '}
-          <strong style={{color:DS.frost}}>attack</strong> your opponent and move
-          two of their Scraps cards to the discard pile.
+          You can play your Ace like normal, or burn it to{' '}
+          <strong style={{color:DS.frost}}>attack</strong> your opponent and
+          discard two cards from her Scraps.
         </p>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
-          If your opponent also has an Ace, they can &ldquo;counter,&rdquo; causing
+          If she also has an Ace, she can &ldquo;counter,&rdquo; causing
           both Aces to be discarded and your turn to end.
         </p>
           </div>
@@ -588,7 +596,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
         <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
-          They will remove two cards from your Scraps.
+          She will remove two cards from your Scraps.
         </p>
         {/* Show player's scraps so they know what's at stake */}
         {playerScraps&&playerScraps.length>0&&(
@@ -605,16 +613,16 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
           </div>
         )}
         <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:17,fontWeight:700,
-          marginBottom:24}}>You have an Ace. Counter to cancel theirs?</p>
+          marginBottom:24}}>You have an Ace. Counter to cancel hers?</p>
         <p style={{fontFamily:F.ui,color:DS.slate,fontSize:14,marginBottom:24,lineHeight:1.5}}>
-          Countering cancels their Ace and nothing is removed. Both Aces are then
-          discarded, so your Ace is spent either way: countering trades it for theirs
+          Countering cancels her Ace and nothing is removed. Both Aces are then
+          discarded, so your Ace is spent either way: countering trades it for hers
           instead of saving it for a strike of your own.
         </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
           <Btn variant="danger" onClick={onCounter}>
             <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
-              Counter <IconBolt size={16}/> Cancel Their Ace
+              Counter <IconBolt size={16}/> Cancel Her Ace
             </span>
           </Btn>
           <Btn variant="ghost" onClick={onAllow}>Let It Happen</Btn>
@@ -723,10 +731,10 @@ export function RulesModal({ onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   const rules=[
-    {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE} — win by 2.`},
+    {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE}.`},
     {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
     {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
-    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps. They can counter with their own Ace."},
+    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps. She can counter with an Ace of her own."},
     {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
     {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
   ];

@@ -214,6 +214,47 @@ function getCombinations(arr, k) {
   return result;
 }
 
+// ── Naming a signal, for the button that plays it ────────────
+//
+// The SELECT HAND button states what the current selection IS, rather
+// than how many cards it holds. "SIGNAL — 3 cards" told a player the
+// one thing they could already count; "THREE OF A KIND" tells them
+// what they are about to commit to, which is also the only way to
+// notice you have picked three of a kind by accident.
+//
+// Two cases, because the poker vocabulary runs out at one card:
+//   • 1 card  → the rank, spelled, with its article: A THREE, AN ACE.
+//     Never HIGH CARD, which is a comparison rather than a thing you
+//     can hold, and reads as a verdict on a hand you have not played.
+//   • 2-5 cards → the hand's own name: PAIR, TWO PAIR, THREE OF A
+//     KIND, STRAIGHT, FULL HOUSE, FOUR OF A KIND. Deliberately WITHOUT
+//     the ranks inside it (no "PAIR OF NINES"): the signal your
+//     opponent sees is the COUNT, so naming the ranks on the button
+//     would state more than the move does.
+//
+// Returns null for a selection that is not a legal signal — the
+// button is inactive there and has nothing to say.
+const RANK_WORDS = {
+  '2':'TWO', '3':'THREE', '4':'FOUR', '5':'FIVE', '6':'SIX', '7':'SEVEN',
+  '8':'EIGHT', '9':'NINE', '10':'TEN', 'J':'JACK', 'Q':'QUEEN', 'K':'KING', 'A':'ACE',
+};
+// "AN" before a vowel SOUND, which is what the article actually
+// tracks: EIGHT and ACE take it, EIGHT being the only numeral that
+// does. TEN and TWO do not, despite both starting with a consonant
+// that trips people up when the list is written as digits.
+const TAKES_AN = new Set(['EIGHT', 'ACE']);
+
+export function signalHandLabel(cards) {
+  if (!isValidSignal(cards)) return null;
+  if (cards.length === 1) {
+    const word = RANK_WORDS[cards[0].rank];
+    if (!word) return null;
+    return `${TAKES_AN.has(word) ? 'AN' : 'A'} ${word}`;
+  }
+  const best = evaluateBestHand(cards);
+  return best ? best.name.toUpperCase() : null;
+}
+
 // ── Signal validation ─────────────────────────────────────────
 
 // Is this exact selection of cards a playable signal hand?

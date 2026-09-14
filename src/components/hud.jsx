@@ -14,7 +14,6 @@
 import { useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { IconCheck } from "./icons.jsx";
-import { getValidSignals } from "../game/engine.js";
 
 // ─────────────────────────────────────────────────────────────
 // RoundProgressIndicator — slim horizontal three-step strip
@@ -23,13 +22,16 @@ export function RoundProgressIndicator({ phase, compact=false }) {
   const h1=['player-turn-1a','ai-turn-1a','player-turn-1b','ai-turn-1b','signal-ai','signal-player','reveal-1','replenish'];
   const h2=['player-turn-2a','ai-turn-2a','player-turn-2b','ai-turn-2b','signal-ai-2','signal-player-2','reveal-2'];
   const sc=['scraps-reveal','round-end'];
-  // Point values ride in the label. This strip is the one piece
-  // of chrome a player looks at all game, and it was the only
-  // place naming the three hands without naming the stakes.
+  // Point values used to ride in the label (1PT / 1PT / 2PTS). Dropped
+  // 2026-09-13 at Stan's request: the strip's job is WHERE YOU ARE in
+  // the round, and the stakes are stated in the storyboard and again on
+  // every reveal. Three extra mono numerals on the one piece of chrome
+  // that is on screen all game bought nothing a player did not already
+  // know by their second round.
   const steps=[
-    {label:'HAND 1',pts:'1PT',active:h1.includes(phase),done:h2.includes(phase)||sc.includes(phase)},
-    {label:'HAND 2',pts:'1PT',active:h2.includes(phase),done:sc.includes(phase)},
-    {label:'SCRAPS',pts:'2PTS',active:sc.includes(phase),done:false},
+    {label:'HAND 1',active:h1.includes(phase),done:h2.includes(phase)||sc.includes(phase)},
+    {label:'HAND 2',active:h2.includes(phase),done:sc.includes(phase)},
+    {label:'SCRAPS',active:sc.includes(phase),done:false},
   ];
   return (
     <div style={{display:'flex',alignItems:'center',gap:3,
@@ -48,9 +50,6 @@ export function RoundProgressIndicator({ phase, compact=false }) {
           <span style={{fontFamily:F.ui,fontSize:compact?12:13,fontWeight:700,
             color:s.active?DS.frost:s.done?DS.slate:DS.slate+'55',
             letterSpacing:'0.04em',transition:'color 0.3s'}}>{s.label}</span>
-          <span style={{fontFamily:F.mono,fontSize:10,fontWeight:700,
-            color:s.active?DS.slateLight:DS.slate+'55',
-            letterSpacing:'0.02em',transition:'color 0.3s'}}>{s.pts}</span>
           {s.done&&<IconCheck size={12} color={DS.slate}/>}
         </div>
       ))}
@@ -124,7 +123,7 @@ export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel, 
             it, and the row it frees goes to the table. */}
         {!compact&&(
           <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'88',
-            letterSpacing:'0.12em',whiteSpace:'nowrap'}}>FIRST TO {WIN_SCORE} · WIN BY 2</span>
+            letterSpacing:'0.12em',whiteSpace:'nowrap'}}>FIRST TO {WIN_SCORE}</span>
         )}
         {difficultyLabel&&(
           <span style={{fontFamily:F.mono,fontSize:compact?11:13,fontWeight:700,color:DS.slate,
@@ -151,21 +150,45 @@ export function PlayerBar({ playerScore, playerFlash, roundEndPulse, children, c
 }
 
 // ─────────────────────────────────────────────────────────────
-// NearWinBanner — shown when someone hits WIN_SCORE but needs +2
+// MatchPointBanner — someone is one scoring event from the game.
+//
+// This used to be NearWinBanner, and it said "you've hit 10, win by
+// 2". Dropping the win-by-2 clause on 2026-09-13 made that state
+// unreachable: the game now ends the instant a score touches
+// WIN_SCORE, so a banner about play CONTINUING past it could never
+// render again. The tension beat it existed for is real, so it moved
+// two points earlier instead of being deleted.
+//
+// MATCH_POINT is WIN_SCORE - 2, because 2 is what the Scraps hand
+// pays and the smallest hand that can end a game from here. A player
+// on 8 can be beaten in one reveal; a player on 7 cannot.
+//
+// Colour follows ownership, the same rule as everything else on this
+// table: voltage when the threat is yours, ember when it is hers,
+// frost when it belongs to both of you. Never gold — gold is a
+// milestone token, and this is a warning.
 // ─────────────────────────────────────────────────────────────
+const MATCH_POINT = WIN_SCORE - 2;
+
 export function NearWinBanner({ playerScore, aiScore }) {
-  const bothOver = playerScore >= WIN_SCORE && aiScore >= WIN_SCORE;
-  const playerOver = playerScore >= WIN_SCORE && aiScore < WIN_SCORE;
-  const aiOver = aiScore >= WIN_SCORE && playerScore < WIN_SCORE;
-  if(!bothOver && !playerOver && !aiOver) return null;
-  let msg;
-  if(bothOver) msg=`Both players are at ${WIN_SCORE}+. Win by 2 — keep playing!`;
-  else if(playerOver) msg=`You've hit ${WIN_SCORE}! Win by 2 to claim victory.`;
-  else msg=`Opponent hit ${WIN_SCORE}. Win by 2 — no letting up!`;
+  const playerUp = playerScore >= MATCH_POINT;
+  const aiUp = aiScore >= MATCH_POINT;
+  if(!playerUp && !aiUp) return null;
+  let msg, tone;
+  if(playerUp && aiUp) {
+    msg = `Match point both ways. The next hand can end it.`;
+    tone = DS.frost;
+  } else if(playerUp) {
+    msg = `Match point. One hand takes you to ${WIN_SCORE}.`;
+    tone = DS.voltage;
+  } else {
+    msg = `Match point to her. One hand and it's over.`;
+    tone = DS.ember;
+  }
   return (
-    <div style={{padding:'5px 16px',background:DS.voltage+'22',
-      border:`1px solid ${DS.voltage}66`,textAlign:'center',
-      fontFamily:F.ui,fontSize:13,color:DS.voltage,fontWeight:700,
+    <div style={{padding:'5px 16px',background:tone+'22',
+      border:`1px solid ${tone}66`,textAlign:'center',
+      fontFamily:F.ui,fontSize:13,color:tone,fontWeight:700,
       letterSpacing:'0.06em',flexShrink:0,lineHeight:1.3}}>
       {msg}
     </div>
@@ -198,27 +221,19 @@ export function GameLog({ messages }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// SignalLegalityStrip — what a small hand is allowed to be.
+// SignalLegalityStrip used to live here: five mono pills naming the
+// legal signal shapes (1 ANY CARD, 2 PAIR, 3 TRIPS, 4 2 PAIR / QUADS,
+// 5 STRAIGHT+), struck through wherever the live hand could not make
+// one. It existed because a first-timer who selected two unmatched
+// cards got a disabled button and no reason.
 //
-// A signal is not "any cards you like": engine.isValidSignal
-// accepts one exact shape per count (1 anything, 2 a pair, 3
-// trips, 4 two pair or quads, 5 a straight or better). Nothing
-// on the table ever said so, so a first-timer selecting two
-// unmatched cards got a disabled button and no reason.
-//
-// engine.getValidSignals already computes this set against the
-// live hand and had no UI caller until now. Options the hand
-// cannot make are struck through, so the strip doubles as the
-// explanation for why SIGNAL is disabled.
-// ─────────────────────────────────────────────────────────────
-const SIGNAL_SHAPES = [
-  { n:1, name:'ANY CARD' },
-  { n:2, name:'PAIR' },
-  { n:3, name:'TRIPS' },
-  { n:4, name:'2 PAIR / QUADS' },
-  { n:5, name:'STRAIGHT+' },
-];
+// Removed 2026-09-13 (Stan). The button answers that question itself
+// now: SELECT HAND is inert until the selection is legal and then
+// becomes the hand's own name — A THREE, TWO PAIR, FULL HOUSE — which
+// is the same information about the hand the player actually has, in
+// the place they are already looking, and one object instead of six.
+// engine.getValidSignals is still exported and still has the AI as a
+// caller; it simply has no UI one again.
 
 // ─────────────────────────────────────────────────────────────
 // GameAnnouncer — the game, spoken.
@@ -256,33 +271,5 @@ export function GameAnnouncer({ messages, hint }) {
         {hint}
       </div>
     </>
-  );
-}
-
-export function SignalLegalityStrip({ hand, selectedCount=0, compact=false }) {
-  const valid = new Set(getValidSignals(hand));
-  return (
-    <div style={{display:'flex',alignItems:'center',gap:compact?4:6,flexWrap:'wrap',
-      justifyContent:'center',background:DS.duskMid,
-      border:`1px solid ${DS.slate}33`,borderRadius:10,padding:compact?'4px 7px':'6px 10px'}}>
-      <span style={{fontFamily:F.mono,fontSize:11,color:DS.slate,
-        letterSpacing:'0.14em',marginRight:2}}>PLAYABLE</span>
-      {SIGNAL_SHAPES.map(sh=>{
-        const ok=valid.has(sh.n);
-        const on=ok&&selectedCount===sh.n;
-        return (
-          <span key={sh.n} style={{
-            fontFamily:F.mono,fontSize:compact?11:12,fontWeight:700,letterSpacing:'0.06em',
-            padding:compact?'2px 6px':'3px 8px',borderRadius:6,whiteSpace:'nowrap',
-            color:on?DS.ink:ok?DS.voltage:DS.slate+'66',
-            background:on?DS.voltage:ok?DS.voltage+'18':'transparent',
-            border:`1px solid ${on?DS.voltage:ok?DS.voltage+'55':DS.slate+'22'}`,
-            textDecoration:ok?'none':'line-through',
-            transition:'all 0.2s'}}>
-            {sh.n} {sh.name}
-          </span>
-        );
-      })}
-    </div>
   );
 }

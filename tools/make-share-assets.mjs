@@ -67,9 +67,12 @@ const grab = (re, what) => {
 const TITLE = grab(/<title>([\s\S]*?)<\/title>/, '<title>');
 const DESC  = grab(/<meta\s+name="description"\s+content="([^"]*)"/, '<meta name="description">');
 
-const menus = readFileSync(path.join(ROOT, 'src/screens/MenuScreens.jsx'), 'utf8');
-const SUBTITLE = (menus.match(/const SUBTITLE\s*=\s*"([^"]*)"/) || [])[1]
-  || fail('could not find SUBTITLE in MenuScreens.jsx');
+// The splash's SUBTITLE used to be read out of MenuScreens.jsx and
+// recorded in the manifest, so that a change to the line under the
+// wordmark showed up as share-card drift. Stan removed the subtitle
+// from the splash on 2026-09-13, so there is nothing left to tie to
+// and the read would fail the generator outright. The card never
+// printed it in any case — STRAPLINE below is the line on the image.
 
 // The wordmark is the title's leading product name, and the exact
 // field that went stale in the sibling project. Split on an em dash
@@ -100,7 +103,6 @@ const sources = {
   title: TITLE,
   description: DESC,
   wordmark: WORDMARK,
-  subtitle: SUBTITLE,
   strapline: STRAPLINE,
   hand: HAND.map(([r, su]) => r + su).join(' '),
   winScore: WIN_SCORE,
@@ -116,7 +118,7 @@ const fontFace = (family, file, weight = 400) => `
   @font-face{font-family:'${family}';font-style:normal;font-weight:${weight};
     src:url('${pathToFileURL(path.join(PUBLIC, 'fonts', file)).href}') format('woff2');}`;
 
-// The card: SwirlBg's three radial layers at rest, the Bungee Shade
+// The card: SwirlBg's three radial layers at rest, the Rye
 // wordmark with its one voltage letter, a real fanned hand drawn
 // with the same geometry and inks as the game's own PlayingCard
 // (frost face, 6px ink border, Baloo 2 rank, emberInk for a red
@@ -147,7 +149,7 @@ const handHtml = (hand, scale) => {
 };
 
 const cardHtml = ({ w, h, scale, hand = HAND }) => `<!doctype html><meta charset="utf-8"><style>
-  ${fontFace('Bungee Shade', 'bungee-shade-latin.woff2')}
+  ${fontFace('Rye', 'rye-latin.woff2')}
   ${fontFace('Fjalla One', 'fjalla-one-latin.woff2')}
   ${fontFace('Baloo 2', 'baloo-2-latin.woff2', '100 900')}
   *{margin:0;padding:0;box-sizing:border-box}
@@ -164,7 +166,7 @@ const cardHtml = ({ w, h, scale, hand = HAND }) => `<!doctype html><meta charset
   .c{background:radial-gradient(ellipse 50% 40% at 50% 92%, ${DS.gold}4a 0%, transparent 70%)}
   .stack{position:relative;z-index:1;text-align:center;width:100%;
     display:flex;flex-direction:column;align-items:center}
-  .word{font-family:'Bungee Shade',sans-serif;font-size:5.1em;line-height:1;
+  .word{font-family:'Rye',serif;font-size:5.1em;line-height:1;
     color:${DS.frost};text-shadow:0 3px 0 rgba(0,0,0,.4);letter-spacing:0.01em}
   .word i{font-style:normal;color:${DS.voltage};
     text-shadow:0 0 30px ${DS.voltage}88, 0 3px 0 rgba(0,0,0,.4)}
@@ -284,11 +286,11 @@ original, not a digital version of an existing game.
 - You move cards from your hidden hand into your face-up Scraps to draw
   fresh cards. Both piles cap at 7 cards.
 - Aces are a weapon: discard one to strip two cards from the opponent's
-  Scraps. They can counter with an Ace of their own.
+  Scraps. She can counter with an Ace of her own.
 - **Flushes are never valid.** A five-card suited straight scores as a plain
   straight, never a straight flush. This is a house rule and it is enforced
   everywhere in the engine.
-- First to ${WIN_SCORE} points, win by 2. Winning both small hands *and* the
+- First to ${WIN_SCORE} points. Winning both small hands *and* the
   Scraps hand in one round is a FULL SCRAP, worth 5.
 
 ## Notes

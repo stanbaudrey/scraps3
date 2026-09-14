@@ -153,8 +153,21 @@ export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, m
 
     const measure = () => {
       frame = 0;
-      const availW = outer.clientWidth, availH = outer.clientHeight;
-      if (!availW || !availH) return;
+      // The CONTENT BOX, not clientHeight. clientHeight/clientWidth
+      // include the box's own padding, and a caller is free to pass
+      // some through `style` — the storyboard passes
+      // `padding:'16px 10px 0'`. Measuring the padded box told FitBox
+      // it had 562px to fill when the children only got 546, so a beat
+      // that wanted 576 was scaled to 0.977 (fitting 562) and then had
+      // its last 16px clipped by the overflow:hidden on this very
+      // element. Visible as the "Both hands have a 7 card limit" line
+      // sliced in half on a 375x667 phone; measured rather than
+      // guessed, at 579 painted against a 562 boundary.
+      const cs = getComputedStyle(outer);
+      const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const availW = outer.clientWidth - padX, availH = outer.clientHeight - padY;
+      if (!availW || availW <= 0 || !availH || availH <= 0) return;
       const layoutW = Math.max(availW, modeMinW);
       // The CONTENT wrapper is what gets measured, not `inner`.
       // `inner` is min-height:100% so a table with room to spare

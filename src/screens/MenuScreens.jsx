@@ -9,17 +9,14 @@
 // ============================================================
 import { useState, useEffect } from "react";
 import { DS, F } from "../styles/theme.js";
-import { Btn } from "../components/buttons.jsx";
+import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
 
-// ─────────────────────────────────────────────────────────────
-// SUBTITLE — the one line under the wordmark on the splash.
-// Swap the string; the 30 candidates live in PROJECT-BRIEF.md.
-// Keep it to one short sentence: it sits between the wordmark
-// and PLAY, and anything longer breaks that stack.
-// ─────────────────────────────────────────────────────────────
-const SUBTITLE = "Build two hands at once.";
+// The splash used to carry a SUBTITLE between the wordmark and PLAY
+// ("Build two hands at once."). Removed 2026-09-13 on Stan's call.
+// The 30 candidates are still in PROJECT-BRIEF.md if it ever comes
+// back; the wordmark and one button carry the screen now.
 
 // The suit row under the wordmark, in the colours the cards actually
 // print. `ember` is the game's red everywhere else; `frost` is its
@@ -56,8 +53,6 @@ export function SplashScreen({ onStart }) {
             ))}
           </div>
           <AnimatedTitle/>
-          <p style={{fontFamily:F.display,fontSize:'clamp(15px,min(4.4vw,2.6vh),22px)',color:DS.slateLight,
-            letterSpacing:'0.04em',marginBottom:'clamp(10px,3.5vh,30px)',animation:'fadeUp .5s ease .7s both'}}>{SUBTITLE}</p>
           <Btn onClick={onStart}>Play</Btn>
         </div>
       </div>
@@ -68,8 +63,15 @@ export function SplashScreen({ onStart }) {
 // ─────────────────────────────────────────────────────────────
 // DifficultyPicker
 //
-// Two boxes, nothing else — no BACK, no third option, no copy
-// to read past the two lines inside them.
+// Two boxes and a way back — no third option, no copy to read past
+// the two lines inside them. BACK was added 2026-09-13 at Stan's
+// request: this screen is the first point in the product where a
+// reader cannot retrace a step, and the thing they most plausibly
+// want back is the rules they just skimmed. It returns to the
+// storyboard's LAST beat rather than its first (see App.jsx), and
+// arms on the same 720ms lock as the panels so a click-streak
+// carried in from the storyboard cannot bounce straight back out
+// of this screen either.
 //
 // The ARM_MS lock is the point of the screen's timing: a player
 // who just speed-tapped through the storyboard arrives here
@@ -83,7 +85,7 @@ export function SplashScreen({ onStart }) {
 // ─────────────────────────────────────────────────────────────
 const ARM_MS = 720;
 
-export function DifficultyPicker({ onChoose }) {
+export function DifficultyPicker({ onChoose, onBack = null }) {
   const stats = loadStats();
   const [armed, setArmed] = useState(false);
   useEffect(() => {
@@ -150,6 +152,20 @@ export function DifficultyPicker({ onChoose }) {
             </button>
           );
         })}
+        {/* Quieter than the two panels by design: it is the way out of
+            a decision, not a third option to weigh. Ghost outline in
+            slate, no accent, no glow. */}
+        {onBack && (
+          <div style={{display:'flex',justifyContent:'center',marginTop:'clamp(2px,1vh,8px)'}}>
+            <button type="button" onClick={armed ? onBack : undefined} disabled={!armed}
+              style={{background:'transparent',border:`2px solid ${DS.slate}66`,
+                color:DS.slateLight,borderRadius:8,padding:'10px 26px',
+                minHeight:TOUCH_MIN,cursor:armed?'pointer':'default',
+                opacity:armed?1:0.4,transition:'opacity 0.3s',
+                fontFamily:F.ui,fontWeight:700,fontSize:14,
+                letterSpacing:'0.14em',textTransform:'uppercase'}}>Back</button>
+          </div>
+        )}
       </div>
     </div>
   );
