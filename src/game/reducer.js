@@ -15,13 +15,13 @@
 // Turn order is dealer-aware. The dealer alternates each round;
 // the NON-dealer acts first. Odd rounds: opponent deals, the
 // player acts first (matching the original convention). Every
-// small hand runs: first-player trade, second-player trade,
+// hand runs: first-player scrap, second-player scrap,
 // first-player trade, second-player trade, then signals — and
 // whoever trades first also signals first.
 // ============================================================
 
 import {
-  createDeck, shuffle, dealRound, tradeInValue, HAND_LIMIT,
+  createDeck, shuffle, dealRound, scrapValue, HAND_LIMIT,
   evaluateBestHand, compareHands,
 } from './engine.js';
 import { WIN_SCORE } from '../styles/theme.js';
@@ -39,7 +39,7 @@ export function firstActorForRound(roundNum) {
   return roundNum % 2 === 1 ? 'player' : 'ai';
 }
 
-// The four trade turns of a small hand, in order:
+// The four scrap turns of a hand, in order:
 // first actor, second actor, first actor, second actor.
 export function tradeOrder(roundNum, handNum) {
   const f = firstActorForRound(roundNum);
@@ -89,11 +89,11 @@ export function checkWin(pScore, aScore) {
 
 // ── Scraps scoring (pure, testable) ──────────────────────────
 // Winning the Scraps hand is worth 2 points. Winning both small
-// hands AND the Scraps hand is a Full Scrap: 2 + 1 bonus = 3
+// hands AND the Scraps hand is a Clean Sweep: 2 + 1 bonus = 3
 // points at the Scraps reveal, for 5 total on the round. The AI
 // sweeping all three works the same way.
 // An EMPTY Scraps pile is a hand, not an error — it simply loses to
-// anything. Reaching zero is reachable in normal play: an Ace strips
+// anything. Reaching zero is reachable in normal play: an Ace discards
 // two cards and every Ace guard admits a pile of exactly 2, so a pile
 // can be emptied on the last trade turn with no turn left to refill.
 //
@@ -116,11 +116,11 @@ export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins) {
   const rw = { ...roundWins };
   if (res > 0)      { pPts = 2; rw.player++; winner = 'player'; }
   else if (res < 0) { aPts = 2; rw.ai++;     winner = 'ai'; }
-  const fullScrap = rw.player === 3;
+  const cleanSweep = rw.player === 3;
   const aiSweep   = rw.ai === 3;
-  if (fullScrap) pPts++;
+  if (cleanSweep) pPts++;
   if (aiSweep)   aPts++;
-  return { pPts, aPts, winner, fullScrap, aiSweep, pB, aB };
+  return { pPts, aPts, winner, cleanSweep, aiSweep, pB, aB };
 }
 
 // ── Round setup (impure: shuffles) ───────────────────────────
@@ -226,7 +226,7 @@ export function gameReducer(state, action) {
       if (!cards || cards.length === 0) return state;
       const ids = new Set(cards.map(c => c.id));
       if (!cards.every(c => state.playerHand.some(h => h.id === c.id))) return state;
-      const drawCount = cards.reduce((s, c) => s + tradeInValue(c), 0);
+      const drawCount = cards.reduce((s, c) => s + scrapValue(c), 0);
       const net = (state.playerHand.length - cards.length) + drawCount;
       if (net > HAND_LIMIT) {
         return { ...state, log: addLog(state, `That trade would give you ${net} cards — over the 7-card limit.`) };
@@ -267,8 +267,8 @@ export function gameReducer(state, action) {
       };
     }
 
-    // ── Player trade with Scraps overflow ────────────────────
-    // The trade would push Scraps past 7, so the player must pick
+    // ── Player scrap with Scraps overflow ────────────────────
+    // The scrap would push Scraps past 7, so the player must pick
     // cards to discard first. Older scraps become eligible.
     case 'PLAYER_TRADE_OVERFLOW_START': {
       return {
@@ -276,11 +276,11 @@ export function gameReducer(state, action) {
         pendingTrade: { cards: action.cards, drawCount: action.drawCount },
         scrapsOverflow: action.excess,
         playerScraps: tagScraps(state.playerScraps, state.currentTurn),
-        log: addLog(state, `Select ${action.excess} card${action.excess > 1 ? 's' : ''} to discard from your Scraps, then hit DISCARD.`),
+        log: addLog(state, `Pick ${action.excess} to discard first.`),
       };
     }
 
-    case 'PLAYER_TRADE_WITH_DISCARD': {
+    case 'PLAYER_SCRAP_WITH_DISCARD': {
       if (!state.pendingTrade) return state;
       const { cards, drawCount } = state.pendingTrade;
       const discardIds = new Set(action.discardCards.map(c => c.id));
@@ -346,7 +346,7 @@ export function gameReducer(state, action) {
       if (!cards || cards.length === 0) return state;
       if (!cards.every(c => state.aiHand.some(h => h.id === c.id))) return state;
       const ids = new Set(cards.map(c => c.id));
-      const drawN = cards.reduce((s, c) => s + tradeInValue(c), 0);
+      const drawN = cards.reduce((s, c) => s + scrapValue(c), 0);
       const drawn = state.deck.slice(0, drawN);
       const tagged = cards.map(c => ({ ...c, turnAdded: state.currentTurn, eligibleForDiscard: false }));
       const newSC = state.aiScraps.length + cards.length;
@@ -430,8 +430,8 @@ export function gameReducer(state, action) {
           phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         }),
         log: addLog(state, stillArmed
-          ? 'Opponent counters your Ace! Both Aces discarded. You still hold an Ace — play it or trade.'
-          : 'Opponent counters your Ace! Both Aces discarded. Your turn ends.'),
+          ? 'They had an Ace too. Both gone. You still hold one — attack again or scrap.'
+          : 'They had an Ace too. Both gone. Turn over.'),
       };
     }
 
@@ -468,7 +468,7 @@ export function gameReducer(state, action) {
         aiHand: state.aiHand.filter(c => c.id !== aiAce.id),
         discard: [...state.discard, playerAce, aiAce],
         pendingAiAce: null,
-        log: addLog(state, 'You counter the Ace! Both Aces cancelled and discarded. Your turn continues.'),
+        log: addLog(state, 'You had an Ace too. Both gone. Your turn continues.'),
       };
     }
 
@@ -516,7 +516,7 @@ export function gameReducer(state, action) {
       };
     }
 
-    // ── Small hand scored ────────────────────────────────────
+    // ── Hand scored ──────────────────────────────────────────
     case 'SMALL_HAND_SCORED': {
       const { winner, pts, pName, aName, fromPhase } = action;
       const nP = state.playerScore + (winner === 'player' ? pts : 0);
@@ -546,7 +546,7 @@ export function gameReducer(state, action) {
       };
     }
 
-    // ── Replenish for the second small hand ──────────────────
+    // ── Replenish for the second hand ────────────────────────
     // Hand 2 starts with the round's first actor — NOT hard-coded
     // to the player.
     case 'REPLENISH': {
@@ -563,17 +563,17 @@ export function gameReducer(state, action) {
         aiScraps: state.aiScraps.map(c => ({ ...c, eligibleForDiscard: true })),
         currentTurn: state.currentTurn + 1,
         phase: `${first}-turn-2a`,
-        log: addLog(state, 'Hands replenished. Second small hand begins.'),
+        log: addLog(state, 'Fresh cards. Second hand.'),
       };
     }
 
     // ── Scraps hand scored ───────────────────────────────────
     case 'SCRAPS_SCORED': {
-      const { pPts, aPts, winner, fullScrap, aiSweep, pName } = action;
+      const { pPts, aPts, winner, cleanSweep, aiSweep, pName } = action;
       const nP = state.playerScore + pPts;
       const nA = state.aiScore + aPts;
       let log = state.log;
-      if (fullScrap) log = [...log, `FULL SCRAP! ${pName}. +${pPts} pts`];
+      if (cleanSweep) log = [...log, `CLEAN SWEEP! ${pName}. +${pPts} pts`];
       else log = [...log, winner === 'player' ? `You win Scraps! ${pName}. +${pPts} pts`
         : winner === 'ai' ? `Opponent wins Scraps. +${aPts} pts` : 'Scraps tied.'];
       if (aiSweep) log = [...log, 'Opponent sweeps the round! +1 bonus pt.'];

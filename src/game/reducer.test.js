@@ -8,7 +8,7 @@ import {
   firstActorForRound, tradeOrder, nextPhaseAfterTrade,
   scoreScrapsOutcome, checkWin,
 } from './reducer.js';
-import { tradeInValue, RANK_VALUES, shouldCounterAce } from './engine.js';
+import { scrapValue, RANK_VALUES, shouldCounterAce } from './engine.js';
 
 let nextId = 0;
 // Suits left the game on 2026-09-13. The array form `'9'` at
@@ -29,14 +29,14 @@ function freshRound(roundNum) {
   return gameReducer(s, { type: 'INTERSTITIAL_DONE' });
 }
 
-// Simulate one trade in the current phase, tracking who traded.
+// Simulate one scrap in the current phase, tracking who scrapped.
 function playOneTrade(s, tally) {
   const phase = s.phase;
   const handNum = phase.includes('-1') ? 1 : 2;
   if (phase.startsWith('player')) {
     tally.push(`player-h${handNum}`);
     // pick a low card so the trade is always legal
-    const card = s.playerHand.find(x => tradeInValue(x) === 1) || s.playerHand[0];
+    const card = s.playerHand.find(x => scrapValue(x) === 1) || s.playerHand[0];
     let t = gameReducer(s, { type: 'PLAYER_TRADE_TAKE', cards: [card] });
     // flush the animation arrivals (scraps landing + draws)
     t = gameReducer(t, { type: 'PLAYER_SCRAPS_ARRIVE' });
@@ -46,7 +46,7 @@ function playOneTrade(s, tally) {
     return t;
   }
   tally.push(`ai-h${handNum}`);
-  const card = s.aiHand.find(x => tradeInValue(x) === 1) || s.aiHand[0];
+  const card = s.aiHand.find(x => scrapValue(x) === 1) || s.aiHand[0];
   let t = gameReducer(s, { type: 'AI_TRADE_APPLY', cards: [card] });
   return gameReducer(t, { type: 'ADVANCE_FROM', phase });
 }
@@ -72,7 +72,7 @@ describe('dealer-aware turn order', () => {
     expect(nextPhaseAfterTrade('ai-turn-1a', 2)).toBe('player-turn-1a');
   });
 
-  it('both players get exactly two trades per small hand in an ODD round', () => {
+  it('both players get exactly two scraps per hand in an ODD round', () => {
     let s = freshRound(1);
     const tally = [];
     s = runHandOfTrades(s, tally);
@@ -81,7 +81,7 @@ describe('dealer-aware turn order', () => {
     expect(tally).toEqual(['player-h1', 'ai-h1', 'player-h1', 'ai-h1']);
   });
 
-  it('both players get exactly two trades per small hand in an EVEN round', () => {
+  it('both players get exactly two scraps per hand in an EVEN round', () => {
     let s = freshRound(2);
     expect(s.phase).toBe('ai-turn-1a');
     const tally = [];
@@ -172,9 +172,9 @@ describe('no-legal-trade skip', () => {
 });
 
 describe('scoring', () => {
-  it('a Full Scrap awards 2 + 1 = 3 at the Scraps reveal, 5 total on the round', () => {
+  it('a Clean Sweep awards 2 + 1 = 3 at the Scraps reveal, 5 total on the round', () => {
     let s = freshRound(1);
-    // Two small-hand wins
+    // Two hand wins
     s = { ...s, playerPlayed: [s.playerHand[0]], aiPlayed: [s.aiHand[0]], phase: 'reveal-1' };
     s = gameReducer(s, { type: 'SMALL_HAND_SCORED', winner: 'player', pts: 1, pName: 'Pair', aName: '', fromPhase: 'reveal-1' });
     s = { ...s, playerPlayed: [s.playerHand[0]], aiPlayed: [s.aiHand[0]], phase: 'reveal-2' };
@@ -182,17 +182,17 @@ describe('scoring', () => {
     expect(s.playerScore).toBe(2);
     expect(s.roundWins.player).toBe(2);
 
-    // Scraps: player quads vs AI junk → win + full scrap bonus
+    // Scraps: player quads vs AI junk → win + clean sweep bonus
     const pScraps = cards('9', '9', '9', '9', '4');
     const aScraps = cards('2', '5', '7', 'J', '3');
     const out = scoreScrapsOutcome(pScraps, aScraps, s.roundWins);
     expect(out.winner).toBe('player');
-    expect(out.fullScrap).toBe(true);
-    expect(out.pPts).toBe(3); // 2 for scraps + 1 full scrap bonus
+    expect(out.cleanSweep).toBe(true);
+    expect(out.pPts).toBe(3); // 2 for scraps + 1 clean sweep bonus
 
     s = gameReducer(s, { type: 'SCRAPS_SCORED', ...out, pName: out.pB.name });
     expect(s.playerScore).toBe(5); // 1 + 1 + 3
-    expect(s.log[s.log.length - 1]).toBe(`FULL SCRAP! ${out.pB.name}. +3 pts`);
+    expect(s.log[s.log.length - 1]).toBe(`CLEAN SWEEP! ${out.pB.name}. +3 pts`);
   });
 
   it('an AI sweep awards the same 2 + 1 on the AI side', () => {
@@ -203,11 +203,11 @@ describe('scoring', () => {
     expect(out.aPts).toBe(3);
   });
 
-  it('flushes never win the Scraps hand', () => {
-    const suited = cards('K', 'J', '9', '7', '2');
+  it('five same-looking high cards lose to a pair — there is no flush to score', () => {
+    const highCards = cards('K', 'J', '9', '7', '2');
     const pair = cards('3', '3', '5', '8', '10');
-    const out = scoreScrapsOutcome(suited, pair, { player: 0, ai: 0 });
-    expect(out.winner).toBe('ai'); // the pair beats the would-be flush
+    const out = scoreScrapsOutcome(highCards, pair, { player: 0, ai: 0 });
+    expect(out.winner).toBe('ai'); // the pair beats it; a flush cannot be dealt
   });
 
   it('win is a flat race to WIN_SCORE — no margin required', () => {
@@ -223,7 +223,7 @@ describe('scoring', () => {
 
   it('cannot deadlock: no scoring event pays both sides at once', () => {
     // The only thing win-by-2 was protecting against was a tied board
-    // at WIN_SCORE, and scoring makes that unreachable. A small hand
+    // at WIN_SCORE, and scoring makes that unreachable. A hand
     // credits one winner; the Scraps hand fills pPts or aPts, never
     // both. Guard the property rather than the old margin test.
     const pWins = scoreScrapsOutcome(
@@ -242,7 +242,7 @@ describe('scoring', () => {
 describe('discard pile resets every round', () => {
   it('discards accumulate during a round, then START_ROUND empties the pile', () => {
     let s = freshRound(1);
-    // Put cards in the discard via a scored small hand
+    // Put cards in the discard via a scored hand
     s = { ...s, playerPlayed: [s.playerHand[0]], aiPlayed: [s.aiHand[0]], phase: 'reveal-1' };
     s = gameReducer(s, { type: 'SMALL_HAND_SCORED', winner: 'player', pts: 1, pName: 'High Card', aName: '', fromPhase: 'reveal-1' });
     expect(s.discard.length).toBeGreaterThan(0);
@@ -254,7 +254,7 @@ describe('discard pile resets every round', () => {
 });
 
 // ── An empty Scraps pile ─────────────────────────────────────
-// Reachable in normal play: an Ace strips two cards and every Ace
+// Reachable in normal play: an Ace discards two cards and every Ace
 // guard admits a pile of exactly 2. This used to return null, and the
 // screen answered that by logging and returning, stranding the game in
 // `scraps-reveal` with no exit control.
@@ -310,7 +310,7 @@ describe('AI_COUNTER_ACE cancels both Aces', () => {
     };
   }
 
-  it('discards both Aces and strips nothing from either pile', () => {
+  it('discards both Aces and takes nothing from either pile', () => {
     const s = armed(1);
     const before = { p: s.playerScraps.length, a: s.aiScraps.length };
     const out = gameReducer(s, {

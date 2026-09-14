@@ -8,15 +8,15 @@ original, not a digital version of an existing game.
 
 ## How it plays
 
-- You always have two hands running at once: your private "small hand"
-  and your face-up "Scraps" hand. A round scores two small hands worth 1
-  point each, and one public "Scraps" hand worth 2 points.
-- You move cards from your hidden hand into your face-up Scraps to draw
+- You always have two hands running at once: your private hand and your
+  face-up "Scraps" hand. A round scores two hands worth 1 point each, and
+  one public "Scraps" hand worth 2 points.
+- You scrap cards from your hidden hand into your face-up Scraps to draw
   fresh cards. Both piles cap at 7 cards.
-- Aces are a weapon: discard one to strip two cards from the opponent's
-  Scraps. She can counter with an Ace of her own.
-- First to 10 points. Winning both small hands *and* the
-  Scraps hand in one round is a FULL SCRAP, worth 5.
+- Aces are a weapon: attack with one to discard two cards from the
+  opponent's Scraps. She can counter with an Ace of her own.
+- First to 10 points. Winning both hands *and* the
+  Scraps hand in one round is a CLEAN SWEEP, worth 5.
 
 ## Notes
 

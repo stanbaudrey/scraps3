@@ -139,7 +139,7 @@ function BeatHands() {
     // instead, which is the direction with space in it.
     <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-end',flexWrap:'wrap'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-        <HandIntro><b style={{color:DS.frost}}>Small hand</b> (private)</HandIntro>
+        <HandIntro><b style={{color:DS.frost}}>Hand</b> (private)</HandIntro>
         <Panel labelColor={DS.slate}>
           <CardRow cards={[KING]} size="normal"/>
         </Panel>
@@ -159,7 +159,7 @@ function BeatHands() {
   );
 }
 
-// ── Beat 2 — what each card is worth to trade in ─────────────
+// ── Beat 2 — what each card is worth to scrap ────────────────
 function BeatTrade() {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:14,alignItems:'center'}}>
@@ -295,9 +295,9 @@ function ScoreSlot({ label, points, cards, isScrap = false, tone, delay }) {
 function BeatScoring() {
   return (
     <div style={{display:'flex',gap:14,alignItems:'center',justifyContent:'center',flexWrap:'wrap'}}>
-      <ScoreSlot label="Small hand" points="1 PT" tone={DS.slateLight} delay={0}
+      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight} delay={0}
         cards={[C('8',8), C('8',8)]}/>
-      <ScoreSlot label="Small hand" points="1 PT" tone={DS.slateLight} delay={120}
+      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight} delay={120}
         cards={[C('J',11), C('J',11)]}/>
       <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap
         cards={[C('K',13), C('K',13), C('K',13)]}/>
@@ -329,8 +329,7 @@ const BEATS = [
   },
   {
     copy: (
-      <>Play two hands, then your best Scraps.
-      <b style={{color:DS.frost}}> No flushes.</b> Play to {WIN_SCORE}.</>
+      <>Play two hands, then your best Scraps. Play to {WIN_SCORE}.</>
     ),
     visual: <BeatScoring/>,
   },
@@ -354,8 +353,10 @@ export const LAST_BEAT = BEATS.length - 1;
 // 2026-08-30, when the separate RulesModal was retired: that modal was
 // a six-item text wall that truncated on a phone at item 4, cutting off
 // the no-flushes house rule — so a first-timer could lose to a rule the
-// game had never shown them. There is no reason to maintain a second,
-// worse explanation of the rules beside this one.
+// game had never shown them. (That rule is itself gone now: suits came
+// off the cards on 2026-09-13, so a flush cannot be dealt.) There is no
+// reason to maintain a second, worse explanation of the rules beside
+// this one.
 export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
   // `startAt` is for the difficulty picker's BACK, which returns the
   // reader to the LAST beat rather than the first — they have already

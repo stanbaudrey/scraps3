@@ -4586,6 +4586,139 @@ box now, which is compositor-only and lands in the same place.
 still told the reader to look at "one of the five families".
 
 
+### Unplanned session — The terminology and tone pass ✅ Done (2026-09-13)
+
+Renamed the game's vocabulary and rewrote the copy that carried it. **No
+mechanics, balance or layout changed.** The spec came in as
+`NEXT-SESSION-terminology.md`, written by a previous session, and its
+decisions were followed as settled — with one override from Stan, below.
+
+**The vocabulary now, and it is the whole point of the pass:**
+
+| What it names | Was | Is |
+|---|---|---|
+| Your private cards | small hand | **hand** |
+| Moving cards into Scraps | transfer / Trade In | **scrap** (verb) |
+| Spending an Ace | discard an Ace / ATTACK | **attack** |
+| What happens to their two cards | strip / remove | **discard** |
+| Winning all three hands | FULL SCRAP | **CLEAN SWEEP** |
+
+The rule that holds it together: **`discard` means exactly one thing**,
+cards leaving the table for the discard pile. That covers the Ace's two
+victims, the over-7 trim and the pile itself. An Ace is attacked WITH; it
+only reaches the pile when it is countered. So "discard an Ace" to mean
+spending one is retired.
+
+**Stan's override, and it is load-bearing for anyone reading the old spec.**
+The spec proposed **BURN** as the verb for spending an Ace and `BURN` as
+the tag over the card. He rejected both outright — "we're not using BURN" —
+so the tag stays **ATTACK** and *attack* is the verb everywhere. The word
+"burn" appears nowhere in the project. **The spec file on disk still says
+BURN in four places and is wrong about all four**; it is kept untracked at
+the repo root rather than committed, for exactly that reason.
+
+**CLEAN SWEEP also closed a real split nobody had noticed.** The same
+event was FULL SCRAP when the player did it and `· SWEEP` when the AI did —
+`reducer.js` already had `aiSweep` and logged "Opponent sweeps the round!".
+One name now covers both, and the opponent-side code needed no change.
+
+**Three decisions Stan made when asked, rather than assumed:**
+- **"strike" is gone too.** The narrator said "strike with your Ace" while
+  the tag said ATTACK and the storyboard said "attack" — three surfaces,
+  two words, one move. All prose is now *attack*. The internal `aceStrike`
+  cue and `playAceStrike` keep their names; the spec left them alone.
+- **The empty action button reads `SELECT CARDS`**, not `Scrap`. The spec
+  gave the selected form (`Scrap 2 → Draw 3`) and never the disabled one.
+  It names the thing you have to do first rather than the thing it becomes.
+- **Every surviving "no flushes" claim was deleted.** Suits came off the
+  cards on 2026-09-13, so the rule cannot arise — but it was still being
+  stated in **three** places: the storyboard's beat 3 (Stan called this one
+  mid-session), the JSON-LD `description` in `index.html` that crawlers
+  read, and the retired `RulesModal`. A reducer test named "flushes never
+  win the Scraps hand" was renamed to describe what it actually asserts now
+  (five high cards lose to a pair); the assertion itself was already right.
+
+**The four tone rewrites, verbatim from the spec:**
+- First-turn narrator → the spec's *"Pick cards to scrap. They land
+  face-up and you draw fresh ones. Seven max on each side."* was replaced
+  mid-session by **Stan's own line**: *"Pick cards to move into your
+  Scraps, then draw fresh ones. Seven card limits."* His version drops the
+  verb *scrap* from the longest sentence on the table and describes the
+  move instead — deliberate, and it outranks the spec.
+- Between the hands → *"Fresh cards. Second hand."*
+- Over-limit → *"That would put your Scraps at 8. Pick 1 to discard
+  first."* (the "Dimmed cards" suffix kept)
+- Opponent counters → *"They had an Ace too. Both gone. Turn over."* — and
+  its two siblings moved with it, or the voice would have split mid-exchange.
+
+**Two live strings the spec missed**, found by sweeping rather than by
+following the line numbers: the difficulty picker's HARD description
+("sacrifice small hands to win Scraps") and the Ace counter modal's
+explanatory paragraph, which said "nothing is removed" and "a strike of
+your own". Both are player-facing and both are fixed. **The spec's line
+numbers were stale throughout** — its `GameScreen.jsx:976` is the real
+file's 1206 — so content search beat line lookup every time.
+
+**One string was NOT a literal swap.** "Your turn. Transfer cards to your
+Scraps" becomes "Your turn. Scrap cards." — the direct substitution
+("Scrap cards to your Scraps") collides the verb with the pile name. Its
+sibling already reads "Your turn. Scrap cards, or attack with your Ace."
+
+**Identifiers renamed:** `tradeInValue`→`scrapValue`, `TradeInBtn`→`ScrapBtn`,
+`doTradeIn`→`doScrap`, `playTransfer`→`playScrap`, cue `transfer`→`scrap`,
+`PLAYER_TRADE_WITH_DISCARD`→`PLAYER_SCRAP_WITH_DISCARD`,
+`fullScrap`→`cleanSweep`, `FullScrapLightbox`→`CleanSweepLightbox`,
+`fullScrapPop`→`cleanSweepPop`.
+
+**Identifiers deliberately NOT renamed, and this is a known state rather
+than an oversight.** `hasLegalTrade`, `legalTradeFallback`, `pendingTrade`,
+`nextPhaseAfterTrade`, `PLAYER_TRADE_TAKE`, `PLAYER_TRADE_OVERFLOW_START`
+and `SMALL_HAND_SCORED` still carry the old words. The spec gave an
+explicit rename list and these were not on it; extending it reaches into
+the engine's AI scoring and the phase machinery for no user-visible gain.
+Note this leaves `PLAYER_SCRAP_WITH_DISCARD` sitting next to
+`PLAYER_TRADE_OVERFLOW_START` — two halves of one flow in two
+vocabularies. That was the spec's line, not a judgment made here, and it is
+the obvious thing for a later pass to finish. **Nothing player-facing uses
+those words.**
+
+**Renaming a cue does not invalidate its trim, and nothing was re-measured.**
+`transfer`→`scrap` and `fullScrap`→`cleanSweep` changed keys in the cue
+map, `TRIM` and `CUE_DUR` in parallel — the synthesis parameters are
+untouched, so the measured numbers stay exact. CLAUDE.md's warning is about
+*retuning* a cue, not renaming one.
+
+**What was verified, and how.** `npm test` 53 pass (the spec said 55 and was
+stale — CLAUDE.md already records the card redesign taking it 56→53),
+`npm run build` clean, `npm run share:check` green after `npm run share`
+regenerated `llms.txt` and the manifest. **The PNGs came back
+byte-identical**, exactly as the spec predicted, because `index.html`'s
+title and meta carry none of this vocabulary.
+
+The app was then **walked in a real browser** (Playwright's own Node API
+against the dev server on 5193, which another session already had up) at
+375px: splash → all four storyboard beats → difficulty picker → table,
+reading `innerText` at each step. Every screen confirmed by its rendered
+text, not by reading the source. The Scrap button was driven through both
+states — `SELECT CARDS` and `SCRAP 1 → DRAW 2`.
+
+**The one risk the spec flagged was measured, not eyeballed.** CLEAN SWEEP
+is 12 characters against FULL SCRAP's 11, inside a `nowrap` headline at
+`clamp(40px,12vw,112px)` in a FitBox. Measured in Fjalla One at four
+viewports: **at 375px it inks 255.7px against 343px available** — 87px of
+headroom, no FitBox downscale. (FULL SCRAP was 224.5px.) It fits at 390,
+768 and 1440 too. The lightbox itself was captured by flipping
+`showCleanSweep`'s initial state true, screenshotting, and reverting in the
+same step.
+
+**One instrument note worth keeping.** `~/Downloads` is blocked to this
+process by macOS TCC — `ls` on the specific file works (stat is permitted)
+while `cat` returns `Operation not permitted`, and the in-app browser
+cannot read a local file either. A handoff doc parked there has to be
+copied into the project before it can be read. That cost the first four
+tool calls of this session.
+
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4617,6 +4750,7 @@ still told the reader to look at "one of the five families".
 | — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done + **PUBLISHED** (2026-09-14) — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
 | — | *Unplanned:* Six notes off the preview | Done + **PUBLISHED** (2026-09-14) — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
+| — | *Unplanned:* Terminology and tone pass | Done (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical |
 
 
 ---
@@ -4694,6 +4828,30 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
+**The terminology pass is BUILT and on `dev` (2026-09-13), stacked on top
+of the card redesign.** The game now says hand, scrap, attack, discard and
+CLEAN SWEEP, and nothing player-facing says small hand, transfer, trade in,
+strip, strike or FULL SCRAP. Two things to look at on the preview, both
+copy rather than code: the **first-turn narrator**, which is Stan's own
+line rather than the spec's and the one a first-timer actually reads, and the
+**CLEAN SWEEP lightbox**, which is measured to fit at 375px but which
+nobody has seen land at the end of a real round. The Ace exchange lines
+("They had an Ace too. Both gone. Turn over.") only appear in a counter,
+so they are worth deliberately provoking.
+
+**One thing NOT to redo.** The spec that drove this pass,
+`NEXT-SESSION-terminology.md`, proposed **BURN** for spending an Ace and
+Stan rejected it outright. The tag is **ATTACK**. If that file surfaces
+again — it is untracked at the repo root, not committed — it is wrong in
+four places and this entry outranks it.
+
+**The finishing job it leaves.** `PLAYER_SCRAP_WITH_DISCARD` now sits
+beside `PLAYER_TRADE_OVERFLOW_START`, and `SMALL_HAND_SCORED`,
+`hasLegalTrade`, `legalTradeFallback` and `pendingTrade` still carry the
+retired words. That was the spec's line and it was followed deliberately;
+finishing it is a contained internal rename with no user-visible payoff,
+so it earns a slot of its own rather than riding on something else.
+
 **The card redesign is BUILT and on `dev`, awaiting Stan's look on a
 preview URL.** Torn Scraps on two paper stocks, one big Rye numeral per
 card, no suits anywhere, no box around a pile, and a Redwood table.
@@ -4730,13 +4888,20 @@ of the list still stands.
 It contains the original complaint this redesign answers, in his words
 ("STYLE OF SCRAPS CARDS UNDERCUTS CONCEPT OF THEM BEING THE MESSY
 DISCARD"), and it is the real backlog: off-brand interstitials, the
-opponent becoming female throughout, "small hand" becoming "hand",
-dropping the win-by-2 rule, removing the deck and discard piles in favour
-of cards dealing in from off-viewport, and a set of Ace copy changes.
+opponent becoming female throughout, ~~"small hand" becoming "hand"~~
+(**done** 2026-09-13, with the rest of the vocabulary), dropping the
+win-by-2 rule, removing the deck and discard piles in favour of cards
+dealing in from off-viewport, and ~~a set of Ace copy changes~~ (**done**
+2026-09-13 — the Ace is now attacked WITH and its victims are discarded).
 **One item in it blocks part of the redesign:** he asks whether Rye should
 replace Bungee Shade *everywhere*, not just Baloo 2 on the cards, which
 would change the wordmark and the family count. Spec section 6b has the
 detail.
+
+**~~Then: build the card and Scraps redesign from
+`CARD-REDESIGN-SPEC.md`.~~ SHIPPED 2026-09-13** — the paragraph below is
+kept for the reasoning it records, not as an instruction. The spec file is
+deleted.
 
 **Then: build the card and Scraps redesign from
 `CARD-REDESIGN-SPEC.md`.** Ten decisions, all Stan's, all confirmed, with

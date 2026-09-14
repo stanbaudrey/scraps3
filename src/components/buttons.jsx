@@ -111,7 +111,7 @@ export function pressStyles(applyIn, applyOut) {
 // that is not a sighted mouse user therefore missed it entirely: the
 // button stayed in the tab order, a screen reader announced it as an
 // ordinary available control, and pressing Enter on it did nothing at
-// all, with no explanation. TRADE IN is the game's primary action and
+// all, with no explanation. SCRAP is the game's primary action and
 // spends most of its life in that state, so it was the FIRST tab stop
 // on the table and it was dead.
 //
@@ -212,11 +212,11 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false, c
 // ─────────────────────────────────────────────────────────────
 // TableActionBtn — the table's primary action, in both its shapes.
 //
-// TRADE IN and SELECT HAND are the same control in two phases of a
+// SCRAP and SELECT HAND are the same control in two phases of a
 // hand: the one big thing the middle of the table is asking you to
 // do. They were built separately and drifted, so SELECT HAND (then
 // SIGNAL) used BigBtn's disabled look — opacity 0.35, a smudge — while
-// TRADE IN had already been given a legible outlined one in Session 5.
+// SCRAP had already been given a legible outlined one in Session 5.
 // One component now, so the two states cannot diverge again.
 //
 // DISABLED IS A STATE, NOT A LOOK, and it has to be legible: this
@@ -270,9 +270,9 @@ export function TableActionBtn({ onClick, disabled, label, blocked=false, compac
 }
 
 // ─────────────────────────────────────────────────────────────
-// TradeInBtn — the trade half of TableActionBtn.
+// ScrapBtn — the scrap half of TableActionBtn.
 //
-// The label carries the whole trade: how many cards leave, and
+// The label carries the whole move: how many cards leave, and
 // how many come back. It used to read "Trade In (2)", where the
 // 2 was cards SELECTED, which collided head-on with the rule the
 // walkthrough had just taught (a 10-K draws 2, an Ace draws 3) —
@@ -284,12 +284,12 @@ export function TableActionBtn({ onClick, disabled, label, blocked=false, compac
 // sound, which is how the rule gets taught rather than merely
 // enforced.
 // ─────────────────────────────────────────────────────────────
-export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
+export function ScrapBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
   const blocked = overLimit && !disabled;
   let label;
-  if (count === 0) label = 'Trade In';
+  if (count === 0) label = 'Select Cards';
   else if (blocked) label = `Hand would be ${projectedHand}/7`;
-  else label = `Trade ${count} \u2192 Draw ${drawCount}`;
+  else label = `Scrap ${count} \u2192 Draw ${drawCount}`;
   return <TableActionBtn onClick={onClick} disabled={disabled} blocked={blocked}
     compact={compact} label={label}/>;
 }
@@ -353,7 +353,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         : 'Attack with this Ace, discarding two of her Scraps cards' } : { 'aria-hidden': true })}
       {...pressStyles(hIn,hOut)}
       onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
-      title={disabled ? "Her Scraps needs 2+ cards before an Ace can strike" : undefined}
+      title={disabled ? "Her Scraps needs 2+ cards before an Ace can attack" : undefined}
       style={{
         width: Math.max(width, ACE_TAG_MIN_W), boxSizing:'border-box',
         background: disabled ? DS.duskMid : DS.gold,

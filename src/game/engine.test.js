@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   evaluateBestHand, compareHands, getValidSignals, getBestCardsForSignal,
-  isValidSignal, hasLegalTrade, legalTradeFallback, aiDecide, tradeInValue,
+  isValidSignal, hasLegalTrade, legalTradeFallback, aiDecide, scrapValue,
   createDeck, RANKS, RANK_VALUES,
 } from './engine.js';
 
@@ -112,7 +112,7 @@ describe('AI respects the same limits as the player', () => {
         const opp = cards('6', '6', 'J');
         const action = aiDecide(hand, scraps, opp, [], difficulty, 'ai-turn-1b', 0, 0);
         if (action.type === 'trade') {
-          const drawN = action.cards.reduce((s, x) => s + tradeInValue(x), 0);
+          const drawN = action.cards.reduce((s, x) => s + scrapValue(x), 0);
           const net = hand.length - action.cards.length + drawN;
           expect(net).toBeLessThanOrEqual(7);
         }

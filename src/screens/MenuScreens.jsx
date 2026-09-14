@@ -91,7 +91,7 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
     { id:'easy', label:'EASY', tone:DS.voltage,
       desc:'Doesn’t take risks. Rarely weaponizes Aces.' },
     { id:'hard', label:'HARD', tone:DS.ember,
-      desc:'Aggressive. Bold. Will sacrifice small hands to win Scraps.' },
+      desc:'Aggressive. Bold. Will sacrifice hands to win Scraps.' },
   ];
 
   return (

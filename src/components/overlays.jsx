@@ -100,7 +100,7 @@ function Shell({ children, zIndex, background, onClick, pad = 16, style = {},
 
 // Easing for overlays that deliver BAD news. The rest of this file
 // arrives on cubic-bezier(.34,1.6,.64,1) — an overshoot, which is the
-// right feel for a Full Scrap or a win and the wrong one for "the
+// right feel for a Clean Sweep or a win and the wrong one for "the
 // opponent just took two of your cards." That mismatch is the
 // bounce-easing finding the static detector kept raising and Session 1's
 // critique flagged as a P1: celebratory motion attached to a loss.
@@ -243,9 +243,9 @@ export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName
 }
 
 // ─────────────────────────────────────────────────────────────
-// FullScrapLightbox — elaborate celebration
+// CleanSweepLightbox — elaborate celebration
 // ─────────────────────────────────────────────────────────────
-export function FullScrapLightbox({ onDone }) {
+export function CleanSweepLightbox({ onDone }) {
   const canvasRef=useRef();
   const [phase,setPhase]=useState(0); // 0=fireworks, 1=text
   // Phase 0 is fireworks over a canvas with nothing to press. Trapping
@@ -286,7 +286,7 @@ export function FullScrapLightbox({ onDone }) {
 
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
-      aria-label="Full Scrap — you won all three hands"
+      aria-label="Clean Sweep — you won all three hands"
       style={{position:'fixed',inset:0,zIndex:200,outline:'none'}}>
       <canvas ref={canvasRef} aria-hidden="true" style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
       {phase===1&&(
@@ -299,9 +299,9 @@ export function FullScrapLightbox({ onDone }) {
             fontSize:'clamp(40px,12vw,112px)',
             color:DS.gold,
             textShadow:`0 0 40px ${DS.gold},0 0 80px ${DS.gold}88`,
-            animation:'fullScrapPop 0.5s cubic-bezier(.34,1.8,.64,1)',
+            animation:'cleanSweepPop 0.5s cubic-bezier(.34,1.8,.64,1)',
             letterSpacing:'0.04em',whiteSpace:'nowrap',textAlign:'center',
-          }}>FULL SCRAP!</div>
+          }}>CLEAN SWEEP!</div>
           <div style={{
             background:DS.inkLight,border:`3px solid ${DS.gold}`,
             borderRadius:16,padding:'24px 40px',textAlign:'center',
@@ -309,7 +309,7 @@ export function FullScrapLightbox({ onDone }) {
             animation:'slideUp 0.4s ease 0.2s both',
           }}>
             <div style={{fontFamily:F.ui,color:DS.frost,fontSize:22,fontWeight:700,lineHeight:1.6}}>
-              You won both small hands<br/>and the Scraps hand!
+              You won both hands<br/>and the Scraps!
             </div>
             <div style={{fontFamily:F.display,color:DS.gold,fontSize:36,
               letterSpacing:'0.08em',marginTop:12}}>
@@ -615,9 +615,9 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
         <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:17,fontWeight:700,
           marginBottom:24}}>You have an Ace. Counter to cancel hers?</p>
         <p style={{fontFamily:F.ui,color:DS.slate,fontSize:14,marginBottom:24,lineHeight:1.5}}>
-          Countering cancels her Ace and nothing is removed. Both Aces are then
-          discarded, so your Ace is spent either way: countering trades it for hers
-          instead of saving it for a strike of your own.
+          Countering cancels her Ace and nothing is discarded from either Scraps.
+          Both Aces go to the pile, so your Ace is spent either way: countering
+          trades it for hers instead of saving it for an attack of your own.
         </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
           <Btn variant="danger" onClick={onCounter}>
@@ -732,11 +732,11 @@ export function RulesModal({ onClose }) {
   }, [onClose]);
   const rules=[
     {icon:<IconCards size={24} color={DS.voltage}/>,t:`Scraps is a game of twos: Two hands. Two opponents. Two games of Poker happening at two speeds. First to ${WIN_SCORE}.`},
-    {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private small hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
-    {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Transfer cards from your small hand into your Scraps, and pick up fresh cards. Transfer a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
-    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Discard an Ace to remove two cards from your opponent's Scraps. She can counter with an Ace of her own."},
-    {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two small hands, play your best 5-card Scraps hand for 2 pts. Flushes are never allowed.'},
-    {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both small hands AND the Scraps hand for a FULL SCRAP — 5 points total.'},
+    {icon:<IconFan size={24} color={DS.voltage}/>,t:"Each round: two private hands (worth 1 point each) and one public 'Scraps' hand (worth 2). Max 7 cards in either."},
+    {icon:<IconCycle size={24} color={DS.voltage}/>,t:'Scrap cards from your hand into your Scraps, and pick up fresh cards. Scrap a 10-K and pick up 2 fresh cards. Ace earns 3. All others earn 1.'},
+    {icon:<IconBolt size={24} color={DS.ember}/>,t:"Attack with an Ace to discard two cards from your opponent's Scraps. She can counter with an Ace of her own."},
+    {icon:<IconSpade size={24} color={DS.voltage}/>,t:'After two hands, play your best 5-card Scraps hand for 2 pts.'},
+    {icon:<IconTrophy size={24} color={DS.voltage}/>,t:'Bonus points: Win both hands AND the Scraps hand for a CLEAN SWEEP — 5 points total.'},
   ];
   // The rules panel is the ONE overlay that keeps a scrollbar. It
   // is a wall of reference text, and the alternative — scaling it

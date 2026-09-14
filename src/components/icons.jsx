@@ -24,7 +24,7 @@ export function IconBolt({ size=18, color='currentColor', style }) {
   );
 }
 
-// Trophy — Full Scrap / wins
+// Trophy — Clean Sweep / wins
 export function IconTrophy({ size=18, color='currentColor', style }) {
   return (
     <Svg size={size} color={color} style={style}>

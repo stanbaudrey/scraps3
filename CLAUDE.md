@@ -1,12 +1,35 @@
 # SCRAPS
 
 A two-player card game against an AI opponent, played in the browser. Each
-round runs two private "small hands" (worth 1 point each) plus one public
-"Scraps" hand (worth 2). You move cards from your hidden hand into your
+round runs two private "hands" (worth 1 point each) plus one public
+"Scraps" hand (worth 2). You scrap cards from your hidden hand into your
 face-up Scraps pile to draw fresh cards, and both piles cap at 7. Aces are a
-weapon: discard one to strip two cards from the opponent's Scraps pile, and
-she can counter with an Ace of her own. First to 10. Winning
-both small hands *and* the Scraps hand is a FULL SCRAP, worth 5.
+weapon: attack with one to discard two cards from the opponent's Scraps pile,
+and she can counter with an Ace of her own. First to 10. Winning
+both hands *and* the Scraps hand is a CLEAN SWEEP, worth 5.
+
+**The vocabulary was settled on 2026-09-13** and the words above are the
+only ones the game uses. A private pile is a **hand**, never a "small
+hand". Moving cards into Scraps is to **scrap** them, never "transfer" or
+"trade in". Spending an Ace is to **attack** — the clickable tag over an
+Ace says ATTACK and that is Stan's call, made against a spec that proposed
+BURN; **the word "burn" appears nowhere in this project and should not be
+reintroduced**. And `discard` names exactly one thing: cards leaving the
+table for the discard pile. That covers the Ace's two victims, the over-7
+trim and the pile itself — so never write "discard an Ace" to mean
+spending one, because the Ace is attacked WITH and only reaches the pile
+when it is countered. Winning all three hands is a **CLEAN SWEEP**, which
+also collapsed a real split: the same event used to be FULL SCRAP when the
+player did it and SWEEP when the AI did.
+
+**Two identifier families were deliberately left on the old vocabulary.**
+`hasLegalTrade`, `legalTradeFallback`, `pendingTrade`, `nextPhaseAfterTrade`,
+`PLAYER_TRADE_TAKE`, `PLAYER_TRADE_OVERFLOW_START` and `SMALL_HAND_SCORED`
+still say trade and small hand. The terminology spec named an explicit
+rename list and these were not on it; renaming them reaches into the
+engine's AI scoring and the phase machinery for no user-visible gain. They
+are a known state, not an oversight — but nothing player-facing may use
+those words.
 
 **Cards have no suit.** They carry a rank and an id, and nothing else. That
 was the house rule until 2026-09-13 — "flushes are never valid, a suited
@@ -301,7 +324,7 @@ looks broken locally, it is not a missing-secret problem.
   option gives repeated taps inside one cue their own character, and
   `playFireworkPop` randomises pitch and level out loud.
 - **`TRIM` is the mix, and it goes stale silently.** Each cue is normalised to
-  a declared target peak (`select` .16 up to `fullScrap` .94) so the cue you
+  a declared target peak (`select` .16 up to `cleanSweep` .94) so the cue you
   hear thirty times a game can never be louder than the one you may never
   hear. Raw peaks span 25:1 without it. **If you retune a cue's parameters,
   its trim is wrong until re-measured** — render `renderCue(name, offlineCtx,

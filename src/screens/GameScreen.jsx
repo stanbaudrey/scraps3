@@ -13,7 +13,7 @@
 import { useReducer, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
-  aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, tradeInValue,
+  aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, scrapValue,
   shouldCounterAce, chooseAceTargets, signalHandLabel,
 } from "../game/engine.js";
 import {
@@ -22,20 +22,20 @@ import {
 } from "../game/reducer.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
-  playSelect, playTransfer, playDraw, playAceStrike, playAceCounter,
+  playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
   playInvalid, playHandWon, playHandLost, playRoundWon, playRoundLost,
-  playFullScrap, playRevealBuild } from "../audio.js";
+  playCleanSweep, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, GameAnnouncer } from "../components/hud.jsx";
-import { BigBtn, TradeInBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
+import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
 import { Walkthrough } from "./Walkthrough.jsx";
 import { recordGame } from "../game/stats.js";
 import { useViewport, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
-  RoundInterstitial, RevealOverlay, FullScrapLightbox, WinScreen, LoseScreen,
+  RoundInterstitial, RevealOverlay, CleanSweepLightbox, WinScreen, LoseScreen,
   AceCounterModal, SkipTurnModal, QuitConfirmModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
@@ -165,7 +165,7 @@ export function GameScreen({ difficulty, onExit }) {
   // than derived at reveal time, because by then `aiSignal` is set in
   // BOTH orders and can no longer tell you which came first.
   const [autoReveal, setAutoReveal]         = useState(false);
-  const [showFullScrap, setShowFullScrap]   = useState(false);
+  const [showCleanSweep, setShowCleanSweep] = useState(false);
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [waveIds, setWaveIds]               = useState(new Set());
   // Cards that belong to a hand but have not been dealt out of the
@@ -239,7 +239,7 @@ export function GameScreen({ difficulty, onExit }) {
   // Draws are the one cue that has to be SCHEDULED rather than
   // played on the spot: the cards leave the deck well after the
   // trade commits, one every 120ms, and a peel that fires before
-  // its card moves reads as belonging to the trade instead. These
+  // its card moves reads as belonging to the scrap instead. These
   // timers are tracked so skipping the animation cancels the
   // sounds that have not landed yet — otherwise a skip is followed
   // by peels for cards already sitting in the hand.
@@ -414,11 +414,11 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   // ── Player trade ───────────────────────────────────────────
-  function doTradeIn() {
+  function doScrap() {
     if (selected.length === 0) return;
     const sel = selected.filter(c => playerHand.find(h => h.id === c.id));
     if (sel.length === 0) return;
-    const drawCount = sel.reduce((s, c) => s + tradeInValue(c), 0);
+    const drawCount = sel.reduce((s, c) => s + scrapValue(c), 0);
     const netHand = (playerHand.length - sel.length) + drawCount;
     const newScrapsCount = playerScraps.length + sel.length;
     if (netHand > 7) {
@@ -454,7 +454,7 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]);
     clearTimeout(tradeErrorTimer.current);
     setTradeError(null);
-    playTransfer();
+    playScrap();
 
     // COMMIT: one batched render. TAKE stages the move, the two
     // ARRIVE actions land it — React runs all three through the
@@ -500,9 +500,9 @@ export function GameScreen({ difficulty, onExit }) {
     const entering = tradeCards.map(c => ({ card: c, rect: rectOf(c.id) }));
     const deckRect = deckAnchor();
 
-    dispatch({ type: 'PLAYER_TRADE_WITH_DISCARD', discardCards: [...scrapsDiscard] });
+    dispatch({ type: 'PLAYER_SCRAP_WITH_DISCARD', discardCards: [...scrapsDiscard] });
     setScrapsDiscard([]); setSelected([]);
-    playTransfer();
+    playScrap();
 
     const moves = [];
     if (discardRect) {
@@ -762,7 +762,7 @@ export function GameScreen({ difficulty, onExit }) {
     // jumping around on their own rather than as somebody thinking.
     // A ruffle is one quick pass across the hand — a small lift and
     // lean, tightly staggered, done once — the way a real hand gets
-    // riffled while its owner decides. It resolves before the transfer
+    // riffled while its owner decides. It resolves before the scrap
     // animation starts, so the two never overlap.
     const RUFFLE_MS = 340;       // one card's pass
     const RUFFLE_STAGGER = 38;   // card-to-card offset across the fan
@@ -798,7 +798,7 @@ export function GameScreen({ difficulty, onExit }) {
           // cards where they sit, commit, then animate the delta.
           const first = action.cards.map(c => ({ card: c, rect: rectOf(c.id) }));
           const deckRect = deckAnchor();
-          const drawCount = action.cards.reduce((sum, c) => sum + tradeInValue(c), 0);
+          const drawCount = action.cards.reduce((sum, c) => sum + scrapValue(c), 0);
           const drawn = stateRef.current.deck.slice(0, drawCount);
           setAiSignaledIds(new Set());
           setAiMoveDone(phase);
@@ -810,7 +810,7 @@ export function GameScreen({ difficulty, onExit }) {
             arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
             delay: i * STEP,
           }));
-          // ONLY the transferred cards fly. The replacement draws used
+          // ONLY the scrapped cards fly. The replacement draws used
           // to fly face-down from the deck as well, so that the
           // opponent's intake stayed visible — but the motion system
           // hides a card while it is in flight, and the new cards are
@@ -821,9 +821,9 @@ export function GameScreen({ difficulty, onExit }) {
           //
           // The intake is still visible; it simply arrives rather than
           // travels. The drawn cards are hidden from the commit, then
-          // fade up in place once the transferred cards have landed.
+          // fade up in place once the scrapped cards have landed.
           // The replacement draws fly in from the deck AFTER the
-          // transferred cards have landed, exactly as the player's own
+          // scrapped cards have landed, exactly as the player's own
           // trade does (see executeTrade). That ordering is the whole
           // point of the gesture: cards leave the hand and their slots
           // stand empty, then new ones arrive from the deck to fill
@@ -970,7 +970,7 @@ export function GameScreen({ difficulty, onExit }) {
     // the 2 points. This used to bail out on a null and leave the game
     // stranded in `scraps-reveal` with no way forward.
     const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
-    const { pPts, aPts, winner, fullScrap, aiSweep, pB, aB } = out;
+    const { pPts, aPts, winner, cleanSweep, aiSweep, pB, aB } = out;
     if (winner === 'player') playRoundWon();
     else if (winner === 'ai') playRoundLost();
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
@@ -980,15 +980,15 @@ export function GameScreen({ difficulty, onExit }) {
       playerCards: [...playerScraps].slice(0, 7), aiCards: [...aiScraps].slice(0, 7),
       playerHandName: pB.name, aiHandName: aB.name + (aiSweep ? ' · SWEEP' : ''),
       winner, points: winner === 'player' ? pPts : winner === 'ai' ? aPts : 0,
-      bonusLine: fullScrap ? 'INCLUDES +1 FULL SCRAP BONUS' : null,
+      bonusLine: cleanSweep ? 'INCLUDES +1 CLEAN SWEEP BONUS' : null,
       continueLabel: endsIt ? 'Continue' : 'Next Round',
       playerBestIds: pBestIds, aiBestIds: aBestIds,
       onContinue: () => {
         setRevealData(null);
-        dispatch({ type: 'SCRAPS_SCORED', pPts, aPts, winner, fullScrap, aiSweep, pName: pB.name });
-        if (fullScrap) {
-          setShowFullScrap(true);
-          playFullScrap();
+        dispatch({ type: 'SCRAPS_SCORED', pPts, aPts, winner, cleanSweep, aiSweep, pName: pB.name });
+        if (cleanSweep) {
+          setShowCleanSweep(true);
+          playCleanSweep();
         }
       },
     });
@@ -1014,9 +1014,9 @@ export function GameScreen({ difficulty, onExit }) {
   const selValid = isSignal && !signalLocked && isValidSignal(selectedInHand);
   const playerHasAce = playerHand.some(c => c.rank === 'A');
   // Live trade projection. Computed here rather than inside
-  // doTradeIn so the button can state the outcome BEFORE the
+  // doScrap so the button can state the outcome BEFORE the
   // click instead of the error firing after it.
-  const tradeDraw = selectedInHand.reduce((n, c) => n + tradeInValue(c), 0);
+  const tradeDraw = selectedInHand.reduce((n, c) => n + scrapValue(c), 0);
   const tradeNetHand = (playerHand.length - selectedInHand.length) + tradeDraw;
   const tradeOverLimit = selectedInHand.length > 0 && tradeNetHand > 7;
   const glowHand = (isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked);
@@ -1143,15 +1143,15 @@ export function GameScreen({ difficulty, onExit }) {
       const t = setTimeout(() => resolveScrap(), HANDOFF.scraps);
       return () => clearTimeout(t);
     }
-    // A FULL SCRAP puts fireworks between the Scraps result and the
+    // A CLEAN SWEEP puts fireworks between the Scraps result and the
     // next round, and those are not skippable — the round waits for the
     // lightbox to be dismissed rather than starting behind it.
-    if (phase === 'round-end' && !showFullScrap) {
+    if (phase === 'round-end' && !showCleanSweep) {
       const t = setTimeout(() => startNewRound(true), HANDOFF.round);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [phase, revealData, gameOver, showFullScrap]);
+  }, [phase, revealData, gameOver, showCleanSweep]);
 
   useEffect(() => {
     if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
@@ -1173,13 +1173,13 @@ export function GameScreen({ difficulty, onExit }) {
   // dropping the branch entirely would let the next condition fill the
   // hint line while cards are still mid-flight. Silent, not absent.
   if (settling) hint = '';
-  else if (aiAceReveal) hint = "Opponent's Ace removes two cards from your Scraps.";
+  else if (aiAceReveal) hint = "Opponent's Ace discards two cards from your Scraps.";
   else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
   else if (isScrapsDiscardMode) {
     const moving = pendingTrade ? pendingTrade.cards.length : 0;
     const lockedInScraps = playerScraps.some(c => !c.eligibleForDiscard);
-    hint = `Trading ${moving} card${moving > 1 ? 's' : ''} would put your Scraps at ${playerScraps.length + moving}/7. `
-      + `Select ${scrapsOverflow} to discard, then hit DISCARD.`
+    hint = `That would put your Scraps at ${playerScraps.length + moving}. `
+      + `Pick ${scrapsOverflow} to discard first.`
       + (lockedInScraps ? ' Dimmed cards were placed this turn and cannot go.' : '');
   }
   // The running count came OFF this line on 2026-09-13 (Stan). It is
@@ -1187,7 +1187,7 @@ export function GameScreen({ difficulty, onExit }) {
   // control it gates. Saying it twice made the instruction re-render on
   // every tap and read as a progress bar rather than a sentence.
   else if (aceMode) hint = "Select 2 cards from opponent's Scraps to discard.";
-  else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to play an Ace.';
+  else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to attack with an Ace.';
   else if (isPlayerTurn) {
     // The instruction runs in FULL on the first player turn of a round
     // and collapses to a short reminder for the rest of it.
@@ -1198,19 +1198,19 @@ export function GameScreen({ difficulty, onExit }) {
     // middle of the surface where the game wants room. Session 5 cut
     // the score numerals 60 → 44 for exactly this reason and never came
     // back for the narrator. A first-timer needs the full sentence; by
-    // the fourth trade of a round nobody is reading it.
+    // the fourth scrap of a round nobody is reading it.
     // Full text on the first player turn of ROUND 1 only. By round 2 a
-    // player has taken four trade turns and does not need the sentence
+    // player has taken four scrap turns and does not need the sentence
     // again; the short form carries from there on.
     if (roundNum === 1 && (fullHint.round !== roundNum || fullHint.turn === currentTurn)) {
-      const base = 'Select cards to transfer from your small hand to your Scraps. Both are limited to seven cards.';
-      if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or strike with the Ace in your hand.';
-      else if (playerHasAce) hint = base + " Your Ace can't strike yet: their Scraps needs 2 cards.";
+      const base = 'Pick cards to move into your Scraps, then draw fresh ones. Seven card limits.';
+      if (playerHasAce && aiScraps.length >= 2) hint = base + ' Or attack with the Ace in your hand.';
+      else if (playerHasAce) hint = base + " Your Ace can't attack yet: their Scraps needs 2 cards.";
       else hint = base;
     } else {
       hintShort = true;
-      if (playerHasAce && aiScraps.length >= 2) hint = 'Your turn. Transfer cards, or strike with your Ace.';
-      else hint = 'Your turn. Transfer cards to your Scraps.';
+      if (playerHasAce && aiScraps.length >= 2) hint = 'Your turn. Scrap cards, or attack with your Ace.';
+      else hint = 'Your turn. Scrap cards.';
     }
   }
   else if (isAiSignaling) hint = 'Opponent is choosing her signal...';
@@ -1440,7 +1440,7 @@ export function GameScreen({ difficulty, onExit }) {
         {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand&&(
           <>
             {!forcedAce&&(
-              <TradeInBtn onClick={doTradeIn} disabled={selectedInHand.length===0} compact={tight}
+              <ScrapBtn onClick={doScrap} disabled={selectedInHand.length===0} compact={tight}
                 count={selectedInHand.length} drawCount={tradeDraw}
                 projectedHand={tradeNetHand} overLimit={tradeOverLimit}/>
             )}
@@ -1766,7 +1766,7 @@ export function GameScreen({ difficulty, onExit }) {
         playerBestIds={revealData.playerBestIds||null}
         aiBestIds={revealData.aiBestIds||null}
         continueLabel={revealData.continueLabel||'Continue'}/>}
-      {showFullScrap&&<FullScrapLightbox onDone={()=>setShowFullScrap(false)}/>}
+      {showCleanSweep&&<CleanSweepLightbox onDone={()=>setShowCleanSweep(false)}/>}
       {flightsOverlay}
       {showInterstitial&&<RoundInterstitial roundNum={roundNum} onDone={onInterstitialDone}/>}
       {pendingAiAce&&!aiAceReveal&&(

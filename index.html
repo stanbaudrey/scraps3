@@ -47,7 +47,7 @@
       "@type": "VideoGame",
       "name": "SCRAPS",
       "url": "https://scraps.games/",
-      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps worth two, and Aces that strip your opponent's board. First to 10. Flushes are never valid.",
+      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps worth two, and Aces that discard your opponent's board. First to 10.",
       "genre": "Card game",
       "gamePlatform": "Web browser",
       "playMode": "SinglePlayer",
@@ -471,7 +471,7 @@
          identical resting frame with no travel. Declared here and
          overridden inside the reduced-motion block below. */
       @keyframes scrapArrive{from{opacity:0}to{opacity:1}}
-      @keyframes fullScrapPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
+      @keyframes cleanSweepPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
       /* One card's share of the opponent's ruffle. Small on purpose:
          at 22px of lift, staggered across five cards, this read as the
@@ -614,7 +614,7 @@
 
          1. ONE-SHOT ENTRANCES that end where the element already
             belongs — fadeUp, cardFadeIn, slideUp/Down, popIn,
-            fullScrapPop, letterAppear, panelDeal, cardRuffle, errRise,
+            cleanSweepPop, letterAppear, panelDeal, cardRuffle, errRise,
             the score and badge pops. Collapsing the duration lands
             the final frame immediately. Nothing is lost: these
             animate an element INTO the state it would have had
@@ -723,15 +723,15 @@
         <h2 style="font-family:'Fjalla One',sans-serif;margin:1.75rem 0 .5rem">How it plays</h2>
         <ul>
           <li>You always have two poker hands running at once: your private
-            small hand, and your face-up Scraps hand that everybody can see.</li>
-          <li>Move cards from your small hand into your Scraps to draw
+            hand, and your face-up Scraps hand that everybody can see.</li>
+          <li>Scrap cards from your hand into your Scraps to draw
             fresh ones. Cards 2&ndash;9 draw one, 10&ndash;K draw two, an Ace
             draws three. Both piles cap at 7 cards.</li>
-          <li>Aces are a weapon: discard one to strip two cards from your
-            opponent's Scraps. She can counter with an Ace of her own.</li>
-          <li>Each round scores two small hands worth 1 point each and the
+          <li>Aces are a weapon: attack with one to discard two cards from
+            your opponent's Scraps. She can counter with an Ace of her own.</li>
+          <li>Each round scores two hands worth 1 point each and the
             Scraps hand worth 2. First to 10 points. Winning all
-            three hands in one round is a FULL SCRAP, worth 5.</li>
+            three hands in one round is a CLEAN SWEEP, worth 5.</li>
         </ul>
         <p><strong>This game needs JavaScript to play.</strong> Enable it and
           reload to start a match.</p>

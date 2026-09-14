@@ -17,7 +17,7 @@
 //   voltage — bright leaf "fern" green (was acid green) — yours / active / interactive
 //   slate   — warm sage-grey — muted / secondary
 //   gold, goldHover, canopy — new: gold marks a milestone ONLY
-//   (Full Scrap, the win screen, playing your own Ace) — never a
+//   (Clean Sweep, the win screen, playing your own Ace) — never a
 //   general UI color.
 //
 // THE CANOPY RULE, amended 2026-08-30 (Stan's call, during the audit):

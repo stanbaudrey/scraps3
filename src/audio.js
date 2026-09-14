@@ -289,8 +289,8 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // may never hear at all:
 //
 //   select .12 · draw .22 · invalid/handWon/handLost .34
-//   transfer .30 · roundLost .46 · roundWon .50 · aceStrike .56
-//   gameLost .66 · gameWon .72 · aceCounter .80 · fullScrap .94
+//   scrap .30 · roundLost .46 · roundWon .50 · aceStrike .56
+//   gameLost .66 · gameWon .72 · aceCounter .80 · cleanSweep .94
 //   revealBuild .297
 //
 // The targets are Stan's. None changed on 2026-09-13 — only the
@@ -335,7 +335,7 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // ─────────────────────────────────────────────────────────────
 const TRIM = {
   select:      0.5249,   // re-measured 2026-09-14 for A5 at target .12
-  transfer:    1.2545,
+  scrap:       1.2545,
   draw:        8.0773,
   aceStrike:   1.2125,
   aceCounter:  1.7237,
@@ -346,7 +346,7 @@ const TRIM = {
   roundLost:   1.4561,
   gameWon:     1.5468,
   gameLost:    0.9718,
-  fullScrap:   1.8332,
+  cleanSweep:  1.8332,
   revealBuild: 9.0647,   // voice unchanged, so trim untouched
 };
 
@@ -388,7 +388,7 @@ function cue(name) {
 // ─────────────────────────────────────────────────────────────
 const VOICES = {
 
-  /** Card toggled in your small hand. The most frequent sound in
+  /** Card toggled in your hand. The most frequent sound in
    *  the game by a wide margin — a dozen fire before one trade —
    *  so it is the quietest thing here and has no tail to stack.
    *
@@ -416,7 +416,7 @@ const VOICES = {
     bar(c, o, t, NOTE.A5 * Math.pow(1.06, i % 2), 'xylo',
       { gain: 0.6, len: 0.12, mallet: 0.75, seed: 2 + i }),
 
-  /** Trade commits; cards fly hand → Scraps.
+  /** Scrap commits; cards fly hand → Scraps.
    *
    *  Stan's pick: "Lift and set". TWO EVENTS, NOT A SLIDE, and
    *  that is the whole point of the change. The cue this replaces
@@ -426,7 +426,7 @@ const VOICES = {
    *  box thunk 220ms later as it lands, which still reads as
    *  directional (you hear it go, then arrive) with no slide in
    *  it at all. Covers the 620ms card flight. */
-  transfer: (c, o, t) => {
+  scrap: (c, o, t) => {
     tap(c, o, t, scaleMat(MAT.dowel, 0.95), { gain: .5, exc: .003, curve: 6 });
     tap(c, o, t + 0.22, MAT.hollow, { gain: .95, exc: .008, curve: 4, seed: 7 });
     thud(c, o, t + 0.22, 104, 48, .15, .26);
@@ -446,7 +446,7 @@ const VOICES = {
       { gain: 1, exc: .014, curve: 2.6, seed: 9 + i });
   },
 
-  /** An Ace is spent to strip two cards off the opponent's
+  /** An Ace is spent to discard two cards off the opponent's
    *  Scraps. The signature moment.
    *
    *  Stan's pick: "Crate slam" — a big thin-walled crate struck
@@ -489,7 +489,7 @@ const VOICES = {
     thud(c, o, t, 74, 40, .10, .18);
   },
 
-  /** One of the two small hands scores, 1 pt.
+  /** One of the two hands scores, 1 pt.
    *
    *  Stan's pick: "Bars, up a fifth" — xylophone G5 to D6. Fires
    *  twice a round, so it has to survive repetition better than
@@ -502,7 +502,7 @@ const VOICES = {
     bar(c, o, t + .12, NOTE.D6, 'xylo', { gain: .95, len: .75, seed: 3 });
   },
 
-  /** A small hand lost. The exact inverse of handWon: the same
+  /** A hand lost. The exact inverse of handWon: the same
    *  two bars, D6 down to G5, slightly softer and left to ring a
    *  little longer. The kit's one real mechanism — rising means
    *  you won it, falling means you didn't — now runs on pitch
@@ -549,7 +549,7 @@ const VOICES = {
   /** The opponent reaches the win condition. Two low marimba
    *  bars, D4 down to G3, 300ms apart, the second left to ring
    *  for nearly two seconds. The longest cue in the game after
-   *  fullScrap, and the quietest way to be told you lost: it
+   *  cleanSweep, and the quietest way to be told you lost: it
    *  reads as an ending rather than as a verdict. The pause
    *  between the two is doing as much work as either note. */
   gameLost: (c, o, t) => {
@@ -557,11 +557,11 @@ const VOICES = {
     bar(c, o, t + .30, NOTE.G3, 'marimba', { gain: .95, len: 1.5, seed: 4 });
   },
 
-  /** Both small hands AND the Scraps hand — 5 pts, the rarest
+  /** Both hands AND the Scraps hand — 5 pts, the rarest
    *  event in the game. Ten bars up three octaves accelerating
    *  into the top G, held for 1.8 seconds. Most players will
    *  never hear it, which is what justifies the length. */
-  fullScrap: (c, o, t) => {
+  cleanSweep: (c, o, t) => {
     let at = t, dt = .095;
     for (let i = 0; i < 10; i++) {
       bar(c, o, at, RUN[i], 'xylo', { gain: .55 + i * .045, len: .6, seed: i + 2 });
@@ -590,9 +590,9 @@ const VOICES = {
 // How long each voice actually rings for, used only by the
 // offline measurement below.
 export const CUE_DUR = {
-  select: .14, transfer: .58, draw: .22, aceStrike: .44, aceCounter: .72,
+  select: .14, scrap: .58, draw: .22, aceStrike: .44, aceCounter: .72,
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
-  gameWon: 1.00, gameLost: 2.25, fullScrap: 1.20, revealBuild: .70,
+  gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
 };
 
 /** Schedule a cue into any context — the live one or an offline
@@ -616,7 +616,7 @@ export const CUE_VARIANTS = { select: 3, draw: 4 };
 // ─────────────────────────────────────────────────────────────
 
 export function playSelect()     { cue('select'); }
-export function playTransfer()   { cue('transfer'); }
+export function playScrap()      { cue('scrap'); }
 export function playDraw()       { cue('draw'); }
 export function playAceStrike()  { cue('aceStrike'); }
 export function playAceCounter() { cue('aceCounter'); }
@@ -627,7 +627,7 @@ export function playRoundWon()   { cue('roundWon'); }
 export function playRoundLost()  { cue('roundLost'); }
 export function playGameWon()    { cue('gameWon'); }
 export function playGameLost()   { cue('gameLost'); }
-export function playFullScrap()  { cue('fullScrap'); }
+export function playCleanSweep() { cue('cleanSweep'); }
 
 /** The build-up, then `onDone`. Timed to the 580ms the previous
  *  sine crescendo took, so the reveal choreography is unchanged

@@ -59,9 +59,9 @@ export function dealCards(deck, count) {
   return { dealt: deck.slice(0, count), remaining: deck.slice(count) };
 }
 
-// ── Trade-in value ────────────────────────────────────────────
+// ── Scrap value ───────────────────────────────────────────────
 
-export function tradeInValue(card) {
+export function scrapValue(card) {
   if (card.value >= 2 && card.value <= 9) return 1;
   if (card.value >= 10 && card.value <= 13) return 2;
   if (card.value === 14) return 3; // Ace
@@ -79,14 +79,14 @@ export function tradeInValue(card) {
 
 export function hasLegalTrade(hand) {
   if (!hand || hand.length === 0) return false;
-  const minGain = Math.min(...hand.map(tradeInValue));
+  const minGain = Math.min(...hand.map(scrapValue));
   return (hand.length - 1 + minGain) <= HAND_LIMIT;
 }
 
 // Lowest-value single card that can legally be traded, or null.
 export function legalTradeFallback(hand) {
   const legal = hand
-    .filter(c => (hand.length - 1 + tradeInValue(c)) <= HAND_LIMIT)
+    .filter(c => (hand.length - 1 + scrapValue(c)) <= HAND_LIMIT)
     .sort((a, b) => a.value - b.value);
   return legal.length > 0 ? legal[0] : null;
 }
@@ -443,7 +443,7 @@ function chooseTrade(aiHand, aiScraps, opponentScraps) {
   // (Aces are handled separately — they're weapons, not trades)
   const candidates = aiHand.filter(c => {
     if (c.rank === 'A') return false;
-    const gain = tradeInValue(c);
+    const gain = scrapValue(c);
     const netHand = (aiHand.length - 1) + gain;
     const newScraps = aiScraps.length + 1;
     return netHand <= HAND_LIMIT && newScraps <= SCRAPS_LIMIT;
@@ -453,7 +453,7 @@ function chooseTrade(aiHand, aiScraps, opponentScraps) {
     // Forced — trade an Ace if nothing else tradeable
     const ace = aiHand.find(c => c.rank === 'A');
     if (ace) {
-      const gain = tradeInValue(ace);
+      const gain = scrapValue(ace);
       const netHand = (aiHand.length - 1) + gain;
       const newScraps = aiScraps.length + 1;
       if (netHand <= HAND_LIMIT && newScraps <= SCRAPS_LIMIT) return [ace];
@@ -472,7 +472,7 @@ function chooseTrade(aiHand, aiScraps, opponentScraps) {
     // Secondary score: is this card isolated in hand (no pair partner)?
     const isIsolated = rankCounts[card.rank] === 1;
     // Tertiary: draw count (higher = more replacement cards)
-    const drawBonus = tradeInValue(card) * 0.1;
+    const drawBonus = scrapValue(card) * 0.1;
     return { card, score: scrapsGain * 10 + (isIsolated ? 1 : 0) + drawBonus };
   });
 
@@ -566,7 +566,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
     // Never plays Aces, conservative trades, holds pairs
     const nonAceTradeable = aiHand.filter(c => {
       if (c.rank === 'A') return false;
-      const gain = tradeInValue(c);
+      const gain = scrapValue(c);
       return (aiHand.length - 1 + gain <= HAND_LIMIT) && (aiScraps.length + 1 <= SCRAPS_LIMIT);
     });
     const rankCounts = {};
@@ -605,7 +605,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
     for (const c of aiHand) rankCounts[c.rank] = (rankCounts[c.rank] || 0) + 1;
     const candidates = aiHand.filter(c => {
       if (c.rank === 'A') return false;
-      const gain = tradeInValue(c);
+      const gain = scrapValue(c);
       return (aiHand.length - 1 + gain <= HAND_LIMIT) && (aiScraps.length + 1 <= SCRAPS_LIMIT);
     });
     if (candidates.length === 0) {
@@ -677,7 +677,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
     // Tradeable non-Ace cards
     const candidates = aiHand.filter(c => {
       if (c.rank === 'A') return false;
-      const gain = tradeInValue(c);
+      const gain = scrapValue(c);
       return (aiHand.length - 1 + gain <= HAND_LIMIT) && (aiScraps.length + 1 <= SCRAPS_LIMIT);
     });
 
@@ -685,7 +685,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
       // Must trade an Ace if nothing else available
       const ace = aces[0];
       if (ace) {
-        const gain = tradeInValue(ace);
+        const gain = scrapValue(ace);
         if (aiHand.length - 1 + gain <= HAND_LIMIT && aiScraps.length + 1 <= SCRAPS_LIMIT) {
           return { type: 'trade', cards: [ace] };
         }
@@ -709,7 +709,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
 
     if (mode === 'aggressive') {
       // Aggressive: prefer high-draw-value cards (10–K for 2 draws) to maximize card churn
-      const highDraw = candidates.filter(c => tradeInValue(c) >= 2).sort((a, b) => a.value - b.value);
+      const highDraw = candidates.filter(c => scrapValue(c) >= 2).sort((a, b) => a.value - b.value);
       if (highDraw.length > 0) return { type: 'trade', cards: [highDraw[0]] };
       return { type: 'trade', cards: chooseTrade(aiHand, aiScraps, opponentScraps) };
     }
@@ -720,7 +720,7 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
       const hypo = [...aiScraps, card];
       const gain = scrapsStrength(hypo) - myStrength;
       const isIsolated = rankCounts[card.rank] === 1;
-      const drawBonus = tradeInValue(card) * 0.15;
+      const drawBonus = scrapValue(card) * 0.15;
       return { card, score: gain * 10 + (isIsolated ? 1 : 0) + drawBonus };
     }).sort((a, b) => b.score - a.score);
 
@@ -777,13 +777,13 @@ export function aiChooseSignal(hand, opponentSignal, difficulty, aiScore = 0, op
       if (best >= 2) {
         // We have pair vs their trips — marginal: concede if Scraps is strong
         const scrapsIsStrong = aiScore > opponentScore; // proxy
-        return scrapsIsStrong ? worst : best; // concede small hand if Scraps is in good shape
+        return scrapsIsStrong ? worst : best; // concede the hand if Scraps is in good shape
       }
       return worst;
     }
     if (opponentSignal === 4) {
       if (best >= 4) return best; // match or beat
-      return worst; // concede small hand, focus on Scraps
+      return worst; // concede the hand, focus on Scraps
     }
     if (opponentSignal === 5) {
       if (best >= 5) return best;
