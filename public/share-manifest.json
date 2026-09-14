@@ -1,12 +1,12 @@
 {
   "note": "Written by tools/make-share-assets.mjs. Do not hand-edit — run `npm run share` to regenerate, `npm run share:check` to verify.",
-  "generated": "2026-09-14T00:37:32.139Z",
+  "generated": "2026-09-14T03:25:14.697Z",
   "sources": {
     "title": "SCRAPS - Poker with two hands at once.",
     "description": "This turn's discards are next turn's hand.",
     "wordmark": "SCRAPS",
     "strapline": "A 5-minute card game with a twist",
-    "hand": "10♦ J♦ Q♦ K♦ A♦",
+    "hand": "10 J Q K A",
     "winScore": 10,
     "palette": {
       "dusk": "#141F19",
@@ -24,7 +24,7 @@
     "og.png": {
       "w": 1200,
       "h": 630,
-      "sha256": "da2b08da8de1166c"
+      "sha256": "1ffa98e8c9699d2b"
     },
     "favicon-32.png": {
       "w": 32,
@@ -43,7 +43,7 @@
       "sha256": "cf3d752d6fada362"
     },
     "llms.txt": {
-      "sha256": "4733f3bde3559eb3"
+      "sha256": "a80ea3454d123a68"
     }
   }
 }

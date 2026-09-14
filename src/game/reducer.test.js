@@ -11,8 +11,13 @@ import {
 import { tradeInValue, RANK_VALUES, shouldCounterAce } from './engine.js';
 
 let nextId = 0;
-const c = (rank, suit = '♠') => ({ id: nextId++, rank, suit, value: RANK_VALUES[rank] });
-const cards = (...specs) => specs.map(s => Array.isArray(s) ? c(s[0], s[1]) : c(s));
+// Suits left the game on 2026-09-13. The array form `'9'` at
+// the call sites below was only ever a way to pass one, so the second
+// element is now accepted and ignored rather than every call being
+// rewritten: what those cases are testing is three NINES against a
+// pair, and which nine is which was never the point.
+const c = (rank) => ({ id: nextId++, rank, value: RANK_VALUES[rank] });
+const cards = (...ranks) => ranks.map(c);
 
 // Start a fresh state on a given round number (dealer alternates
 // each round; round 1 = player first, round 2 = AI first, ...)
@@ -157,7 +162,7 @@ describe('no-legal-trade skip', () => {
   it('the reducer rejects a player trade that would exceed the 7-card limit', () => {
     let s = freshRound(1);
     // Force a 7-card hand of court cards, then try to trade one
-    const bigHand = cards('10', 'J', 'Q', 'K', ['10','♥'], ['J','♥'], ['Q','♥']);
+    const bigHand = cards('10', 'J', 'Q', 'K', '10', 'J', 'Q');
     s = { ...s, playerHand: bigHand };
     const t = gameReducer(s, { type: 'PLAYER_TRADE_TAKE', cards: [bigHand[0]] });
     expect(t.playerHand).toHaveLength(7); // unchanged
@@ -178,8 +183,8 @@ describe('scoring', () => {
     expect(s.roundWins.player).toBe(2);
 
     // Scraps: player quads vs AI junk → win + full scrap bonus
-    const pScraps = cards('9', ['9','♥'], ['9','♦'], ['9','♣'], '4');
-    const aScraps = cards('2', '5', ['7','♥'], ['J','♦'], '3');
+    const pScraps = cards('9', '9', '9', '9', '4');
+    const aScraps = cards('2', '5', '7', 'J', '3');
     const out = scoreScrapsOutcome(pScraps, aScraps, s.roundWins);
     expect(out.winner).toBe('player');
     expect(out.fullScrap).toBe(true);
@@ -191,16 +196,16 @@ describe('scoring', () => {
   });
 
   it('an AI sweep awards the same 2 + 1 on the AI side', () => {
-    const pScraps = cards('2', '5', ['7','♥'], ['J','♦'], '3');
-    const aScraps = cards('9', ['9','♥'], ['9','♦'], ['9','♣'], '4');
+    const pScraps = cards('2', '5', '7', 'J', '3');
+    const aScraps = cards('9', '9', '9', '9', '4');
     const out = scoreScrapsOutcome(pScraps, aScraps, { player: 0, ai: 2 });
     expect(out.aiSweep).toBe(true);
     expect(out.aPts).toBe(3);
   });
 
   it('flushes never win the Scraps hand', () => {
-    const suited = cards(['K','♥'], ['J','♥'], ['9','♥'], ['7','♥'], ['2','♥']);
-    const pair = cards(['3','♠'], ['3','♦'], ['5','♣'], ['8','♥'], ['10','♠']);
+    const suited = cards('K', 'J', '9', '7', '2');
+    const pair = cards('3', '3', '5', '8', '10');
     const out = scoreScrapsOutcome(suited, pair, { player: 0, ai: 0 });
     expect(out.winner).toBe('ai'); // the pair beats the would-be flush
   });
@@ -222,13 +227,13 @@ describe('scoring', () => {
     // credits one winner; the Scraps hand fills pPts or aPts, never
     // both. Guard the property rather than the old margin test.
     const pWins = scoreScrapsOutcome(
-      cards(['K','♠'], ['K','♦'], ['4','♣'], ['7','♥'], ['9','♠']),
-      cards(['3','♠'], ['8','♦'], ['J','♣'], ['5','♥'], ['2','♠']),
+      cards('K', 'K', '4', '7', '9'),
+      cards('3', '8', 'J', '5', '2'),
       { player: 0, ai: 0 });
     expect(pWins.pPts > 0 && pWins.aPts > 0).toBe(false);
     const aWins = scoreScrapsOutcome(
-      cards(['3','♠'], ['8','♦'], ['J','♣'], ['5','♥'], ['2','♠']),
-      cards(['K','♠'], ['K','♦'], ['4','♣'], ['7','♥'], ['9','♠']),
+      cards('3', '8', 'J', '5', '2'),
+      cards('K', 'K', '4', '7', '9'),
       { player: 0, ai: 0 });
     expect(aWins.pPts > 0 && aWins.aPts > 0).toBe(false);
   });
@@ -296,12 +301,12 @@ describe('AI_COUNTER_ACE cancels both Aces', () => {
   // Put a known hand on the table in a player trade phase.
   function armed(playerAces) {
     let s = freshRound(1);
-    const pAces = Array.from({ length: playerAces }, (_, i) => c('A', ['♠','♥','♦'][i]));
+    const pAces = Array.from({ length: playerAces }, () => c('A'));
     return {
       ...s,
       phase: 'player-turn-1a',
-      playerHand: [...pAces, c('7','♣'), c('9','♦')],
-      aiHand: [c('A','♣'), c('5','♥')],
+      playerHand: [...pAces, c('7'), c('9')],
+      aiHand: [c('A'), c('5')],
     };
   }
 

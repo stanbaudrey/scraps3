@@ -56,9 +56,31 @@ import {
 // face down, so it carries a count and nothing else, and the row
 // it saves is a row the player's own hand gets to keep.
 // ─────────────────────────────────────────────────────────────
+// The Scraps pile is a size SMALLER than the hand in both modes, and
+// that is a legibility constraint before it is a taste one.
+//
+// A pile of 7 divides its width between 7 cards, so the exposed band
+// per card is (zoneW − cardW) / 6. At `small` in the side-by-side
+// layout's 340px that lands at 40px of an 80px card — HALF — and a
+// rank that fills its card loses its right half to the next card:
+// measured, a full pile read "2 5 7 1 J Q K" with the 10 showing as
+// a 1 and the Q and K colliding. At `tiny` the same 340px exposes
+// 43px of a 60px card, or 72%, and all seven ranks are legible.
+//
+// It also happens to be what Stan asked for in his notes ("there's
+// too much shit onscreen ... maybe the scraps are smaller"), and it
+// puts the hierarchy the right way up: the hand is the thing you act
+// on and should be the biggest thing on the table.
+//
+// DO NOT change a pile size here without re-checking the exposure —
+// and change it HERE rather than inside the zone. flight.jsx derives
+// a ghost's landing scale from CARD_DIMS[toSize] against the
+// measured rect, so a zone that quietly rendered a size other than
+// the one GameScreen passed would land every flight at the wrong
+// size.
 const SIZES = {
-  roomy:   { hand:'normal', oppHand:'normal', pile:'small' },
-  compact: { hand:'small',  oppHand:'tiny',   pile:'tiny'  },
+  roomy:   { hand:'normal', oppHand:'normal', pile:'tiny' },
+  compact: { hand:'small',  oppHand:'tiny',   pile:'tiny' },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -668,7 +690,7 @@ export function GameScreen({ difficulty, onExit }) {
     setScrapsFadeIds(new Set());
     playAceStrike();
     dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
-      logMsg: `Opponent's Ace removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
+      logMsg: `Opponent's Ace removed ${targets.map(c => c.rank).join(', ')} from your Scraps.` });
     if (discardRect) {
       fly(first.filter(f => f.rect).map((f, i) => ({
         card: f.card, fromRect: f.rect, toRect: discardAnchor(i),

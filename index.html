@@ -70,10 +70,13 @@
          must be parsed before first paint. Regenerate them, and the files in
          public/fonts, with `npm run fonts` — never edit either by hand.
 
-         Only the splash's three families are preloaded; Baloo 2 (card faces)
-         and IBM Plex Mono are not on the first screen and are left to be
-         fetched when they are first used. crossorigin is required on a font
-         preload even same-origin, or the browser fetches the file twice.
+         Only the splash's three families are preloaded; IBM Plex Mono is
+         not on the first screen and is left to be fetched when it is first
+         used. Rye IS preloaded and covers the card faces as well as the
+         wordmark — it took over the card ranks from Baloo 2 on 2026-09-13,
+         which is why there are four families here and not five.
+         crossorigin is required on a font preload even same-origin, or the
+         browser fetches the file twice.
 
          THESE THREE LINES ARE GENERATED, between the sentinels below, and
          they did not used to be. The comment above already said "never edit
@@ -98,11 +101,11 @@
          files in public/fonts. `npm run fonts:check` fails if the
          vendored copies have drifted from upstream.
 
-         Work Sans and Baloo 2 are variable fonts: their weights
-         all point at ONE file per subset and the font-weight
-         descriptor selects along the axis. That is why there are
-         24 rules over 14 files, and why an extra declared weight
-         of those two families would cost no additional bytes.
+         Work Sans is a variable font: its weights all point at ONE
+         file per subset and the font-weight descriptor selects
+         along the axis. That is why there are 18 rules over 12
+         files, and why an extra declared Work Sans weight would
+         cost no additional bytes.
          ======================================================== */
       /* FONT-FACE:BEGIN */
       /* Rye 400 — latin-ext */
@@ -139,60 +142,6 @@
         font-weight: 400;
         font-display: swap;
         src: url('/fonts/fjalla-one-latin.woff2') format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-      }
-      /* Baloo 2 600 — latin-ext */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 600;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-      }
-      /* Baloo 2 600 — latin */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 600;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-      }
-      /* Baloo 2 700 — latin-ext */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 700;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-      }
-      /* Baloo 2 700 — latin */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 700;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-      }
-      /* Baloo 2 800 — latin-ext */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 800;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin-ext.woff2') format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-      }
-      /* Baloo 2 800 — latin */
-      @font-face {
-        font-family: 'Baloo 2';
-        font-style: normal;
-        font-weight: 800;
-        font-display: swap;
-        src: url('/fonts/baloo-2-latin.woff2') format('woff2');
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
       /* Work Sans 400 — latin-ext */
@@ -482,7 +431,46 @@
       @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
       @keyframes glow{0%,100%{opacity:.45}50%{opacity:1}}
       @keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}
-      @keyframes zonePulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb, var(--voltage) 27%, transparent),0 0 16px color-mix(in srgb, var(--voltage) 20%, transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb, var(--voltage) 60%, transparent),0 0 30px color-mix(in srgb, var(--voltage) 40%, transparent)}}
+      /* "Act on THIS pile", and it must NOT be a ring. `zonePulse`
+         lived here until 2026-09-13 and pulsed `box-shadow: 0 0 0 3px`
+         out to `0 0 0 5px` — a hard outline traced around whatever it
+         wrapped. That was right while a Scraps pile was a bordered
+         panel. With the panel gone it would have drawn a glowing
+         rounded rectangle around a heap of torn paper, reinstating
+         the exact box the redesign removed.
+         A drop-shadow FILTER instead: applied to a wrapper whose only
+         contents are the cards, it traces their real torn outlines and
+         the gaps between them. `--glow` is set inline per pile, since
+         yours glows voltage and hers ember off one set of keyframes.
+         Two shadows, not one: the tight pass reads as an edge and the
+         wide one as light falling on the table. */
+      @keyframes zoneGlow{
+        0%,100%{filter:drop-shadow(0 0 2px color-mix(in srgb, var(--glow) 55%, transparent))
+                       drop-shadow(0 0 8px color-mix(in srgb, var(--glow) 34%, transparent))}
+        50%    {filter:drop-shadow(0 0 4px var(--glow))
+                       drop-shadow(0 0 17px color-mix(in srgb, var(--glow) 62%, transparent))}
+      }
+      /* A card arriving in a Scraps pile. It is being THROWN onto the
+         heap, so it overshoots in rotation and bounces a few pixels —
+         deliberately unlike the displaced cards it lands among, which
+         slide sideways on a long non-springy curve with no rotation at
+         all (the `left` transition in HorizontalScrapsZone). Two
+         motions overlap every time a card lands and the whole point is
+         that they do not look alike: one is thrown, the others are
+         tidied. */
+      @keyframes scrapSettle{
+        0%  {transform:translateY(-9px) rotate(-7deg)}
+        45% {transform:translateY(3px)  rotate(3.5deg)}
+        72% {transform:translateY(-2px) rotate(-1.4deg)}
+        100%{transform:translateY(0)    rotate(0deg)}
+      }
+      .scrap-settle{animation:scrapSettle .62s cubic-bezier(.22,.9,.3,1)}
+      /* The reduced-motion substitute for BOTH halves of the re-sort.
+         The card must still visibly ARRIVE — a state change with no
+         signal at all is worse than a calm one — so it fades onto the
+         identical resting frame with no travel. Declared here and
+         overridden inside the reduced-motion block below. */
+      @keyframes scrapArrive{from{opacity:0}to{opacity:1}}
       @keyframes fullScrapPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
       /* One card's share of the opponent's ruffle. Small on purpose:
@@ -499,7 +487,6 @@
       @keyframes popIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
       @keyframes letterAppear{from{opacity:0;transform:translateY(44px) scale(.65) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}}
       @keyframes letterBounce{0%,100%{transform:translateY(0)}35%{transform:translateY(-14px)}65%{transform:translateY(-4px)}}
-      @keyframes suitsBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
       @keyframes wtWiggle{0%{transform:rotate(-2.2deg) translateY(0)}100%{transform:rotate(2.2deg) translateY(-5px)}}
       /* Dealt in — the panel is placed on the table like a card, from
          off the left, once. Fill is `backwards`, NOT `both`, and that
@@ -526,25 +513,13 @@
          below collapses it to its filled end state, which is correct:
          the tag is still there, it simply does not travel. */
       @keyframes aceTagIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
-      /* The treeline sway lived here until 2026-09-01. It belonged to
-         `RidgeBackdrop`, which was retired when Stan cut the product to
-         two backgrounds; nothing renders `.sc-tree` any more, so the
-         rule went with it rather than sitting here unused. Recoverable
-         from git at ef34063. The suit riffle below stays: the splash
-         still uses it. */
-
-      /* The four suits under the wordmark riffle in sequence, on the
-         SAME 28ms stagger as the wordmark's letters and as the deal
-         sound's taps — one cadence shared by the type, the art and the
-         audio rather than three near-misses. Rests at 0 so reduced
-         motion lands them flush. */
-      .suit-riffle span{display:inline-block;animation:suitRiffle 3.6s
-        cubic-bezier(.3,.9,.4,1) infinite}
-      @keyframes suitRiffle{
-        0%,64%,100%{transform:translateY(0) rotate(0deg)}
-        72%{transform:translateY(-22%) rotate(-8deg)}
-        82%{transform:translateY(0) rotate(0deg)}
-      }
+      /* The treeline sway lived here until 2026-09-01, and the four-suit
+         riffle on the splash until 2026-09-13. Both belonged to things
+         that no longer render — `RidgeBackdrop` when Stan cut the
+         product to two backgrounds, and the suit row when suits left
+         the game entirely — so both rules went with them rather than
+         sitting here unused. Recoverable from git at ef34063 and at
+         the commit before this one. */
 
       /* ========================================================
          SCRAPS wordmark — three nested layers per letter, because
@@ -646,7 +621,7 @@
             anyway.
          2. PERPETUAL DECORATION that carries no state — the three
             swirl layers, the wordmark riffle,
-            the storyboard lean, the suits bounce. Freezing them
+            the storyboard lean. Freezing them
             loses nothing at all.
          3. MOTION THAT IS THE ONLY CARRIER OF A STATE — three cases,
             and this is where a blanket `animation: none` would
@@ -690,8 +665,31 @@
           box-shadow: 0 0 0 3px var(--voltage),
                       0 0 0 7px color-mix(in srgb, var(--voltage) 30%, transparent) !important;
         }
+        /* "Act here", standing still. This used to be a 5px ring,
+           which was the right answer while a Scraps pile was a
+           bordered panel and is the wrong one now: around a boxless
+           heap it draws a rectangle in empty space. Same fix as the
+           animated version — a stacked drop-shadow on the wrapper,
+           which traces the cards' own torn outlines.
+           Deliberately HEAVIER than the animation's brightest frame,
+           not equal to it. A static substitute has to read as
+           unambiguously ON; matched to the peak it would be mistaken
+           for the resting frame of a pulse that is not running. */
         .live-cue-zone {
-          box-shadow: 0 0 0 5px color-mix(in srgb, var(--voltage) 75%, transparent) !important;
+          filter: drop-shadow(0 0 2px var(--glow))
+                  drop-shadow(0 0 5px var(--glow))
+                  drop-shadow(0 0 15px color-mix(in srgb, var(--glow) 70%, transparent)) !important;
+          animation: none !important;
+        }
+        /* A card still has to ARRIVE in the pile. Both halves of the
+           re-sort collapse to one 0.28s fade onto the identical
+           resting frame: the state change keeps a signal, and nothing
+           travels. The duration needs !important to outrank the
+           blanket 1ms rule above, which would otherwise take the
+           substitute out along with the motion it substitutes for. */
+        .scrap-settle {
+          animation: scrapArrive 0.28s ease !important;
+          animation-duration: 0.28s !important;
         }
         .live-cue-busy {
           box-shadow: 0 0 0 5px var(--slate) !important;
@@ -731,8 +729,6 @@
             draws three. Both piles cap at 7 cards.</li>
           <li>Aces are a weapon: discard one to strip two cards from your
             opponent's Scraps. She can counter with an Ace of her own.</li>
-          <li><strong>Flushes are never valid.</strong> A five-card suited
-            straight scores as a plain straight, never a straight flush.</li>
           <li>Each round scores two small hands worth 1 point each and the
             Scraps hand worth 2. First to 10 points. Winning all
             three hands in one round is a FULL SCRAP, worth 5.</li>

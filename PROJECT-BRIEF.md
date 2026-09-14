@@ -4388,6 +4388,165 @@ splash-identity-wip`** from an earlier session and conflicted. Nothing was lost
 still sitting on this repo and nobody has said what it is. **Never stash-pop in
 this repo without checking `git stash list` first.**
 
+### Unplanned session — The card redesign: torn scraps, one big rank, no suits ✅ Done (2026-09-13)
+
+Built from `CARD-REDESIGN-SPEC.md`, which was written by the 2026-09-12/13
+direction session and is **deleted now that this shipped**, so it cannot rot
+into a second source of truth. The spec's ten decisions were all built; three
+of them had moved under it since it was written and Stan re-decided those up
+front.
+
+**What Stan decided at the top of the session.** The spec assumed Bungee Shade
+still held the wordmark, so putting Rye on the card ranks read as adding a
+distinct new face. Rye had already replaced Bungee Shade earlier the same day,
+so the real question was whether the wordmark and the cards share one face.
+He took **Rye everywhere** — four families now, not five, and Baloo 2 is gone
+from the build. He also took **keep the spade favicon, redraw the og card**
+(the favicon is the only mark that works at 16px, and nobody reads a favicon
+as a rules claim), and **two paper stocks** for pile ownership rather than one.
+Mid-session he added the table: **warmer, more Redwood, less worn/aged.**
+
+**What shipped.**
+
+- **Suits are gone from the data, not just the face.** `createDeck()` builds
+  four copies of thirteen ranks; the four-fold loop that used to iterate
+  `SUITS` is the same loop and is still load-bearing for Session 2's balance
+  fix. `engine.js` read `.suit` in exactly one place and it was that line.
+  The **no-flush house rule stopped being a rule** — a flush is now a hand
+  that cannot be dealt — so its bullet came out of `llms.txt` and out of
+  `index.html`'s `<noscript>` block rather than being reworded.
+- **One big left-anchored Rye numeral on both faces, and nothing else.** No
+  pip, no corner index, no notch. The two card types are told apart by
+  **material alone**: crisp `frost` cream with a heavy ink edge in your hand,
+  torn weathered stock in a Scraps pile. The storyboard's beat 1 now shows the
+  same King twice, once each way, which is the cleanest statement of the idea
+  the product has.
+- **The Scraps pile lost its box.** No fill, no 2px ownership border, no
+  radius, no header row. Cards lie on the timber with one pooled contact
+  shadow under the heap. Ownership moved to a quiet caption below and to the
+  paper itself.
+- **Seeded wear.** One `wear` scalar per card, a pure function of its id,
+  drives the tear, the torn-off corner, stains, foxing, the lit-and-shadowed
+  crease, edge grime, ink fade and ink rotation. Rotation is decoupled and
+  capped at 4°.
+- **`GlowPulse` stopped being a ring.** It is a `drop-shadow` filter on a
+  wrapper whose only children are cards, so it traces the real torn outlines.
+  `.live-cue-zone`, the reduced-motion substitute, got the same treatment.
+- **The re-sort is two distinguishable motions**, and the arriving card is
+  keyed on becoming VISIBLE rather than on entering the array — a card flying
+  in from the hand sits in the pile for the whole flight while a ghost stands
+  in for it, so keyed on the array the settle would run and finish unseen.
+- **The table went Redwood** at constant relative luminance: hue 30°→14°,
+  saturation 23%→36%, with lightness re-solved so each token lands within
+  0.0003 of the luminance it had. frost-on-timber moved 10.09:1 → 10.05:1.
+  That is what makes "redder, not brighter" literally true rather than
+  approximately true.
+
+**Three things the spec got wrong, found by measuring.**
+
+1. **"Six flush tests" was eight.** 53 tests now, not 56: eight out, five
+   deck-shape tests in. `CLAUDE.md` said 56 and now says 53.
+2. **The card sizes had to be DERIVED from Rye's metrics, not chosen.**
+   Measured at 100px in a real browser: "Q" inks to 0.824em right of its
+   origin and **overhangs its own advance by 0.055em**, so sizing against
+   advance width (which the first attempt did) clipped the Queen's swash and
+   nothing else. "A" inks 0.034em to the LEFT of its origin. "7" is 0.041em
+   taller than every other rank. Caps start 0.108em below a `line-height:1`
+   box — the first attempt guessed 0.175 and hung every numeral too high.
+   `CARD_DIMS` now carries `rank`, `gx` and `gy` derived from those four
+   numbers, with the derivation written out.
+3. **"A left-anchored numeral is still identifiable from its left third" is
+   not true of Rye.** This is the spec's §4.1 premise and it is the one thing
+   in the whole document that did not survive contact. Measured at a 7-card
+   pile in the side-by-side layout's 340px: `small` cards expose 40px of 80,
+   and the pile read **"2 5 7 1 J Q K"** with the 10 showing as a 1 and the Q
+   and K colliding. Two fixes, both measured rather than guessed:
+   - **The pile dropped to `tiny` in both layout modes** (`SIZES` in
+     `GameScreen.jsx`). The same 340px then exposes 72% and all seven ranks
+     read. This also answers Stan's standing note that there is "too much
+     shit onscreen ... maybe the scraps are smaller", and it puts the
+     hierarchy the right way up.
+   - **`small` is the one card size that does not take the width-derived
+     maximum** (64, not 79). It is the hand card in the compact layout, whose
+     floor is 7 face-up cards across a 340px rail — 54% exposure. At 79 only
+     42% of each glyph fell in the exposed band; at 64 it is 65%, and the
+     18px of clear paper left on the right is most of the gain, because a
+     gutter is what separates two ranks. A **lit 1.5px frost leading edge** on
+     the hand card does the rest: the seam used to be this card's black rank
+     against the next card's black 6px border, two blacks with nothing
+     between them.
+
+**Confirmed working, and how.** Everything below was measured in a real
+unhidden browser driven by Playwright's Node API imported straight from the
+npx cache — the Playwright MCP profile was locked by another live session all
+day, and the in-app Browser pane reported `document.hidden` true, which
+suspends the timers this game's whole flow runs on.
+
+- `npm test` 53 passing; `npm run build`, `npm run fonts:check`,
+  `npm run share:check` all clean. `grep` for the four suit glyphs across
+  `src/`, `tools/`, `index.html` and `public/` returns nothing.
+- **Contrast**: 26 pairings, 0 below AA. The two new stocks measure
+  **9.50:1** (`stockPale`, yours) and **7.91:1** (`stockKraft`, hers) against
+  `ink` — both AAA. They differ in warmth, not lightness, so the pair
+  survives greyscale.
+- **The re-sort**, sampled inside ONE `evaluate` with a `setTimeout` chain
+  because two round-trips would miss a 620ms animation: exactly one card
+  carries `.scrap-settle` running `scrapSettle` for 620ms, while the
+  displaced cards transition `left` over 420ms with delays
+  `0.12 / 0.06 / 0 / 0.06 / 0.12 / 0.18s` radiating from the arrival slot.
+- **Reduced motion**, forced at the context level: the arrival becomes
+  `scrapArrive` for 280ms (it still visibly arrives) and the slides collapse
+  to 1ms with no delay, landing on the identical resting frame.
+  `.live-cue-zone` resolves to the three-layer static filter with
+  `animation-name: none`.
+- **The Ace strike's cue**: rendered both piles side by side mid-strike in the
+  real components. One pile glows, tracing its torn outline; the other does
+  not. Which pile you are choosing from is unmistakable with no box anywhere.
+  **Not** verified by playing a strike end to end — 16 scripted deals failed
+  to produce an enabled ATTACK tag before the driver stalled, and the
+  side-by-side render tests the actual risk more directly than one lucky
+  playthrough would.
+- **`tools/responsive-qa.mjs`** passes at all six viewports for everything
+  this change touches: no document scroll, no clipping, nothing painted
+  outside the viewport.
+
+**One pre-existing failure found and NOT fixed here.** The responsive gate
+intermittently reports `small targets [{"label":"Okay","size":[72,27]}]` — the
+OKAY button in the Ace modal, against a 44px floor. It reproduces identically
+on `main` (verified against a worktree of main on port 5194), and it only
+surfaces when a random deal puts an Ace in the opening hand, which is why it
+lands on a different viewport each run. Spawned as its own task rather than
+widened into this change.
+
+**Two tooling fixes made in passing.** `vite.config.js` now excludes
+`.claude/**` from vitest — a git worktree parked there is a second full
+checkout and was being collected twice, reporting 111 tests for a project
+that has 53, and a stale copy would have failed on assertions this change
+deliberately removed. And `tools/responsive-qa.mjs` now falls back to the
+machine's Google Chrome when Playwright's bundled Chromium is not downloaded,
+which is the normal state of this machine; it was simply unrunnable before.
+To run it, make Playwright importable first:
+`ln -sfn $(ls -d ~/.npm/_npx/*/node_modules/playwright | head -1) node_modules/playwright`
+and the same for `playwright-core`.
+
+**Lookbook scan.** `scan_tells.py` reports 6 banned firing, 2 flagged. All six
+banned are false positives and five were already triaged as such in this brief:
+"Inter" matching *RoundInterstitial* and *r/InternetIsBeautiful*, "Space
+Grotesk" matching entries recording its removal, "emoji as icons" matching the
+✅ in these very session headings, "skeleton shimmer" matching prose about
+woodgrain. The sixth, **multi-stop rainbow gradients**, newly matches this
+session's crease hairline and stock-grubbiness gradients in `cards.jsx` —
+both are two-tone brown-on-transparent, not rainbows. Of the two flagged,
+**mono for labels** is true, deliberate and long-standing here, and this pass
+did not add to it; **one rounded radius on everything** is if anything
+improved, since a Scraps card now has no radius at all.
+
+**Still open, and Stan's call.** The vertical composition of a card leaves the
+bottom third empty by design (it is where the ridge sits on a hand card and
+where the tear takes a corner on a scrap). Worth a look on the preview to
+decide whether the numeral wants to sit lower.
+
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4495,13 +4654,17 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**The sound kit is LIVE as of 2026-09-13**, listened to and approved by
-Stan on preview before merging. `main` and `dev` are level again and the
-tree is clean. `CARD-REDESIGN-SPEC.md` rode along in that merge — it
-changes no source and the site does not serve it, so it has no visitor-
-facing effect, but it means **the spec now sits on `main` unbuilt.**
-Delete it once the redesign ships and is logged, per its own header, so it
-cannot rot into a second source of truth.
+**The card redesign is BUILT and on `dev`, awaiting Stan's look on a
+preview URL.** Torn Scraps on two paper stocks, one big Rye numeral per
+card, no suits anywhere, no box around a pile, and a Redwood table.
+`CARD-REDESIGN-SPEC.md` has been **deleted** now that it shipped, per its
+own header. The one thing to look at first is the **vertical composition
+of a card** — the numeral is anchored to the top and the bottom third is
+deliberately empty, and whether it wants to sit lower is a taste call
+nobody has made yet. The other is whether the **Scraps piles now read as
+too small**: they dropped a whole size to fix a real legibility failure at
+seven cards, and that also answers his "too much shit onscreen" note, but
+it is a bigger change to the table's balance than the spec anticipated.
 
 **One thing to watch on the new kit, and it is the only open question from
 that pass.** `handWon` fires twice a round, more than any other outcome
@@ -4517,8 +4680,12 @@ than the game plays it. He was told and did not ask for it changed.
 on 2026-09-13 found a long, largely unactioned set of Stan's own notes
 there under a heading reading *"BIG PICTURE: SOLVE THESE FIRST BEFORE
 FINE-TUNING EVERYTHING ELSE"*, and none of it is mirrored here by design.
-**Two of its items are now closed:** the card redesign (specced, not built)
-and **FIX SOUND EFFECTS** (built 2026-09-13, awaiting his listen). The rest
+**Three of its items are now closed:** the card redesign (**built**
+2026-09-13, on `dev`), **FIX SOUND EFFECTS** (built 2026-09-13, awaiting
+his listen), and the **`▸` on the best-hand badge** (removed 2026-09-13).
+A fourth, *"maybe the scraps are smaller"*, is answered as a side effect of
+the redesign's legibility fix rather than deliberately — worth confirming
+with him that it went far enough. The rest
 of the list still stands.
 It contains the original complaint this redesign answers, in his words
 ("STYLE OF SCRAPS CARDS UNDERCUTS CONCEPT OF THEM BEING THE MESSY

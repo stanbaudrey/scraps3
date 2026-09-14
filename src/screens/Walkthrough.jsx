@@ -31,29 +31,40 @@ import { playSelect } from "../audio.js";
 import { FitBox } from "../ui/viewport.jsx";
 
 // ── Sample cards ─────────────────────────────────────────────
-const C = (rank, suit, value) => ({ id: `wt-${rank}${suit}`, rank, suit, value });
+// The id used to be built from rank + suit, which was unique only
+// because every sample card had a suit. With suits gone it has to be
+// a counter: three kings share a beat on the scoring panel, and three
+// cards with the id "wt-K" would collide as React keys AND as FLIP
+// registry entries — and they seed the Scraps wear, so identical ids
+// would tear three cards identically and give the heap away.
+let wtId = 0;
+const C = (rank, value) => ({ id: `wt-${rank}-${wtId++}`, rank, value });
 
 // Beat 1 shows ONE card per side, not a five-card hand each. Stan's
 // call, 2026-09-13: that beat is about which hand is private and which
 // is public, and ten cards on screen invited the reader to start
-// reading poker hands instead. The same rank and suit both sides, so
-// the only difference left between the two panels is the thing the
-// beat is actually about — the card's FACE.
-const KING = C('K','♥',13);
+// reading poker hands instead. The same rank both sides, so the only
+// difference left between the two panels is the thing the beat is
+// actually about — the card's FACE.
+const KING = C('K',13);
 
 const DRAW_TIERS = [
-  { cards: [C('2','♥',2), C('5','♠',5), C('7','♦',7), C('9','♣',9)], label: 'DRAW 1 CARD', tone: DS.slateLight },
-  { cards: [C('10','♠',10), C('J','♥',11), C('Q','♣',12), C('K','♦',13)], label: 'DRAW 2 CARDS', tone: DS.voltage },
+  { cards: [C('2',2), C('5',5), C('7',7), C('9',9)], label: 'DRAW 1 CARD', tone: DS.slateLight },
+  { cards: [C('10',10), C('J',11), C('Q',12), C('K',13)], label: 'DRAW 2 CARDS', tone: DS.voltage },
   // frost, not gold. gold is reserved for milestones only — Full
   // Scrap, the win screen, and PLAYING your own Ace as a weapon.
   // Trading an Ace in for three cards is none of those, and the
   // reserved-token rule has drifted here before. The tiers now climb
   // in brightness instead: muted, fern, brightest.
-  { cards: [C('A','♣',14)], label: 'DRAW 3 CARDS', tone: DS.frost },
+  { cards: [C('A',14)], label: 'DRAW 3 CARDS', tone: DS.frost },
 ];
 
-const OPP_SCRAPS = [C('2','♣',2), C('3','♥',3), C('4','♣',4), C('5','♦',5), C('6','♠',6)];
-const OPP_TARGET_IDS = new Set([C('5','♦',5).id, C('6','♠',6).id]);
+const OPP_SCRAPS = [C('2',2), C('3',3), C('4',4), C('5',5), C('6',6)];
+// The two cards the Ace takes. Picked off the array BY POSITION, not
+// by re-declaring them: ids are a counter now, so `C('5',5).id` would
+// mint a third five with an id nothing on the beat is rendering and
+// the highlight would silently never match.
+const OPP_TARGET_IDS = new Set(OPP_SCRAPS.slice(-2).map(c => c.id));
 
 // ── Small shared pieces ──────────────────────────────────────
 
@@ -71,12 +82,12 @@ function Caption({ children, color = DS.slate }) {
   );
 }
 
-function CardRow({ cards, isScrap = false, size = 'small', selectedIds = null, gap = 8, startDelay = 0, ink = null }) {
+function CardRow({ cards, isScrap = false, size = 'small', selectedIds = null, gap = 8, startDelay = 0, kraft = false }) {
   return (
     <div style={{display:'flex',gap,justifyContent:'center',flexWrap:'wrap'}}>
       {cards.map((c, i) => (
         <Wig key={c.id} delay={startDelay + i * 110}>
-          <PlayingCard card={c} size={size} isScrap={isScrap} inkOverride={ink}
+          <PlayingCard card={c} size={size} isScrap={isScrap} kraft={kraft}
             selected={selectedIds ? selectedIds.has(c.id) : false} liftTransform={false}/>
         </Wig>
       ))}
@@ -136,7 +147,12 @@ function BeatHands() {
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
         <HandIntro><b style={{color:DS.voltage}}>Scraps</b> (visible to opponent)</HandIntro>
         <Panel labelColor={DS.voltage} borderColor={`${DS.voltage}66`}>
-          <CardRow cards={[KING]} size="normal" isScrap startDelay={60} ink={DS.voltage}/>
+          {/* The SAME card as the panel beside it, which is now the
+              whole of beat 1: one King on crisp cream, one King torn
+              and stained. Material is the only difference between a
+              card in your hand and a card in your Scraps, so the beat
+              that introduces the two hands can simply show it. */}
+          <CardRow cards={[KING]} size="normal" isScrap startDelay={60}/>
         </Panel>
       </div>
     </div>
@@ -231,14 +247,14 @@ function BeatAce() {
               if (!hit) {
                 return (
                   <div key={c.id} style={{opacity:0.4}}>
-                    <PlayingCard card={c} size="tiny" isScrap inkOverride={DS.ember} liftTransform={false}/>
+                    <PlayingCard card={c} size="tiny" isScrap kraft liftTransform={false}/>
                   </div>
                 );
               }
               return (
                 <Wig key={c.id} delay={i * 120}>
                   <div style={{position:'relative'}}>
-                    <PlayingCard card={c} size="tiny" isScrap selected inkOverride={DS.ember} liftTransform={false}/>
+                    <PlayingCard card={c} size="tiny" isScrap selected kraft liftTransform={false}/>
                     <span style={{position:'absolute',top:-11,left:'50%',transform:'translateX(-50%)',
                       background:DS.ember,color:DS.ink,borderRadius:11,width:22,height:22,
                       display:'flex',alignItems:'center',justifyContent:'center',
@@ -256,14 +272,14 @@ function BeatAce() {
 }
 
 // ── Beat 4 — how a round scores ──────────────────────────────
-function ScoreSlot({ label, points, cards, isScrap = false, tone, delay, ink = null }) {
+function ScoreSlot({ label, points, cards, isScrap = false, tone, delay }) {
   return (
     <div style={{background:DS.duskMid,border:`2px solid ${tone}55`,borderRadius:14,
       padding:'14px 18px 16px',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
       <div style={{display:'flex',gap:6}}>
         {cards.map((c, i) => (
           <Wig key={c.id} delay={delay + i * 110}>
-            <PlayingCard card={c} size="tiny" isScrap={isScrap} inkOverride={ink} liftTransform={false}/>
+            <PlayingCard card={c} size="tiny" isScrap={isScrap} liftTransform={false}/>
           </Wig>
         ))}
       </div>
@@ -280,11 +296,11 @@ function BeatScoring() {
   return (
     <div style={{display:'flex',gap:14,alignItems:'center',justifyContent:'center',flexWrap:'wrap'}}>
       <ScoreSlot label="Small hand" points="1 PT" tone={DS.slateLight} delay={0}
-        cards={[C('8','♠',8), C('8','♦',8)]}/>
+        cards={[C('8',8), C('8',8)]}/>
       <ScoreSlot label="Small hand" points="1 PT" tone={DS.slateLight} delay={120}
-        cards={[C('J','♣',11), C('J','♥',11)]}/>
-      <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap ink={DS.voltage}
-        cards={[C('K','♠',13), C('K','♥',13), C('K','♦',13)]}/>
+        cards={[C('J',11), C('J',11)]}/>
+      <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap
+        cards={[C('K',13), C('K',13), C('K',13)]}/>
     </div>
   );
 }

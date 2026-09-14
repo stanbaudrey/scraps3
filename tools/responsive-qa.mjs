@@ -79,8 +79,24 @@ const probe = () => {
 
 const results = [];
 
+// Playwright's own bundled Chromium is downloaded by `npx playwright
+// install`, which this project does not run — it is not a dependency
+// here and adding it would be the largest devDependency in the tree by
+// an order of magnitude. So fall back to the copy of Google Chrome
+// already on the machine, exactly as tools/make-share-assets.mjs does
+// for rasterising. Without this the script is unrunnable on a machine
+// that has Playwright available but no downloaded browser, which is
+// the normal state of this one.
+const launch = async () => {
+  try { return await chromium.launch(); }
+  catch (e) {
+    if (!/Executable doesn't exist/.test(String(e))) throw e;
+    return chromium.launch({ channel: 'chrome' });
+  }
+};
+
 for (const vp of VIEWPORTS) {
-  const browser = await chromium.launch();
+  const browser = await launch();
   const ctx = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
     hasTouch: vp.touch, isMobile: vp.touch, deviceScaleFactor: 1,

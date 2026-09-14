@@ -2,13 +2,15 @@
 // SCRAPS — Game Engine
 // Deck, hand evaluation, signal validation, AI, turn logic
 //
-// House rule enforced everywhere: FLUSHES ARE NEVER VALID.
-// Every hand (small hands and Scraps) is evaluated with flushes
-// disabled. A five-card suited straight counts as a plain
-// straight, never a straight flush.
+// THE NO-FLUSH HOUSE RULE IS NO LONGER A RULE. Cards stopped
+// carrying a suit on 2026-09-13, so a flush is not a hand this game
+// declines to score — it is a hand that cannot be dealt. Nothing was
+// removed from the evaluator to make that true, because nothing was
+// ever there: every function below reads rank and value only, and
+// always did. The rule was enforced by omission from the first line
+// of this file.
 // ============================================================
 
-export const SUITS = ['♠', '♥', '♦', '♣'];
 export const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 export const RANK_VALUES = {
   '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,
@@ -20,12 +22,25 @@ export const SCRAPS_LIMIT = 7;
 
 // ── Deck ─────────────────────────────────────────────────────
 
+// A single 52-card deck: four copies of each rank, no suit.
+//
+// SUITS were removed on 2026-09-13. Nothing in this file ever read
+// one — evaluation, signals, trades and the AI all worked on rank and
+// value alone, because the house rule made flushes impossible from
+// the start. So a suit was a glyph printed on a card and nothing else,
+// and it is gone from the data as well as the face.
+//
+// The FOUR-FOLD LOOP IS LOAD-BEARING and must stay four, whatever it
+// iterates. Session 2 measured quads in 2.8% of rounds on a two-deck
+// shoe against 0.7% on one, and cut it to a single deck to fix it;
+// changing the copy count changes the game's balance, not its look.
+// `id` is what tells two fours apart now, as it always did.
 export function createDeck() {
   const deck = [];
   let id = 0;
-  for (const suit of SUITS) {
+  for (let copy = 0; copy < 4; copy++) {
     for (const rank of RANKS) {
-      deck.push({ id: id++, rank, suit, value: RANK_VALUES[rank] });
+      deck.push({ id: id++, rank, value: RANK_VALUES[rank] });
     }
   }
   return deck;
@@ -77,7 +92,7 @@ export function legalTradeFallback(hand) {
 }
 
 // ── Hand evaluation ───────────────────────────────────────────
-// Flushes are never valid, so evaluation ignores suits entirely.
+// Cards carry no suit at all, so a flush cannot be formed.
 
 export function evaluateBestHand(cards) {
   if (!cards || cards.length === 0) return null;
@@ -121,11 +136,11 @@ export function getActiveHandCards(handResult) {
   return cards.slice(0, 5);
 }
 
-// Hand ranks (flushes never valid):
+// Hand ranks:
 // 0 High Card · 1 Pair · 2 Two Pair · 3 Trips · 4 Straight
 // 6 Full House · 7 Four of a Kind
 // (5 and 8 — Flush and Straight Flush — do not exist in SCRAPS.
-//  A suited straight is scored as a plain straight.)
+//  There is no suit, so there is no straight flush.)
 function evaluateHand(cards) {
   const sorted = [...cards].sort((a, b) => b.value - a.value);
   const ranks = sorted.map(c => c.value);
@@ -259,8 +274,7 @@ export function signalHandLabel(cards) {
 
 // Is this exact selection of cards a playable signal hand?
 // 1 card: always. 2: pair. 3: trips. 4: quads or two pair.
-// 5: straight or better (flushes never valid; a suited straight
-// counts as a plain straight).
+// 5: straight or better.
 export function isValidSignal(cards) {
   if(!cards||cards.length===0) return false;
   if(cards.length===1) return true;
@@ -289,7 +303,7 @@ export function getValidSignals(hand) {
   if (pairCount >= 2 || maxCount >= 4) valid.add(4);
   if (hand.length >= 5) {
     const best = evaluateBestHand(hand);
-    if (best && best.rank >= 4) valid.add(5); // straight or better, no flushes
+    if (best && best.rank >= 4) valid.add(5); // straight or better
   }
   return [...valid].sort((a, b) => a - b);
 }
@@ -327,7 +341,7 @@ export function getBestCardsForSignal(hand, signal) {
   }
   if (signal === 5) {
     if (hand.length < 5) return null;
-    const best = evaluateBestHand(hand); // flushes never valid
+    const best = evaluateBestHand(hand);
     if (best && best.rank >= 4) return best.cards.slice(0, 5);
     return null;
   }
@@ -347,7 +361,7 @@ export function compareHands(handA, handB) {
 
 // ── Scraps evaluation ─────────────────────────────────────────
 // Returns a numeric strength score for a scraps pile.
-// (Flushes are never valid anywhere, including scraps.)
+
 function scrapsStrength(scraps) {
   if (!scraps || scraps.length === 0) return -1;
   const best = evaluateBestHand(scraps);

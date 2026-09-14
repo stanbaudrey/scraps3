@@ -18,15 +18,12 @@ import { loadStats } from "../game/stats.js";
 // The 30 candidates are still in PROJECT-BRIEF.md if it ever comes
 // back; the wordmark and one button carry the screen now.
 
-// The suit row under the wordmark, in the colours the cards actually
-// print. `ember` is the game's red everywhere else; `frost` is its
-// black-on-dark. Order matches a fresh deck.
-const SUITS = [
-  { g:'♠', c:DS.frost },
-  { g:'♥', c:DS.ember },
-  { g:'♦', c:DS.ember },
-  { g:'♣', c:DS.frost },
-];
+// A four-glyph suit row sat above the wordmark until 2026-09-13, in
+// the colours the cards printed. It went with the suits themselves
+// and NOTHING replaces it (Stan's call): the wordmark and one button
+// carry the screen. The gap it left was closed by giving the wordmark
+// back its own top margin rather than by inserting a substitute mark,
+// which is the failure mode this kind of removal usually has.
 
 // ─────────────────────────────────────────────────────────────
 // SplashScreen
@@ -39,19 +36,12 @@ export function SplashScreen({ onStart }) {
       <SceneBackdrop/>
       <div style={{position:'relative',zIndex:1,maxWidth:600,width:'100%'}}>
         <div style={{textAlign:'center',animation:'fadeUp .6s ease'}}>
-          {/* True suit colour, not four grey glyphs: red suits in
-              `ember` and black in `frost`, exactly as every card face
-              in the game prints them. The row used to be the one thing
-              on this screen doing no work at all. The riffle is in
-              index.html and shares the wordmark's 28ms stagger. */}
-          <div className="suit-riffle"
-            style={{fontFamily:F.display,fontSize:'clamp(24px,min(9vw,7vh),64px)',
-            letterSpacing:'0.18em',marginBottom:'clamp(4px,1.4vh,10px)',
-            whiteSpace:'nowrap'}}>
-            {SUITS.map((s,i)=>(
-              <span key={s.g} style={{color:s.c,animationDelay:`${i*0.028}s`}}>{s.g}</span>
-            ))}
-          </div>
+          {/* The suit row's own height is deliberately NOT reclaimed in
+              full: the splash is a wordmark and a button, and it reads
+              better sitting slightly high in the frame than dead
+              centre. This is the one line of spacing that stands in
+              for the row that was removed. */}
+          <div style={{height:'clamp(10px,4vh,40px)'}}/>
           <AnimatedTitle/>
           <Btn onClick={onStart}>Play</Btn>
         </div>
