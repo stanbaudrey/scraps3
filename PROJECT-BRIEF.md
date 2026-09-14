@@ -5019,10 +5019,13 @@ the Ace-counter prompt offered without an Ace in hand, cards not shrinking to
 pile size on their way into Scraps, and the splash subtitle he has asked to
 have back.
 
-**Nothing is in flight. `dev`, `main` and `origin/main` are all at
-`992c358` with an identical tree, and production is serving it.** Both the
-card redesign and the terminology pass are LIVE as of 2026-09-13. Start
-from the backlog below rather than from anything half-finished.
+**No GAME CODE is in flight.** `main` and `origin/main` are both at
+`992c358`, production is serving exactly that, and both the card redesign
+and the terminology pass are LIVE as of 2026-09-13. `dev` sits one commit
+ahead at `2539d7c`, which is **PROJECT-BRIEF.md only** — the Signpost bench
+log above — so the divergence is documentation, not unshipped work. The
+one thing genuinely in flight is the bench itself, and it is waiting on
+Stan rather than on code.
 
 **The vocabulary is now settled and it binds.** The game says hand, scrap,
 attack, discard and CLEAN SWEEP. Nothing player-facing says small hand,
