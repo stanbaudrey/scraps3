@@ -5138,11 +5138,13 @@ have back.
 **No GAME CODE is in flight.** `main` and `origin/main` are both at
 `992c358`, production is serving exactly that, and both the card redesign
 and the terminology pass are LIVE as of 2026-09-13. `dev` is ahead of it
-by documentation and TOOLING only — the Signpost bench log, the publish
-log, and the 2026-09-14 QA-gate pass, which changed
-`tools/responsive-qa.mjs`, added `tools/overlay-targets.mjs` and corrected
-two stale comments. **Nothing in `src/` that renders changed**, so there
-is still no unshipped player-visible work. The one thing genuinely in
+by documentation only — the Signpost bench log and the publish log. The
+2026-09-14 QA-gate pass is committed on the worktree branch
+`claude/musing-colden-3b1adf` and **not yet on `dev`**: it changed
+`tools/responsive-qa.mjs`, added `tools/overlay-targets.mjs` and its
+bench page, and corrected two stale comments. **Nothing in `src/` that
+renders changed**, so there is still no unshipped player-visible work and
+a preview of it would show nothing. The one thing genuinely in
 flight is the bench itself, and it is waiting on Stan rather than on code.
 
 **The responsive gate is trustworthy again, and it was not before
