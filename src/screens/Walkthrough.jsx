@@ -16,8 +16,9 @@
 // out-click the screen.
 //
 // Every card here is fixed sample data, not a real deal — the
-// hands are hand-picked to be legible (a pair, a trip, a clean
-// 2-9 / 10-K / Ace split) and carry no Aces except where the
+// cards are hand-picked to be legible (one King on each side of
+// beat 1, a clean 2-9 / 10-K / Ace split on beat 2, a pair and a
+// trip on the scoring beat) and carry no Aces except where the
 // Ace itself is the subject.
 // ============================================================
 import { useEffect, useState } from "react";
@@ -32,8 +33,13 @@ import { FitBox } from "../ui/viewport.jsx";
 // ── Sample cards ─────────────────────────────────────────────
 const C = (rank, suit, value) => ({ id: `wt-${rank}${suit}`, rank, suit, value });
 
-const SMALL_HAND = [C('4','♠',4), C('7','♣',7), C('9','♠',9), C('9','♥',9), C('K','♦',13)];
-const SCRAPS_HAND = [C('3','♠',3), C('8','♦',8), C('Q','♥',12), C('Q','♠',12), C('Q','♣',12)];
+// Beat 1 shows ONE card per side, not a five-card hand each. Stan's
+// call, 2026-09-13: that beat is about which hand is private and which
+// is public, and ten cards on screen invited the reader to start
+// reading poker hands instead. The same rank and suit both sides, so
+// the only difference left between the two panels is the thing the
+// beat is actually about — the card's FACE.
+const KING = C('K','♥',13);
 
 const DRAW_TIERS = [
   { cards: [C('2','♥',2), C('5','♠',5), C('7','♦',7), C('9','♣',9)], label: 'DRAW 1 CARD', tone: DS.slateLight },
@@ -78,8 +84,8 @@ function CardRow({ cards, isScrap = false, size = 'small', selectedIds = null, g
   );
 }
 
-// A labelled panel — used for the two hands in beat 1 and the
-// three scoring hands in beat 4.
+// A labelled panel — used for the two cards in beat 1 and the
+// three scoring hands in the scoring beat.
 function Panel({ label, labelColor = DS.slate, borderColor = `${DS.slate}44`, children, footer = null }) {
   return (
     <div style={{background:DS.duskMid,border:`2px solid ${borderColor}`,borderRadius:14,
@@ -103,7 +109,7 @@ function Panel({ label, labelColor = DS.slate, borderColor = `${DS.slate}44`, ch
 // ("One Pair", "Three of a Kind") went with them: this beat is about
 // which hand is private and which is public, and a poker ranking on
 // each box invites the reader to work out the ranking instead.
-function HandIntro({ children, color }) {
+function HandIntro({ children }) {
   return (
     <div style={{fontFamily:F.ui,fontSize:'clamp(15px,2.2vw,19px)',lineHeight:1.4,
       color:DS.slateLight,textAlign:'center',maxWidth:280,marginBottom:2}}>
@@ -116,21 +122,21 @@ function BeatHands() {
   return (
     // `flex-end`, not `flex-start`: the two intro lines are different
     // lengths and the Scraps one wraps to two lines on a narrower
-    // window, which pushed its whole column — cards included — down
+    // window, which pushed its whole column — card included — down
     // by a line. Aligning the columns by their BOTTOMS keeps both
-    // hands on one level and lets the taller caption grow upward
+    // cards on one level and lets the taller caption grow upward
     // instead, which is the direction with space in it.
     <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-end',flexWrap:'wrap'}}>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-        <HandIntro>Your <b style={{color:DS.frost}}>small hand</b> (private)</HandIntro>
+        <HandIntro><b style={{color:DS.frost}}>Small hand</b> (private)</HandIntro>
         <Panel labelColor={DS.slate}>
-          <CardRow cards={SMALL_HAND}/>
+          <CardRow cards={[KING]} size="normal"/>
         </Panel>
       </div>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-        <HandIntro>Your <b style={{color:DS.voltage}}>Scraps hand</b> (visible to everybody)</HandIntro>
+        <HandIntro><b style={{color:DS.voltage}}>Scraps</b> (visible to opponent)</HandIntro>
         <Panel labelColor={DS.voltage} borderColor={`${DS.voltage}66`}>
-          <CardRow cards={SCRAPS_HAND} isScrap startDelay={60} ink={DS.voltage}/>
+          <CardRow cards={[KING]} size="normal" isScrap startDelay={60} ink={DS.voltage}/>
         </Panel>
       </div>
     </div>
@@ -147,9 +153,17 @@ function BeatTrade() {
         // phone. Both are elastic now: the cards keep their natural
         // width, and the label takes what is left and wraps under
         // them when there is not enough.
+        // The arrow between the cards and the label is gone (Stan,
+        // 2026-09-13). It was the reason these rows broke badly at his
+        // width: cards + arrow + "DRAW 2 CARDS" needs ~446px, a 375px
+        // phone has ~343px of row, and the label wrapped mid-phrase
+        // with the arrow stranded beside it. Without it the row is one
+        // flex line that CENTRES and wraps as a unit — cards and label
+        // side by side wherever they fit, cards over label where they
+        // do not, and never a broken label either way.
         <div key={tier.label} style={{display:'flex',alignItems:'center',gap:14,
           background:DS.duskMid,border:`2px solid ${tier.tone}44`,borderRadius:14,
-          padding:'12px 16px',justifyContent:'space-between',flexWrap:'wrap',
+          padding:'12px 16px',justifyContent:'center',flexWrap:'wrap',
           maxWidth:'100%'}}>
           <div style={{display:'flex',gap:8,flexShrink:0}}>
             {tier.cards.map((c, i) => (
@@ -158,9 +172,8 @@ function BeatTrade() {
               </Wig>
             ))}
           </div>
-          <span style={{fontFamily:F.display,fontSize:20,color:DS.slate}}>→</span>
           <span style={{fontFamily:F.display,fontSize:24,color:tier.tone,letterSpacing:'0.06em',
-            whiteSpace:'nowrap',flex:'1 1 auto',minWidth:0,textAlign:'right'}}>{tier.label}</span>
+            whiteSpace:'nowrap',textAlign:'center'}}>{tier.label}</span>
         </div>
       ))}
     </div>
@@ -200,9 +213,11 @@ function BeatAce() {
         </Wig>
       </div>
 
-      <span style={{fontFamily:F.display,fontSize:26,color:DS.slate}}>→</span>
-
-      {/* The selection modal, mid-choice */}
+      {/* The selection modal, mid-choice. The arrow that used to sit
+          between the button and the pile is gone (Stan, 2026-09-13):
+          the two objects are a cause and its effect and they read that
+          way side by side, and the arrow was the widest thing on the
+          beat's centre line on a phone. */}
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
         <div style={{background:DS.duskMid,border:`2px solid ${DS.ember}88`,borderRadius:14,
           padding:'14px 12px',boxShadow:`0 0 26px ${DS.ember}33`,maxWidth:'100%'}}>
@@ -275,30 +290,45 @@ function BeatScoring() {
 }
 
 // ── The beats ────────────────────────────────────────────────
+//
+// ORDER, reset 2026-09-13 on Stan's call: mechanics, then the flow of
+// play, then the scoring, and the Ace LAST. It used to sit third, in
+// the middle of the explanation, where it read as one more rule to
+// absorb. At the end it is the surprise the game turns on, and it is
+// the last thing a reader is holding when they hit LET'S PLAY.
 const BEATS = [
   {
-    copy: <>SCRAPS always has two poker hands running.</>,
+    // The one beat with a title over it. Rye is the wordmark face and
+    // this is the only other place it appears — the storyboard is the
+    // splash's continuation, and the title says so without repeating
+    // the wordmark itself.
+    title: 'How to play',
+    copy: <>SCRAPS always has two poker hands running:</>,
     visual: <BeatHands/>,
   },
   {
-    copy: <>Transfer cards from your small hand into your Scraps to draw fresh cards.</>,
+    copy: <>Scrap cards from your hand into your Scraps pile. Draw fresh cards.</>,
     visual: <BeatTrade/>,
     below: 'Both hands have a 7 card limit.',
   },
   {
-    copy: <>Or you can discard an Ace, and select two cards to discard from your opponent’s Scraps.</>,
-    visual: <BeatAce/>,
-  },
-  {
     copy: (
-      <>Each round is two small hands (1 point each) then your best Scraps hand (2 points).
-      <b style={{color:DS.frost}}> No flushes.</b> Win all three hands for a bonus point.
-      First to {WIN_SCORE}, win by 2.</>
+      <>Play two hands, then your best Scraps.
+      <b style={{color:DS.frost}}> No flushes.</b> Play to {WIN_SCORE}.</>
     ),
     visual: <BeatScoring/>,
+  },
+  {
+    copy: <>Aces can <b style={{color:DS.gold}}>attack.</b> Discard two cards from opponent’s Scraps.</>,
+    visual: <BeatAce/>,
     cta: 'Let’s Play',
   },
 ];
+
+// Exported so the difficulty picker's BACK can name the beat it
+// returns to without hard-coding a 3.
+export const BEAT_COUNT = BEATS.length;
+export const LAST_BEAT = BEATS.length - 1;
 
 // ─────────────────────────────────────────────────────────────
 // Walkthrough
@@ -310,8 +340,11 @@ const BEATS = [
 // the no-flushes house rule — so a first-timer could lose to a rule the
 // game had never shown them. There is no reason to maintain a second,
 // worse explanation of the rules beside this one.
-export function Walkthrough({ onDone, asReference = false }) {
-  const [i, setI] = useState(0);
+export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
+  // `startAt` is for the difficulty picker's BACK, which returns the
+  // reader to the LAST beat rather than the first — they have already
+  // read the whole thing and want the page they just left.
+  const [i, setI] = useState(startAt);
   const beat = BEATS[i];
   const last = i === BEATS.length - 1;
 
@@ -384,6 +417,16 @@ export function Walkthrough({ onDone, asReference = false }) {
         <div style={{flex:'1 0 auto',
           display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
           gap:'clamp(14px,3vh,26px)'}}>
+
+          {beat.title && (
+            <div style={{fontFamily:F.title,
+              fontSize:'clamp(28px,min(7vw,6vh),56px)',lineHeight:1.05,
+              color:DS.frost,textAlign:'center',
+              textShadow:'0 3px 0 rgba(0,0,0,.4)',
+              marginBottom:'clamp(-6px,-1vh,0px)'}}>
+              {beat.title}
+            </div>
+          )}
 
           <p style={{fontFamily:F.ui,fontSize:'clamp(18px,2.4vw,27px)',lineHeight:1.45,
             fontWeight:500,color:DS.slateLight,textAlign:'center',maxWidth:800}}>

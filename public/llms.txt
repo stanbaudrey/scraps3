@@ -14,11 +14,11 @@ original, not a digital version of an existing game.
 - You move cards from your hidden hand into your face-up Scraps to draw
   fresh cards. Both piles cap at 7 cards.
 - Aces are a weapon: discard one to strip two cards from the opponent's
-  Scraps. They can counter with an Ace of their own.
+  Scraps. She can counter with an Ace of her own.
 - **Flushes are never valid.** A five-card suited straight scores as a plain
   straight, never a straight flush. This is a house rule and it is enforced
   everywhere in the engine.
-- First to 10 points, win by 2. Winning both small hands *and* the
+- First to 10 points. Winning both small hands *and* the
   Scraps hand in one round is a FULL SCRAP, worth 5.
 
 ## Notes

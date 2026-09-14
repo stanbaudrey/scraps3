@@ -97,7 +97,7 @@ export const DS = {
   timberSeam:  '#191309',
 };
 export const F = {
-  title:   "'Bungee Shade', sans-serif",
+  title:   "'Rye', serif",
   display: "'Fjalla One', sans-serif",
   card:    "'Baloo 2', sans-serif",
   ui:      "'Work Sans', sans-serif",

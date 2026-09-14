@@ -47,7 +47,7 @@
       "@type": "VideoGame",
       "name": "SCRAPS",
       "url": "https://scraps.games/",
-      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps worth two, and Aces that strip your opponent's board. First to 10, win by 2. Flushes are never valid.",
+      "description": "Poker with two hands at once. A five-minute two-player card game against an AI opponent: this turn's discards are next turn's hand. Two private hands worth a point each, one public Scraps worth two, and Aces that strip your opponent's board. First to 10. Flushes are never valid.",
       "genre": "Card game",
       "gamePlatform": "Web browser",
       "playMode": "SinglePlayer",
@@ -92,22 +92,22 @@
          of those two families would cost no additional bytes.
          ======================================================== */
       /* FONT-FACE:BEGIN */
-      /* Bungee Shade 400 — latin-ext */
+      /* Rye 400 — latin-ext */
       @font-face {
-        font-family: 'Bungee Shade';
+        font-family: 'Rye';
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url('/fonts/bungee-shade-latin-ext.woff2') format('woff2');
+        src: url('/fonts/rye-latin-ext.woff2') format('woff2');
         unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
       }
-      /* Bungee Shade 400 — latin */
+      /* Rye 400 — latin */
       @font-face {
-        font-family: 'Bungee Shade';
+        font-family: 'Rye';
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url('/fonts/bungee-shade-latin.woff2') format('woff2');
+        src: url('/fonts/rye-latin.woff2') format('woff2');
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
       /* Fjalla One 400 — latin-ext */
@@ -539,7 +539,13 @@
          the last animation to run would otherwise win:
            .scraps-letter   entrance + the perpetual riffle
            .scraps-kinetic  desktop hover fan (transition only)
-           .tap-layer       the touch-device square-up
+         A third layer, .tap-layer, carried a touch-device "square up"
+         gesture — the letters going loose and snapping flush on tap,
+         with a sound to match. Removed 2026-09-13 at Stan's request:
+         the riffle is the wordmark's motion and the tap was a second
+         gesture competing with it on the one screen that should be
+         still. playSquareUp() in audio.js is kept and now has no
+         caller; see its header.
          Perspective sits on the row: the riffle rotates each letter
          about its own X axis, and without a 3D context that read as
          a flat vertical squash.
@@ -569,7 +575,6 @@
         transform-origin: 50% 128%;
         transition: transform 420ms cubic-bezier(.2,.8,.3,1);
       }
-      .tap-layer { display: inline-block; }
 
       /* Riffle — a spring travelling the row the way a bridged deck
          releases: most of the cycle is stillness, then a fast pass.
@@ -611,20 +616,6 @@
         }
       }
 
-      /* Square-up — the letters go loose like an untidy hand, then snap
-         flush as if tapped on the table. Offsets are fixed per letter
-         rather than random so the gesture is identical every time; a
-         motion that differs run to run reads as a glitch. Paired with
-         playSquareUp() in audio.js, which runs to the same length. */
-      @keyframes squareUp {
-        0%   { transform: translate(0,0) rotate(0deg); }
-        22%  { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); }
-        100% { transform: translate(0,0) rotate(0deg); }
-      }
-      .tap-layer.squaring {
-        animation: squareUp 720ms cubic-bezier(.25,1.2,.4,1) both;
-      }
-
       /* ========================================================
          REDUCED MOTION — the full pass (Session 5, 2026-08-27).
          This replaces the five scoped rules that used to sit here
@@ -641,7 +632,7 @@
             animate an element INTO the state it would have had
             anyway.
          2. PERPETUAL DECORATION that carries no state — the three
-            swirl layers, the wordmark riffle and its tap scatter,
+            swirl layers, the wordmark riffle,
             the storyboard lean, the suits bounce. Freezing them
             loses nothing at all.
          3. MOTION THAT IS THE ONLY CARRIER OF A STATE — three cases,
@@ -726,11 +717,11 @@
             fresh ones. Cards 2&ndash;9 draw one, 10&ndash;K draw two, an Ace
             draws three. Both piles cap at 7 cards.</li>
           <li>Aces are a weapon: discard one to strip two cards from your
-            opponent's Scraps. They can counter with an Ace of their own.</li>
+            opponent's Scraps. She can counter with an Ace of her own.</li>
           <li><strong>Flushes are never valid.</strong> A five-card suited
             straight scores as a plain straight, never a straight flush.</li>
           <li>Each round scores two small hands worth 1 point each and the
-            Scraps hand worth 2. First to 10 points, win by 2. Winning all
+            Scraps hand worth 2. First to 10 points. Winning all
             three hands in one round is a FULL SCRAP, worth 5.</li>
         </ul>
         <p><strong>This game needs JavaScript to play.</strong> Enable it and

@@ -45,7 +45,7 @@ const KEEP_SUBSETS = new Set(['latin', 'latin-ext']);
 
 /** Mirrors the family+weight set index.html requested before self-hosting. */
 const SPEC = [
-  { family: 'Bungee Shade',  slug: 'bungee-shade',  css: 'Bungee+Shade' },
+  { family: 'Rye',           slug: 'rye',           css: 'Rye' },
   { family: 'Fjalla One',    slug: 'fjalla-one',    css: 'Fjalla+One' },
   { family: 'Baloo 2',       slug: 'baloo-2',       css: 'Baloo+2:wght@600;700;800' },
   { family: 'Work Sans',     slug: 'work-sans',     css: 'Work+Sans:wght@400;500;600;700' },

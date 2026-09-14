@@ -489,7 +489,7 @@ about mechanics):*
 > Scraps hand worth 2. Move cards into your Scraps pile to draw fresh ones,
 > both piles cap at 7. Aces are a weapon — discard one to strip two cards
 > from the opponent's Scraps pile, they can counter with an Ace of their
-> own. First to 10, win by 2. Sweep both small hands and the Scraps hand in
+> own. First to 10. Sweep both small hands and the Scraps hand in
 > one round for a Full Scrap, worth 5.] Built a browser version to actually
 > playtest it against an AI. [link] — would love feedback on the rules
 > themselves as much as the build.
@@ -501,11 +501,19 @@ about mechanics):*
 > An original card game — invented it with my wife, then built this as a
 > real playable version. Two private hands worth 1 point each, a public
 > "Scraps" pile worth 2. Aces let you strip your opponent's pile, and they
-> can counter-strip right back. First to 10, win by 2. [link] — feedback
+> can counter-strip right back. First to 10. [link] — feedback
 > welcome, especially anything that breaks on your setup.
 
 *Friends / word of mouth:* no drafted copy needed — direct message, not a
 public post. Just the link and "built this, tell me if anything breaks."
+
+> **Two notes on these drafts, 2026-09-13.** The win condition above was
+> "First to 10, win by 2" until the rule was dropped; it is corrected here
+> rather than left to go out wrong. The generic **"they"** in the Ace
+> sentences is deliberate and was NOT swept when the AI opponent became
+> female the same day: those lines state the rule as two humans would play
+> it, where the opponent is anybody. "She" belongs to the character the game
+> puts across the table, and it is used everywhere inside the product.
 
 **Sequencing:** friends first — catches obvious bugs and rough edges with
 zero public downside. Then Show HN, since the technical story is strong and
@@ -4041,6 +4049,284 @@ trim of 9.0647 was left alone rather than retargeted to the bench's level.
 `playSquareUp` untouched. No audio files were imported, so the project's "no
 audio files, no licensing surface" position still holds.
 
+### Unplanned session — The big pass: rules, opponent, wordmark, table ✅ Done (2026-09-13)
+
+Requested directly by Stan as one long list under the heading "Big session
+here", covering mobile fixes, one rule change, a global pronoun change, the
+splash typeface, a storyboard rewrite and a gameplay-layout rebuild. He fenced
+off three things for later sessions in the same message: the card redesign (per
+`CARD-REDESIGN-SPEC.md`), the terminology change (a separate `.md` he has
+ready), and the interstitials.
+
+**Three things in the list needed settling before any of it was built**, and he
+answered all three: the reveal button is **SHOW 'EM** (he had asked for both
+SHOW 'EM and REVEAL in the same message); the results-screen chain runs all
+three hand-offs, each named for what comes next; and the near-win banner is
+**repurposed as a match-point banner** rather than deleted.
+
+#### The rule change: first to 10, flat
+
+`checkWin` used to require `max >= WIN_SCORE` **and** a margin of 2. It now
+returns the leader the moment any score touches 10.
+
+**Confirmed it cannot deadlock, and the reason is structural rather than
+lucky.** Every scoring event in this game pays exactly ONE side —
+`SMALL_HAND_SCORED` credits a single winner, and `scoreScrapsOutcome` fills
+either `pPts` or `aPts` but never both. So the two scores can never move
+together and the trailing player cannot arrive at 10 in the same event as the
+leader; a 10-10 board was already unreachable, and the margin test was only
+ever guarding against it. That property is now its own test rather than an
+argument in a comment. The AI reads raw scores for its aggression heuristics,
+never the margin, so `engine.js` needed no change at all.
+
+**What it does to pacing:** games get materially shorter. A full driven
+play-through finished in **three rounds** — a round pays up to 5 with a Full
+Scrap, so 10 is two to four rounds now rather than an open-ended race.
+
+**Everywhere the rule was stated got updated**, which is more places than it
+looks: the gameplay eyebrow (now `FIRST TO 10`), the storyboard's scoring beat,
+the no-JS block in `index.html`, the `<meta name="description">`, the generated
+`llms.txt`, and `RulesModal`'s copy. `NearWinBanner` became a **match-point**
+banner at `WIN_SCORE - 2` — 2 is what the Scraps hand pays and the smallest
+hand that can end a game from 8. Tests went 55 → 56.
+
+#### The opponent is female
+
+A copy sweep, not a mechanic: narrator hints, the Ace modals, the reducer's log
+lines, the ATTACK tag's screen-reader labels and title, the storyboard, the
+no-JS crawler copy and `llms.txt`. The opponent is still called OPPONENT on the
+table — he asked for pronouns, not a name.
+
+#### The splash
+
+Rye replaces Bungee Shade on the wordmark, vendored through
+`tools/fetch-fonts.mjs` the same way as the other four families, with the two
+`bungee-shade-*.woff2` files deleted. **This answers the one question
+`CARD-REDESIGN-SPEC.md` left open in its section 6b** — whether Rye replaces
+Bungee Shade on the wordmark as well as Baloo 2 on the cards. It does, for the
+wordmark, now; the card half is still that spec's to build. *His other Notion
+note, asking to "incorporate the font currently used for the SCRAPS wordmark
+for headlines" in the interstitials, now points at Rye rather than Bungee
+Shade. Flagged for the interstitial session rather than acted on.*
+
+The **tap gesture is gone** — the square-up where the letters went loose and
+snapped flush on touch. The riffle and the desktop hover fan stay. `playSquareUp`
+in `audio.js` was NOT deleted: it is a tuned six-tap phrase in the same G major
+pentatonic the table's outcome bars now use, and the interstitial redesign is
+its obvious home. It has no caller today and its header says so.
+
+The **subtitle is gone**. That broke `npm run share`, which read
+`const SUBTITLE` out of `MenuScreens.jsx` as a drift guard — untied, with a
+note; the card never printed it (STRAPLINE did).
+
+#### The storyboard
+
+New order: the two hands, scrapping to draw, how a round scores, **then the
+Ace**. Mechanics, flow, surprise rule, with the Ace last because it is the
+thing the game turns on and it is what a reader should be holding when they
+press LET'S PLAY. Beat 1 gained a Rye **HOW TO PLAY** title and dropped from
+five cards a side to **one King of Hearts each** — same rank and suit both
+sides, so the only difference left between the two panels is the card's face,
+which is the whole point of the beat. Both arrows are gone (beat 2's
+cards → label, and the Ace beat's button → pile), and every copy line is
+Stan's. The difficulty picker gained a **BACK** that returns to the
+storyboard's last beat, armed on the same 720ms lock as the panels.
+
+#### The table
+
+**The deck and the discard came off it.** They were the last furniture that was
+not part of the game — two labelled piles a player never touches, costing the
+wide layout a gutter column and the stacked layout a row, on the axis each is
+shortest on. `DeckPile` and `DiscardPile` were deleted rather than left
+unreferenced, so a later pass cannot put the furniture back by accident.
+
+They are still anchors, with no pixels. `deckAnchor()` answers with a rect off
+the **dealer's** edge — odd rounds the opponent deals and cards come over the
+top, even rounds you deal and they come up past the bottom — and
+`discardAnchor(i)` answers off the left, carrying a big `rot`. That last part
+is why the toss needed no new code: a flight already turns a card from the
+angle it sat at to its destination's `rot`, so a destination with a 105-160°
+angle *is* the spin.
+
+Also: point values off the round strip, the `▸` off the best-hand badge, the
+PLAYABLE strip deleted, and the three hand-off buttons (DEAL SECOND HAND, PLAY
+SCRAPS HAND, NEXT ROUND) moved **onto** the results screen that precedes each
+of them. Those were two presses for one decision, three times a round. The
+button on a results screen now names what happens next and the phase it leaves
+behind carries itself — except when that result ends the match, where it reads
+CONTINUE rather than promising a hand that will never be dealt.
+
+SIGNAL became **SELECT HAND**, inert until the selection is legal and then
+naming it: A THREE, AN ACE, PAIR, TWO PAIR, FULL HOUSE. The name comes from a
+new pure `engine.signalHandLabel`, so the button and the engine cannot disagree
+about what a selection is. REVEAL HANDS became **SHOW 'EM**. Both TRADE IN and
+SELECT HAND now share one `TableActionBtn`, whose disabled form sits at
+**opacity 0.8** — Stan's "dim it by 20%".
+
+#### Three real bugs found and fixed along the way
+
+**1. The opponent moved behind the Ace lightbox — his report, and the cause was
+effect ordering.** The `aiGo` gate already checked `aceDrawnCard`, but it is
+declared ABOVE the effect that opens the lightbox, so on the tick an Ace lands
+the gate reads the flag as still false, clears the AI to act, and only learns
+about the box on the next pass. Worse, its guard was a bare `return`, which
+leaves a previously-set `aiGo` standing and the runner's timers alive. It is
+`setAiGo(null)` now, which tears the runner down through its own cleanup, plus
+a ref the runner itself checks before acting — a timer already handed to the
+event loop cannot be recalled. Safe to restart because the runner is idempotent
+from the top of a phase and its first action is 800ms in.
+
+**Verified by sampling inside ONE evaluate**, per the round-trip rule: with the
+box up in round 2 (the round the opponent goes first, i.e. exactly his case),
+eleven samples at 300ms showed zero card ghosts, an unchanged log line, and the
+only two running animations belonging to the lightbox itself.
+
+**2. ATTACK did not fit its button on a phone — and it is not his display
+settings.** He asked directly. `FannedHand` sizes a card's slot to its EXPOSED
+share of the fan, so that two adjacent Aces do not overlap their tags, and that
+share collapses as the hand fills: **measured 46px at seven cards on a 375px
+screen, against 56.22px of "ATTACK" text wanting 64.22px inside the tag's
+padding.** Every phone player holding a full hand hit it. iOS Dynamic Type does
+not scale CSS-sized web text, so his Larger Text setting was not involved at
+all. Fixed with `ACE_TAG_MIN_W = 66`, which clears the measured figure and
+stays under the 80px card so the overlap it reintroduces between adjacent Aces
+is 20px rather than 34. Caught live at five cards afterwards:
+`clientWidth 66, scrollWidth 66`.
+
+**3. `FitBox` measured the padded box, and clipped what it had just scaled.**
+It read `outer.clientHeight`, which includes padding the caller passes through
+`style` — and the storyboard passes `padding:'16px 10px 0'`. So a beat wanting
+576px was scaled to fit 562 and then had its last 16px cut by the
+`overflow:hidden` on the same element. Visible as "Both hands have a 7 card
+limit" sliced in half. It measures the content box now. This is shared layout
+code; the game table passes no padding, so only the storyboard was affected.
+
+**One bug I introduced and caught in the same pass:** the narrator div is a
+flex container, so a hint carrying a `<b>` arrived as three flex items and laid
+the signal sentence out in three columns with "many" stranded in the middle.
+Wrapped in a single span.
+
+#### How it was verified
+
+The Browser pane reported itself hidden and `computer.left_click` timed out, and
+the Playwright MCP's profile was locked by another live session — so this ran on
+**Playwright's Node API imported directly**, exactly the fallback order
+CLAUDE.md prescribes. A scripted driver played complete games end to end at
+375x667.
+
+- **A full game, zero console errors**, with the button chain captured in
+  order: `Deal Second Hand →`, `Play Scraps Hand →`, `Next Round →`, then
+  `Continue →` on the result that ended the match, then NEW GAME.
+- **The discard toss measured across 8 frames:** centre x ran 153 → 150 → 126 →
+  71 → -42 → -96 → -116 → -162, off the left edge, while the rotation matrix
+  swept 0.727 → -0.935, i.e. through more than a quarter turn. Three ghosts (two
+  struck cards plus the spent Ace).
+- **No scroll and nothing painted outside the viewport** at 375x667, 1024x662
+  and 1440x900. The narrator sits dead centre at both desktop widths (512/512,
+  720/720) — removing the left gutter's contents did not break the centre-axis
+  rule the Session 5 work established.
+- `npm test` 56 passing, `npm run build` clean, `fonts:check` 24 faces over 14
+  files with 0 changed and 0 stale, `share:check` current after a regenerate.
+- **Tells scan: exit 0.** Six "banned" hits, all already-known false positives —
+  "Inter" matching inside *RoundInterstitial* and *r/InternetIsBeautiful*, "Space
+  Grotesk" matching brief entries recording its REMOVAL, ✅ in this file read as
+  "emoji as icons", "shimmer" in prose about woodgrain, the woodgrain vignette
+  read as a rainbow gradient, and three one-shot entrance keyframes read as
+  "fade-in-up on everything". **Rye is not on the banned-typeface list.**
+
+#### Open, and worth knowing
+
+- **The left gutter of the wide table is now empty**, so at desktop widths the
+  table reads slightly right-heavy: the hands sit on the centre axis while each
+  side's Scraps hangs in the right gutter, and the pile rail used to balance it.
+  Not changed unilaterally — rebalancing means either moving the narrator off
+  the axis or grouping hand+Scraps as one centred pair. Stan's call.
+- **The live deck count is no longer shown anywhere.** The deck is rebuilt every
+  round and a round cannot exhaust it, so it was reference nobody acted on, but
+  it is a real deletion rather than a move.
+- **The privacy notice is unreachable in the shipped game.** `RulesModal` holds
+  the only copy of it and has had no importer since the storyboard took over as
+  the in-game rules on 2026-08-30, while `llms.txt` still points readers at "the
+  Privacy notice inside the game's rules panel". Found here, not fixed: wording
+  and placement are Stan's.
+- Not published. This is preview-ready, not live.
+
+### Unplanned session — Six notes off the preview ✅ Done (2026-09-14)
+
+Stan's review of the big pass, six items, all built and verified in the same
+sitting. Then published to preview.
+
+**The select cue was retuned properly rather than scaled.** "A little too high
+pitched and 25% too loud." Pitch dropped a fifth, D6 (1174.66) to A5 (880),
+staying inside the kit's G major pentatonic so it still cannot clash with an
+outcome bar landing over it. The 25% came off the **TARGET** (.16 → .12), never
+off the trim, because the trim is a derived number — and this is exactly the
+trap CLAUDE.md warns about: **the retune moved the raw peak from 0.2014 to
+0.2286, so the old trim would have made the cue 14% LOUDER while the file still
+claimed .16.** Re-measured in a real browser against this file, all three
+variants, trimmed by the loudest: post-trim peak **0.120007** against a target
+of .12, 0.006% off. The harness was validated first by reproducing the
+shipping cue's own numbers before anything changed.
+
+**Everything else, and what each was.**
+
+- *"Opponent signals N."* replaces the old line that also told you to pick a
+  hand — which is what the button under it already says.
+- *"Both signals in."* loses "Show 'em?", which was asking a question that on
+  half the paths has no button to answer it.
+- *The opening deal now deals all fourteen cards*, the two that start in each
+  Scraps included. They used to be simply THERE when the interstitial lifted,
+  so a round looked like it began with four cards already played. Both sides'
+  Scraps fly in together, two beats rather than four, because four sequential
+  cards added 360ms to a deal that was already 810.
+- *The discard moved to the right edge.* The toss rotation carried the sign
+  with it, so the spin still turns the way the card is travelling.
+- *SHOW 'EM is skipped when she signals first.* There is nothing left to decide
+  at that point — both hands are committed — so the press existed only to be
+  pressed. The 580ms build cue still runs; it is the drumroll, not the button.
+- *"Opponent is thinking..." no longer flashes after she has moved.* Her turn
+  has two halves and the narrator only had copy for the first: she decides, she
+  acts (cards fly, `settling` silences the band), the cards land — and then the
+  band came BACK with "thinking" over a move she had visibly already made,
+  because the phase does not advance for another 2.1s.
+
+**Two things adjacent to the list, found by measuring and fixed.** Clearing
+`autoReveal` at the start of the build put the SHOW 'EM button back on screen
+for 580ms in its shaking `▶▶▶` state — the manual path's look, on a screen
+nobody had pressed anything on. The flag is held through the build now. And
+"Signal locked. Waiting for her..." was showing for 700ms on the path where she
+had *already* signalled; it says "Both signals in." there instead, so the band
+holds one line from your commit through to the cards turning over.
+
+#### How it was verified
+
+The narrator is sampled **from inside the page** — a 60ms interval pushing
+`{t, hint, log, showEm}` onto `window` — rather than polled from the driver,
+which is the only way to catch a state that lives for a few hundred
+milliseconds. A `data-narrator` attribute was added to the band as a permanent
+hook, after a first attempt selecting on `min-height: 3.9em` found nothing
+(computed styles resolve that to pixels).
+
+- **Twelve AI turns across a full game, and "Opponent is thinking..." appears
+  on none of the log lines that say she traded.** Before the fix it appeared on
+  every one.
+- **Both signal orders walked.** She-first: "Opponent signals 1." → "Both
+  signals in." → reveal, with no button on screen at any sample. Me-first:
+  unchanged, "Signal locked. Waiting for her..." then SHOW 'EM. (The button
+  does re-render behind the open reveal overlay on both paths, as it always
+  has; the overlay is a focus-trapped modal, so it is contained.)
+- **The deal peaks at 14 simultaneous ghosts** — 5 + 5 hand, 2 + 2 Scraps —
+  and settles at 2/7 in both zones with 5 in hand.
+- **The toss runs rightward off a 375px viewport:** three ghosts measured at
+  240 → 482, 284 → 476 and 311 → 460.
+- 56 tests, clean build, `share:check` and `fonts:check` current, tells scan at
+  its six known false positives, zero console errors across the driven game.
+
+**Note for whoever runs the tests next:** `npx vitest run` at the repo root
+picked up a SECOND copy of both test files and reported 111 passing. That was a
+sibling git worktree under `.claude/worktrees/` from a spawned session, not
+anything in this tree. `--exclude '**/.claude/**'` gives the real 56.
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4069,6 +4355,8 @@ audio files, no licensing surface" position still holds.
 | — | *Unplanned:* The real domain — scraps.games | Done + **PUBLISHED** (2026-09-12) — registered 2026-09-08, all 11 hardcoded URLs repointed, www and the old vercel.app both 308 to the apex. Four instrument traps recorded: `whois` returns the TLD record, Vercel's project API omits custom domains, macOS negative-caches DNS, TLS lags DNS |
 | — | *Unplanned:* Card + Scraps pile direction | **Decided, not built** (2026-09-13) — read-only. Ten decisions in `CARD-REDESIGN-SPEC.md`: Rye, no box, no suits, big left-anchored rank, heap with seeded wear. Three benches published. Verified suits are decorative (`.suit` read once, in `createDeck`) and that weathered stock cannot carry red pips |
 | — | *Unplanned:* The Woodshed — sound kit retuned | Done + **PUBLISHED** (2026-09-13) — 74-option bench, all 14 cues repicked. Wood for physical events, tuned bars for score outcomes; **no brass taken**. Breaks the old "no oscillator plays a note" rule on purpose. Trims re-measured and **verified on target within 0.04%**. PLAY button now sounds. Found: peak targets under-state a ringing bar by ~2x. Live bundle verified byte-identical to the tested build |
+| — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done (2026-09-13), **not published** — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off-left discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
+| — | *Unplanned:* Six notes off the preview | Done (2026-09-14), **not published** — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
 
 
 ---

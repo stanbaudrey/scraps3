@@ -1,9 +1,7 @@
 // ============================================================
 // SCRAPS — Static backdrop + animated title
 // ============================================================
-import { useCallback, useEffect, useRef, useState } from "react";
 import { DS, F } from "../styles/theme.js";
-import { playSquareUp } from "../audio.js";
 
 // ─────────────────────────────────────────────────────────────
 // SceneBackdrop — Stan's illustration, on the splash and the
@@ -258,57 +256,34 @@ export function TableSurface({ cardH = 146 }) {
   );
 }
 
-// AnimatedTitle — the SCRAPS wordmark.
+// AnimatedTitle — the SCRAPS wordmark, set in Rye.
 //
-// Three behaviours share the letters, and each gets its own nested
-// span because each wants `transform` (see the .scraps-* block in
+// Two behaviours share the letters, and each gets its own nested span
+// because both want `transform` (see the .scraps-* block in
 // index.html):
 //   1. Entrance, then a perpetual riffle — a spring travelling the row
 //      the way a bridged deck releases.
-//   2. Touch devices: the letters go loose and snap flush, once shortly
-//      after the entrance settles and again on every tap, with a
-//      matching sound. Hover has no meaning there, so the gesture needs
-//      its own trigger or nobody would ever see it.
-//   3. Pointer devices: the hand fans open under the cursor, pure CSS.
+//   2. Pointer devices: the hand fans open under the cursor, pure CSS.
 //      Note .scraps-title keeps `cursor: default` — hovering does
 //      something, clicking does not, and the cursor must not promise
 //      otherwise.
+//
+// There was a THIRD, removed 2026-09-13 on Stan's call: a touch-device
+// "square up" where the letters went loose and snapped flush, on mount
+// and on every tap, with playSquareUp() under it. The riffle is the
+// wordmark's motion; a second gesture on the same six letters was two
+// things happening on the screen that has the least reason to move.
+// The .tap-layer span, the SCATTER table and the squareUp keyframes
+// all went with it. The CUE did not: playSquareUp is still in
+// audio.js, now with no caller.
+//
+// The face changed in the same pass — Bungee Shade out, Rye in — and
+// nothing here depends on which one F.title names.
 const LETTERS = 'SCRAPS'.split('');
-// Fixed per letter, never random: a gesture that differs run to run
-// reads as a glitch rather than a flourish. Mirrors the audio stagger.
-const SCATTER = [
-  { dx:-5, dy: 4, dr:-5 }, { dx: 4, dy:-3, dr: 4 }, { dx:-3, dy: 5, dr:-3 },
-  { dx: 6, dy:-4, dr: 6 }, { dx:-6, dy: 3, dr:-4 }, { dx: 3, dy:-5, dr: 5 },
-];
-const TAP_STAGGER = 0.028;                        // seconds, matches playSquareUp
-const TAP_MS = 720 + (LETTERS.length - 1) * TAP_STAGGER * 1000 + 60;
 
 export function AnimatedTitle() {
-  const [squaring, setSquaring] = useState(false);
-  const timer = useRef(null);
-  // (hover: none) rather than a width breakpoint: what actually
-  // decides this is whether the device can hover, not how wide it is.
-  const [isTouch] = useState(() =>
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: none), (pointer: coarse)').matches
-  );
-
-  const squareUp = useCallback(() => {
-    setSquaring(true);
-    playSquareUp();
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSquaring(false), TAP_MS);
-  }, []);
-
-  useEffect(() => {
-    if (!isTouch) return undefined;
-    const t = setTimeout(squareUp, 1400);          // after the entrance lands
-    return () => { clearTimeout(t); clearTimeout(timer.current); };
-  }, [isTouch, squareUp]);
-
   return (
-    <h1 className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}
-      onClick={isTouch ? squareUp : undefined}>
+    <h1 className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}>
       {LETTERS.map((l,i)=>(
         <span key={i} className="scraps-letter"
           style={{fontFamily:F.title,
@@ -317,14 +292,7 @@ export function AnimatedTitle() {
             textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,
             animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i*.09}s both,`+
                       ` titleRiffle 2.08s cubic-bezier(.3,.9,.4,1) ${1.1+i*.055}s infinite`}}>
-          <span className="scraps-kinetic">
-            <span className={`tap-layer${squaring?' squaring':''}`}
-              style={{'--dx':`${SCATTER[i].dx}px`,'--dy':`${SCATTER[i].dy}px`,
-                '--dr':`${SCATTER[i].dr}deg`,
-                animationDelay:`${i*TAP_STAGGER}s`}}>
-              {l}
-            </span>
-          </span>
+          <span className="scraps-kinetic">{l}</span>
         </span>
       ))}
     </h1>

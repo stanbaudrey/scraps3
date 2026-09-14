@@ -51,6 +51,27 @@ export const MODAL_BTN_MIN = 54;
 // screen that has the least of it.
 export const ACE_TAG_MIN = 62;
 
+// The tag's minimum WIDTH, which is a different failure from the
+// minimum height above and was reported by Stan on his phone: "the
+// ATTACK copy does not fit on the button above the Ace."
+//
+// FannedHand sizes a card's slot to its EXPOSED share of the fan, not
+// to the card, so that two adjacent Aces do not overlap their tags.
+// That share collapses as the hand fills: measured on a 375px phone
+// with seven cards it is 46px, while "ATTACK" at 13px with its 0.08em
+// tracking measures 56.22px of text and wants 64.22px inside the tag's
+// 4px side padding. So the label overflowed its own button by 19px for
+// every phone player holding a full hand — nothing to do with his
+// display settings, which do not scale CSS-sized web text on iOS at
+// all.
+//
+// 66 clears the measured figure with 1.8px to spare and stays UNDER
+// the 80px card, so the overlap it reintroduces between two adjacent
+// Aces is 20px rather than 34 — each tag still exposes its full 46px
+// slot to a fingertip, and the later one paints on top, which is the
+// same direction the cards themselves overlap.
+export const ACE_TAG_MIN_W = 66;
+
 // ─────────────────────────────────────────────────────────────
 // pressStyles — pointer-driven visual states.
 //
@@ -189,30 +210,31 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false, c
 }
 
 // ─────────────────────────────────────────────────────────────
-// TradeInBtn — prominent action button with hover effect
+// TableActionBtn — the table's primary action, in both its shapes.
 //
-// The label carries the whole trade: how many cards leave, and
-// how many come back. It used to read "Trade In (2)", where the
-// 2 was cards SELECTED, which collided head-on with the rule the
-// walkthrough had just taught (a 10-K draws 2, an Ace draws 3) —
-// so "(2)" was routinely read as "draw 2".
+// TRADE IN and SELECT HAND are the same control in two phases of a
+// hand: the one big thing the middle of the table is asking you to
+// do. They were built separately and drifted, so SELECT HAND (then
+// SIGNAL) used BigBtn's disabled look — opacity 0.35, a smudge — while
+// TRADE IN had already been given a legible outlined one in Session 5.
+// One component now, so the two states cannot diverge again.
 //
-// When the draw would blow the 7-card hand limit the button says
-// so BEFORE the click, in ember, with the arithmetic. It stays
-// clickable on purpose: pressing it fires the error copy and
-// sound, which is how the rule gets taught rather than merely
-// enforced.
-// ─────────────────────────────────────────────────────────────
-export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
-  // A disabled TRADE IN used to be `ink` on `duskMid` at opacity
-  // 0.35 — a smudge. Since it is disabled most of the time, a
-  // first-time player never learned the game's primary action
-  // existed until they happened to select a card. It is a legible
-  // outlined control now: slateLight on duskMid measures 8.20:1, at
-  // full opacity, with a slate rule around it. Nothing about it
-  // reads as live — the enabled state is a solid fern fill with a
-  // glow, which is a different object, not a brighter one.
-  const blocked = overLimit && !disabled;
+// DISABLED IS A STATE, NOT A LOOK, and it has to be legible: this
+// control spends most of its life unavailable, so a first-time player
+// who never sees it lit never learns the game's primary action exists.
+// The disabled form is an outlined control, slateLight on duskMid,
+// with a slate rule around it. Nothing about it reads as live — the
+// enabled state is a solid fern fill with a glow, which is a different
+// object rather than a brighter one.
+//
+// DIM is the one number Stan tunes here. At opacity 1 the outlined
+// form still read as slightly live to him, so it sits at 0.8 — a fifth
+// down, which pulls it back from the fill without dropping the 8.20:1
+// text contrast anywhere near the floor (0.8 of it is ~6.4:1, still
+// clear of AA).
+const DIM = 0.8;
+
+export function TableActionBtn({ onClick, disabled, label, blocked=false, compact=false }) {
   const fill = disabled ? DS.duskMid : blocked ? DS.ember : DS.voltage;
   const fillHover = blocked ? DS.emberHover : DS.voltageHover;
   const glow = blocked ? DS.ember : DS.voltage;
@@ -227,10 +249,6 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
     el.style.boxShadow=disabled?'none':`0 0 20px ${glow}66`;
     el.style.transform='scale(1)';
   };
-  let label;
-  if (count === 0) label = 'Trade In';
-  else if (blocked) label = `Hand would be ${projectedHand}/7`;
-  else label = `Trade ${count} \u2192 Draw ${drawCount}`;
   return (
     <button type="button" disabled={disabled} {...pressStyles(hIn,hOut)}
       onClick={disabled?undefined:onClick}
@@ -240,15 +258,61 @@ export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHan
         fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
         padding:compact?'14px 20px':'16px 36px',fontSize:compact?15:18,borderRadius:10,
         minHeight:compact?TOUCH_MIN_COMPACT:TOUCH_MIN,
-        opacity:1,
+        opacity:disabled?DIM:1,
         background:fill,
         color:disabled?DS.slateLight:DS.ink,
         boxShadow:disabled?'none':`0 0 20px ${glow}66`,
-        transition:'background 60ms, box-shadow 60ms, transform 60ms',
+        transition:'background 60ms, box-shadow 60ms, transform 60ms, opacity 60ms',
       }}>
       {label}
     </button>
   );
+}
+
+// ─────────────────────────────────────────────────────────────
+// TradeInBtn — the trade half of TableActionBtn.
+//
+// The label carries the whole trade: how many cards leave, and
+// how many come back. It used to read "Trade In (2)", where the
+// 2 was cards SELECTED, which collided head-on with the rule the
+// walkthrough had just taught (a 10-K draws 2, an Ace draws 3) —
+// so "(2)" was routinely read as "draw 2".
+//
+// When the draw would blow the 7-card hand limit the button says
+// so BEFORE the click, in ember, with the arithmetic. It stays
+// clickable on purpose: pressing it fires the error copy and
+// sound, which is how the rule gets taught rather than merely
+// enforced.
+// ─────────────────────────────────────────────────────────────
+export function TradeInBtn({ onClick, disabled, count, drawCount=0, projectedHand=0, overLimit=false, compact=false }) {
+  const blocked = overLimit && !disabled;
+  let label;
+  if (count === 0) label = 'Trade In';
+  else if (blocked) label = `Hand would be ${projectedHand}/7`;
+  else label = `Trade ${count} \u2192 Draw ${drawCount}`;
+  return <TableActionBtn onClick={onClick} disabled={disabled} blocked={blocked}
+    compact={compact} label={label}/>;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SignalBtn — the signal half of TableActionBtn.
+//
+// Replaced the old SIGNAL button on 2026-09-13. That one read
+// "SIGNAL (select a valid hand)" while inactive and "SIGNAL — 3
+// cards" once it lit, which put the instruction inside the control
+// and then told the player the one thing they could already count.
+//
+// It is SELECT HAND until a legal hand is toggled, and then it
+// becomes the hand: A THREE, PAIR, FULL HOUSE. The name comes from
+// engine.signalHandLabel, so the button and the engine cannot
+// disagree about what a selection is. The PLAYABLE strip that used to
+// sit above it — five pills naming every legal shape — went at the
+// same time: this button says the same thing about the selection the
+// player actually has, in the place they are already looking.
+// ─────────────────────────────────────────────────────────────
+export function SignalBtn({ onClick, disabled, handLabel=null, compact=false }) {
+  return <TableActionBtn onClick={onClick} disabled={disabled} compact={compact}
+    label={disabled || !handLabel ? 'Select Hand' : handLabel}/>;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -285,13 +349,13 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
   return (
     <Tag
       {...(live ? { type:'button', disabled, 'aria-label': disabled
-        ? 'Attack with this Ace — unavailable until their Scraps has 2 or more cards'
-        : 'Attack with this Ace, discarding two of their Scraps cards' } : { 'aria-hidden': true })}
+        ? 'Attack with this Ace — unavailable until her Scraps has 2 or more cards'
+        : 'Attack with this Ace, discarding two of her Scraps cards' } : { 'aria-hidden': true })}
       {...pressStyles(hIn,hOut)}
       onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
-      title={disabled ? "Their Scraps needs 2+ cards before an Ace can strike" : undefined}
+      title={disabled ? "Her Scraps needs 2+ cards before an Ace can strike" : undefined}
       style={{
-        width, boxSizing:'border-box',
+        width: Math.max(width, ACE_TAG_MIN_W), boxSizing:'border-box',
         background: disabled ? DS.duskMid : DS.gold,
         color: disabled ? DS.slate : DS.ink,
         border: disabled ? `1px solid ${DS.slate}55` : 'none',

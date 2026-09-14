@@ -11,7 +11,7 @@
 // ============================================================
 import { useState } from "react";
 import { SplashScreen, DifficultyPicker } from "./screens/MenuScreens.jsx";
-import { Walkthrough } from "./screens/Walkthrough.jsx";
+import { Walkthrough, LAST_BEAT } from "./screens/Walkthrough.jsx";
 import { GameScreen } from "./screens/GameScreen.jsx";
 import { playHandWon } from "./audio.js";
 
@@ -38,6 +38,11 @@ export default function App() {
   // key forces a fresh GameScreen (and a fresh game state machine)
   // every time a new game starts
   const [gameKey,setGameKey]=useState(0);
+  // Which beat the storyboard opens on. 0 on the way in; the LAST beat
+  // when the difficulty picker's BACK sends a reader there, because
+  // they have already read it and want the page they just left rather
+  // than the start of a four-screen re-run.
+  const [walkStart,setWalkStart]=useState(0);
 
   // PLAY is the only button on the splash and was silent until
   // 2026-09-13, when Stan asked for the hand-won cue on the way
@@ -58,15 +63,23 @@ export default function App() {
     markWalkthroughSeen();
     setScreen('difficulty');
   }
+  // BACK on the difficulty picker. It re-opens the storyboard on its
+  // final beat, whose own LET'S PLAY / tap-anywhere brings the reader
+  // straight back here.
+  function backToRules(){
+    setWalkStart(LAST_BEAT);
+    setScreen('walkthrough');
+  }
   function startGame(d){
+    setWalkStart(0);
     setDifficulty(d);
     setGameKey(k=>k+1);
     setScreen('game');
   }
 
   if(screen==='splash')      return <SplashScreen onStart={handlePlay}/>;
-  if(screen==='walkthrough') return <Walkthrough onDone={finishWalkthrough}/>;
-  if(screen==='difficulty')  return <DifficultyPicker onChoose={startGame}/>;
+  if(screen==='walkthrough') return <Walkthrough onDone={finishWalkthrough} startAt={walkStart}/>;
+  if(screen==='difficulty')  return <DifficultyPicker onChoose={startGame} onBack={backToRules}/>;
   if(screen==='game')        return <GameScreen key={gameKey} difficulty={difficulty} onExit={()=>setScreen('difficulty')}/>;
   return null;
 }

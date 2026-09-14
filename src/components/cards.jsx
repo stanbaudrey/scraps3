@@ -427,80 +427,18 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// DeckPile — the draw deck, live on the table. Gives the
-// dealing wave and every trade draw a physical origin point.
-// ─────────────────────────────────────────────────────────────
-export function DeckPile({ count, size='small' }) {
-  const d=CARD_DIMS[size]||CARD_DIMS.small;
-  const fs=size==='tiny'?10:13;
-  const layers = count === 0 ? 0 : Math.min(4, 1 + Math.floor(count / 14));
-  return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-      minWidth:d.w}}>
-      <div style={{position:'relative',width:d.w,height:d.h}}>
-        {layers===0?(
-          <div style={{width:d.w,height:d.h,borderRadius:10,
-            border:`2px dashed ${DS.slate}33`,
-            display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'55'}}>—</span>
-          </div>
-        ):(
-          Array.from({length:layers},(_,i)=>(
-            <div key={i} style={{position:'absolute',top:0,left:0,
-              transform:`translate(${-i*1.5}px,${-i*2}px)`,zIndex:i}}>
-              <PlayingCard card={null} faceDown={true} size={size}/>
-            </div>
-          ))
-        )}
-      </div>
-      <span style={{fontFamily:F.mono,fontSize:fs,color:DS.slate,
-        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>DECK · {count}</span>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// DiscardPile — labeled, messy stack. Sits beside the deck now
-// instead of orphaned in its own column. Label bumped to
-// legible size + full slate.
-// ─────────────────────────────────────────────────────────────
-export function DiscardPile({ count, size='small', abbrev=null }) {
-  // The abbreviation used to be `size === 'tiny'`, which was fine while
-  // the card size and the layout agreed. They no longer do: the discard
-  // renders tiny in BOTH layouts now (it is the least important object
-  // on the table), so a roomy table would have read "DISC · 0" for no
-  // reason. The caller says which it wants.
-  const short = abbrev === null ? size === 'tiny' : abbrev;
-  const d=CARD_DIMS[size]||CARD_DIMS.small;
-  const fs=size==='tiny'?10:13;
-  const layers=Math.min(count,4);
-  const rots=[-11,6,-4,1];
-  return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-      minWidth:d.w}}>
-      <div style={{position:'relative',width:d.w,height:d.h}}>
-        {count===0?(
-          <div style={{width:d.w,height:d.h,borderRadius:10,
-            border:`2px dashed ${DS.slate}22`,
-            display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <span style={{fontFamily:F.mono,fontSize:12,color:DS.slate+'44'}}>—</span>
-          </div>
-        ):(
-          Array.from({length:layers},(_,i)=>(
-            <div key={i} style={{position:'absolute',top:0,left:0,
-              transform:`rotate(${rots[i]||0}deg) translate(${i*1.5-2}px,${i-1}px)`,
-              zIndex:i}}>
-              <PlayingCard card={null} faceDown={true} size={size}/>
-            </div>
-          ))
-        )}
-      </div>
-      <span style={{fontFamily:F.mono,fontSize:fs,color:DS.slate,
-        letterSpacing:'0.12em',whiteSpace:'nowrap'}}>{short?'DISC':'DISCARD'} · {count}</span>
-    </div>
-  );
-}
+// DeckPile and DiscardPile used to live here — two labelled card
+// stacks that gave the dealing wave and every discard a physical
+// origin on the table. Both were removed on 2026-09-13 (Stan's call):
+// neither was something a player ever acted on, and between them they
+// cost the wide layout a gutter column and the stacked layout a row.
+//
+// Nothing replaces them as COMPONENTS. The flights they anchored are
+// anchored by computed off-viewport rects instead — see deckAnchor and
+// discardAnchor in GameScreen.jsx — so cards deal in over the dealer's
+// edge of the screen and thrown-away cards spin off the left one.
+// Deleted rather than left unreferenced so that a later pass does not
+// find two ready-made piles and put the furniture back by accident.
 
 // ─────────────────────────────────────────────────────────────
 // Best-hand evaluation + upgrade-flash hook (shared by the
@@ -549,7 +487,12 @@ function ZoneBadge({ cards, owner, fontSize=13 }) {
       textShadow:flash?`0 0 14px ${col}`:'none',
       animation:flash?'badgeFlash 0.6s ease':'none',
       transition:'color 0.3s, text-shadow 0.3s'}}>
-      {best?`▸ ${best.name.toUpperCase()}`:''}
+      {/* The `▸` that used to lead this badge is gone (Stan,
+          2026-09-13). It pointed at nothing — the badge sits under or
+          beside its own pile and the border already says which — and a
+          glyph on a label that is nowrap and ellipsised was spending
+          width the hand name needed. */}
+      {best?best.name.toUpperCase():''}
     </span>
   );
 }

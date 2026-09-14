@@ -14,11 +14,11 @@ import { useReducer, useState, useEffect, useCallback, useRef, useMemo } from "r
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
   aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, tradeInValue,
-  shouldCounterAce, chooseAceTargets,
+  shouldCounterAce, chooseAceTargets, signalHandLabel,
 } from "../game/engine.js";
 import {
   gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
-  AI_TURN_PHASES, AI_SIGNAL_PHASES,
+  checkWin, AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
@@ -26,9 +26,9 @@ import { setAudioMuted, isAudioMuted,
   playInvalid, playHandWon, playHandLost, playRoundWon, playRoundLost,
   playFullScrap, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
-import { FannedHand, HorizontalScrapsZone, DiscardPile, DeckPile, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
-import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, SignalLegalityStrip, GameAnnouncer } from "../components/hud.jsx";
-import { BigBtn, TradeInBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
+import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
+import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, GameAnnouncer } from "../components/hud.jsx";
+import { BigBtn, TradeInBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
 import { Walkthrough } from "./Walkthrough.jsx";
@@ -61,11 +61,48 @@ const SIZES = {
   compact: { hand:'small',  oppHand:'tiny',   pile:'tiny'  },
 };
 
+// ─────────────────────────────────────────────────────────────
+// Where cards come from, and where they go.
+//
+// The deck and the discard used to be two real piles ON the table,
+// measured for every flight. Stan took them off it on 2026-09-13:
+// neither is a thing a player acts on, and between them they held a
+// whole column of a surface that is short of width and a whole row of
+// one that is short of height.
+//
+// They are still ANCHORS — they just have no pixels. Each answers with
+// a plain rect OUTSIDE the viewport, which flight.jsx takes exactly as
+// happily as a card's id; `fromRect` / `toRect` are what the two piles
+// always used anyway, since neither was ever a registered card.
+//
+// The DECK sits on the DEALER's side, so a deal reads as somebody
+// dealing it. Odd rounds the opponent deals and the cards come down
+// over the top edge; even rounds you deal and they come up past the
+// bottom. (firstActorForRound in the reducer says it the other way
+// round — odd rounds the NON-dealer, you, acts first.)
+//
+// The DISCARD is off the RIGHT edge at all times (Stan moved it from the
+// left on 2026-09-14), and cards thrown away spin out to it — see
+// `discardAnchor` below.
+//
+// A rect literal rather than a DOMRect: Ghost only reads left/top/
+// width/height (plus the optional trueW/rot a real card carries), and
+// a card measured off-screen has no DOMRect to borrow.
+const OFF_MARGIN = 40;
+const rectAt = (left, top, d) => ({
+  left, top, width: d.w, height: d.h,
+  right: left + d.w, bottom: top + d.h, x: left, y: top,
+});
+
 export function GameScreen({ difficulty, onExit }) {
   // ── Game state machine ─────────────────────────────────────
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
   const {
-    deck, playerHand, aiHand, playerScraps, aiScraps, discard,
+    // `deck` and `discard` are no longer read here: the two piles came
+    // off the table on 2026-09-13 and nothing renders their counts.
+    // They are still owned by the reducer, and every draw still slices
+    // the real deck — this component just has no reason to look at it.
+    playerHand, aiHand, playerScraps, aiScraps,
     playerScore, aiScore, roundWins, phase, roundNum,
     playerSignal, aiSignal, playerPlayed, aiPlayed, signalLocked,
     pendingTrade, scrapsOverflow, pendingAiAce, gameOver, log, currentTurn,
@@ -99,6 +136,13 @@ export function GameScreen({ difficulty, onExit }) {
   const [counterStand, setCounterStand]     = useState(false);
   const [revealData, setRevealData]         = useState(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
+  // Set when the player signals INTO an opponent signal that is already
+  // on the table. There is nothing left to decide at that point — both
+  // hands are committed — so the SHOW 'EM press was a button whose only
+  // job was to be pressed. Captured at the moment of signalling rather
+  // than derived at reveal time, because by then `aiSignal` is set in
+  // BOTH orders and can no longer tell you which came first.
+  const [autoReveal, setAutoReveal]         = useState(false);
   const [showFullScrap, setShowFullScrap]   = useState(false);
   const [showInterstitial, setShowInterstitial] = useState(false);
   const [waveIds, setWaveIds]               = useState(new Set());
@@ -131,11 +175,35 @@ export function GameScreen({ difficulty, onExit }) {
   // Refs for card travel animation zones
   const playerHandRef    = useRef(null);
   const playerScrapsRef  = useRef(null);
-  const discardRef       = useRef(null);
-  const deckRef          = useRef(null);
   const aiHandRef        = useRef(null);
   const aiScrapsRef      = useRef(null);
   const { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay } = useCardMotion();
+
+  // Both read through refs rather than closing over render values, for
+  // the same reason every delayed action in this file does: a flight is
+  // routinely built inside a timer scheduled a second or two earlier,
+  // and a rotation (or a new round) can land in between.
+  const deckAnchor = useCallback(() => {
+    const d = CARD_DIMS[szRef.current.pile];
+    const dealerIsOpponent = stateRef.current.roundNum % 2 === 1;
+    return rectAt(
+      window.innerWidth / 2 - d.w / 2,
+      dealerIsOpponent ? -d.h - OFF_MARGIN : window.innerHeight + OFF_MARGIN,
+      d);
+  }, []);
+  // `rot` is the flourish. Ghost turns a card from the angle it sat at
+  // to its destination's `rot` across the flight, so a destination with
+  // a big angle IS the toss — no new animation, no new code path. The
+  // two cards of an Ace strike leave together, so they get different
+  // angles; spinning in lockstep reads as one object, not two cards.
+  const discardAnchor = useCallback((i = 0) => {
+    const d = CARD_DIMS[szRef.current.pile];
+    // The spin turns the same way the card is travelling, so it reads as
+    // thrown rather than as flipped. It was negative while the discard
+    // sat off the LEFT edge; moving it right flips the sign with it.
+    return { ...rectAt(window.innerWidth + OFF_MARGIN * 3, window.innerHeight * 0.42 - d.h / 2, d),
+      rot: 105 + (i % 2) * 55 };
+  }, []);
 
   // One set for every consumer, so no card component has to know
   // there are two reasons a card can be invisible.
@@ -206,10 +274,15 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]); setScrapsDiscard([]);
     setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
-    setRevealData(null); setAiSignaledIds(new Set());
+    setRevealData(null); setAutoReveal(false); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
-    setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand].map(c => c.id)));
+    // The two cards that START in each Scraps pile are hidden with the
+    // hands and dealt with them (Stan, 2026-09-14). They used to be
+    // simply THERE the moment the interstitial lifted, which made the
+    // round look like it began with four cards already played.
+    setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand,
+      ...deal.playerScraps, ...deal.aiScraps].map(c => c.id)));
     setShowInterstitial(true);
   }, []);
 
@@ -222,13 +295,10 @@ export function GameScreen({ difficulty, onExit }) {
   // stagger is a per-card delay inside one batch, so `animating`
   // stays true across the whole deal rather than flickering off
   // between cards and letting the next turn start early.
-  function dealWave(playerCards, aiCards) {
-    const deckEl = deckRef.current;
-    // No deck to fly from: unhide rather than strand the hand
-    // invisible, which is the one way this could break the game
-    // rather than just the animation.
-    if (!deckEl) { setPendingDealIds(new Set()); return; }
-    const deckRect = deckEl.getBoundingClientRect();
+  function dealWave(playerCards, aiCards, playerScrapsCards = [], aiScrapsCards = []) {
+    // The deck is a computed rect now, so there is no longer a "no
+    // deck to fly from" case to fall back out of — see deckAnchor.
+    const deckRect = deckAnchor();
     const STEP = 90;
     const pSorted = [...playerCards].sort((a, b) => a.value - b.value);
     const moves = [];
@@ -242,6 +312,28 @@ export function GameScreen({ difficulty, onExit }) {
       fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
       arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
     }));
+    // The starting Scraps, after both hands and BOTH SIDES AT ONCE —
+    // two beats rather than four. Sequentially they added 360ms to a
+    // deal that was already 810, and the two piles are a single
+    // gesture at the end of a deal ("and two face up each"), not four
+    // more cards off the top. Face up on both sides, because a Scraps
+    // pile is public from the moment it exists.
+    const scrapStart = (pSorted.length + aiCards.length) * STEP;
+    const pScraps = [...playerScrapsCards].sort((a, b) => a.value - b.value);
+    const aScraps = [...aiScrapsCards].sort((a, b) => a.value - b.value);
+    for (let i = 0; i < Math.max(pScraps.length, aScraps.length); i++) {
+      const delay = scrapStart + i * STEP;
+      if (pScraps[i]) moves.push({
+        card: pScraps[i], fromRect: deckRect, toId: pScraps[i].id, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile,
+        arc: 0.45, delay,
+      });
+      if (aScraps[i]) moves.push({
+        card: aScraps[i], fromRect: deckRect, toId: aScraps[i].id, toScrap: true,
+        fromSize: szRef.current.pile, toSize: szRef.current.pile,
+        arc: -0.45, delay,
+      });
+    }
     fly(moves);
     // Batched with fly()'s own update: the motion hook builds its
     // flights in a LAYOUT effect, so the handoff lands before paint
@@ -253,7 +345,7 @@ export function GameScreen({ difficulty, onExit }) {
     setShowInterstitial(false);
     dispatch({ type: 'INTERSTITIAL_DONE' });
     const s = stateRef.current;
-    dealWave(s.playerHand, s.aiHand);
+    dealWave(s.playerHand, s.aiHand, s.playerScraps, s.aiScraps);
   }
 
   // ── Score flash + fanfare on score increases ───────────────
@@ -334,8 +426,7 @@ export function GameScreen({ difficulty, onExit }) {
     // dispatch, because after it these cards live in the Scraps
     // pile and rectOf would return the destination instead.
     const first = tradeCards.map(c => ({ card: c, rect: rectOf(c.id) }));
-    const deckEl = deckRef.current;
-    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
+    const deckRect = deckAnchor();
     const drawn = stateRef.current.deck.slice(0, drawCount);
 
     setSelected([]);
@@ -377,8 +468,7 @@ export function GameScreen({ difficulty, onExit }) {
 
   function confirmScrapsDiscard() {
     if (!pendingTrade || scrapsDiscard.length !== scrapsOverflow) return;
-    const discardEl = discardRef.current;
-    const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
+    const discardRect = discardAnchor();
     const tradeCards = pendingTrade.cards;
     const drawn = stateRef.current.deck.slice(0, pendingTrade.drawCount);
 
@@ -386,8 +476,7 @@ export function GameScreen({ difficulty, onExit }) {
     // for the discard, and the cards leaving the hand for Scraps.
     const leaving = scrapsDiscard.map(c => ({ card: c, rect: rectOf(c.id) }));
     const entering = tradeCards.map(c => ({ card: c, rect: rectOf(c.id) }));
-    const deckEl = deckRef.current;
-    const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
+    const deckRect = deckAnchor();
 
     dispatch({ type: 'PLAYER_TRADE_WITH_DISCARD', discardCards: [...scrapsDiscard] });
     setScrapsDiscard([]); setSelected([]);
@@ -396,7 +485,7 @@ export function GameScreen({ difficulty, onExit }) {
     const moves = [];
     if (discardRect) {
       leaving.filter(f => f.rect).forEach((f, i) => moves.push({
-        card: f.card, fromRect: f.rect, toRect: discardRect,
+        card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
         fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
         arc: i === 0 ? -0.5 : 0.5,
       }));
@@ -427,7 +516,7 @@ export function GameScreen({ difficulty, onExit }) {
   function doPlayAce(ace) {
     if (aiScraps.length < 2) { dispatch({ type: 'LOG', msg: 'Opponent needs at least 2 Scraps cards to target.' }); return; }
     setAceMode(ace); setAceTargets([]); setSelected([]);
-    dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to remove." });
+    dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to discard." });
   }
   function toggleAceTarget(card) {
     playSelect();
@@ -479,14 +568,13 @@ export function GameScreen({ difficulty, onExit }) {
     setTimeout(() => {
       const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
       const aceRect = rectOf(ace.id);
-      const discardEl = discardRef.current;
-      const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
+      const discardRect = discardAnchor();
       setAceMode(null); setAceTargets([]); setSelected([]);
       setScrapsShakeIds(new Set());
       dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
       if (discardRect) {
         const moves = first.filter(f => f.rect).map((f, i) => ({
-          card: f.card, fromRect: f.rect, toRect: discardRect,
+          card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
           fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
           arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
         }));
@@ -575,8 +663,7 @@ export function GameScreen({ difficulty, onExit }) {
     // pile, not from the middle of the screen where the reveal
     // overlay happened to show copies of them.
     const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
-    const discardEl = discardRef.current;
-    const discardRect = discardEl ? discardEl.getBoundingClientRect() : null;
+    const discardRect = discardAnchor();
     setAiAceReveal(null);
     setScrapsFadeIds(new Set());
     playAceStrike();
@@ -584,7 +671,7 @@ export function GameScreen({ difficulty, onExit }) {
       logMsg: `Opponent's Ace removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.` });
     if (discardRect) {
       fly(first.filter(f => f.rect).map((f, i) => ({
-        card: f.card, fromRect: f.rect, toRect: discardRect,
+        card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
         fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
         arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
       })));
@@ -603,16 +690,47 @@ export function GameScreen({ difficulty, onExit }) {
   // is acting, so the runner starts exactly once. This is what
   // keeps the opponent from moving over the top of your own cards.
   const [aiGo, setAiGo] = useState(null);
+  // The AI phase in which the opponent has already COMMITTED her move.
+  //
+  // Her turn has two halves and the narrator only has copy for the
+  // first. Deciding: "Opponent is thinking...". Acting: her cards fly,
+  // `animating` goes true, `settling` silences the band. Then the cards
+  // land and `animating` drops — but the phase does not advance for
+  // another 2.1s, so the narrator came BACK with "Opponent is
+  // thinking..." over a move she had visibly already made. That is the
+  // flash Stan reported on 2026-09-14.
+  //
+  // Reset at the top of each runner pass rather than compared against
+  // the phase alone, because phase names repeat across rounds and a
+  // stale 'ai-turn-1a' would silence a genuine think in round three.
+  const [aiMoveDone, setAiMoveDone] = useState(null);
+  // The explainer, mirrored into a ref so the RUNNER can check it too.
+  // Effects flush in declaration order and this gate is declared above
+  // the effect that opens the explainer, so on the tick where an Ace
+  // lands the gate reads `aceDrawnCard` as still false, clears the AI
+  // to act, and only learns about the box on the NEXT pass.
+  const aceDrawnRef = useRef(null);
+  aceDrawnRef.current = aceDrawnCard;
   useEffect(() => {
     if (!AI_TURN_PHASES.includes(phase)) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
-    if (aceDrawnCard) return;         // the Ace explainer is up; nothing moves
+    // The Ace explainer is up: NOTHING moves until OKAY. `setAiGo(null)`
+    // rather than a bare `return`, because a bare return leaves a
+    // previously-set aiGo standing and the runner keeps its timers —
+    // which is exactly what Stan saw, the opponent's hand ruffling and
+    // trading behind the lightbox. Clearing it tears the runner's
+    // timers down through its own cleanup, and the turn restarts intact
+    // when the box closes: the runner is idempotent from the top of a
+    // phase, and its first action is 800ms in, so nothing has happened
+    // yet to repeat.
+    if (aceDrawnCard) { setAiGo(null); return; }
     setAiGo(phase);
   }, [phase, animating, aiCounterNotice, aceDrawnCard]);
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
+    setAiMoveDone(null);
     const timers = [];
     const T = (fn, ms) => timers.push(setTimeout(fn, ms));
 
@@ -642,6 +760,11 @@ export function GameScreen({ difficulty, onExit }) {
     T(() => {
       const s = stateRef.current;
       if (s.phase !== phase || s.gameOver) return;
+      // Belt and braces against the explainer. The gate above tears
+      // these timers down, but a timer that has already been handed to
+      // the event loop cannot be recalled — this is the check that
+      // actually guarantees the opponent does not move behind the box.
+      if (aceDrawnRef.current) return;
 
       const action = aiDecide(s.aiHand, s.aiScraps, s.playerScraps, s.deck, difficulty, phase, s.aiScore, s.playerScore);
 
@@ -652,11 +775,11 @@ export function GameScreen({ difficulty, onExit }) {
           // Same FLIP shape as the player's trade: measure the lifted
           // cards where they sit, commit, then animate the delta.
           const first = action.cards.map(c => ({ card: c, rect: rectOf(c.id) }));
-          const deckEl = deckRef.current;
-          const deckRect = deckEl ? deckEl.getBoundingClientRect() : null;
+          const deckRect = deckAnchor();
           const drawCount = action.cards.reduce((sum, c) => sum + tradeInValue(c), 0);
           const drawn = stateRef.current.deck.slice(0, drawCount);
           setAiSignaledIds(new Set());
+          setAiMoveDone(phase);
           dispatch({ type: 'AI_TRADE_APPLY', cards: action.cards });
           const STEP = 90;
           const moves = first.filter(f => f.rect).map((f, i) => ({
@@ -709,6 +832,7 @@ export function GameScreen({ difficulty, onExit }) {
       } else if (action.type === 'skip') {
         // No legal move — the AI's trade is skipped (same rule the
         // player is bound by)
+        setAiMoveDone(phase);
         dispatch({ type: 'AI_SKIP' });
       }
 
@@ -744,7 +868,9 @@ export function GameScreen({ difficulty, onExit }) {
     const sig = cur.length;
     dispatch({ type: 'PLAYER_SIGNAL', cards: [...cur] });
     if (aiSignal != null) {
-      // AI already signaled first — both signals are in
+      // AI already signaled first — both signals are in, so there is
+      // nothing to press. The reveal runs itself; see the effect below.
+      setAutoReveal(true);
       setTimeout(() => {
         dispatch({ type: 'GO_REVEAL' });
       }, 700);
@@ -775,10 +901,24 @@ export function GameScreen({ difficulty, onExit }) {
     if (winner === 'player') playHandWon();
     else if (winner === 'ai') playHandLost();
     const curPhase = phase;
+    // What this press is actually FOR. A results screen used to end in
+    // a generic CONTINUE that dropped you on a table whose narrator
+    // then asked a second question with a second button — two presses
+    // for one decision, three times a round. The button names the next
+    // step and the phase it lands in carries itself from there.
+    //
+    // Unless this is the point the match ends, in which case there is
+    // no next hand to name and the button must not promise one. Worked
+    // out the same way the reducer will when it applies these points.
+    const endsIt = !!checkWin(
+      playerScore + (winner === 'player' ? pts : 0),
+      aiScore + (winner === 'ai' ? pts : 0));
     setRevealData({
       playerCards: [...playerPlayed], aiCards: [...aiPlayed],
       playerHandName: pH?.name || '', aiHandName: aH?.name || '',
       winner, points: pts,
+      continueLabel: endsIt ? 'Continue'
+        : curPhase === 'reveal-1' ? 'Deal Second Hand' : 'Play Scraps Hand',
       onContinue: () => {
         setRevealData(null);
         setSelected([]);
@@ -813,11 +953,13 @@ export function GameScreen({ difficulty, onExit }) {
     else if (winner === 'ai') playRoundLost();
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
     const aBestIds = new Set(getActiveHandCards(aB).map(c => c.id));
+    const endsIt = !!checkWin(playerScore + pPts, aiScore + aPts);
     setRevealData({
       playerCards: [...playerScraps].slice(0, 7), aiCards: [...aiScraps].slice(0, 7),
       playerHandName: pB.name, aiHandName: aB.name + (aiSweep ? ' · SWEEP' : ''),
       winner, points: winner === 'player' ? pPts : winner === 'ai' ? aPts : 0,
       bonusLine: fullScrap ? 'INCLUDES +1 FULL SCRAP BONUS' : null,
+      continueLabel: endsIt ? 'Continue' : 'Next Round',
       playerBestIds: pBestIds, aiBestIds: aBestIds,
       onContinue: () => {
         setRevealData(null);
@@ -930,6 +1072,65 @@ export function GameScreen({ difficulty, onExit }) {
     };
   }, [animating, skipAll, clearDrawSfx]);
 
+  // ── The three hand-offs of a round ─────────────────────────
+  //
+  // Each results screen's button dismisses itself and commits the
+  // score; the phase it leaves behind is what runs the next step. That
+  // split is deliberate — the score has to be COMMITTED before the next
+  // hand can be worked out (doReplenish draws against hand lengths that
+  // SMALL_HAND_SCORED has just changed), and inside the button's own
+  // handler `stateRef` is still the pre-dispatch snapshot. An effect
+  // keyed on the phase runs on the other side of the commit, where the
+  // state is real.
+  //
+  // The delays are a beat of table between two full-screen moments, not
+  // a pause for thought: the overlay unmounts instantly, you see the
+  // board it was covering, then the next thing happens.
+  const HANDOFF = { deal: 220, scraps: 520, round: 380 };
+
+  // The reveal, when nobody has to ask for it. Same two steps the
+  // SHOW 'EM button runs — the 580ms build cue, then resolve — driven
+  // from the phase rather than from a press, so `resolveSmallHand`
+  // closes over the render where `playerPlayed` and `aiPlayed` are
+  // both real. Calling it from doSignal's own timer would have caught
+  // the pre-dispatch snapshot, which is the same trap the hand-off
+  // effect below exists to avoid.
+  useEffect(() => {
+    if (!autoReveal || !isReveal || revealData || revealBuilding || gameOver) return undefined;
+    // `autoReveal` is NOT cleared here, deliberately: it is what keeps
+    // the SHOW 'EM button unrendered, and clearing it up front put the
+    // button back on screen for the 580ms of the build — shaking, as
+    // '▶▶▶', which is the manual path's look on a screen nobody
+    // pressed anything on. `revealBuilding` guards the re-entry
+    // instead, and the flag is dropped when the reveal actually lands.
+    setRevealBuilding(true);
+    playRevealBuild(() => {
+      setRevealBuilding(false);
+      setAutoReveal(false);
+      resolveSmallHand();
+    });
+    return undefined;
+  }, [autoReveal, isReveal, revealData, revealBuilding, gameOver]);
+  useEffect(() => {
+    if (revealData || gameOver) return undefined;
+    if (phase === 'replenish') {
+      const t = setTimeout(() => doReplenish(), HANDOFF.deal);
+      return () => clearTimeout(t);
+    }
+    if (phase === 'scraps-reveal') {
+      const t = setTimeout(() => resolveScrap(), HANDOFF.scraps);
+      return () => clearTimeout(t);
+    }
+    // A FULL SCRAP puts fireworks between the Scraps result and the
+    // next round, and those are not skippable — the round waits for the
+    // lightbox to be dismissed rather than starting behind it.
+    if (phase === 'round-end' && !showFullScrap) {
+      const t = setTimeout(() => startNewRound(true), HANDOFF.round);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [phase, revealData, gameOver, showFullScrap]);
+
   useEffect(() => {
     if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
       setRoundEndPulse(true);
@@ -939,6 +1140,9 @@ export function GameScreen({ difficulty, onExit }) {
   }, [phase]);
 
   let hint = '';
+  // The rendered form, when the copy wants emphasis the announcer
+  // cannot carry. Falls back to `hint` whenever it is null.
+  let hintNode = null;
   // Set when the narrator is running its collapsed form. It changes the
   // WORDS only — the type size is fixed, because a narrator that also
   // resized made the panel jump between turns.
@@ -956,7 +1160,11 @@ export function GameScreen({ difficulty, onExit }) {
       + `Select ${scrapsOverflow} to discard, then hit DISCARD.`
       + (lockedInScraps ? ' Dimmed cards were placed this turn and cannot go.' : '');
   }
-  else if (aceMode) hint = `Select 2 cards from opponent's Scraps to remove. (${aceTargets.length}/2 selected)`;
+  // The running count came OFF this line on 2026-09-13 (Stan). It is
+  // still in the REMOVE button, which is where a count belongs — on the
+  // control it gates. Saying it twice made the instruction re-render on
+  // every tap and read as a progress bar rather than a sentence.
+  else if (aceMode) hint = "Select 2 cards from opponent's Scraps to discard.";
   else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to play an Ace.';
   else if (isPlayerTurn) {
     // The instruction runs in FULL on the first player turn of a round
@@ -983,17 +1191,49 @@ export function GameScreen({ difficulty, onExit }) {
       else hint = 'Your turn. Transfer cards to your Scraps.';
     }
   }
-  else if (isAiSignaling) hint = 'Opponent is choosing their signal...';
-  else if (isSignal && !signalLocked && aiSignal != null) hint = `Opponent signals that their hand contains ${aiSignal} card${aiSignal > 1 ? 's' : ''}. Pick your own hand, then hit SIGNAL.`;
-  else if (isSignal && !signalLocked) hint =
-    'Pick any valid hand. Your opponent sees how many cards you will play, '
-    + 'which tells them what you might have.';
-  else if (isSignal && signalLocked) hint = 'Signal locked. Waiting for opponent...';
-  else if (isReveal) hint = 'Both signals in. Reveal hands?';
-  else if (isAiThinking) hint = 'Opponent is thinking...';
-  else if (phase === 'replenish') hint = 'Small hand scored. Deal the second hand?';
-  else if (phase === 'scraps-reveal') hint = 'Time to play the Scraps hand — best 5-card hand wins. Flushes never count.';
-  else if (phase === 'round-end') hint = 'Round complete. Ready for the next round?';
+  else if (isAiSignaling) hint = 'Opponent is choosing her signal...';
+  // Stan's copy, 2026-09-14: the count and nothing else. The line used
+  // to append "Select any legal poker hand of your own", which is what
+  // the button beneath it already says, and the instruction crowded out
+  // the one number the beat is about.
+  else if (isSignal && !signalLocked && aiSignal != null) {
+    hint = `Opponent signals ${aiSignal}.`;
+  }
+  else if (isSignal && !signalLocked) {
+    hint = 'Select any legal poker hand. Opponent sees how many cards you select before she makes her play.';
+    // The same sentence with the one load-bearing word emphasised. It
+    // is the whole point of a signal — she learns the COUNT and nothing
+    // else — and it was the word a reader skated over. Kept as a second
+    // value rather than turned into markup in `hint` itself, because
+    // `hint` is also what GameAnnouncer reads to a screen reader and a
+    // React element is not a string.
+    hintNode = (<>Select any legal poker hand. Opponent sees how <b style={{color:DS.frost}}>many</b> cards
+      you select before she makes her play.</>);
+  }
+  // There is nobody to wait for when she signalled first: her count is
+  // already on the table and this is the 700ms before the reveal opens
+  // itself. The band holds ONE line from the moment you commit through
+  // to the cards turning over, rather than announcing a wait that is
+  // not happening.
+  else if (isSignal && signalLocked) hint = autoReveal ? 'Both signals in.' : 'Signal locked. Waiting for her...';
+  // "Show 'em?" came off this line on 2026-09-14. Where the button is
+  // still there it says so itself; where the opponent signalled first
+  // there is no button, and asking a question nobody can answer was the
+  // worse half of the two.
+  else if (isReveal) hint = 'Both signals in.';
+  // Only while she is actually deciding. Once she has committed, the
+  // band stays quiet through the handover — the log line already says
+  // what she did, and the alternative is the narrator announcing a
+  // thought after the move. See aiMoveDone.
+  else if (isAiThinking && aiMoveDone !== phase) hint = 'Opponent is thinking...';
+  // The three hand-offs. Each of these phases now lasts a few hundred
+  // milliseconds — the button that used to sit in them moved onto the
+  // results screen that precedes them (see the `continueLabel` work in
+  // resolveSmallHand / resolveScrap), so these are narration on the way
+  // past, not a prompt anybody has to answer.
+  else if (phase === 'replenish') hint = 'Dealing the second hand...';
+  else if (phase === 'scraps-reveal') hint = 'Scraps hands up.';
+  else if (phase === 'round-end') hint = 'Round complete.';
 
   // The three bottom-bar discs (rules, sound, quit) share one shape.
   // 30px reads as the control; the 44px button around it is the target,
@@ -1010,7 +1250,10 @@ export function GameScreen({ difficulty, onExit }) {
     fontFamily:F.ui,fontSize:15,fontWeight:700,
   };
 
-  const showNearWin = !gameOver && (playerScore >= WIN_SCORE || aiScore >= WIN_SCORE);
+  // The banner owns its own threshold now that it is a MATCH POINT
+  // warning rather than a win-by-2 explainer — see hud.jsx. This only
+  // has to know the game is still running.
+  const showNearWin = !gameOver;
 
   if (gameOver) return (
     <>
@@ -1056,36 +1299,18 @@ export function GameScreen({ difficulty, onExit }) {
     </div>
   );
 
-  // Deck over discard on one vertical axis, not side by side.
-  // Two reasons, and the first is the one that forced it: as a ROW
-  // this rail was two cards wide, and at 1024x662 its right edge ran
-  // 29px into the narrator panel — 36% of the discard column, with
-  // full vertical overlap. At 1440 there was a 67px gap, so it was a
-  // narrow-desktop collision that most viewers never saw. As a
-  // column the rail is one card wide and cannot reach the panel at
-  // any width. The second reason is hierarchy: the discard is the
-  // least important object on the table, so it goes UNDER the deck
-  // and renders a size smaller rather than claiming equal billing
-  // beside it. It stays an anchor for card flight either way —
-  // `discardRef` is measured, not predicted, so a smaller pile just
-  // means the ghost lands smaller.
-  // ...but only where there is height to spend on it, which is exactly
-  // where the collision happens. `tight` is the "height is the scarce
-  // axis" flag (see the arrangement-vs-size note above), and it is the
-  // right test rather than `stack`: a landscape phone keeps the WIDE
-  // arrangement on 390px of height, so it wants the row as much as a
-  // portrait phone does. Measured cost of getting this wrong — column
-  // everywhere — was 0.73 to 0.66 at 375x667 and 0.57 to 0.49 in
-  // landscape. The discard stays a size smaller in every layout,
-  // because that half is about hierarchy, not about fitting.
-  const pileRail = stack || tight;
-  const pilesEl = (
-    <div style={{display:'flex',flexDirection:pileRail?'row':'column',
-      alignItems:pileRail?'flex-start':'center',gap:10,flexShrink:0}}>
-      <div ref={deckRef}><DeckPile count={deck.length} size={SZ.pile}/></div>
-      <div ref={discardRef}><DiscardPile count={discard.length} size="tiny" abbrev={stack}/></div>
-    </div>
-  );
+  // The deck-over-discard rail that used to live here is GONE (Stan,
+  // 2026-09-13). It was the last piece of table furniture that was not
+  // part of the game: two labelled piles a player never touched, which
+  // cost the wide layout a gutter column and the stacked one a row, on
+  // the axis each of those layouts is shortest on. Cards now come in
+  // over the dealer's edge of the screen and thrown-away cards spin off
+  // the left one — see deckAnchor / discardAnchor above.
+  //
+  // The one thing that went with it is the live DECK COUNT, which no
+  // surface states any more. Flagged rather than replaced: the deck is
+  // rebuilt every round and a round cannot exhaust it, so the number
+  // was reference a player never had to act on.
 
   // ACTION ZONE — the game's narrator. In the wide layout it is a
   // fixed-width panel in the middle of the table; stacked, it is
@@ -1098,8 +1323,7 @@ export function GameScreen({ difficulty, onExit }) {
   const hasActionButtons = isScrapsDiscardMode
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
     || aceMode || counterStand
-    || (isSignal && !signalLocked) || isReveal
-    || phase === 'replenish' || phase === 'scraps-reveal' || phase === 'round-end'
+    || (isSignal && !signalLocked) || (isReveal && !autoReveal)
     || (pendingAiAce && !aiAceReveal);
   // The narrator's CHROME comes and goes; its SLOT never does.
   //
@@ -1142,7 +1366,7 @@ export function GameScreen({ difficulty, onExit }) {
           {tradeError}
         </div>
       ) : (
-        <div key={phase} style={{fontFamily:F.ui,
+        <div key={phase} data-narrator="1" style={{fontFamily:F.ui,
           fontSize:tight?17:25,
           // Hold three lines' worth of room whatever the copy is. The
           // narrator's height feeds FitBox's scale, so a one-line turn
@@ -1156,12 +1380,22 @@ export function GameScreen({ difficulty, onExit }) {
           maxWidth:720,
           animation:isAiThinking?'pulse 1s ease infinite'
             :(isSignal&&!signalLocked)?'popIn 0.45s cubic-bezier(.34,1.6,.64,1)':undefined}}>
-          {hint}
+          {/* ONE child, always. This div is a flex container (it
+              centres the copy in a fixed three-line slot), so every
+              child is a flex ITEM — a hint carrying a <b> arrived as
+              three items and laid the sentence out in three columns
+              with the emphasised word stranded in the middle. The span
+              keeps it one item and lets the text wrap normally. */}
+          <span>{hintNode || hint}</span>
         </div>
       )}
-      {isSignal&&!signalLocked&&(
-        <SignalLegalityStrip hand={playerHand} selectedCount={selectedInHand.length} compact={tight}/>
-      )}
+      {/* The PLAYABLE strip used to sit here: five mono pills naming
+          every legal signal shape, struck through where the hand could
+          not make one. Removed 2026-09-13 (Stan). It was a legend for a
+          control that can now speak for itself — SELECT HAND names the
+          hand you have actually picked (A THREE, TWO PAIR, FULL HOUSE)
+          and stays inert until it is legal, which answers the same
+          question in the place the player is already looking. */}
       {/* Buttons */}
       <div style={{display:'flex',flexWrap:'wrap',gap:stack?8:12,alignItems:'center',justifyContent:'center'}}>
         {isScrapsDiscardMode&&(
@@ -1203,11 +1437,10 @@ export function GameScreen({ difficulty, onExit }) {
           </>
         )}
         {isSignal&&!signalLocked&&(
-          <BigBtn onClick={doSignal} disabled={!selValid} variant="green" compact={tight}>
-            Signal{selValid?` — ${selectedInHand.length} card${selectedInHand.length>1?'s':''}`:' (select a valid hand)'}
-          </BigBtn>
+          <SignalBtn onClick={doSignal} disabled={!selValid} compact={tight}
+            handLabel={selValid?signalHandLabel(selectedInHand):null}/>
         )}
-        {isReveal&&(
+        {isReveal&&!autoReveal&&(
           <button
             type="button"
             // Busy, not disabled: the build is 580ms and disabling would
@@ -1237,12 +1470,17 @@ export function GameScreen({ difficulty, onExit }) {
               boxShadow:revealBuilding?`0 0 40px ${DS.slate}`:`0 0 20px ${DS.slate}88`,
               transition:'background 60ms, transform 60ms, box-shadow 60ms',
             }}>
-            {revealBuilding?'▶▶▶':'Reveal Hands'}
+            {revealBuilding?'▶▶▶':'Show \u2019em'}
           </button>
         )}
-        {phase==='replenish'&&<BigBtn onClick={doReplenish} variant="primary" compact={tight}>Deal Second Hand</BigBtn>}
-        {phase==='scraps-reveal'&&<BigBtn onClick={resolveScrap} variant="primary" compact={tight}>Play Scraps Hand</BigBtn>}
-        {phase==='round-end'&&<BigBtn onClick={()=>startNewRound(true)} variant="primary" compact={tight}>Next Round →</BigBtn>}
+        {/* DEAL SECOND HAND, PLAY SCRAPS HAND and NEXT ROUND used to
+            be three buttons in this row, each one sitting behind a
+            results screen the player had already dismissed with a
+            CONTINUE. Two presses for one decision, three times a round.
+            Each moved ONTO its results screen as that screen's own
+            continuation button (see continueLabel in resolveSmallHand
+            and resolveScrap), and the phase it lands in now carries
+            itself — see the hand-off effect below. */}
         {pendingAiAce&&!aiAceReveal&&(
           <>
             <BigBtn variant="danger" compact={tight} onClick={onPlayerCounterAce}>
@@ -1358,14 +1596,14 @@ export function GameScreen({ difficulty, onExit }) {
               <div style={{display:'flex',justifyContent:'center',flexShrink:0}}>
                 <RoundProgressIndicator phase={phase} compact/>
               </div>
-              {/* The opponent's face-down hand and the table
-                  furniture share a row: neither is something the
-                  player acts on, and between them they cost one row
-                  instead of two. */}
+              {/* The opponent's face-down hand used to share this row
+                  with the deck and discard piles, which is why it was
+                  `space-between` and hugged the left edge. With the
+                  piles off the table it has the row to itself and
+                  belongs on the centre axis with everything else. */}
               <div style={{display:'flex',alignItems:'flex-end',flexShrink:0,
-                justifyContent:'space-between',gap:10}}>
+                justifyContent:'center'}}>
                 {oppHandEl}
-                {pilesEl}
               </div>
               {oppScrapsEl}
               {actionEl}
@@ -1406,16 +1644,16 @@ export function GameScreen({ difficulty, onExit }) {
                   below the rail, so the panel — `flexShrink:1` with
                   760px of slack — is the one that gives way, and a flex
                   item cannot overlap its sibling in any case.
-                  `flex-end` mirrors the right gutter's `flex-start`:
-                  both gutters hold their contents against the centre
-                  column, so the table stays one mass rather than one
-                  object pinned to each edge of a 1920px screen. */}
+                  The left gutter is EMPTY now that the pile rail has
+                  gone off the table, but it stays: it is what holds the
+                  narrator on the same centre axis as the two hands, and
+                  it is why the right gutter can carry each side's
+                  Scraps without dragging the middle of the table left.
+                  Both are `flex:'1 1 0'`; drop one and the panel walks
+                  sideways as the window widens. */}
               <div style={{display:'flex',alignItems:'center',gap:18,flexShrink:0,
                 minHeight:tight?0:150}}>
-                <div style={{flex:'1 1 0',display:'flex',justifyContent:'flex-end',
-                  alignItems:'center'}}>
-                  {pilesEl}
-                </div>
+                <div style={{flex:'1 1 0',minWidth:0}}/>
                 {actionEl}
                 <div style={{flex:'1 1 0',minWidth:0}}/>
               </div>
@@ -1504,7 +1742,8 @@ export function GameScreen({ difficulty, onExit }) {
       {confirmQuit&&<QuitConfirmModal onCancel={()=>setConfirmQuit(false)} onQuit={onExit}/>}
       {revealData&&<RevealOverlay {...revealData} onDismiss={revealData.onContinue}
         playerBestIds={revealData.playerBestIds||null}
-        aiBestIds={revealData.aiBestIds||null}/>}
+        aiBestIds={revealData.aiBestIds||null}
+        continueLabel={revealData.continueLabel||'Continue'}/>}
       {showFullScrap&&<FullScrapLightbox onDone={()=>setShowFullScrap(false)}/>}
       {flightsOverlay}
       {showInterstitial&&<RoundInterstitial roundNum={roundNum} onDone={onInterstitialDone}/>}
