@@ -158,6 +158,48 @@ npm run dev -- --port 5193 --strictPort
 node tools/responsive-qa.mjs after   # screenshots into tools/shots/after/
 ```
 
+**It waits for the page to stop moving, never for a number of
+milliseconds, and that is the whole reason it can be trusted.** Every
+assertion it makes reads `getBoundingClientRect`, which returns the
+TRANSFORMED box — so a probe that lands during an entrance animation
+measures the animation. `popIn` opens at `scale(.5)`, which renders the
+Ace explainer's 54px OKAY button as **27**, and at a later frame as 38.
+Both are indistinguishable from a control that is genuinely too small,
+and both were reported as one for weeks. The harness had a flat 450ms
+wait, which covered `popIn`'s own 0.35s but not an overlay that MOUNTS
+LATE — the Ace explainer waits for `animating` to clear, so on a long
+deal it appears after the wait has elapsed and pops in under the probe.
+That is why it only failed on runs where the opening hand held an Ace,
+and on a different viewport each time. It now settles on
+`document.getAnimations()` (infinite ones excluded, or `cardWiggle`
+would hang it), records whether the page was actually still, and says
+`(MEASURED WHILE ANIMATING — suspect)` on any failure taken while it
+was not. **A check that fails for a reason unrelated to the thing it
+watches is worse than no check.**
+
+`tools/overlay-targets.mjs` is the companion, and it exists because the
+harness above walks a REAL game: it only reaches a modal the random deal
+happens to open. The Ace explainer had therefore never been measured
+deliberately, and the reveal, Clean Sweep, win and lose screens never at
+all. This one mounts each overlay in the real `Shell` via
+`tools/bench/overlay-targets.html` and measures every button at rest at
+all six viewports, on demand. Nothing under `tools/` reaches production —
+Vite's only entry is `index.html`.
+
+```bash
+node tools/overlay-targets.mjs   # needs the same dev server on 5193
+```
+
+Measured 2026-09-14, all 42 button/viewport pairs: **no modal button
+renders under 44px on any portrait or desktop viewport.** The two that
+do are both landscape phone and both fall under the accepted landscape
+trade — `RevealOverlay`'s Continue at 32px and `WinScreen`'s NEW GAME at
+36px, from FitBox scales of 0.69 and 0.673. Note that `RevealOverlay`,
+`CleanSweepLightbox`, `WinScreen` and `LoseScreen` declare a bare
+`minHeight:44` rather than `MODAL_BTN_MIN`, so they carry less margin
+than the constant intends; raising them was measured and changes nothing
+(54 x 0.69 is still 37), so it was left as Stan's call rather than done.
+
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
 `process.env`. The `.env.local` file that appeared during setup holds only a

@@ -4893,6 +4893,121 @@ Scraps they need to shrink to the pile size en route, and stay small
 animating offscreen later." (4) "add a subtitle to splash" — reverses the
 2026-09-13 removal. All four are carried into the next-session block.
 
+---
+
+### Unplanned session — The QA gate was measuring an animation ✅ Done (2026-09-14)
+
+**No game code changed.** One stale comment corrected in two files, the
+responsive harness fixed, and a new bench added. Nothing player-facing moved.
+
+**The report.** `tools/responsive-qa.mjs` was failing intermittently with
+`FAIL <viewport> 4-table: small targets [{"label":"Okay","size":[72,27]}]` —
+the OKAY button in the "You've drawn an Ace!" lightbox, 27px against a 44px
+floor, on a different viewport each run. It reproduced on `main`, so it was
+not a card-redesign regression, and it only appeared when a random deal put
+an Ace in the opening hand. The suggested fix was to make `MODAL_BTN_MIN`
+account for the scale `Shell` applies, or to have `Shell` floor its scale.
+
+**That premise was wrong, and the numbers say so outright.** `popIn` — the
+entrance on every lightbox in `overlays.jsx` — is
+`from{transform:scale(.5)} to{scale(1)}`. The button's real height is 54.
+**54 x 0.5 = 27**, and **54 x 0.698 = 38**, which is the other number the gate
+reported. Both failing readings are `popIn` frames, not sizes.
+
+Measured directly in a real Chrome, driving the app until the Ace lightbox
+came up and then waiting for `document.getAnimations()` to drain:
+
+| viewport | mid-popIn | transform chain | AT REST | chain at rest |
+|---|---|---|---|---|
+| iphone-se | 111x42 | `scale(0.778)` | **143x54** | **empty** |
+| iphone-14 | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+| ipad | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+| desktop-hd | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+
+The chain being EMPTY at rest is the finding under the finding: **`Shell`
+applies no scale to this modal at any of these viewports.** So flooring
+`Shell`'s scale would have fixed nothing, and raising `MODAL_BTN_MIN` to
+clear a 27px reading would have meant declaring 88px — a modal button twice
+the height it needs, to satisfy a number that was never a height.
+
+**What was actually wrong, and where.** The harness had a flat
+`waitForTimeout(450)` before probing, with a comment showing someone had
+already been bitten by exactly this class of bug ("a 57px button 'failing' the
+44px touch floor at 1920x1080"). 450ms covers `popIn`'s own 0.35s. It does not
+cover an overlay that **mounts late** — and the Ace explainer is precisely
+that: its effect waits for `animating` to clear, so on a deal that runs long
+it appears *after* the wait has elapsed and pops in underneath the probe.
+That is the whole explanation for "intermittent, different viewport each
+time": the deal has to be long AND the opening hand has to hold an Ace.
+
+**The fix, in `tools/responsive-qa.mjs`:**
+
+- `shot()` now settles on `document.getAnimations()` instead of a timer —
+  wait for every finite animation to end, 250ms grace for anything that
+  mounts on the back of what just finished, then wait again. Infinite
+  animations are excluded or `cardWiggle` would hang it forever.
+- `dismiss()` settles first too. Without that it fires on a timer and can
+  run *before* the overlay it exists to clear has mounted, leaving it up
+  over the table and blocking the trade the walk takes next.
+- Each result records `quiet` — whether the page was actually still when
+  measured — and any failure taken while it was not now prints
+  `(MEASURED WHILE ANIMATING — suspect)`. A check that fails for a reason
+  unrelated to the thing it watches is worse than no check.
+- Each result records `dialogs`, the aria-labels of whatever was on top. A
+  screen labelled `4-table` is sometimes the table and sometimes the table
+  under the Ace explainer, and nothing in the output used to say which.
+- The run prints the viewport it is starting. A six-viewport run that threw
+  part way used to report a bare Playwright timeout with no way to tell where.
+
+**Verified by running the gate, not by reading it.** Five clean runs, **ALL
+CLEAR** on every one, and `results.json` confirms the Ace lightbox
+(`dialogs: ["You drew an Ace"]`) was genuinely up and measured on runs that
+passed — the exact state that used to fail. `quiet` was `true` at every probe.
+53 tests, `npm run build` clean.
+
+**New: `tools/overlay-targets.mjs` + `tools/bench/overlay-targets.html`.**
+The gate walks a real game, so it only reaches a modal the random deal happens
+to open — which is why the Ace explainer had never been measured deliberately
+and the reveal, Clean Sweep, win and lose screens never at all. The bench
+mounts each overlay in the real `Shell` and measures every button at rest at
+all six viewports on demand. Dev-server only; Vite's single entry is
+`index.html`, so nothing under `tools/` can reach production.
+
+**All 42 button/viewport pairs, measured: no modal button renders under 44px
+on any portrait or desktop viewport.** Two do, both landscape phone, both
+inside the accepted landscape trade this brief already records:
+`RevealOverlay`'s Continue at **32px** (natural 46 x scale 0.69) and
+`WinScreen`'s NEW GAME at **36px** (natural 53 x scale 0.673). Neither had
+ever been measured before, because the gate never reaches either screen.
+
+**One inconsistency found and deliberately NOT fixed — Stan's call.**
+`RevealOverlay`, `CleanSweepLightbox`, `WinScreen` and `LoseScreen` declare a
+bare `minHeight:44` rather than `MODAL_BTN_MIN`, so they carry less margin
+than the constant that exists for this job intends. Raising them was measured
+rather than assumed and it changes nothing: 54 x 0.69 is still 37, so the two
+landscape shortfalls survive it, and at every other viewport the scale is 1
+and all four already clear the floor. It would be 8px of added height on two
+shipped screens for no measured gain, which is a visual change and therefore
+his.
+
+**The comment that caused the wrong diagnosis is corrected.**
+`MODAL_BTN_MIN`'s note recorded "the Ace explainer at 375x667 scaled to ~0.93
+and its 44px button rendered 41". That has not been true since the card
+redesign — it is scale 1 there now — and it is the sentence that makes the
+27px reading look like a layout defect instead of an instrument artifact.
+Both it and the matching comment on the button in `overlays.jsx` now carry
+the 2026-09-14 measurement and point at the bench.
+
+**Two harness flakes seen and traced, neither a defect.** A SKIP click and an
+EASY click each timed out once, both while a second Chrome-driving script was
+running concurrently — CPU contention starving the picker's 720ms `ARM_MS`
+timer and Playwright's actionability waits. Walking the splash → storyboard →
+picker transition at all six viewports with nothing else running was clean
+six for six, and so were all three sequential gate runs afterwards. **Do not
+run two browser harnesses at once against this project**; the walk is paced by
+real timers and it will lie to you.
+
+
 ## Session tracker
 
 | # | Session | Status |
@@ -4926,6 +5041,7 @@ animating offscreen later." (4) "add a subtitle to splash" — reverses the
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
 | — | *Unplanned:* Terminology and tone pass | Done + **PUBLISHED** (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical. Live bundle verified byte-identical to the tested build, and `main`'s tree hash equal to `dev`'s. Found one live "burn" the spec never mentioned, in the Ace explainer, and a void detector run that reported 13 findings on an empty file list |
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
+| — | *Unplanned:* The QA gate was measuring an animation | Done (2026-09-14) — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 
 
 ---
@@ -5021,11 +5137,27 @@ have back.
 
 **No GAME CODE is in flight.** `main` and `origin/main` are both at
 `992c358`, production is serving exactly that, and both the card redesign
-and the terminology pass are LIVE as of 2026-09-13. `dev` sits one commit
-ahead at `2539d7c`, which is **PROJECT-BRIEF.md only** — the Signpost bench
-log above — so the divergence is documentation, not unshipped work. The
-one thing genuinely in flight is the bench itself, and it is waiting on
-Stan rather than on code.
+and the terminology pass are LIVE as of 2026-09-13. `dev` is ahead of it
+by documentation and TOOLING only — the Signpost bench log, the publish
+log, and the 2026-09-14 QA-gate pass, which changed
+`tools/responsive-qa.mjs`, added `tools/overlay-targets.mjs` and corrected
+two stale comments. **Nothing in `src/` that renders changed**, so there
+is still no unshipped player-visible work. The one thing genuinely in
+flight is the bench itself, and it is waiting on Stan rather than on code.
+
+**The responsive gate is trustworthy again, and it was not before
+(2026-09-14).** It had been failing intermittently on a 54px button it was
+measuring at `scale(.5)` mid-`popIn`, which is the failure mode that
+teaches you to ignore the alert. It now settles on
+`document.getAnimations()`, says whether the page was actually still, and
+names what was moving if it was not. **Before trusting any touch-target
+number from it, check the `quiet` field.** The companion
+`tools/overlay-targets.mjs` measures all six modals at rest without
+needing the deal to produce them; run it whenever a modal's layout is
+touched, because the gate reaches a modal only by luck. And **do not run
+two browser harnesses against this project at once** — the walk is paced
+by real timers and CPU contention makes clicks time out in ways that look
+like defects.
 
 **The vocabulary is now settled and it binds.** The game says hand, scrap,
 attack, discard and CLEAN SWEEP. Nothing player-facing says small hand,

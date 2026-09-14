@@ -23,10 +23,21 @@ export const TOUCH_MIN_COMPACT = 54;
 // Modal buttons declare MORE than the 44px floor, for the same reason
 // ACE_TAG_MIN exists: every overlay is wrapped in its own FitBox by
 // `Shell`, so a tall modal on a short phone is SCALED, and a control
-// that declares 44 renders under it. Measured: the Ace explainer at
-// 375x667 scaled to ~0.93 and its 44px button rendered 41. 54 survives
-// a scale of 0.82, which is below anything a modal has been observed
-// to take. A declared size is not a rendered size inside a scaled box.
+// that declares 44 renders under it. 54 survives a scale of 0.82.
+// A declared size is not a rendered size inside a scaled box.
+//
+// RE-MEASURED 2026-09-14, and the old note here was out of date in a
+// way that misleads: it recorded the Ace explainer scaling to ~0.93 at
+// 375x667 and its button rendering 41. That has not been true since the
+// card redesign. `Shell` now applies NO scale to that modal at any of
+// the six QA viewports — the transform chain above the button is empty
+// and it renders its full 54 everywhere, landscape phone included.
+// So if a reading ever shows this button under 44 again, suspect the
+// INSTRUMENT before the layout: `popIn` opens at scale(.5), which
+// renders a 54px button as 27, and a probe that lands mid-animation is
+// measuring the animation. See tools/overlay-targets.mjs, which
+// measures every modal button at rest without needing the deal to
+// produce the state that shows it.
 export const MODAL_BTN_MIN = 54;
 
 // The Play Ace tag's own floor, and the only control that needs one.
