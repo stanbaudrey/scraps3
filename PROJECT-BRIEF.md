@@ -5165,8 +5165,8 @@ the Ace-counter prompt offered without an Ace in hand, cards not shrinking to
 pile size on their way into Scraps, and the splash subtitle he has asked to
 have back.
 
-**Nothing is in flight, and `dev` and `main` are level.** Both are at
-`6bd985b` with identical trees, production is serving exactly that, and
+**Nothing is in flight, and `dev` and `main` are level.** Their trees are
+identical, production is serving the 2026-09-14 publish (`6bd985b`), and
 the card redesign, the terminology pass and the 2026-09-14 QA-gate pass
 are all LIVE. The QA-gate publish shipped a **byte-identical bundle**, so
 the last player-visible change to the game is still the terminology pass
