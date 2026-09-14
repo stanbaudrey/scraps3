@@ -573,8 +573,10 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           fontFamily:F.ui,fontWeight:700,fontSize:18,
           letterSpacing:'0.1em',textTransform:'uppercase',
           boxShadow:`0 0 24px ${DS.gold}88`,
-          // Declares more than the 44px floor because Shell scales this
-          // whole box on a short screen. See MODAL_BTN_MIN.
+          // Declares more than the 44px floor, for the reason
+          // MODAL_BTN_MIN records. Measured at rest 2026-09-14: it
+          // renders the full 54 at all six QA viewports, because Shell
+          // does not in fact scale this modal on any of them.
           minHeight:MODAL_BTN_MIN, marginTop:12,
         }}>
           Okay

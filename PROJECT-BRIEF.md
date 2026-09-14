@@ -4586,7 +4586,7 @@ box now, which is compositor-only and lands in the same place.
 still told the reader to look at "one of the five families".
 
 
-### Unplanned session — The terminology and tone pass ✅ Done (2026-09-13)
+### Unplanned session — The terminology and tone pass ✅ Done + **PUBLISHED** (2026-09-13)
 
 Renamed the game's vocabulary and rewrote the copy that carried it. **No
 mechanics, balance or layout changed.** The spec came in as
@@ -4723,12 +4723,289 @@ headroom, no FitBox downscale. (FULL SCRAP was 224.5px.) It fits at 390,
 `showCleanSweep`'s initial state true, screenshotting, and reverting in the
 same step.
 
+**PUBLISHED and verified live, three ways rather than one.** The bundle
+hash `index-BZHg5qIX.js` served by `scraps.games` is byte-identical to
+the tested local build; `main`'s tree hash equals `dev`'s exactly
+(`166194f9`), so production built precisely what was previewed; and the
+new copy was read back off the served HTML — CLEAN SWEEP, `cleanSweepPop`,
+"Scrap cards from your hand", "attack with one to discard", and **zero**
+occurrences of "Flushes are never valid". The live site was then walked
+in a real browser to the table: Stan's narrator line renders and there
+are no JS errors.
+
+**Publish-time checks, and what each actually proved.** The personal-data
+grep over `dist/` found the origin story shipping correctly as "its
+creator and his wife" with no name — but also found **three "Stan"
+mentions in CSS comments inside `index.html`'s `<style>` block**, which
+ship verbatim because only JS comments are minified away. They are
+pre-existing, already live before this push, and this push adds none;
+first name only, attached to design-decision commentary, no surname or
+contact details. Flagged to Stan rather than removed unilaterally. The
+impeccable detector returned **7 findings, all `bounce-easing`**, all
+pre-existing and in the category Session 5 triaged as the committed
+identity — the single bounce line this push touched is the CLEAN SWEEP
+headline, whose easing is byte-identical to the one it replaced, so the
+push is net zero. The detector was **confirmed live against a planted
+control** (`font-family: Inter` in a scratch file, named back as
+`overused-font`), showed no DEGRADED banner, and wrote nothing to stderr
+— all three claims, not just the zero.
+
+**One detector run was void and thrown away, which is worth recording
+because its output looked perfectly normal.** The first invocation built
+its file list with `mapfile`, which does not exist in zsh, so the array
+was empty and the detector ran with no path arguments — and still
+returned a confident "13 findings" by scanning something other than what
+was asked for. Empty stderr, no banner, plausible number. This is exactly
+the third blind spot `/publish` warns about, arrived at by a different
+route than the one it describes: not an unresolvable path, but a shell
+builtin that silently produced nothing. **Print the file list before
+trusting any scan of it.**
+
+**`share:check` was broken on purpose twice, in two different classes, and
+failed by name both times.** Changing the `<title>` produced `✗ index.html
+og:title` quoting both the baked-in and live strings; changing the
+`voltage` palette token produced `✗ palette.voltage` with both hex values
+AND caught the downstream `favicon.svg` mismatch, exiting 1. Restored, the
+control run exits 0. `fonts:check` is green at 18 faces over 12 files, 0
+changed, 0 stale. The monthly CI job was read rather than assumed: it
+asserts only on HTTP codes, `og:image` presence and its host, and the old
+domain's redirect — none of which this push touches — and it already uses
+the fetch-to-a-file pattern rather than the `curl | grep -q` race fixed
+last session.
+
 **One instrument note worth keeping.** `~/Downloads` is blocked to this
 process by macOS TCC — `ls` on the specific file works (stat is permitted)
 while `cat` returns `Operation not permitted`, and the in-app browser
 cannot read a local file either. A handoff doc parked there has to be
 copied into the project before it can be read. That cost the first four
 tool calls of this session.
+
+
+### Unplanned session — The Signpost: the interstitial bench ✅ Bench published, picks PENDING (2026-09-14)
+
+Requested by Stan in his Notion notes, verbatim: "The interstitials are
+off-brand and look like cliche vibecoding: BEGIN ROUND 1, BEGIN ROUND 2,
+FULL SCRAP, and the win reveals, etc. Help the colors and vibe seem more in
+keeping with the woody aesthetic and autumnal energy." His own idea came
+with it: the table stays visible, the cards discard away, the copy appears
+on the table with each headline letter an individual scrapped-up card,
+skippable with any tap, and the letter cards discard before the next deal.
+Rye for headlines; consult the lookbook. Same shape as the Woodshed: a bench
+first, **no game code until he picks.** Nothing in `src/` changed.
+
+**The bench: The Signpost**, published as an artifact —
+https://claude.ai/code/artifact/c7e88024-66e3-4594-9cf8-7eeb817d54af
+
+Seven treatments plus the shipping overlays reproduced as option 0, each
+runnable at five moments (round start, hand result, Clean Sweep, match
+won, match lost), on a mock of the real table: `TableSurface`, `PlayingCard`,
+`scrapLook` and the audio kit are **ported line for line** — same seeded
+exciters, same bars, same TRIM values — so he is judging against the real
+timber and the real sounds. A separate celebration axis offers **leaf shower**
+and **scrap confetti** beside the shipping fireworks, which answers his second
+note ("Recommend alternatives to fireworks as the success visual, this can be
+a bench") in the same place. Controls: CAPS/mixed case, Quick/Normal/Slow
+pace, desktop/phone stage, who deals, sound, and a **simulated
+reduced-motion** switch, because his devices never match the query. Every
+option carries notes: where the idea came from, what it costs to build, the
+still fallback, the sound, and the Avoid-list flags. A picks box at the
+bottom.
+
+**The seven.** 1 **Scrap letters** — his idea; each letter a torn card on
+the game's stock with seeded wear and lean, dealt in from the dealer's edge,
+tossed off the right like any discard; two settings, land in a row or land
+as a fan and square up (which gives `playSquareUp` the home the Woodshed
+entry said it was waiting for), and pale or mixed pale-and-kraft stock.
+2 **Wordmark type** — Rye straight on the wood with the splash's own
+letterAppear and one riffle pass; the restraint baseline the others must
+beat. 3 **Branded** — burned into the boards letter by letter, ember cooling
+to char with a lit lip, smoke lifting off. 4 **Carved** — routed and painted,
+the trailhead-sign move, revealed under a left-to-right wipe with sawdust.
+5 **Rubber stamp** — slammed on at −4°, cream ink with real skips from a
+thresholded-noise SVG filter, the subline a second stamp. 6 **Ticket stub** —
+a kraft county-fair ticket drops with a thud, WON/LOST stamped across it,
+flicked off the edge. 7 **Torn banner** — a strip of pale stock across the
+whole table, torn in two to leave.
+
+**Lookbook, consumed and named.** The Avoid section was read first and the
+scanner run on the bench. Categories read: TEXT, LOADER/PRELOADER,
+MODAL/DIALOG, CARD/HOVER, VIBE/ATMOSPHERE, LAYOUT TRANSITION, and the
+Aesthetics drawer (Mystical western is the filed direction that renders in
+Rye, which confirms the face rather than suggests it). **Nothing filed is an
+interstitial**, so no entry was installed. Two rebuild recipes were used: the
+Horizontal text reveal wipe (Skiper, gated; the recipe is free) drives
+Carved's router pass and the banner's unroll. Each option's notes name its
+nearest filed entry (Card stack with GSAP rotate, Highlighter, Confetti) and
+where it is original. The registries were not searched and the Drive idea
+pack was not opened: every option here is a physical object that belongs on
+this particular table, and a registry component would have to be rebuilt
+into that anyway. Said plainly rather than skipped silently.
+
+**Scanner: three bans fired, all accounted for, none shipped as a tell.**
+"Multi-stop gradients" matched the ported `scrapLook` crease and the table's
+lamp gradient — the game's own monochrome browns. "Large coloured glows
+behind hero content" matched the smoke and sawdust puffs, transient and
+physical. "Fade-in-up on every element" matched the sign entrances
+themselves and the Shipping reproduction; the small subline slides it also
+caught were **removed** in response, so sublines now fade in place. Flags:
+mono on the measured durations and the option index (fixed advance doing
+work), one small radius scale on the chrome.
+
+**The copy is part of the pitch, and it is his to accept.** BEGIN ROUND 2
+becomes **ROUND 2** with the dealer under it ("She dealt. You go first.").
+Results say **YOU WIN / SHE WINS / TIE** with the hand that decided it
+("Pair beats King high"); points are set in Fjalla One, never mono.
+OPPONENT WINS is fourteen letters and is not shown — **SHE in a headline is a
+call for Stan**, since the table still says OPPONENT. All caps is a choice
+here (ranks are capitals, so letter cards are capitals) and the type options
+carry a Mixed toggle so the two can be compared.
+
+**One number worth knowing before he picks.** The full round handoff with
+Scrap letters at Normal pace **measured 6.6s** in the bench (toss 1.3 · in
+1.2 · hold 1.4 · out 0.8 · deal 2.0) against the shipping 2.0s sign plus
+~1.7s deal. That is the cost of his idea done in full. Quick pace (0.9s hold,
+faster flights) and tap-to-skip exist for exactly this; in the real build the
+toss and the letter deal can overlap and claw back most of a second.
+
+**Verified in a real browser, not the pane.** The in-app pane cannot see
+inside an artifact's cross-origin frame and screenshots it part-painted, so
+the page was wrapped the way the host wraps it and driven through Playwright's
+own Node API in Chrome: 14 frames at 1280×800, at Stan's 1024×662, and at 390
+wide, no console errors. Three things were caught and fixed before he saw it:
+the stamp's ink-skip filter was too coarse and ate half of a phone-sized
+headline (a finer second filter now serves the small stamps); the Shipping
+hand-result reproduction overflowed the stage because the real one scales
+itself with FitBox (a one-line fitShip does the same); and the ticket's WON
+stamp finished at opacity 0 — **a Web Animations keyframe list whose LAST
+frame omits a property ends at the element's underlying value**, so an
+element that starts at `opacity:0` and animates in then vanishes. Saved as a
+memory. Not eyeballed, though run without error in the same engine: the
+fan-then-square landing, mixed stock, scrap confetti, and the simulated
+reduced-motion pass.
+
+**Also in his notes block, read and NOT actioned here — real bugs he has
+reported:** (1) "ACE COUNTER: if I counter Opponent's first Ace and she plays
+a second, I am asked whether I'd like to counter again BUT I only had the one
+Ace" — a wrong prompt, worth a reducer test. (2) "sometimes, when I hit
+DISCARD to attack my opponent's two cards, the screen goes black and I have
+to reload" — a crash, top of the defects list. (3) "ANIMATE: when cards enter
+Scraps they need to shrink to the pile size en route, and stay small
+animating offscreen later." (4) "add a subtitle to splash" — reverses the
+2026-09-13 removal. All four are carried into the next-session block.
+
+---
+
+### Unplanned session — The QA gate was measuring an animation ✅ Done (2026-09-14)
+
+**No game code changed.** One stale comment corrected in two files, the
+responsive harness fixed, and a new bench added. Nothing player-facing moved.
+
+**The report.** `tools/responsive-qa.mjs` was failing intermittently with
+`FAIL <viewport> 4-table: small targets [{"label":"Okay","size":[72,27]}]` —
+the OKAY button in the "You've drawn an Ace!" lightbox, 27px against a 44px
+floor, on a different viewport each run. It reproduced on `main`, so it was
+not a card-redesign regression, and it only appeared when a random deal put
+an Ace in the opening hand. The suggested fix was to make `MODAL_BTN_MIN`
+account for the scale `Shell` applies, or to have `Shell` floor its scale.
+
+**That premise was wrong, and the numbers say so outright.** `popIn` — the
+entrance on every lightbox in `overlays.jsx` — is
+`from{transform:scale(.5)} to{scale(1)}`. The button's real height is 54.
+**54 x 0.5 = 27**, and **54 x 0.698 = 38**, which is the other number the gate
+reported. Both failing readings are `popIn` frames, not sizes.
+
+Measured directly in a real Chrome, driving the app until the Ace lightbox
+came up and then waiting for `document.getAnimations()` to drain:
+
+| viewport | mid-popIn | transform chain | AT REST | chain at rest |
+|---|---|---|---|---|
+| iphone-se | 111x42 | `scale(0.778)` | **143x54** | **empty** |
+| iphone-14 | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+| ipad | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+| desktop-hd | 100x38 | `scale(0.698)` | **143x54** | **empty** |
+
+The chain being EMPTY at rest is the finding under the finding: **`Shell`
+applies no scale to this modal at any of these viewports.** So flooring
+`Shell`'s scale would have fixed nothing, and raising `MODAL_BTN_MIN` to
+clear a 27px reading would have meant declaring 88px — a modal button twice
+the height it needs, to satisfy a number that was never a height.
+
+**What was actually wrong, and where.** The harness had a flat
+`waitForTimeout(450)` before probing, with a comment showing someone had
+already been bitten by exactly this class of bug ("a 57px button 'failing' the
+44px touch floor at 1920x1080"). 450ms covers `popIn`'s own 0.35s. It does not
+cover an overlay that **mounts late** — and the Ace explainer is precisely
+that: its effect waits for `animating` to clear, so on a deal that runs long
+it appears *after* the wait has elapsed and pops in underneath the probe.
+That is the whole explanation for "intermittent, different viewport each
+time": the deal has to be long AND the opening hand has to hold an Ace.
+
+**The fix, in `tools/responsive-qa.mjs`:**
+
+- `shot()` now settles on `document.getAnimations()` instead of a timer —
+  wait for every finite animation to end, 250ms grace for anything that
+  mounts on the back of what just finished, then wait again. Infinite
+  animations are excluded or `cardWiggle` would hang it forever.
+- `dismiss()` settles first too. Without that it fires on a timer and can
+  run *before* the overlay it exists to clear has mounted, leaving it up
+  over the table and blocking the trade the walk takes next.
+- Each result records `quiet` — whether the page was actually still when
+  measured — and any failure taken while it was not now prints
+  `(MEASURED WHILE ANIMATING — suspect)`. A check that fails for a reason
+  unrelated to the thing it watches is worse than no check.
+- Each result records `dialogs`, the aria-labels of whatever was on top. A
+  screen labelled `4-table` is sometimes the table and sometimes the table
+  under the Ace explainer, and nothing in the output used to say which.
+- The run prints the viewport it is starting. A six-viewport run that threw
+  part way used to report a bare Playwright timeout with no way to tell where.
+
+**Verified by running the gate, not by reading it.** Five clean runs, **ALL
+CLEAR** on every one, and `results.json` confirms the Ace lightbox
+(`dialogs: ["You drew an Ace"]`) was genuinely up and measured on runs that
+passed — the exact state that used to fail. `quiet` was `true` at every probe.
+53 tests, `npm run build` clean.
+
+**New: `tools/overlay-targets.mjs` + `tools/bench/overlay-targets.html`.**
+The gate walks a real game, so it only reaches a modal the random deal happens
+to open — which is why the Ace explainer had never been measured deliberately
+and the reveal, Clean Sweep, win and lose screens never at all. The bench
+mounts each overlay in the real `Shell` and measures every button at rest at
+all six viewports on demand. Dev-server only; Vite's single entry is
+`index.html`, so nothing under `tools/` can reach production.
+
+**All 42 button/viewport pairs, measured: no modal button renders under 44px
+on any portrait or desktop viewport.** Two do, both landscape phone, both
+inside the accepted landscape trade this brief already records:
+`RevealOverlay`'s Continue at **32px** (natural 46 x scale 0.69) and
+`WinScreen`'s NEW GAME at **36px** (natural 53 x scale 0.673). Neither had
+ever been measured before, because the gate never reaches either screen.
+
+**One inconsistency found and deliberately NOT fixed — Stan's call.**
+`RevealOverlay`, `CleanSweepLightbox`, `WinScreen` and `LoseScreen` declare a
+bare `minHeight:44` rather than `MODAL_BTN_MIN`, so they carry less margin
+than the constant that exists for this job intends. Raising them was measured
+rather than assumed and it changes nothing: 54 x 0.69 is still 37, so the two
+landscape shortfalls survive it, and at every other viewport the scale is 1
+and all four already clear the floor. It would be 8px of added height on two
+shipped screens for no measured gain, which is a visual change and therefore
+his.
+
+**The comment that caused the wrong diagnosis is corrected.**
+`MODAL_BTN_MIN`'s note recorded "the Ace explainer at 375x667 scaled to ~0.93
+and its 44px button rendered 41". That has not been true since the card
+redesign — it is scale 1 there now — and it is the sentence that makes the
+27px reading look like a layout defect instead of an instrument artifact.
+Both it and the matching comment on the button in `overlays.jsx` now carry
+the 2026-09-14 measurement and point at the bench.
+
+**Two harness flakes seen and traced, neither a defect.** A SKIP click and an
+EASY click each timed out once, both while a second Chrome-driving script was
+running concurrently — CPU contention starving the picker's 720ms `ARM_MS`
+timer and Playwright's actionability waits. Walking the splash → storyboard →
+picker transition at all six viewports with nothing else running was clean
+six for six, and so were all three sequential gate runs afterwards. **Do not
+run two browser harnesses at once against this project**; the walk is paced by
+real timers and it will lie to you.
 
 
 ## Session tracker
@@ -4762,7 +5039,9 @@ tool calls of this session.
 | — | *Unplanned:* The big pass — rules, opponent, wordmark, table | Done + **PUBLISHED** (2026-09-14) — win-by-2 dropped (proved deadlock-free, tests 55→56), opponent female everywhere, Rye wordmark with the tap gesture removed, storyboard reordered and rewritten with a BACK from the picker, deck/discard piles off the table with off-viewport dealing and a spin-off discard, SELECT HAND naming the hand, SHOW 'EM, results screens chained. Three bugs fixed: the opponent moving behind the Ace lightbox, ATTACK overflowing its tag on a phone (**measured 46px slot vs 64.22px needed — not his display settings**), and FitBox measuring the padded box and clipping what it scaled |
 | — | *Unplanned:* Six notes off the preview | Done + **PUBLISHED** (2026-09-14) — select cue down a fifth to A5 and target .16→.12 with the trim **re-measured** (the retune alone would have made it 14% louder), the opening deal now deals all 14 cards including the starting Scraps, discard moved to the right edge, SHOW 'EM skipped when she signals first, and the post-move "Opponent is thinking..." flash removed. Verified by sampling the narrator from INSIDE the page at 60ms: 12 AI turns, zero late "thinking" lines |
 | — | *Unplanned:* The card redesign | Done + **PUBLISHED** (2026-09-13) — suits removed from the DATA (the no-flush house rule became a thing that cannot arise), one big left-anchored Rye numeral per face, Baloo 2 deleted (5 families → 4), the Scraps box replaced by torn stock on two papers with seeded per-card wear, `GlowPulse` reworked from a ring to a silhouette-tracing filter, and the table moved to Redwood at **constant relative luminance** so no contrast pairing shifted. Tests 56→53. Two spec premises failed on measurement: Rye's Q **overhangs its own advance by 0.055em** (so sizes are derived from inked extents, not advance widths), and a left-anchored numeral is NOT readable from its left third — a 7-card pile read "2 5 7 1 J Q K", fixed by dropping the pile a size. Five guards broken on purpose and each failed by name |
-| — | *Unplanned:* Terminology and tone pass | Done (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical |
+| — | *Unplanned:* Terminology and tone pass | Done + **PUBLISHED** (2026-09-13) — small hand→**hand**, transfer/Trade In→**scrap**, strip→**discard**, FULL SCRAP→**CLEAN SWEEP**. Stan overrode the spec's BURN: the Ace tag stays **ATTACK** and "burn" is used nowhere. "strike" retired as a third word for the same move. Four tone rewrites plus two live strings the spec missed. Every surviving "no flushes" claim deleted (storyboard, JSON-LD, dead RulesModal) — the rule died with the suits. CLEAN SWEEP **measured** at 255.7px against 343px available at 375px. 53 tests, build, share:check all green; PNGs byte-identical. Live bundle verified byte-identical to the tested build, and `main`'s tree hash equal to `dev`'s. Found one live "burn" the spec never mentioned, in the Ace explainer, and a void detector run that reported 13 findings on an empty file list |
+| — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
+| — | *Unplanned:* The QA gate was measuring an animation | Done (2026-09-14) — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 
 
 ---
@@ -4840,41 +5119,88 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**The terminology pass is BUILT and on `dev` (2026-09-13), stacked on top
-of the card redesign.** The game now says hand, scrap, attack, discard and
-CLEAN SWEEP, and nothing player-facing says small hand, transfer, trade in,
-strip, strike or FULL SCRAP. Two things to look at on the preview, both
-copy rather than code: the **first-turn narrator**, which is Stan's own
-line rather than the spec's and the one a first-timer actually reads, and the
-**CLEAN SWEEP lightbox**, which is measured to fit at 375px but which
-nobody has seen land at the end of a real round. The Ace exchange lines
-("They had an Ace too. Both gone. Turn over.") only appear in a counter,
-so they are worth deliberately provoking.
+**The interstitial bench is published and waiting on Stan's picks
+(2026-09-14).** The Signpost —
+https://claude.ai/code/artifact/c7e88024-66e3-4594-9cf8-7eeb817d54af —
+holds seven treatments and two fireworks alternatives; the entry above the
+tracker has the detail. **Do not build any interstitial until he has picked**
+a treatment, a celebration, a case and a pace, and answered the SHE-vs-OPPONENT
+headline question. When he does, the build is one new component per pick in
+`overlays.jsx`, the round scrim and the reveal Shell go, and `playSquareUp`
+either gets its caller or is deleted with its count.
 
-**One thing NOT to redo.** The spec that drove this pass,
-`NEXT-SESSION-terminology.md`, proposed **BURN** for spending an Ace and
-Stan rejected it outright. The tag is **ATTACK**. If that file surfaces
-again — it is untracked at the repo root, not committed — it is wrong in
-four places and this entry outranks it.
+**Four bugs from his own notes block outrank any of that**, and none has a
+test yet: the black screen on a DISCARD attack (a crash, reproduce first),
+the Ace-counter prompt offered without an Ace in hand, cards not shrinking to
+pile size on their way into Scraps, and the splash subtitle he has asked to
+have back.
 
-**The finishing job it leaves.** `PLAYER_SCRAP_WITH_DISCARD` now sits
-beside `PLAYER_TRADE_OVERFLOW_START`, and `SMALL_HAND_SCORED`,
-`hasLegalTrade`, `legalTradeFallback` and `pendingTrade` still carry the
-retired words. That was the spec's line and it was followed deliberately;
-finishing it is a contained internal rename with no user-visible payoff,
-so it earns a slot of its own rather than riding on something else.
+**No GAME CODE is in flight.** `main` and `origin/main` are both at
+`992c358`, production is serving exactly that, and both the card redesign
+and the terminology pass are LIVE as of 2026-09-13. `dev` is ahead of it
+by documentation only — the Signpost bench log and the publish log. The
+2026-09-14 QA-gate pass is committed on the worktree branch
+`claude/musing-colden-3b1adf` and **not yet on `dev`**: it changed
+`tools/responsive-qa.mjs`, added `tools/overlay-targets.mjs` and its
+bench page, and corrected two stale comments. **Nothing in `src/` that
+renders changed**, so there is still no unshipped player-visible work and
+a preview of it would show nothing. The one thing genuinely in
+flight is the bench itself, and it is waiting on Stan rather than on code.
 
-**The card redesign is BUILT and on `dev`, awaiting Stan's look on a
-preview URL.** Torn Scraps on two paper stocks, one big Rye numeral per
-card, no suits anywhere, no box around a pile, and a Redwood table.
-`CARD-REDESIGN-SPEC.md` has been **deleted** now that it shipped, per its
-own header. The one thing to look at first is the **vertical composition
-of a card** — the numeral is anchored to the top and the bottom third is
-deliberately empty, and whether it wants to sit lower is a taste call
-nobody has made yet. The other is whether the **Scraps piles now read as
-too small**: they dropped a whole size to fix a real legibility failure at
-seven cards, and that also answers his "too much shit onscreen" note, but
-it is a bigger change to the table's balance than the spec anticipated.
+**The responsive gate is trustworthy again, and it was not before
+(2026-09-14).** It had been failing intermittently on a 54px button it was
+measuring at `scale(.5)` mid-`popIn`, which is the failure mode that
+teaches you to ignore the alert. It now settles on
+`document.getAnimations()`, says whether the page was actually still, and
+names what was moving if it was not. **Before trusting any touch-target
+number from it, check the `quiet` field.** The companion
+`tools/overlay-targets.mjs` measures all six modals at rest without
+needing the deal to produce them; run it whenever a modal's layout is
+touched, because the gate reaches a modal only by luck. And **do not run
+two browser harnesses against this project at once** — the walk is paced
+by real timers and CPU contention makes clicks time out in ways that look
+like defects.
+
+**The vocabulary is now settled and it binds.** The game says hand, scrap,
+attack, discard and CLEAN SWEEP. Nothing player-facing says small hand,
+transfer, trade in, strip, strike, FULL SCRAP — or **burn**, which Stan
+rejected outright when the spec proposed it as the Ace verb and as the tag
+over the card. The tag is **ATTACK**. The spec file that proposed BURN is
+deleted from the repo and from `~/Downloads` it came from; if a copy ever
+resurfaces it is wrong in four places and CLAUDE.md's vocabulary block
+outranks it.
+
+**Two things nobody has actually watched land, both copy, neither a
+defect.** The **CLEAN SWEEP lightbox** is measured to fit at 375px
+(255.7px of ink against 343px available) and was screenshotted by forcing
+its state, but nobody has seen it arrive at the end of a real round. And
+the **Ace exchange lines** ("They had an Ace too. Both gone. Turn over.")
+only fire on a counter, so they need provoking rather than waiting for.
+
+**The finishing job the terminology pass left, and it earns its own
+slot.** `PLAYER_SCRAP_WITH_DISCARD` now sits beside
+`PLAYER_TRADE_OVERFLOW_START`; `SMALL_HAND_SCORED`, `hasLegalTrade`,
+`legalTradeFallback`, `nextPhaseAfterTrade` and `pendingTrade` still carry
+the retired words. That was the spec's explicit line and following it was
+deliberate. Finishing it is a contained internal rename reaching into the
+engine's AI scoring and the phase machinery, with **no user-visible
+payoff**, so it should not ride along on a visual or copy pass.
+
+**Open from the card redesign, and these are taste calls only Stan can
+make.** The **vertical composition of a card**: the numeral is anchored to
+the top and the bottom third is deliberately empty, and whether it wants
+to sit lower has never been decided. And whether the **Scraps piles now
+read as too small**: they dropped a whole size to fix a real legibility
+failure at seven cards, which also answers his "too much shit onscreen"
+note, but it moved the table's balance more than the spec anticipated.
+
+**Three "Stan" mentions ship in `index.html` and he has not decided about
+them.** They are CSS comments inside the `<style>` block — design
+commentary, first name only, no surname or contact details — and they ship
+verbatim because only JS comments get minified away. Pre-existing and live
+for weeks; surfaced at the 2026-09-13 publish. **Do not remove them
+unilaterally**, and do not re-flag them as a new finding: they are his
+call and he has been told.
 
 **One thing to watch on the new kit, and it is the only open question from
 that pass.** `handWon` fires twice a round, more than any other outcome
