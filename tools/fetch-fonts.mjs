@@ -43,12 +43,22 @@ const UA =
 
 const KEEP_SUBSETS = new Set(['latin', 'latin-ext']);
 
-/** Mirrors the family+weight set index.html requested before self-hosting. */
+/** Mirrors the family+weight set index.html requested before self-hosting.
+ *
+ *  `preload` marks the families on the FIRST screen, which get a
+ *  <link rel="preload"> written into index.html between its PRELOAD
+ *  sentinels. That list used to be hand-maintained beside a comment
+ *  saying not to hand-maintain it, and on 2026-09-13 it went stale the
+ *  moment Rye replaced Bungee Shade: the preload kept pointing at a
+ *  deleted file, so the live site 404'd on the critical path and the
+ *  font actually on the splash was not preloaded at all. Nothing caught
+ *  it, because --check only compared the @font-face block. It compares
+ *  both now. */
 const SPEC = [
-  { family: 'Rye',           slug: 'rye',           css: 'Rye' },
-  { family: 'Fjalla One',    slug: 'fjalla-one',    css: 'Fjalla+One' },
+  { family: 'Rye',           slug: 'rye',           css: 'Rye', preload: true },
+  { family: 'Fjalla One',    slug: 'fjalla-one',    css: 'Fjalla+One', preload: true },
   { family: 'Baloo 2',       slug: 'baloo-2',       css: 'Baloo+2:wght@600;700;800' },
-  { family: 'Work Sans',     slug: 'work-sans',     css: 'Work+Sans:wght@400;500;600;700' },
+  { family: 'Work Sans',     slug: 'work-sans',     css: 'Work+Sans:wght@400;500;600;700', preload: true },
   { family: 'IBM Plex Mono', slug: 'ibm-plex-mono', css: 'IBM+Plex+Mono:wght@400;500;700' },
 ];
 
@@ -157,21 +167,38 @@ async function main() {
   // files in public/fonts drift apart without anything noticing.
   const htmlPath = join(ROOT, 'index.html');
   const html = await readFile(htmlPath, 'utf8');
-  const BEGIN = '      /* FONT-FACE:BEGIN */\n';
-  const END = '      /* FONT-FACE:END */\n';
-  const i = html.indexOf(BEGIN);
-  const j = html.indexOf(END);
-  if (i < 0 || j < 0 || j < i) {
-    throw new Error('FONT-FACE:BEGIN/END sentinels missing from index.html');
-  }
-  const nextHtml = html.slice(0, i + BEGIN.length) + cssOut + '\n' + html.slice(j);
+
+  // Rewrite a region between two sentinels, or throw if they are gone.
+  const splice = (src, begin, end, body, label) => {
+    const i = src.indexOf(begin);
+    const j = src.indexOf(end);
+    if (i < 0 || j < 0 || j < i) {
+      throw new Error(`${label} sentinels missing from index.html`);
+    }
+    return src.slice(0, i + begin.length) + body + src.slice(j);
+  };
+
+  // The preload list is derived from the SAME `all` array the @font-face
+  // rules come from, so a family that is renamed, re-sliced or dropped
+  // moves both at once. The latin (not latin-ext) file is the one worth
+  // preloading: it is what English copy actually paints with.
+  const preloadOut = SPEC.filter(f => f.preload).map((f) => {
+    const face = all.find(x => x.slug === f.slug && x.subset === 'latin');
+    if (!face) throw new Error(`no latin face to preload for ${f.family}`);
+    return `    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/${face.file}">`;
+  }).join('\n');
+
+  let nextHtml = splice(html, '      /* FONT-FACE:BEGIN */\n', '      /* FONT-FACE:END */\n',
+    cssOut + '\n', 'FONT-FACE:BEGIN/END');
+  nextHtml = splice(nextHtml, '    <!-- PRELOAD:BEGIN -->\n', '    <!-- PRELOAD:END -->\n',
+    preloadOut + '\n', 'PRELOAD:BEGIN/END');
   const htmlDrifted = nextHtml !== html;
 
   if (check) {
     const problems = [];
     if (changed) problems.push(`${changed} font file(s) differ from Google`);
     if (stale.length) problems.push(`${stale.length} stale file(s) in public/fonts`);
-    if (htmlDrifted) problems.push("index.html's @font-face rules are out of date");
+    if (htmlDrifted) problems.push("index.html's @font-face rules or font preloads are out of date");
     if (problems.length) {
       console.error(`\x1b[31mDRIFT: ${problems.join('; ')}.\x1b[0m`);
       console.error('Run `npm run fonts` to regenerate.');
