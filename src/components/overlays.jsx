@@ -556,7 +556,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           )}
           <div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
-          You can play your Ace like normal, or burn it to{' '}
+          You can play your Ace like normal, or use it to{' '}
           <strong style={{color:DS.frost}}>attack</strong> your opponent and
           discard two cards from her Scraps.
         </p>

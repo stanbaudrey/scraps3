@@ -4651,7 +4651,19 @@ One name now covers both, and the opponent-side code needed no change.
 - Opponent counters → *"They had an Ace too. Both gone. Turn over."* — and
   its two siblings moved with it, or the voice would have split mid-exchange.
 
-**Two live strings the spec missed**, found by sweeping rather than by
+**A third live string said BURN already, and the spec never mentioned
+it.** The "You've drawn an Ace!" explainer in `overlays.jsx` read *"or
+burn it to **attack** your opponent"* — pre-existing, not introduced
+here, and the single place in the shipped game that already used the
+word Stan rejected. It survived the first sweep because that sweep
+looked for the terms in the spec's own table and "burn" was not one of
+them; it was caught only by adding `\bburn\b` to the final check. It now
+reads *"or use it to **attack** your opponent"*. **The lesson is that a
+rename pass has to sweep for the words it is introducing as well as the
+ones it is retiring** — an override like this one turns the new word
+into a banned word, and nothing in the spec knows that.
+
+**Two more live strings the spec missed**, found by sweeping rather than by
 following the line numbers: the difficulty picker's HARD description
 ("sacrifice small hands to win Scraps") and the Ace counter modal's
 explanatory paragraph, which said "nothing is removed" and "a strike of
