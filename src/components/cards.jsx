@@ -865,6 +865,11 @@ export function HandUpgradeBadge({ cards, fontSize=15 }) {
 // zero rotation and the single uniform material are gone — not
 // because the order is scrambled.
 // ─────────────────────────────────────────────────────────────
+// The pooled shadow's fixed box, sized for a FULL pile so the blob is
+// only ever scaled DOWN — a gradient stretched past its natural size
+// bands, and a pile is capped at 7 cards, so 7 is the honest maximum.
+const SHADOW_BASE = (cardW) => cardW * 7 + 16;
+
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
   onCardClick, discardMode=false, isOpponent=false, glowZone=false,
   registerEl=null, hiddenIds=new Set(),
@@ -945,13 +950,25 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             1px contact shadows, enough to separate two overlapping
             edges and nothing more. */}
         {count > 0 && (
+          // It grows and shrinks by SCALE, not by width. The shadow has
+          // to keep pace with the pile's own re-sort, which means it
+          // animates every time a card lands — and `transition: width`
+          // is a layout property, so that would run layout on every
+          // frame of a 420ms curve, twice a table. A fixed box centred
+          // by margin and scaled about its own middle is compositor-only
+          // and lands in exactly the same place. `left:50%` plus a
+          // negative margin rather than `translateX(-50%)`, because a
+          // percentage translate resolves against the UNSCALED border
+          // box and would drift the blob sideways as it scaled.
           <div aria-hidden="true" style={{position:'absolute',
-            left:'50%',transform:'translateX(-50%)',
+            left:'50%',marginLeft:-(SHADOW_BASE(cardW) / 2),
             top:padTop + Math.round(cardH * 0.52),
-            width:pileW + 16,height:Math.round(cardH * 0.46),
+            width:SHADOW_BASE(cardW),height:Math.round(cardH * 0.46),
             background:`radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.46) 0%, rgba(0,0,0,0.26) 46%, rgba(0,0,0,0) 74%)`,
             filter:'blur(5px)',pointerEvents:'none',zIndex:0,
-            transition:'width 0.42s cubic-bezier(.4,0,.2,1)'}}/>
+            transformOrigin:'center',
+            transform:`scaleX(${((pileW + 16) / SHADOW_BASE(cardW)).toFixed(4)})`,
+            transition:'transform 0.42s cubic-bezier(.4,0,.2,1)'}}/>
         )}
         <GlowPulse active={glowZone} color={glowColor}
           style={{position:'relative',zIndex:1,width:'100%',height:'100%'}}>
