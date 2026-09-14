@@ -1,12 +1,17 @@
 // ============================================================
-// SCRAPS — Overlays: interstitial, reveals, win/lose, modals
+// SCRAPS — Overlays: the modals, and the Shell they share
+//
+// The round card, the hand reveal, the Clean Sweep lightbox and the
+// win and lose screens lived here until 2026-09-14. They were dusk
+// scrims over a hidden table; every one of those moments now plays
+// ON the table, in src/components/interstitials.jsx. What is left
+// here is the set of modals that ask a question — Ace counter, Ace
+// drawn, opponent's Ace, skip turn, quit — plus the rules panel.
 // ============================================================
 import { useState, useEffect, useRef } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
-import { playGameWon, playFireworkPop, playGameLost } from "../audio.js";
 import { Btn, AceTag, MODAL_BTN_MIN } from "./buttons.jsx";
 import { PlayingCard } from "./cards.jsx";
-import { TableSurface } from "./backdrop.jsx";
 import { FitBox } from "../ui/viewport.jsx";
 import { useViewport } from "../ui/viewport.jsx";
 import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "./icons.jsx";
@@ -47,7 +52,7 @@ import { IconBolt, IconTrophy, IconCards, IconFan, IconCycle, IconSpade } from "
 // ─────────────────────────────────────────────────────────────
 const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-function useDialogFocus(active) {
+export function useDialogFocus(active) {
   const ref = useRef(null);
   useEffect(() => {
     if (!active) return undefined;
@@ -76,10 +81,11 @@ function useDialogFocus(active) {
 
 function Shell({ children, zIndex, background, onClick, pad = 16, style = {},
   dialogLabel = null }) {
-  // `dialogLabel` is opt-in, because not every user of this Shell is a
-  // dialog. RoundInterstitial is a 2-second flash nobody can act on;
-  // announcing it as a modal and stealing focus into it would be a lie
-  // and a nuisance. The overlays that ask a question all pass one.
+  // `dialogLabel` is opt-in, because not every user of this Shell was
+  // a dialog: the old round card was a 2-second flash nobody could act
+  // on, and announcing it as a modal would have been a lie and a
+  // nuisance. Every remaining user asks a question and passes one; the
+  // opt-in stays because the reason it existed still holds.
   const dialogRef = useDialogFocus(!!dialogLabel);
   return (
     <div onClick={onClick}
@@ -105,401 +111,16 @@ function Shell({ children, zIndex, background, onClick, pad = 16, style = {},
 // bounce-easing finding the static detector kept raising and Session 1's
 // critique flagged as a P1: celebratory motion attached to a loss.
 // SETTLE is ease-out-quint. Same duration, same distance, no rebound.
-const SETTLE = 'cubic-bezier(.22,1,.36,1)';
+export const SETTLE = 'cubic-bezier(.22,1,.36,1)';
 
 // Card padding shrinks with the viewport: 32px of inset around a
 // modal is a third of a phone's width.
 const CARD_PAD = 'clamp(18px,5vw,32px)';
 
-// ─────────────────────────────────────────────────────────────
-// RoundInterstitial — "BEGIN ROUND N" full-screen flash
-// ─────────────────────────────────────────────────────────────
-export function RoundInterstitial({ roundNum, onDone }) {
-  const [phase, setPhase] = useState('in'); // in | hold | out
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase('hold'), 400);
-    const t2 = setTimeout(() => setPhase('out'),  1400);
-    const t3 = setTimeout(() => onDone(), 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
-
-  return (
-    <div style={{
-      position:'fixed', inset:0, zIndex:500,
-      background: phase==='out' ? 'transparent' : `rgba(20,31,25,${phase==='hold'?0.92:0.6})`,
-      display:'flex', alignItems:'center', justifyContent:'center',
-      flexDirection:'column', gap:16,
-      transition: phase==='out' ? 'background 0.5s ease, opacity 0.5s ease' : 'background 0.35s ease',
-      opacity: phase==='out' ? 0 : 1,
-      pointerEvents: phase==='out' ? 'none' : 'all',
-    }}>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,
-        opacity: phase==='in' ? 0 : 1,
-        transform: phase==='in' ? 'scale(0.7) translateY(20px)' : 'scale(1) translateY(0)',
-        transition:'opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.4,.64,1)',
-      }}>
-        <div style={{
-          fontFamily:F.display,
-          fontSize:'clamp(34px,11vw,96px)',
-          color:DS.voltage,
-          letterSpacing:'0.08em',
-          textShadow:`0 0 40px ${DS.voltage}99, 0 0 80px ${DS.voltage}55`,
-          whiteSpace:'nowrap',
-        }}>
-          BEGIN ROUND {roundNum}
-        </div>
-        <div style={{
-          fontFamily:F.ui,
-          fontSize:'clamp(15px,3.6vw,36px)',
-          color:DS.frost,
-          letterSpacing:'0.18em',
-          fontWeight:700,
-          textTransform:'uppercase',
-          opacity:0.85,
-        }}>
-          {roundNum%2===1 ? 'YOU GO FIRST' : 'OPPONENT GOES FIRST'}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// RevealOverlay
-// ─────────────────────────────────────────────────────────────
-export function RevealOverlay({ playerCards, aiCards, playerHandName, aiHandName, winner, points, onDismiss, playerBestIds=null, aiBestIds=null, bonusLine=null, continueLabel='Continue' }) {
-  const [vis,setVis]=useState(false);
-  const { w } = useViewport();
-  // Two five-card hands, a verdict and two labels do not fit a
-  // phone at 'normal'. Dropping a size keeps the pips crisp; the
-  // Shell's scaling is the fallback under that, not the first
-  // answer.
-  const cardSize = w < 700 ? 'small' : 'normal';
-  useEffect(()=>{setTimeout(()=>setVis(true),50);},[]);
-  return (
-    <Shell zIndex={80} background="rgba(20,31,25,0.94)" pad={14} dialogLabel="Hand reveal"
-      style={{opacity:vis?1:0,transition:'opacity 0.3s'}}>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',
-        gap:'clamp(10px,2.4vh,20px)'}}>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-        <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>OPPONENT</div>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}>
-          {(aiCards||[]).map((c,i)=>(
-            <div key={c.id} style={{animation:`slideDown 0.3s ease ${i*.07}s both`,
-              filter:aiBestIds&&!aiBestIds.has(c.id)?'brightness(0.35) saturate(0.3)':'',
-              transition:'filter 0.4s'}}>
-              <PlayingCard card={c} size={cardSize} isScrap={false}/>
-            </div>
-          ))}
-        </div>
-        <div style={{fontFamily:F.display,fontSize:26,color:winner==='ai'?DS.ember:DS.slate,letterSpacing:'0.06em'}}>{aiHandName}</div>
-      </div>
-      <div style={{padding:'16px 40px',borderRadius:12,textAlign:'center',
-        background:winner==='player'?DS.voltage+'18':winner==='ai'?DS.ember+'18':DS.slate+'18',
-        border:`3px solid ${winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}`,
-        boxShadow:winner==='player'?`0 0 32px ${DS.voltage}66`:winner==='ai'?`0 0 32px ${DS.ember}55`:'none',
-        // The one overlay that is sometimes good news and sometimes
-        // not, so it picks: the win bounces, the loss and the tie land.
-        animation:`popIn 0.4s ${winner==='player'?'cubic-bezier(.34,1.6,.64,1)':SETTLE}`}}>
-        <div style={{fontFamily:F.display,fontSize:42,letterSpacing:'0.04em',
-          color:winner==='player'?DS.voltage:winner==='ai'?DS.ember:DS.slate}}>
-          {winner==='player'?'YOU WIN!':winner==='ai'?'OPPONENT WINS.':'TIE'}
-        </div>
-        {points>0&&<div style={{fontFamily:F.mono,fontSize:20,color:DS.frost,marginTop:4}}>
-          +{points} POINT{points>1?'S':''}
-        </div>}
-        {bonusLine&&<div style={{fontFamily:F.mono,fontSize:13,color:DS.voltage,marginTop:4,letterSpacing:'0.1em'}}>
-          {bonusLine}
-        </div>}
-      </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-        <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'center'}}>
-          {(playerCards||[]).map((c,i)=>(
-            <div key={c.id} style={{animation:`slideUp 0.3s ease ${i*.07}s both`,
-              filter:playerBestIds&&!playerBestIds.has(c.id)?'brightness(0.35) saturate(0.3)':'',
-              transition:'filter 0.4s'}}>
-              <PlayingCard card={c} size={cardSize} isScrap={false} wiggle={winner==='player'&&(!playerBestIds||playerBestIds.has(c.id))}/>
-            </div>
-          ))}
-        </div>
-        <div style={{fontFamily:F.display,fontSize:26,color:winner==='player'?DS.voltage:DS.slate,letterSpacing:'0.06em'}}>{playerHandName}</div>
-        <div style={{fontFamily:F.ui,fontSize:17,color:DS.slate,letterSpacing:'0.14em',fontWeight:700}}>YOU</div>
-      </div>
-      {/* The button names what happens next — DEAL SECOND HAND, PLAY
-          SCRAPS HAND, NEXT ROUND — rather than the generic CONTINUE it
-          carried until 2026-09-13. Each of those used to be a SECOND
-          button waiting on the table behind this screen; naming it here
-          collapses two presses into one. `continueLabel` falls back to
-          Continue, which is also what the caller passes when this
-          result is the one that ends the match and there is no next
-          hand to promise. */}
-      <button onClick={onDismiss} style={{background:DS.voltage,color:DS.ink,border:'none',
-        padding:'13px 40px',minHeight:44,borderRadius:8,cursor:'pointer',fontFamily:F.ui,
-        fontWeight:700,fontSize:17,letterSpacing:'0.1em',textTransform:'uppercase',
-        boxShadow:`0 0 20px ${DS.voltage}88`}}>{continueLabel} →</button>
-      </div>
-    </Shell>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// CleanSweepLightbox — elaborate celebration
-// ─────────────────────────────────────────────────────────────
-export function CleanSweepLightbox({ onDone }) {
-  const canvasRef=useRef();
-  const [phase,setPhase]=useState(0); // 0=fireworks, 1=text
-  // Phase 0 is fireworks over a canvas with nothing to press. Trapping
-  // focus before the button exists would park it on the container and
-  // announce an empty dialog, so the trap arms with the text.
-  const dialogRef=useDialogFocus(phase===1);
-  useEffect(()=>{
-    const canvas=canvasRef.current; if(!canvas) return;
-    const ctx=canvas.getContext('2d');
-    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-    const pts=[]; const cols=[DS.gold,DS.ember,DS.frost,DS.canopy,'#fff','#F2A68C','#D9CB6B'];
-    function burst(x,y,n=100){
-      for(let i=0;i<n;i++){
-        const a=(Math.PI*2/n)*i+Math.random()*.4,s=3+Math.random()*9;
-        pts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,
-          color:cols[Math.floor(Math.random()*cols.length)],
-          life:1,decay:.006+Math.random()*.006,size:3+Math.random()*5});
-      }
-    }
-    const positions=[[.25,.25],[.75,.2],[.5,.15],[.15,.5],[.85,.45],[.4,.6],[.65,.55],[.5,.35]];
-    positions.forEach(([x,y],i)=>setTimeout(()=>burst(canvas.width*x,canvas.height*y,120),i*250));
-    setTimeout(()=>setPhase(1),600);
-    let raf;
-    function draw(){
-      ctx.fillStyle='rgba(20,31,25,0.1)';ctx.fillRect(0,0,canvas.width,canvas.height);
-      for(let i=pts.length-1;i>=0;i--){
-        const p=pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;p.life-=p.decay;
-        if(p.life<=0){pts.splice(i,1);continue;}
-        ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
-        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
-      }
-      ctx.globalAlpha=1;
-      raf=requestAnimationFrame(draw);
-    }
-    raf=requestAnimationFrame(draw);
-    return()=>cancelAnimationFrame(raf);
-  },[]);
-
-  return (
-    <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
-      aria-label="Clean Sweep — you won all three hands"
-      style={{position:'fixed',inset:0,zIndex:200,outline:'none'}}>
-      <canvas ref={canvasRef} aria-hidden="true" style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
-      {phase===1&&(
-        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:16}}>
-          <FitBox modeMinW={300}>
-          <div style={{flex:'1 0 auto',display:'flex',alignItems:'center',
-            justifyContent:'center',flexDirection:'column',gap:'clamp(12px,2.6vh,20px)'}}>
-          <div style={{
-            fontFamily:F.display,
-            fontSize:'clamp(40px,12vw,112px)',
-            color:DS.gold,
-            textShadow:`0 0 40px ${DS.gold},0 0 80px ${DS.gold}88`,
-            animation:'cleanSweepPop 0.5s cubic-bezier(.34,1.8,.64,1)',
-            letterSpacing:'0.04em',whiteSpace:'nowrap',textAlign:'center',
-          }}>CLEAN SWEEP!</div>
-          <div style={{
-            background:DS.inkLight,border:`3px solid ${DS.gold}`,
-            borderRadius:16,padding:'24px 40px',textAlign:'center',
-            boxShadow:`0 0 40px ${DS.gold}55`,
-            animation:'slideUp 0.4s ease 0.2s both',
-          }}>
-            <div style={{fontFamily:F.ui,color:DS.frost,fontSize:22,fontWeight:700,lineHeight:1.6}}>
-              You won both hands<br/>and the Scraps!
-            </div>
-            <div style={{fontFamily:F.display,color:DS.gold,fontSize:36,
-              letterSpacing:'0.08em',marginTop:12}}>
-              ENJOY THIS BONUS POINT!
-            </div>
-            <div style={{fontFamily:F.mono,color:DS.gold,fontSize:28,marginTop:6}}>
-              +5 TOTAL
-            </div>
-          </div>
-          <button onClick={onDone} style={{
-            background:DS.gold,color:DS.ink,border:'none',
-            padding:'16px 52px',borderRadius:10,cursor:'pointer',
-            fontFamily:F.ui,fontWeight:700,fontSize:19,
-            letterSpacing:'0.1em',textTransform:'uppercase',minHeight:44,
-            boxShadow:`0 0 28px ${DS.gold}88`,
-            animation:'slideUp 0.4s ease 0.4s both',
-          }}>Let's Go! →</button>
-          </div>
-          </FitBox>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// WinScreen — elaborate fireworks
-// ─────────────────────────────────────────────────────────────
-export function WinScreen({ playerScore, aiScore, onNewGame, margin=null, bestMargin=null, isNewRecord=false }) {
-  const canvasRef=useRef();
-  const [textPhase,setTextPhase]=useState(0);
-  useEffect(()=>{
-    const canvas=canvasRef.current; if(!canvas) return;
-    const ctx=canvas.getContext('2d');
-    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-    // Five-second fanfare starts with the screen. It's scheduled on
-    // the audio clock, so nothing below waits on it.
-    playGameWon();
-    const pts=[]; const cols=[DS.gold,DS.ember,DS.frost,DS.canopy,'#fff','#F2A68C','#D9CB6B','#B8874A'];
-    function burst(x,y,n=120){
-      playFireworkPop(); // one pop per visual explosion
-      for(let i=0;i<n;i++){
-        const a=(Math.PI*2/n)*i+Math.random()*.4,s=3+Math.random()*10;
-        pts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,
-          color:cols[Math.floor(Math.random()*cols.length)],
-          life:1,decay:.004+Math.random()*.005,size:3+Math.random()*6});
-      }
-    }
-    // Continuous bursts
-    let burstInterval=setInterval(()=>{
-      burst(Math.random()*canvas.width, Math.random()*canvas.height*.7);
-    },400);
-    setTimeout(()=>clearInterval(burstInterval),8000);
-    // Initial burst wave
-    [[.5,.3],[.2,.4],[.8,.35],[.35,.25],[.65,.28]].forEach(([x,y],i)=>
-      setTimeout(()=>burst(canvas.width*x,canvas.height*y),i*200));
-    setTimeout(()=>setTextPhase(1),500);
-    let raf;
-    function draw(){
-      ctx.fillStyle='rgba(20,31,25,0.08)';ctx.fillRect(0,0,canvas.width,canvas.height);
-      for(let i=pts.length-1;i>=0;i--){
-        const p=pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life-=p.decay;
-        if(p.life<=0){pts.splice(i,1);continue;}
-        ctx.globalAlpha=p.life;ctx.fillStyle=p.color;
-        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
-      }
-      ctx.globalAlpha=1;
-      raf=requestAnimationFrame(draw);
-    }
-    raf=requestAnimationFrame(draw);
-    return()=>{cancelAnimationFrame(raf);clearInterval(burstInterval);};
-  },[]);
-
-  const lines=['YOU WIN!','YOU WIN!','WOW.','HOLY COW.','YOU DID IT!'];
-
-  return (
-    <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk}}>
-      <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/>
-      <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:16}}>
-        <FitBox modeMinW={300}>
-        <div style={{flex:'1 0 auto',display:'flex',alignItems:'center',
-          justifyContent:'center',flexDirection:'column',gap:'clamp(10px,2vh,16px)'}}>
-        {textPhase>=1&&(
-          <>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-              {lines.map((l,i)=>(
-                <div key={i} style={{
-                  fontFamily:F.display,
-                  fontSize:i<=1?'clamp(34px,7vw,64px)':i===2?'clamp(28px,6vw,52px)':'clamp(24px,5vw,46px)',
-                  color:i===0||i===1?DS.gold:i===2?DS.ember:DS.frost,
-                  textShadow:`0 0 30px ${i<=1?DS.gold:DS.ember}`,
-                  letterSpacing:'0.04em',lineHeight:1,
-                  animation:`letterAppear 0.5s cubic-bezier(.34,1.6,.64,1) ${i*.12}s both`,
-                }}>{l}</div>
-              ))}
-            </div>
-            {/* FINAL SCORE — the biggest text on the screen, by design */}
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',
-              animation:'slideUp 0.4s ease 0.7s both'}}>
-              <div style={{fontFamily:F.mono,color:DS.slate,fontSize:15,
-                letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-              <div style={{fontFamily:F.display,color:DS.gold,lineHeight:1,
-                fontSize:'clamp(110px,22vw,220px)',letterSpacing:'0.03em',
-                textShadow:`0 0 50px ${DS.gold}aa, 0 0 100px ${DS.gold}55`}}>
-                {playerScore}–{aiScore}
-              </div>
-              {margin!=null&&(
-                <div style={{display:'flex',alignItems:'center',gap:14,marginTop:10,
-                  animation:'slideUp 0.4s ease 0.85s both'}}>
-                  <span style={{fontFamily:F.mono,fontSize:16,color:DS.slateLight,
-                    letterSpacing:'0.14em'}}>WON BY {margin}</span>
-                  {isNewRecord?(
-                    <span style={{display:'inline-flex',alignItems:'center',gap:8,
-                      fontFamily:F.mono,fontSize:16,fontWeight:700,color:DS.gold,
-                      letterSpacing:'0.14em',background:DS.gold+'18',
-                      border:`1px solid ${DS.gold}88`,borderRadius:20,padding:'4px 16px',
-                      boxShadow:`0 0 18px ${DS.gold}55`,
-                      animation:'popIn 0.4s cubic-bezier(.34,1.6,.64,1) 1.1s both'}}>
-                      <IconTrophy size={16}/> NEW BEST MARGIN
-                    </span>
-                  ):bestMargin!=null&&bestMargin>0&&(
-                    <span style={{fontFamily:F.mono,fontSize:16,color:DS.slate,
-                      letterSpacing:'0.14em'}}>BEST {bestMargin}</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div style={{display:'flex',gap:16,animation:'slideUp 0.4s ease 0.9s both'}}>
-              <button onClick={onNewGame} style={{
-                background:DS.gold,color:DS.ink,border:'none',
-                padding:'16px 48px',borderRadius:10,cursor:'pointer',
-                fontFamily:F.ui,fontWeight:700,fontSize:18,
-                letterSpacing:'0.1em',textTransform:'uppercase',minHeight:44,
-                boxShadow:`0 0 28px ${DS.gold}88`,
-              }}>NEW GAME</button>
-            </div>
-          </>
-        )}
-        </div>
-        </FitBox>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// LoseScreen
-// ─────────────────────────────────────────────────────────────
-export function LoseScreen({ playerScore, aiScore, onNewGame }) {
-  // Deliberately quiet: no fireworks, no descending sad-trombone.
-  // A neutral jingle plays once, and the final score is the
-  // biggest text on the screen (matching the win screen's scale).
-  useEffect(()=>{ playGameLost(); },[]);
-  return (
-    <div style={{position:'fixed',inset:0,zIndex:300,background:DS.dusk,
-      display:'flex',flexDirection:'column',padding:16}}>
-      {/* The table, not a landscape: losing happens at the table, and
-          Stan's 2026-09-01 call is that the product carries exactly two
-          backgrounds. A vignette seats the type, which sits straight on
-          the wood here rather than on a panel. */}
-      <TableSurface/>
-      <div style={{position:'absolute',inset:0,zIndex:0,pointerEvents:'none',
-        background:`radial-gradient(ellipse 70% 60% at 50% 46%, ${DS.ink}00 34%, ${DS.ink}73 100%)`}}/>
-      <FitBox modeMinW={300} style={{zIndex:1}}>
-      <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
-        alignItems:'center',justifyContent:'center',textAlign:'center'}}>
-        <div style={{fontFamily:F.display,fontSize:'clamp(34px,7vw,60px)',
-          color:DS.ember,marginBottom:8,letterSpacing:'0.04em'}}>YOU LOSE.</div>
-        {/* slateLight, not slate. This label used to sit on the dark
-            foothill backdrop; on the table it measures 4.33:1 against
-            the lightest board tint the wood can produce, which fails AA
-            for 15px text. slateLight is 5.46:1 on that same worst case.
-            Moving a screen onto a lighter ground silently re-opens
-            every contrast pairing on it. */}
-        <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:15,
-          letterSpacing:'0.28em',marginBottom:2}}>FINAL SCORE</div>
-        <div style={{fontFamily:F.display,color:DS.frost,lineHeight:1,
-          fontSize:'clamp(100px,20vw,190px)',letterSpacing:'0.03em',
-          marginBottom:'clamp(18px,4vh,36px)',textShadow:'0 0 40px rgba(237,227,208,0.25)'}}>
-          {playerScore}–{aiScore}
-        </div>
-        <button onClick={onNewGame} style={{background:DS.voltage,color:DS.ink,border:'none',
-          padding:'15px 44px',minHeight:44,borderRadius:10,cursor:'pointer',fontFamily:F.ui,
-          fontWeight:700,fontSize:17,letterSpacing:'0.1em',textTransform:'uppercase',
-          boxShadow:`0 0 24px ${DS.voltage}88`}}>NEW GAME</button>
-      </div>
-      </FitBox>
-    </div>
-  );
-}
+// RoundInterstitial, RevealOverlay, CleanSweepLightbox, WinScreen and
+// LoseScreen sat here until 2026-09-14 — see the header, and
+// interstitials.jsx for what replaced them. Recoverable from git at
+// the commit before this one.
 
 // ─────────────────────────────────────────────────────────────
 // AceDrawnLightbox — first-time-per-game tip, shown the moment an

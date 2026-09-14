@@ -54,8 +54,12 @@ evaluator to make that true: it always read rank and value only.
   111 tests for a project that has 53.
 - Fonts are **self-hosted** from `public/fonts` since Session 6 — **four**
   families over **12 files**: **Rye** (the SCRAPS wordmark, the storyboard's
-  one HOW TO PLAY title, and every card rank), Fjalla One (headings and
-  subtitles), Work Sans (UI), IBM Plex Mono (mono). Rye replaced **Bungee
+  one HOW TO PLAY title, every card rank — the match screen's letter cards
+  included — and, since 2026-09-14, three moments on the table: the ROUND N
+  sign, the CLEAN SWEEP beat and the match-winning score as it lands; the
+  `F` comment in `theme.js` carries that list and it is the rule), Fjalla
+  One (headings and subtitles, and the splash subtitle "Poker with both
+  hands"), Work Sans (UI), IBM Plex Mono (mono). Rye replaced **Bungee
   Shade** on the wordmark on 2026-09-13 and **Baloo 2** on the card ranks
   later the same day; the `bungee-shade-*` and `baloo-2-*` woff2 files were
   deleted with them and nothing references either family any more. They used to load from
@@ -86,16 +90,20 @@ evaluator to make that true: it always read rank and value only.
   resonators acting as the body of an object.
   **The rule is now: a physical event is an untuned object, a score outcome
   is a tuned bar.** That is a real change from the old rule, which was the
-  flat "no oscillator ever plays a note" — six of the fourteen cues are now
-  xylophone or marimba bars in G major pentatonic, built by `bar()` from a
+  flat "no oscillator ever plays a note" — six of the **sixteen** cues are
+  now xylophone or marimba bars in G major pentatonic, built by `bar()` from a
   real bar's partials (1 : 3.01 : 6.03 for a xylophone, 1 : 3.99 : 9.18 for a
   marimba — the ratios a genuine undercut arch produces). A xylophone bar is
   still a struck piece of wood, so the direction widened rather than broke.
   `thud` is still the one sine that is NOT a note, a body under an impact.
-  Materials are now `MAT.wood`, `.woodHi`, `.hollow`, `.dowel`, `.block`,
-  `.crate`, plus `.boneLow` for the firework pop alone; `cardstock`, `felt`,
-  `bone` and `friction()` were removed when the Woodshed picks left them with
-  no callers. **There is no brass anywhere** — the bench offered four brass
+  Materials are `MAT.wood`, `.woodHi`, `.hollow`, `.dowel`, `.block` and
+  `.crate`; `cardstock`, `felt`, `bone` and `friction()` were removed when
+  the Woodshed picks left them with no callers, and `boneLow` went with the
+  firework pop on 2026-09-14 — there is no bone left in the kit. The two
+  cues added that day are `slap` (a winning card landing on the table, thud
+  plus block, untuned) and `roundSign` (the ROUND N sign: the splash's old
+  square-up phrase, retimed to the sign's letters and routed through TRIM at
+  last). **There is no brass anywhere** — the bench offered four brass
   options on every messaging cue and Stan took none. See the file's own header
   and the Gotchas below.
 - Asset files in the repo, and there are only two kinds: the **14
@@ -139,7 +147,21 @@ machine (or `CHROME_PATH`); nothing is added to `package.json` for it. The
 generator reads the `<title>` from `index.html` and the tokens from
 `theme.js`, and records what it baked into `public/share-manifest.json`, so
 a rename or a repaint that forgets to regenerate fails the check by name
-rather than shipping a share card for a game that no longer exists.
+rather than shipping a share card for a game that no longer exists. The
+card's strapline is read from `TAGLINE` in `src/share.js` — the same
+string the splash subtitle and the SHARE sentence use — so the three
+cannot drift. (The `<title>` still says "Poker with two hands at once."
+rather than the tagline; that is a copy call left for Stan, see Known
+issues.)
+
+`tools/trim-measure.mjs` renders every cue in `src/audio.js` offline and
+prints the trim each one needs to hit its declared target. It is the method
+the audio file's header describes, as a tool rather than a scratch page.
+Say which sample rate you ran it at (`RATE=`, default 48000): the exciter
+is seeded per sample, so a cue's peak moves with the rate. Both QA tools
+and this one take `PORT=` when the launch config's 5193 is busy, and all
+three fall back to the Playwright copy in the npx cache when no bare
+`playwright` resolves.
 
 `fonts:check` re-downloads from Google and compares, so it needs network and
 takes a couple of seconds; it is not part of `npm test`. Run it if you touch
@@ -190,15 +212,23 @@ Vite's only entry is `index.html`.
 node tools/overlay-targets.mjs   # needs the same dev server on 5193
 ```
 
-Measured 2026-09-14, all 42 button/viewport pairs: **no modal button
-renders under 44px on any portrait or desktop viewport.** The two that
-do are both landscape phone and both fall under the accepted landscape
-trade — `RevealOverlay`'s Continue at 32px and `WinScreen`'s NEW GAME at
-36px, from FitBox scales of 0.69 and 0.673. Note that `RevealOverlay`,
-`CleanSweepLightbox`, `WinScreen` and `LoseScreen` declare a bare
-`minHeight:44` rather than `MODAL_BTN_MIN`, so they carry less margin
-than the constant intends; raising them was measured and changes nothing
-(54 x 0.69 is still 37), so it was left as Stan's call rather than done.
+Its seven cases since 2026-09-14 are `reveal`, `scraps`, `matchWin`,
+`matchLoss` and `sign` (the real `TableStage`, mounted with `instant` so
+each scene sits on its resting frame; add `&live=1` to run the
+choreography instead) plus `aceDrawn` and `aceCounter`. **The bench page
+borrows `index.html`'s whole `<style>` block at load**, because every
+keyframe, the fonts and `.sr-only` live there and a second HTML page
+gets none of them — the first frames off this bench showed fallback
+serifs, no motion and screen-reader text painted on screen, and any new
+page under `tools/` wants the same fetch.
+
+Measured 2026-09-14 after the interstitials pass: **no button renders
+under 44px on any portrait or desktop viewport.** Four fall short on
+landscape phone only, all inside the accepted landscape trade — the
+reveals' quiet Tap to continue at 30 and 33px (its natural 44 under
+FitBox scales of 0.674 and 0.756; the whole screen is the tap target, the
+button exists for keyboards and screen readers) and the match screen's
+NEW GAME and SHARE at 42px (54 x 0.778).
 
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
@@ -217,11 +247,23 @@ looks broken locally, it is not a missing-secret problem.
   dealer-aware and the dealer alternates each round; the non-dealer acts
   first. This file's header comment explains the phase vocabulary — read it
   before touching turn flow.
-- **`src/screens/GameScreen.jsx`** (~980 lines) — the table. Holds only
-  UI-local state (selections, animation flags, overlays), schedules the
-  timers that dispatch actions, and renders. See Known Issues.
-- **`src/screens/MenuScreens.jsx`** — the splash (wordmark, suit row, one
-  button; **no subtitle** since 2026-09-13) and the difficulty picker.
+- **`src/screens/GameScreen.jsx`** (~1780 lines) — the table. Holds only
+  UI-local state (selections, animation flags, the interstitial `stage`),
+  schedules the timers that dispatch actions, and renders. See Known Issues.
+- **`src/components/interstitials.jsx`** (2026-09-14) — everything that
+  happens ON the table between two hands: `TableStage`, one opaque layer of
+  the same redwood, aligned to the live table's boards, holding the ROUND N
+  sign, the three reveals, the CLEAN SWEEP beat, the sweep out of a round
+  and the whole match screen. Tap anywhere: mid-choreography skips to the
+  resting frame, at rest continues; one quiet real button carries Enter and
+  screen readers. Built from Stan's picks off the Win bench; read its header
+  before touching any beat.
+- **`src/share.js`** — the SHARE button's three tiers (share sheet with a
+  PNG result card drawn on a canvas, share sheet without files, clipboard
+  with a COPIED state), the share sentence, and `TAGLINE`.
+- **`src/screens/MenuScreens.jsx`** — the splash (wordmark, the subtitle
+  "Poker with both hands" in Fjalla — back since 2026-09-14 after a day
+  away — and one button) and the difficulty picker.
   The picker's two panels — and its **BACK** button, added the same day —
   are inert for `ARM_MS` (720ms) after mount so a click-streak carried
   over from the walkthrough can't pick a difficulty by accident. BACK
@@ -241,10 +283,14 @@ looks broken locally, it is not a missing-secret problem.
   arguments and always deals a straight round.
 - **`src/components/`** — `cards.jsx` (fanned hand, Scraps zone; the
   `DeckPile` and `DiscardPile` components were **deleted** 2026-09-13
-  when the two piles came off the table), `overlays.jsx` (round
-  interstitials, reveal, win/lose screens, modals, fireworks), `hud.jsx`
-  (scores, round progress, match-point banner, game log —
-  `SignalLegalityStrip` was deleted in the same pass),
+  when the two piles came off the table), `overlays.jsx` (the modals that
+  ask a question, the rules panel, and the `Shell` and `useDialogFocus` they
+  share — the round card, the reveal, the Clean Sweep lightbox and the
+  win/lose screens with their canvas fireworks were **deleted** 2026-09-14
+  in favour of `interstitials.jsx`), `hud.jsx` (scores, round progress,
+  match-point banner, game log — `SignalLegalityStrip` was deleted on
+  2026-09-13, and the score bars stopped flashing on 2026-09-14 because the
+  reveal now rolls the score up itself),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
   `flight.jsx` (card motion), `backdrop.jsx`.
 - **`src/ui/viewport.jsx`** — the responsive layer, added in Session 3.
@@ -363,8 +409,8 @@ looks broken locally, it is not a missing-secret problem.
   cue spanned **3.41x**, so the same sound arrived up to three times louder
   than last time. Seeding makes every cue bit-identical, which is also what
   makes `TRIM` measurable. Variety is added deliberately instead — a `seed`
-  option gives repeated taps inside one cue their own character, and
-  `playFireworkPop` randomises pitch and level out loud.
+  option gives repeated taps inside one cue their own character. (The
+  firework pop, which randomised out loud, went with the fireworks.)
 - **`TRIM` is the mix, and it goes stale silently.** Each cue is normalised to
   a declared target peak (`select` .16 up to `cleanSweep` .94) so the cue you
   hear thirty times a game can never be louder than the one you may never
@@ -373,7 +419,14 @@ looks broken locally, it is not a missing-secret problem.
   gainAt1, variantIndex)` and divide the target by the peak. Nothing will warn
   you; the first port of this kit carried the design tool's numbers over and
   nine of thirteen cues landed off target, one by 49%. The 2026-09-13 port
-  re-measured in headless Chrome instead and all 14 land within 0.04%.
+  re-measured in headless Chrome instead and all 14 landed within 0.04% —
+  **at whatever sample rate that render used, which nobody wrote down.**
+  Found 2026-09-14 with `tools/trim-measure.mjs`: the exciter is seeded per
+  SAMPLE, so a cue's peak moves with the rate, and the same trims land
+  `draw` 18% low at 48 kHz and 4% high at 44.1 kHz. A live `AudioContext`
+  runs at the device's rate (this Mac: 48000), so the mix is only ever
+  exact on one kind of device. The two new cues were measured at 48 kHz
+  and say so; the older trims were left as Stan approved them.
   Two things to know before touching it. `select` and `draw` have 3 and 4
   variants each (see `CUE_VARIANTS`), because they fire in runs and
   bit-identical repeats read as one sample retriggering; measure ALL variants
@@ -438,12 +491,36 @@ looks broken locally, it is not a missing-secret problem.
 - **Controls are `TOUCH_MIN` (44px) on their short axis**, or
   `TOUCH_MIN_COMPACT` (54px) in the stacked layout — deliberately
   larger, because that layout is often scaled and 44 × 0.73 is 32.
-- **`playSquareUp` has no caller.** It was the wordmark's tap gesture,
-  removed 2026-09-13 with the gesture itself. The cue is kept on purpose
-  — it is a tuned six-tap phrase in the same G major pentatonic the
-  table's outcome bars use, and the interstitial redesign is the obvious
-  home for it. If that pass finds none, delete it there and drop the
-  count rather than leaving it orphaned for good.
+- **The interstitials are one opaque layer over the live table, and its
+  wood is ALIGNED to the table's.** `TableStage` measures the live
+  `TableSurface` (through `anchorRef`) and centres its own boards on the
+  same point, tall enough to reach both viewport edges — `TableSurface`
+  centres its boards in whatever box it gets, so this is what keeps the
+  seams from jumping half a board the instant the layer covers the table.
+  Verified by frame comparison, stage against table, on 2026-09-14.
+  Everything the layer shows is its own copy of the cards; the live bands
+  underneath are untouched and stay laid out, so a tap at any moment lands
+  on a correct board.
+- **Every interstitial entrance keyframe ends on the element's resting
+  style, and skipping depends on it.** A tap mid-choreography re-issues
+  the entrances at zero duration to land on the resting frame; an entrance
+  that ended anywhere else would land it wrong. Skipping is per BEAT
+  (`fast.build` / `.beat` / `.end` in `RevealScene`), because a single flag
+  flattened the Clean Sweep beat whenever the player had skipped the
+  slap-down before it.
+- **The Scraps reveal starts the next round itself.** Its `onSwept`
+  dispatches `SCRAPS_SCORED` and calls `startNewRound(true)` in one
+  handler, so `START_ROUND` lands in the same render and the ROUND N sign
+  replaces the swept reveal inside the still-mounted layer. The old
+  `round-end` hand-off timer is gone; putting one back would show a frame
+  of the OLD round's table between the sweep and the sign, which is the
+  cut the redesign exists to remove. A match-ending result dispatches its
+  score AT ONCE instead, so `gameOver` records the stats and freezes the
+  phase machine while the reveal runs on into the match screen.
+- **`playSquareUp` found its home.** The wordmark's old tap-gesture cue
+  is now the `roundSign` voice, retimed to the ROUND N sign's letters and
+  routed through the bus and TRIM like every other cue. Nothing plays
+  straight to `ctx.destination` any more.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 
@@ -502,13 +579,27 @@ versions and should not be deployed to.
   rename ran the other way — the account was `unclescrunch` and is now
   `stanbaudrey` — so `origin` already points at the live name and
   "repointing" it would aim at the stale one. Left alone deliberately.
-- **`GameScreen.jsx` is ~1100 lines** and mixes three concerns: UI state, the
+- **`GameScreen.jsx` is ~1780 lines** and mixes three concerns: UI state, the
   animation timer choreography, and the rendering of the whole table. Unlike
   the engine and reducer, nothing in the file claims this is deliberate. The
   animation scheduling is the natural first thing to lift out. (Session 3
   split the table's markup into named pieces — `oppHandEl`, `actionEl`,
   `playerHandEl` and so on — composed two ways, which makes that lift
-  easier than it was.)
+  easier than it was. The 2026-09-14 interstitials pass took the reveal
+  and match-end choreography OUT of it, into `interstitials.jsx`, without
+  making it shorter: the comments explaining what moved and why are what
+  the removed code weighed.)
+- **The page title and the share tagline disagree, on purpose for now.**
+  The splash, the SHARE sentence and the OG card's strapline all say
+  "Poker with both hands" (Stan, 2026-09-14). The `<title>`, `og:title`
+  and `twitter:title` still say "SCRAPS - Poker with two hands at once."
+  Aligning them is a one-line edit to `index.html` plus `npm run share`,
+  and it is Stan's copy call rather than a session's.
+- **The share sheet with an image is untested on a real iPhone.** `share.js`
+  attaches a canvas-drawn PNG through `navigator.canShare({files})`, which
+  iOS 15+ Safari supports; the clipboard fallback was verified in headless
+  Chrome and the sheet path was not, because no automated browser opens one.
+  First thing to try on Stan's phone after the preview.
 - **The color palette is declared in two places, deliberately.**
   `src/styles/theme.js` holds the `DS` tokens and `index.html` repeats the
   same hex values as CSS literals, because plain CSS cannot import a JS

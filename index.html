@@ -471,15 +471,59 @@
          identical resting frame with no travel. Declared here and
          overridden inside the reduced-motion block below. */
       @keyframes scrapArrive{from{opacity:0}to{opacity:1}}
-      @keyframes cleanSweepPop{from{opacity:0;transform:scale(.3) translateY(40px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+      /* ========================================================
+         THE INTERSTITIALS (2026-09-14, src/components/interstitials.jsx)
+         Every beat between two hands — the slap-down of a winning
+         hand, the score rolling up, the sweep out of a round, the
+         letter cards of the match screen, the ROUND N sign — runs on
+         the keyframes below. Each ENTRANCE ENDS ON THE ELEMENT'S
+         RESTING STYLE, deliberately: a tap mid-choreography re-runs
+         them at zero duration to land on the resting frame, and an
+         entrance that ended anywhere else would land it wrong.
+         `cleanSweepPop`, `scorePop` and `roundEndScorePop` went with
+         the screens they animated.
+         ======================================================== */
+      @keyframes slapDown{0%{transform:translateY(-40px) scale(1.7);opacity:0}45%{transform:translateY(-8px) scale(1.25);opacity:1}100%{transform:none;opacity:1}}
+      /* The shadow half of the slap, on HAND cards only. A torn Scraps
+         card has no box to shadow (box-shadow ignores clip-path) and
+         keeps its own drop-shadow. Animated as box-shadow and NOT as a
+         filter: an animated drop-shadow that large blanked part of the
+         stage in Chrome on the bench. */
+      @keyframes slapShadow{0%{box-shadow:0 34px 30px rgba(0,0,0,.55)}45%{box-shadow:0 18px 22px rgba(0,0,0,.5)}100%{box-shadow:0 0 0 rgba(0,0,0,0)}}
+      @keyframes sawdust{0%{transform:scale(.6);opacity:.7}100%{transform:scale(3.6);opacity:0}}
+      /* The score: the old digit up and out, the new in from below;
+         then the new one lifts and flashes on a loop (`--glow` is gold
+         for you, ember for her); the match-winning score jumps and
+         vibrates once instead. */
+      @keyframes scoreRollOut{from{transform:translateY(0);opacity:1}to{transform:translateY(-100%);opacity:0}}
+      @keyframes scoreRollIn{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+      @keyframes scoreWave{0%,100%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 transparent}12%{transform:translateY(-12px) rotate(-2deg);text-shadow:0 0 18px var(--glow),0 6px 6px rgba(0,0,0,.4)}26%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 transparent}}
+      @keyframes scoreJump{0%{transform:translateY(0) scale(1) rotate(0deg)}20%{transform:translateY(-22px) scale(1.18) rotate(-3deg)}34%{transform:translateY(-16px) scale(1.16) rotate(3deg)}48%{transform:translateY(-18px) scale(1.16) rotate(-2deg)}62%{transform:translateY(-14px) scale(1.14) rotate(2deg)}100%{transform:translateY(0) scale(1) rotate(0deg)}}
+      /* The sweep. A shadow band crosses first; each card and each
+         line of text leaves on a delay set by where it is on screen.
+         Cards spin the same way the discard toss spins — rightward,
+         with the travel — and 130vw clears any viewport. */
+      @keyframes sweepBand{from{transform:translateX(-40vw) rotate(8deg)}to{transform:translateX(130vw) rotate(8deg)}}
+      @keyframes sweepOffCard{to{transform:translate(130vw,-40px) rotate(560deg)}}
+      @keyframes sweepOffText{to{transform:translate(130vw,-30px) rotate(14deg);opacity:.6}}
+      /* The match screen's letter cards: dealt on over the top edge
+         the way a round deals in (`--dx`/`--rot` are per card), then
+         turned over in a wave — the lookbook's preserve-3d rotateY. */
+      @keyframes dealOn{from{transform:translate(var(--dx,0px),-110vh) rotate(-28deg);opacity:.5}to{transform:translate(0,0) rotate(var(--rot,0deg));opacity:1}}
+      @keyframes ribbonFlip{0%{transform:rotateY(0deg) translateY(0)}60%{transform:rotateY(108deg) translateY(-10px)}100%{transform:rotateY(180deg) translateY(0)}}
+      /* ROUND N: ONE pass of the wordmark's riffle. titleRiffle below
+         is 62% stillness before an 18% pass, so an iteration of it
+         cannot be run once; this is that pass as its own keyframe.
+         No fill mode, on purpose — it shares the shorthand with
+         letterAppear and must stay inert until its delay. */
+      @keyframes signRiffle{0%,100%{transform:translateY(0) rotateX(0deg) scaleY(1)}33%{transform:translateY(-0.09em) rotateX(-58deg) scaleY(1.16)}66%{transform:translateY(0.015em) rotateX(16deg) scaleY(.93)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
       /* One card's share of the opponent's ruffle. Small on purpose:
          at 22px of lift, staggered across five cards, this read as the
          hand jumping around rather than as a hand being riffled. */
       @keyframes cardRuffle{0%{transform:translateY(0) rotate(0deg)}45%{transform:translateY(-6px) rotate(-2.5deg)}100%{transform:translateY(0) rotate(0deg)}}
       @keyframes cardFadeIn{0%{opacity:0.1;transform:translateY(-12px) scale(0.92)}60%{opacity:0.9}100%{opacity:1;transform:translateY(0) scale(1)}}
-      @keyframes scorePop{0%{transform:scale(1)}40%{transform:scale(1.5)}70%{transform:scale(0.95)}100%{transform:scale(1)}}
-      @keyframes roundEndScorePop{0%{transform:scale(1) rotate(0deg)}22%{transform:scale(1.9) rotate(-4deg)}42%{transform:scale(1.9) rotate(4deg)}62%{transform:scale(1.85) rotate(-3deg)}85%{transform:scale(1.15) rotate(0deg)}100%{transform:scale(1) rotate(0deg)}}
       @keyframes badgeFlash{0%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(0.97)}100%{transform:scale(1)}}
       @keyframes cardShake{0%{transform:translateX(-4px) rotate(-2deg)}50%{transform:translateX(4px) rotate(2deg)}100%{transform:translateX(-4px) rotate(-2deg)}}
       @keyframes slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
@@ -614,11 +658,12 @@
 
          1. ONE-SHOT ENTRANCES that end where the element already
             belongs — fadeUp, cardFadeIn, slideUp/Down, popIn,
-            cleanSweepPop, letterAppear, panelDeal, cardRuffle, errRise,
-            the score and badge pops. Collapsing the duration lands
-            the final frame immediately. Nothing is lost: these
-            animate an element INTO the state it would have had
-            anyway.
+            letterAppear, panelDeal, cardRuffle, errRise, the badge
+            pop, and every entrance the interstitials run (slapDown,
+            dealOn, ribbonFlip, the score roll, the sweep). Collapsing
+            the duration lands the final frame immediately. Nothing
+            is lost: these animate an element INTO the state it would
+            have had anyway.
          2. PERPETUAL DECORATION that carries no state — the three
             swirl layers, the wordmark riffle,
             the storyboard lean. Freezing them
@@ -694,6 +739,19 @@
         .live-cue-busy {
           box-shadow: 0 0 0 5px var(--slate) !important;
         }
+        /* The interstitials (interstitials.jsx). Three of the stage's
+           beats carry meaning in their motion and get a still version:
+           the waving score holds a steady glow instead of lifting; a
+           title, a verdict or a sign fades onto its frame rather than
+           appearing at once (the same 0.28s the pile uses, and the
+           same !important to outrank the blanket rule); the letter
+           cards are already turned. The slap-down, the sweep and the
+           deal-on collapse to their final frame under the blanket
+           rule, which is the cleared table with the words already on
+           it — exactly the still the bench showed for each. */
+        .stage-wave { animation: none !important; text-shadow: 0 0 14px var(--glow), 0 0 4px var(--glow) !important; }
+        .stage-fade { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
+        .stage-flip { animation-duration: 1ms !important; }
       }
     </style>
   </head>

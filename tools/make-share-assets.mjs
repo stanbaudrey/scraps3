@@ -67,12 +67,13 @@ const grab = (re, what) => {
 const TITLE = grab(/<title>([\s\S]*?)<\/title>/, '<title>');
 const DESC  = grab(/<meta\s+name="description"\s+content="([^"]*)"/, '<meta name="description">');
 
-// The splash's SUBTITLE used to be read out of MenuScreens.jsx and
-// recorded in the manifest, so that a change to the line under the
-// wordmark showed up as share-card drift. Stan removed the subtitle
-// from the splash on 2026-09-13, so there is nothing left to tie to
-// and the read would fail the generator outright. The card never
-// printed it in any case — STRAPLINE below is the line on the image.
+// The splash's SUBTITLE is back (2026-09-14) and it is the strapline
+// on the card too. It is read from `TAGLINE` in src/share.js — the
+// one string the splash, the SHARE sentence and this image all print
+// — so a change to the line under the wordmark shows up here as
+// share-card drift and `--check` fails until the card is regenerated.
+// (It was read out of MenuScreens.jsx until 2026-09-13, when Stan
+// removed the subtitle and the card carried its own line instead.)
 
 // The wordmark is the title's leading product name, and the exact
 // field that went stale in the sibling project. Split on an em dash
@@ -81,10 +82,12 @@ const DESC  = grab(/<meta\s+name="description"\s+content="([^"]*)"/, '<meta name
 // the product name the moment the separator changed.
 const WORDMARK = TITLE.split(/\s+[—–-]\s+/)[0].trim();
 
-// Share-surface copy. It lives here rather than in the app because
-// nothing in the game says it — but it is still recorded in the
-// manifest and diffed by --check, so it cannot drift silently either.
-const STRAPLINE = 'A 5-minute card game with a twist';
+// Share-surface copy, read from the app so the card says what the
+// splash says. Recorded in the manifest and diffed by --check.
+const shareJs = readFileSync(path.join(ROOT, 'src', 'share.js'), 'utf8');
+const tagM = shareJs.match(/export const TAGLINE = '([^']*)'/);
+if (!tagM) fail('could not find TAGLINE in src/share.js — the strapline is read from there');
+const STRAPLINE = tagM[1];
 
 // The hand drawn on the card, as plain ranks. It used to carry suits,
 // and carrying them cost this card its only real inaccuracy: a suited
