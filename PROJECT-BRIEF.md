@@ -5157,6 +5157,13 @@ the lookbook scan's only new hit was the bench copy this pass deletes.
 **Not verified:** the share sheet on a real iPhone, which no automated
 browser can open.
 
+**On preview** at
+https://scraps3-git-dev-samvaudrey-3466s-projects.vercel.app (deployment
+`scraps3-eualm4w2i`, commit `f6a44e0`). The preview's HTML was fetched and
+it serves `/assets/index-CtvV9P2o.js` — the same content-hashed filename
+the tested local build produced, so the deployed bundle is byte-identical
+to the one every check above ran against.
+
 **Traps hit, for whoever is next.** The overlay bench harness page had **no
 stylesheet at all** — every `@keyframes`, the fonts and `.sr-only` live in
 `index.html`'s `<style>`, which a second HTML page never loads — so the
@@ -5293,8 +5300,9 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**The interstitials are BUILT and on the `dev` preview, waiting for Stan's
-look (2026-09-14).** The entry above the tracker has everything: every
+**The interstitials are BUILT and on the `dev` preview
+(https://scraps3-git-dev-samvaudrey-3466s-projects.vercel.app), waiting for
+Stan's look (2026-09-14).** The entry above the tracker has everything: every
 between-hands moment now plays on the table, the fireworks are gone, the
 splash has its subtitle back and SHARE exists. It is the largest
 player-visible change since the card redesign and it has not been
