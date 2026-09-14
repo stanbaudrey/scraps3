@@ -7,7 +7,7 @@
 // REAL game, so it only ever reaches a modal the random deal happens
 // to open — which is why the Ace explainer's OKAY button had gone
 // unmeasured until it failed intermittently, on a different viewport
-// each run, and why the reveal, Clean Sweep, win and lose screens had
+// each run, and why the reveal and the match screens had
 // never been measured at all. This one mounts each overlay in the real
 // `Shell` on demand, so the answer does not depend on the cards.
 //
@@ -27,7 +27,14 @@
 // Nothing under tools/ is built into dist/ — Vite's only entry is
 // index.html — so the bench page cannot reach production.
 // ============================================================
-import { chromium } from 'playwright';
+// A bare 'playwright' when one is installed; otherwise the copy the
+// Playwright MCP server keeps in the npx cache, which is the one every
+// verification pass on this machine has actually used.
+const pw = await import('playwright').catch(() => import(
+  '/Users/stan/.npm/_npx/9833c18b2d85bc59/node_modules/playwright/index.mjs'));
+const { chromium } = pw;
+// PORT=… to point at a server other than the launch config's 5193.
+const PORT = process.env.PORT || 5193;
 
 const VIEWPORTS = [
   { name: 'iphone-se',  width: 375,  height: 667,  touch: true  },
@@ -37,7 +44,7 @@ const VIEWPORTS = [
   { name: 'laptop-720', width: 1280, height: 720,  touch: false },
   { name: 'desktop-hd', width: 1920, height: 1080, touch: false },
 ];
-const CASES = ['reveal', 'cleanSweep', 'win', 'lose', 'aceDrawn', 'aceCounter'];
+const CASES = ['reveal', 'scraps', 'matchWin', 'matchLoss', 'sign', 'aceDrawn', 'aceCounter'];
 
 // Infinite animations are excluded because they never finish — the Ace
 // card's `cardWiggle` would hang this forever — and they do not move a
@@ -87,7 +94,7 @@ for (const vp of VIEWPORTS) {
   });
   const page = await ctx.newPage();
   for (const c of CASES) {
-    await page.goto(`http://localhost:5193/tools/bench/overlay-targets.html?case=${c}`,
+    await page.goto(`http://localhost:${PORT}/tools/bench/overlay-targets.html?case=${c}`,
       { waitUntil: 'networkidle' });
     await page.waitForFunction(QUIET, null, { timeout: 6000 }).catch(() => {});
     await page.waitForTimeout(300);

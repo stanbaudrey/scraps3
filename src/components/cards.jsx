@@ -389,7 +389,11 @@ export function CardBackSVG({ w, h }) {
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
   selectable=false, dimmed=false, onClick, size='normal', kraft=false,
   extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true,
-  registerEl=null, hidden=false }) {
+  registerEl=null, hidden=false, rankScale=1 }) {
+  // `rankScale` exists for ONE caller: the match screen's letter cards
+  // (interstitials.jsx), whose "rank" is a letter at 0.84 of the rank
+  // size so a word of them reads as a word rather than as a hand of
+  // oversized ranks. Every real card leaves it at 1.
 
   // The motion system measures this node to build a card's real
   // flight path, and hides it (visibility, so LAYOUT SURVIVES —
@@ -553,7 +557,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
           top:d.gy-(isScrap?0:FACE_BORDER)-d.rank*RYE_CAP_LEAD,
           lineHeight:1,zIndex:1,pointerEvents:'none'}}>
           <span style={{display:'inline-block',transformOrigin:'left center',
-            fontFamily:F.card,fontWeight:400,fontSize:d.rank,color:ink,
+            fontFamily:F.card,fontWeight:400,fontSize:d.rank*rankScale,color:ink,
             lineHeight:1,whiteSpace:'nowrap',...glyphStyle}}>{card.rank}</span>
         </div>
       )}

@@ -25,7 +25,14 @@
 //
 // Screenshots land in tools/shots/<label>/, which is gitignored.
 // ============================================================
-import { chromium } from 'playwright';
+// A bare 'playwright' when one is installed; otherwise the copy the
+// Playwright MCP server keeps in the npx cache, which is the one every
+// verification pass on this machine has actually used.
+const pw = await import('playwright').catch(() => import(
+  '/Users/stan/.npm/_npx/9833c18b2d85bc59/node_modules/playwright/index.mjs'));
+const { chromium } = pw;
+// PORT=… to point at a server other than the launch config's 5193.
+const PORT = process.env.PORT || 5193;
 import fs from 'node:fs';
 
 const OUT = process.argv[2] || 'after';
@@ -115,7 +122,7 @@ for (const vp of VIEWPORTS) {
   // part way through otherwise reports a bare Playwright timeout with
   // no way to tell which screen it died on.
   console.log(`-- ${vp.name} ${vp.width}x${vp.height}`);
-  await page.goto('http://localhost:5193/', { waitUntil: 'networkidle' });
+  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle' });
 
   // Wait for the page to STOP MOVING, rather than for a fixed number of
   // milliseconds. Every assertion in `probe` reads getBoundingClientRect,

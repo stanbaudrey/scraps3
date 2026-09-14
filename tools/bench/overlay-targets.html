@@ -1,4 +1,19 @@
 <!doctype html><html><head><meta charset="utf-8">
-<title>overlay touch-target bench</title></head>
+<title>overlay touch-target bench</title>
+<!-- The game's global CSS — reset, fonts, every @keyframes, .sr-only —
+     lives in index.html's <style>, not in a file this page could link.
+     Borrow it at load so the overlays here animate, set type and hide
+     their live regions exactly as they do in the game. Without this the
+     interstitial cases render in fallback fonts with no motion at all,
+     which measures the wrong thing. -->
+<script>
+  (async () => {
+    const html = await fetch('/index.html').then(r => r.text());
+    const m = html.match(/<style>([\s\S]*?)<\/style>/);
+    if (m) { const s = document.createElement('style'); s.textContent = m[1]; document.head.appendChild(s); }
+    document.dispatchEvent(new Event('bench-styles-ready'));
+  })();
+</script>
+</head>
 <body><div id="root"></div>
 <script type="module" src="/tools/bench/overlay-targets.jsx"></script></body></html>

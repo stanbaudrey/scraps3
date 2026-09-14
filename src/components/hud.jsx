@@ -71,10 +71,8 @@ export function RoundProgressIndicator({ phase, compact=false }) {
 // they stay out of the centre line where the narrator speaks.
 //
 // Both bars are `position:relative` with a z-index above the
-// table, and a score lifts higher still while it animates. The
-// round-end pop scales to 1.9x, which overflows the bar it lives
-// in; without this it was painted over by the table beneath and
-// the biggest moment in a round was clipped in half.
+// table. (They used to lift a score higher still while it popped;
+// the pop is gone — see Score below.)
 // ─────────────────────────────────────────────────────────────
 const BAR = {
   display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -82,7 +80,16 @@ const BAR = {
   position:'relative', zIndex:40,
 };
 
-function Score({ label, value, color, flash, pulse, align, compact=false }) {
+// These scores DO NOT ANIMATE any more (2026-09-14). They used to
+// flash on every increase (`scorePop`) and shake at round end
+// (`roundEndScorePop`), a couple of seconds after the results screen
+// had already announced the same point. The reveal on the table now
+// rolls the score up itself, on screen, as the point lands — see
+// ScoreRoll in interstitials.jsx — and a second animation here for
+// the same event was two celebrations for one point. The bars just
+// show the number, which is already correct by the time they are
+// visible again.
+function Score({ label, value, color, align, compact=false }) {
   return (
     <div style={{display:'flex',alignItems:'baseline',gap:compact?7:10,lineHeight:1,
       flexShrink:0,whiteSpace:'nowrap',
@@ -97,13 +104,6 @@ function Score({ label, value, color, flash, pulse, align, compact=false }) {
         // outranking the thing you are actually doing. Also gives
         // ~16px of height per bar back to the table.
         fontFamily:F.display,fontSize:compact?26:44,color,lineHeight:0.9,
-        animation:pulse?'roundEndScorePop 1.4s cubic-bezier(.34,1.4,.64,1)'
-          :flash?'scorePop 0.5s cubic-bezier(.34,1.8,.64,1)':undefined,
-        textShadow:pulse?'0 0 30px currentColor':'none',
-        transformOrigin:align==='right'?'right center':'left center',
-        // Lifted above both bars and the table only while it moves,
-        // so the pop is never clipped by what sits in front of it.
-        position:'relative', zIndex:(pulse||flash)?70:1,
         display:'inline-block',
       }}>{value}</span>
     </div>
@@ -111,12 +111,11 @@ function Score({ label, value, color, flash, pulse, align, compact=false }) {
 }
 
 // Top bar — the opponent's score, and the match conditions.
-export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel, compact=false }) {
+export function OpponentBar({ aiScore, difficultyLabel, compact=false }) {
   return (
     <div style={{...BAR, padding:compact?'3px 12px':'6px 22px', gap:compact?8:16,
       borderBottom:`1px solid ${DS.slate}22`}}>
-      <Score label="OPP" value={aiScore} color={DS.ember}
-        flash={aiFlash} pulse={roundEndPulse} align="left" compact={compact}/>
+      <Score label="OPP" value={aiScore} color={DS.ember} align="left" compact={compact}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
         {/* The match condition is reference, not action. Stacked, it
             is the first thing to go: the rules panel still carries
@@ -138,62 +137,24 @@ export function OpponentBar({ aiScore, aiFlash, roundEndPulse, difficultyLabel, 
 }
 
 // Bottom bar — the log on the left, your score in the corner.
-export function PlayerBar({ playerScore, playerFlash, roundEndPulse, children, compact=false }) {
+export function PlayerBar({ playerScore, children, compact=false }) {
   return (
     <div style={{...BAR, padding:compact?'2px 10px':'4px 22px 6px',
       gap:compact?8:16, borderTop:`1px solid ${DS.slate}22`}}>
       <div style={{flex:1,minWidth:0,display:'flex',alignItems:'center',gap:compact?6:12}}>{children}</div>
-      <Score label="YOU" value={playerScore} color={DS.voltage}
-        flash={playerFlash} pulse={roundEndPulse} align="right" compact={compact}/>
+      <Score label="YOU" value={playerScore} color={DS.voltage} align="right" compact={compact}/>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// MatchPointBanner — someone is one scoring event from the game.
-//
-// This used to be NearWinBanner, and it said "you've hit 10, win by
-// 2". Dropping the win-by-2 clause on 2026-09-13 made that state
-// unreachable: the game now ends the instant a score touches
-// WIN_SCORE, so a banner about play CONTINUING past it could never
-// render again. The tension beat it existed for is real, so it moved
-// two points earlier instead of being deleted.
-//
-// MATCH_POINT is WIN_SCORE - 2, because 2 is what the Scraps hand
-// pays and the smallest hand that can end a game from here. A player
-// on 8 can be beaten in one reveal; a player on 7 cannot.
-//
-// Colour follows ownership, the same rule as everything else on this
-// table: voltage when the threat is yours, ember when it is hers,
-// frost when it belongs to both of you. Never gold — gold is a
-// milestone token, and this is a warning.
+// The MATCH POINT banner (NearWinBanner) lived here until 2026-09-14.
+// It sat under the top bar, which the interstitial layer covers at
+// exactly the moment the stakes peak, so Stan moved the warning onto
+// the stage: a line on the ROUND sign and under the reveal's score
+// row (interstitials.jsx, MATCH_POINT). The threshold logic — two
+// short of WIN_SCORE, because the Scraps hand pays 2 — moved with it.
 // ─────────────────────────────────────────────────────────────
-const MATCH_POINT = WIN_SCORE - 2;
-
-export function NearWinBanner({ playerScore, aiScore }) {
-  const playerUp = playerScore >= MATCH_POINT;
-  const aiUp = aiScore >= MATCH_POINT;
-  if(!playerUp && !aiUp) return null;
-  let msg, tone;
-  if(playerUp && aiUp) {
-    msg = `Match point both ways. The next hand can end it.`;
-    tone = DS.frost;
-  } else if(playerUp) {
-    msg = `Match point. One hand takes you to ${WIN_SCORE}.`;
-    tone = DS.voltage;
-  } else {
-    msg = `Match point to her. One hand and it's over.`;
-    tone = DS.ember;
-  }
-  return (
-    <div style={{padding:'5px 16px',background:tone+'22',
-      border:`1px solid ${tone}66`,textAlign:'center',
-      fontFamily:F.ui,fontSize:13,color:tone,fontWeight:700,
-      letterSpacing:'0.06em',flexShrink:0,lineHeight:1.3}}>
-      {msg}
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────
 // GameLog — full round-by-round history, opened by tapping the

@@ -23,11 +23,10 @@ import {
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
-  playInvalid, playHandWon, playHandLost, playRoundWon, playRoundLost,
-  playCleanSweep, playRevealBuild } from "../audio.js";
+  playInvalid, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
-import { OpponentBar, PlayerBar, RoundProgressIndicator, NearWinBanner, GameLog, GameAnnouncer } from "../components/hud.jsx";
+import { OpponentBar, PlayerBar, RoundProgressIndicator, GameLog, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
@@ -35,10 +34,10 @@ import { Walkthrough } from "./Walkthrough.jsx";
 import { recordGame } from "../game/stats.js";
 import { useViewport, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
-  RoundInterstitial, RevealOverlay, CleanSweepLightbox, WinScreen, LoseScreen,
   AceCounterModal, SkipTurnModal, QuitConfirmModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
 } from "../components/overlays.jsx";
+import { TableStage } from "../components/interstitials.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // Card sizes. A card is one size in a hand and a smaller one in a
@@ -156,7 +155,16 @@ export function GameScreen({ difficulty, onExit }) {
   // on is to spend another Ace. Trading is off the table until you
   // either attack again or end the turn.
   const [counterStand, setCounterStand]     = useState(false);
-  const [revealData, setRevealData]         = useState(null);
+  // The interstitial layer (interstitials.jsx). ONE piece of state
+  // for every full-screen moment between hands: null while the table
+  // is live, `{kind:'sign'}` for ROUND N, `{kind:'reveal', ...}` for a
+  // hand result and everything that can follow it — the Clean Sweep
+  // beat, the sweep out of the round, the match screen. The two
+  // derived flags below keep the guards further down readable.
+  const [stage, setStage]                   = useState(null);
+  const revealData = stage && stage.kind === 'reveal' ? stage : null;
+  const showInterstitial = !!stage && stage.kind === 'sign';
+  const tableWoodRef = useRef(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
   // Set when the player signals INTO an opponent signal that is already
   // on the table. There is nothing left to decide at that point — both
@@ -165,8 +173,6 @@ export function GameScreen({ difficulty, onExit }) {
   // than derived at reveal time, because by then `aiSignal` is set in
   // BOTH orders and can no longer tell you which came first.
   const [autoReveal, setAutoReveal]         = useState(false);
-  const [showCleanSweep, setShowCleanSweep] = useState(false);
-  const [showInterstitial, setShowInterstitial] = useState(false);
   const [waveIds, setWaveIds]               = useState(new Set());
   // Cards that belong to a hand but have not been dealt out of the
   // deck yet. RoundInterstitial is a SCRIM, not a cover: it sits at
@@ -180,8 +186,6 @@ export function GameScreen({ difficulty, onExit }) {
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
-  const [playerScoreFlash, setPlayerScoreFlash] = useState(false);
-  const [aiScoreFlash, setAiScoreFlash]         = useState(false);
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
   const [logEverOpened, setLogEverOpened]       = useState(false); // hides the one-time TAP FOR HISTORY label
@@ -191,8 +195,6 @@ export function GameScreen({ difficulty, onExit }) {
   // lands in the player's hand.
   const [aceDrawnCard, setAceDrawnCard]         = useState(null);
   const aceHintShownRef = useRef(false);
-  const [roundEndPulse, setRoundEndPulse]       = useState(false);
-  const prevPhaseRef = useRef(phase);
 
   // Refs for card travel animation zones
   const playerHandRef    = useRef(null);
@@ -296,7 +298,7 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]); setScrapsDiscard([]);
     setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
-    setRevealData(null); setAutoReveal(false); setAiSignaledIds(new Set());
+    setAutoReveal(false); setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
     // The two cards that START in each Scraps pile are hidden with the
@@ -305,7 +307,10 @@ export function GameScreen({ difficulty, onExit }) {
     // round look like it began with four cards already played.
     setPendingDealIds(new Set([...deal.playerHand, ...deal.aiHand,
       ...deal.playerScraps, ...deal.aiScraps].map(c => c.id)));
-    setShowInterstitial(true);
+    // ROUND N, on the wood. When this follows a Scraps reveal the
+    // stage is already up and mid-sweep; the sign simply replaces the
+    // reveal inside it, so the boards never cut.
+    setStage({ kind: 'sign' });
   }, []);
 
   useEffect(() => { startNewRound(false); }, []);
@@ -364,29 +369,18 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   function onInterstitialDone() {
-    setShowInterstitial(false);
+    setStage(null);
     dispatch({ type: 'INTERSTITIAL_DONE' });
     const s = stateRef.current;
     dealWave(s.playerHand, s.aiHand, s.playerScraps, s.aiScraps);
   }
 
-  // ── Score flash + fanfare on score increases ───────────────
-  const prevScores = useRef({ p: 0, a: 0 });
-  useEffect(() => {
-    if (playerScore > prevScores.current.p) {
-      setPlayerScoreFlash(true);
-      setTimeout(() => setPlayerScoreFlash(false), 600);
-      // Deliberately silent. The outcome cue already fired when the
-      // reveal appeared; this is the same event's score landing a
-      // couple of seconds later, and sounding it again gave every
-      // hand two celebrations. The flash above carries this beat.
-    }
-    if (aiScore > prevScores.current.a) {
-      setAiScoreFlash(true);
-      setTimeout(() => setAiScoreFlash(false), 600);
-    }
-    prevScores.current = { p: playerScore, a: aiScore };
-  }, [playerScore, aiScore]);
+  // There used to be a score-flash effect here, popping the HUD's
+  // number whenever a score rose. Gone 2026-09-14: the reveal on the
+  // table rolls the score up itself as the point lands (ScoreRoll in
+  // interstitials.jsx), and by the time the HUD is visible again the
+  // number is simply correct. Two animations for one point was the
+  // thing the redesign named.
 
   // ── Persistent stats (item 10) ─────────────────────────────
   // On game over, record the result once. The win screen shows
@@ -920,34 +914,36 @@ export function GameScreen({ difficulty, onExit }) {
     let winner = 'tie', pts = 0;
     if (res > 0) { winner = 'player'; pts = 1; }
     else if (res < 0) { winner = 'ai'; pts = 1; }
-    if (winner === 'player') playHandWon();
-    else if (winner === 'ai') playHandLost();
     const curPhase = phase;
-    // What this press is actually FOR. A results screen used to end in
-    // a generic CONTINUE that dropped you on a table whose narrator
-    // then asked a second question with a second button — two presses
-    // for one decision, three times a round. The button names the next
-    // step and the phase it lands in carries itself from there.
+    // The outcome cue is not played here any more. The reveal plays it
+    // as the score rolls (RevealScene in interstitials.jsx), which is
+    // the moment the point actually lands; here was two seconds early.
     //
-    // Unless this is the point the match ends, in which case there is
-    // no next hand to name and the button must not promise one. Worked
-    // out the same way the reducer will when it applies these points.
+    // Whether this result ENDS THE MATCH is worked out the same way the
+    // reducer will when it applies these points, because the reveal
+    // has to know: a match-ending result runs straight on into the
+    // match screen and never hands back.
     const endsIt = !!checkWin(
       playerScore + (winner === 'player' ? pts : 0),
       aiScore + (winner === 'ai' ? pts : 0));
-    setRevealData({
+    const action = { type: 'SMALL_HAND_SCORED', winner, pts,
+      pName: pH?.name || '', aName: aH?.name || '', fromPhase: curPhase };
+    setSelected([]);
+    setAiSignaledIds(new Set());   // clear toggled AI cards behind the stage
+    // A match-ending result commits AT ONCE: `gameOver` is what records
+    // the stats and freezes the phase machine, and the reveal owns the
+    // screen from here to NEW GAME. Anything else commits on the tap
+    // that dismisses the reveal — the phase it leaves behind runs the
+    // next step (see the hand-offs below).
+    if (endsIt) dispatch(action);
+    setStage({
+      kind: 'reveal', key: `${roundNum}-${curPhase}`,
+      which: curPhase === 'reveal-1' ? 'hand1' : 'hand2',
       playerCards: [...playerPlayed], aiCards: [...aiPlayed],
       playerHandName: pH?.name || '', aiHandName: aH?.name || '',
-      winner, points: pts,
-      continueLabel: endsIt ? 'Continue'
-        : curPhase === 'reveal-1' ? 'Deal Second Hand' : 'Play Scraps Hand',
-      onContinue: () => {
-        setRevealData(null);
-        setSelected([]);
-        setAiSignaledIds(new Set()); // clear toggled AI cards after reveal
-        dispatch({ type: 'SMALL_HAND_SCORED', winner, pts,
-          pName: pH?.name || '', aName: aH?.name || '', fromPhase: curPhase });
-      },
+      winner, pts, endsIt,
+      before: { p: playerScore, a: aiScore },
+      onContinue: () => { setStage(null); dispatch(action); },
     });
   }
 
@@ -971,26 +967,27 @@ export function GameScreen({ difficulty, onExit }) {
     // stranded in `scraps-reveal` with no way forward.
     const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
     const { pPts, aPts, winner, cleanSweep, aiSweep, pB, aB } = out;
-    if (winner === 'player') playRoundWon();
-    else if (winner === 'ai') playRoundLost();
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
     const aBestIds = new Set(getActiveHandCards(aB).map(c => c.id));
     const endsIt = !!checkWin(playerScore + pPts, aiScore + aPts);
-    setRevealData({
+    const action = { type: 'SCRAPS_SCORED', pPts, aPts, winner, cleanSweep, aiSweep, pName: pB.name };
+    if (endsIt) dispatch(action);
+    setStage({
+      kind: 'reveal', key: `${roundNum}-scraps`, which: 'scraps',
       playerCards: [...playerScraps].slice(0, 7), aiCards: [...aiScraps].slice(0, 7),
-      playerHandName: pB.name, aiHandName: aB.name + (aiSweep ? ' · SWEEP' : ''),
-      winner, points: winner === 'player' ? pPts : winner === 'ai' ? aPts : 0,
-      bonusLine: cleanSweep ? 'INCLUDES +1 CLEAN SWEEP BONUS' : null,
-      continueLabel: endsIt ? 'Continue' : 'Next Round',
+      playerHandName: pB.name, aiHandName: aB.name,
       playerBestIds: pBestIds, aiBestIds: aBestIds,
-      onContinue: () => {
-        setRevealData(null);
-        dispatch({ type: 'SCRAPS_SCORED', pPts, aPts, winner, cleanSweep, aiSweep, pName: pB.name });
-        if (cleanSweep) {
-          setShowCleanSweep(true);
-          playCleanSweep();
-        }
-      },
+      // The Scraps hand is 2. A Clean Sweep's third point is the beat's
+      // own tick, whichever side swept — the reveal reads `cleanSweep`
+      // and `aiSweep` and adds it there.
+      winner, pts: winner === 'tie' ? 0 : 2, cleanSweep, aiSweep, endsIt,
+      before: { p: playerScore, a: aiScore },
+      // The Scraps reveal sweeps itself off the table and THEN hands
+      // back. The score commits and the next round starts in the same
+      // render, so START_ROUND lands with SCRAPS_SCORED and the ROUND N
+      // sign appears on the wood the sweep has just cleared, with no
+      // frame of the old round's table between the two.
+      onSwept: () => { dispatch(action); startNewRound(true); },
     });
   }
 
@@ -1108,7 +1105,7 @@ export function GameScreen({ difficulty, onExit }) {
   // The delays are a beat of table between two full-screen moments, not
   // a pause for thought: the overlay unmounts instantly, you see the
   // board it was covering, then the next thing happens.
-  const HANDOFF = { deal: 220, scraps: 520, round: 380 };
+  const HANDOFF = { deal: 220, scraps: 520 };
 
   // The reveal, when nobody has to ask for it. Same two steps the
   // SHOW 'EM button runs — the 580ms build cue, then resolve — driven
@@ -1143,23 +1140,14 @@ export function GameScreen({ difficulty, onExit }) {
       const t = setTimeout(() => resolveScrap(), HANDOFF.scraps);
       return () => clearTimeout(t);
     }
-    // A CLEAN SWEEP puts fireworks between the Scraps result and the
-    // next round, and those are not skippable — the round waits for the
-    // lightbox to be dismissed rather than starting behind it.
-    if (phase === 'round-end' && !showCleanSweep) {
-      const t = setTimeout(() => startNewRound(true), HANDOFF.round);
-      return () => clearTimeout(t);
-    }
+    // 'round-end' no longer runs a timer here. The Scraps reveal starts
+    // the next round itself from `onSwept` (resolveScrap), so that
+    // START_ROUND lands in the same render as SCRAPS_SCORED and the
+    // ROUND N sign appears on the wood the sweep has just cleared. A
+    // hand-off here would have shown the OLD round's table between the
+    // two — the exact cut the whole redesign exists to remove.
     return undefined;
-  }, [phase, revealData, gameOver, showCleanSweep]);
-
-  useEffect(() => {
-    if (phase === 'round-end' && prevPhaseRef.current !== 'round-end') {
-      setRoundEndPulse(true);
-      setTimeout(() => setRoundEndPulse(false), 1500);
-    }
-    prevPhaseRef.current = phase;
-  }, [phase]);
+  }, [phase, revealData, gameOver]);
 
   let hint = '';
   // The rendered form, when the copy wants emphasis the announcer
@@ -1275,19 +1263,16 @@ export function GameScreen({ difficulty, onExit }) {
   // The banner owns its own threshold now that it is a MATCH POINT
   // warning rather than a win-by-2 explainer — see hud.jsx. This only
   // has to know the game is still running.
-  const showNearWin = !gameOver;
+  // The MATCH POINT banner that sat under the top bar is gone
+  // (Stan, 2026-09-14): the stage covers the HUD exactly when the
+  // stakes peak, so the warning lives on the stage now — a line on
+  // the ROUND sign and under the reveal's score row.
 
-  if (gameOver) return (
-    <>
-      {gameOver === 'player'
-        ? <WinScreen playerScore={playerScore} aiScore={aiScore} onNewGame={() => onExit('difficulty')}
-            margin={winStats?winStats.margin:null}
-            bestMargin={winStats?winStats.bestMargin:null}
-            isNewRecord={winStats?winStats.isNewRecord:false}/>
-        : <LoseScreen playerScore={playerScore} aiScore={aiScore} onNewGame={() => onExit('difficulty')}/>
-      }
-    </>
-  );
+  // `gameOver` used to short-circuit this whole render into WinScreen or
+  // LoseScreen. It no longer does: the reveal that ended the match is
+  // still up, on the table, running on into the match screen (see
+  // resolveSmallHand / resolveScrap), and the frozen table renders
+  // underneath it exactly as it did before the reveal opened.
 
   // ── Table pieces ───────────────────────────────────────────
   // Each piece is built once and composed two ways below. Every
@@ -1569,16 +1554,24 @@ export function GameScreen({ difficulty, onExit }) {
   );
 
   return (
-    <div className="app-vh" style={{display:'flex',flexDirection:'column',
+    <>
+    {/* `inert` while a stage is up: the layer is opaque, so nothing
+        under it may take focus or be read. Without this a keyboard
+        user's Tab walked straight through the wood onto the HUD's
+        buttons, and Enter opened the rules behind the reveal. The
+        stage and the flights render OUTSIDE this div, below, so they
+        stay live. (React 18 passes `inert` through as a plain
+        attribute; an empty string sets it, undefined removes it.) */}
+    <div className="app-vh" inert={stage ? '' : undefined}
+      style={{display:'flex',flexDirection:'column',
       background:DS.dusk,userSelect:'none',overflow:'hidden'}}>
       {/* The table's one heading. The wordmark is on the splash, not
           here, so without this the game screen has no h1 at all and a
           screen reader's heading list is empty. */}
       <h1 className="sr-only">SCRAPS — game table</h1>
       <GameAnnouncer messages={log} hint={hint}/>
-      <OpponentBar aiScore={aiScore} aiFlash={aiScoreFlash} roundEndPulse={roundEndPulse}
+      <OpponentBar aiScore={aiScore}
         difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
-      {showNearWin&&<NearWinBanner playerScore={playerScore} aiScore={aiScore}/>}
 
       {/* Table. Ownership mapping is absolute in BOTH layouts: top
           of screen = opponent's stuff, bottom = yours, everywhere,
@@ -1599,7 +1592,7 @@ export function GameScreen({ difficulty, onExit }) {
         // so the wood reaches the edges of the viewport however far
         // the table itself is scaled down; the BOARDS are sized from
         // the card so the furniture stays in proportion to the game.
-        backdrop={<TableSurface cardH={CARD_DIMS[SZ.hand].h}/>}
+        backdrop={<TableSurface cardH={CARD_DIMS[SZ.hand].h} anchorRef={tableWoodRef}/>}
         style={{background:DS.timber}}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
           justifyContent:'space-evenly',
@@ -1706,8 +1699,7 @@ export function GameScreen({ difficulty, onExit }) {
             <GameLog messages={log}/>
           </div>
         )}
-        <PlayerBar playerScore={playerScore} playerFlash={playerScoreFlash}
-          roundEndPulse={roundEndPulse} compact={tight}>
+        <PlayerBar playerScore={playerScore} compact={tight}>
           {/* The log is the ONLY record of what the opponent did while
               an animation was playing, and a truncated line behind a
               small chevron reads as decoration. The label sits there
@@ -1762,13 +1754,9 @@ export function GameScreen({ difficulty, onExit }) {
           before it reached the house rule. */}
       {showRules&&<Walkthrough asReference onDone={()=>setShowRules(false)}/>}
       {confirmQuit&&<QuitConfirmModal onCancel={()=>setConfirmQuit(false)} onQuit={onExit}/>}
-      {revealData&&<RevealOverlay {...revealData} onDismiss={revealData.onContinue}
-        playerBestIds={revealData.playerBestIds||null}
-        aiBestIds={revealData.aiBestIds||null}
-        continueLabel={revealData.continueLabel||'Continue'}/>}
-      {showCleanSweep&&<CleanSweepLightbox onDone={()=>setShowCleanSweep(false)}/>}
-      {flightsOverlay}
-      {showInterstitial&&<RoundInterstitial roundNum={roundNum} onDone={onInterstitialDone}/>}
+      {/* The interstitial layer: ROUND N, every reveal, the Clean Sweep
+          beat, the sweep, the match screen. Opaque wood over the whole
+          viewport, aligned to the table's own boards. */}
       {pendingAiAce&&!aiAceReveal&&(
         <AceCounterModal
           onCounter={onPlayerCounterAce}
@@ -1792,5 +1780,15 @@ export function GameScreen({ difficulty, onExit }) {
       )}
       {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}
     </div>
+    {/* Outside the inert root, deliberately — see the comment on it.
+        The sign reads the scores for its MATCH POINT line. */}
+    {stage&&<TableStage stage={stage.kind==='sign'?{...stage,roundNum,playerScore,aiScore}:stage}
+      cardH={CARD_DIMS[SZ.hand].h} tableAnchorRef={tableWoodRef}
+      onSignDone={onInterstitialDone}
+      onContinue={stage.onContinue} onSwept={stage.onSwept}
+      onNewGame={()=>onExit('difficulty')}
+      difficulty={difficulty} winStats={winStats}/>}
+    {flightsOverlay}
+    </>
   );
 }

@@ -231,7 +231,11 @@ function Board({ w, h, seed, nailXs }) {
 // `cardH` keeps the slats in proportion to the game: a board is a bit
 // taller than a card, so the table reads as furniture the cards are
 // lying ON rather than a backdrop behind them.
-export function TableSurface({ cardH = 146 }) {
+// `anchorRef` is for the interstitial layer (interstitials.jsx),
+// which draws its own copy of this wood over the whole viewport and
+// needs to centre it on THIS one so the board seams do not move when
+// it covers the table. Nothing else passes it.
+export function TableSurface({ cardH = 146, anchorRef = null }) {
   const boardH = Math.max(70, Math.round(cardH * 1.25));
   const W = 1600;                        // nominal; stretched to fit
   const count = Math.ceil(1200 / boardH) + 2;
@@ -242,7 +246,7 @@ export function TableSurface({ cardH = 146 }) {
     Math.round(W * ((i + 0.5) / cols + (nr() * 0.1 - 0.05))));
 
   return (
-    <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:0,
+    <div ref={anchorRef} aria-hidden="true" style={{position:'absolute',inset:0,zIndex:0,
       overflow:'hidden',pointerEvents:'none',background:DS.timber}}>
       <div style={{position:'absolute',inset:0,display:'flex',
         flexDirection:'column',justifyContent:'center'}}>

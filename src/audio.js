@@ -61,11 +61,13 @@ function getAudioCtx() {
   if (!AC) return null;
   if (!ctx) {
     ctx = new AC();
-    // A compressor, not just a gain. The win screen fires a pop
-    // per firework — roughly twenty inside eight seconds, over
-    // the top of a 1.15s drum roll — and trimmed cues sit near
-    // full scale by design, so stacked cues would otherwise clip
-    // the output rather than the individual sounds.
+    // A compressor, not just a gain. Cues stack — seven slaps
+    // under a Scraps reveal, a run of draws under the sweep, a
+    // bar landing over the tail of the last one — and trimmed
+    // cues sit near full scale by design, so stacked cues would
+    // otherwise clip the output rather than the individual
+    // sounds. (It was added for the win screen's firework pops,
+    // which went on 2026-09-14; the reason it stays is above.)
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -6;
     comp.knee.value = 12;
@@ -100,8 +102,8 @@ function getAudioCtx() {
 // is now bit-identical every time it plays, TRIM can be measured
 // exactly rather than estimated, and variety is added where it is
 // actually wanted: `seed` gives repeated taps inside one cue
-// their own character, and playFireworkPop randomises pitch and
-// level out loud.
+// their own character. (The firework pop, the one cue that
+// randomised out loud, went with the fireworks on 2026-09-14.)
 function noiseBuf(c, dur, curve = 3, attack = 0.004, seed = 1) {
   const n = Math.max(1, Math.floor(c.sampleRate * dur));
   const b = c.createBuffer(1, n, c.sampleRate);
@@ -150,8 +152,8 @@ function bp(c, freq, q = 3) {
 // cardstock, felt and bone from the table, and what separates the
 // survivors is the SHAPE of the object rather than its substance —
 // a plank, a box with air in it, a solid rod, a small closed
-// block, a big thin-walled crate. `boneLow` is kept for one
-// caller only, the firework pop on the win screen.
+// block, a big thin-walled crate. (`boneLow` and the `crack()`
+// exciter that hit it went with the firework pop on 2026-09-14.)
 function body(c, out, modes, t) {
   const inn = c.createGain();
   modes.forEach(m => {
@@ -184,7 +186,8 @@ function thud(c, out, t, f0, f1, dur, gain) {
 const MAT = {
   wood:      [{f: 420,q:11,g:.6,d:.20},{f: 980,q:14,g:.4,d:.14},{f:1720,q:10,g:.22,d:.09}],
   woodHi:    [{f: 610,q:11,g:.6,d:.17},{f:1340,q:14,g:.4,d:.12},{f:2280,q:10,g:.2,d:.08}],
-  boneLow:   [{f: 900,q:26,g:.62,d:.10},{f:1780,q:30,g:.45,d:.07},{f:3040,q:20,g:.2,d:.04}],
+  // `boneLow` lived here until 2026-09-14, for the firework pop alone;
+  // it went with the fireworks. There is no bone left in the kit.
   // Added 2026-09-13 with the Woodshed picks. All four are wooden
   // objects of a different SHAPE rather than a different substance:
   // a box with air in it, a solid rod, a small closed block, and a
@@ -201,11 +204,6 @@ function tap(c, out, t, mat, { gain = 1, exc = 0.006, curve = 4, seed = 1 } = {}
 }
 
 
-function crack(c, out, t, mat, { gain = 1, sub = true, k = 1, seed = 1 } = {}) {
-  src(c, noiseBuf(c, 0.0022, 6, 0.0002, seed), t, gain * 1.4)
-    .connect(body(c, out, scaleMat(mat, k), t));
-  if (sub) thud(c, out, t, 132 * k, 44 * k, 0.10, 0.34 * gain);
-}
 
 // ─────────────────────────────────────────────────────────────
 // Tuned bars — added 2026-09-13 with the Woodshed picks.
@@ -288,10 +286,16 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // thirty times a game can never end up louder than the one you
 // may never hear at all:
 //
-//   select .12 · draw .22 · invalid/handWon/handLost .34
-//   scrap .30 · roundLost .46 · roundWon .50 · aceStrike .56
-//   gameLost .66 · gameWon .72 · aceCounter .80 · cleanSweep .94
-//   revealBuild .297
+//   select .12 · draw .22 · slap .26 · invalid/handWon/handLost .34
+//   scrap .30 · roundSign .40 · roundLost .46 · roundWon .50
+//   aceStrike .56 · gameLost .66 · gameWon .72 · aceCounter .80
+//   cleanSweep .94 · revealBuild .297
+//
+// `slap` and `roundSign` are NEW on 2026-09-14 (the interstitials
+// pass) and their targets are a first placement, not a pick from a
+// bench: a slap sits between the draw it resembles and the scrap it
+// answers, and the ROUND N sign sits with the messaging cues. Both
+// were measured the same way as the rest, below.
 //
 // The targets are Stan's. None changed on 2026-09-13 — only the
 // voices under them did — and exactly one changed on 2026-09-14:
@@ -348,6 +352,14 @@ const TRIM = {
   gameLost:    0.9718,
   cleanSweep:  1.8332,
   revealBuild: 9.0647,   // voice unchanged, so trim untouched
+  // Both measured 2026-09-14 with tools/trim-measure.mjs at 48 kHz —
+  // the rate this Mac's Chrome actually plays at (system_profiler:
+  // Current SampleRate 48000). The seeded exciter is generated per
+  // SAMPLE, so a cue's peak moves with the rate: the same kit at
+  // 44.1 kHz puts `slap` 10% and `draw` 18% away from these numbers.
+  // Whoever measures next should say which rate they used.
+  slap:        0.5368,
+  roundSign:   4.9099,
 };
 
 // Every cue routes through here, so a cue is written at its
@@ -585,6 +597,72 @@ const VOICES = {
       at += dt; dt = Math.max(.026, dt * 0.86);
     }
   },
+
+  /** A winning card slapped onto the table (interstitials.jsx,
+   *  2026-09-14). One per card, up to seven in a Scraps reveal at
+   *  230ms spacing. The kit's body-under-impact `thud` with a small
+   *  closed block struck over it — a flat hand coming down on wood,
+   *  with no ring to stack across seven of them. Untuned, because a
+   *  landing is a physical event and not a score. */
+  slap: (c, o, t) => {
+    tap(c, o, t, MAT.block, { gain: .75, exc: .007, curve: 4, seed: 11 });
+    thud(c, o, t, 150, 52, .13, .5);
+  },
+
+  /** ROUND N landing on the table (interstitials.jsx, 2026-09-14).
+   *  This is the splash wordmark's old square-up phrase — playSquareUp,
+   *  which lost its caller when the tap gesture went on 2026-09-13 and
+   *  was kept for exactly this — retimed to the sign's own letters: a
+   *  brush of card edges as they come in, one soft triangle tap per
+   *  letter on the sign's 55ms stagger, and the low landing under the
+   *  riffle at 0.80s. The six taps are G major pentatonic, the set the
+   *  outcome bars use; the voice was chosen by ear in the splash-identity
+   *  session from sixteen options and is unchanged. Two things did
+   *  change: the bed's exciter is seeded now, so the cue is measurable
+   *  like every other, and it routes through the bus and TRIM rather
+   *  than straight to the destination at its own level. */
+  roundSign: (c, o, t) => {
+    const bedDur = 0.32;
+    const n = Math.ceil(c.sampleRate * bedDur);
+    const buf = c.createBuffer(1, n, c.sampleRate);
+    const d = buf.getChannelData(0);
+    let x = 0x9E3779B9;
+    for (let i = 0; i < n; i++) {
+      x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+      d[i] = ((x / 0x100000000) * 2 - 1) * Math.sin(Math.PI * (i / n)) * 0.9;
+    }
+    const s = c.createBufferSource(); s.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.7;
+    f.frequency.setValueAtTime(2600, t);
+    f.frequency.exponentialRampToValueAtTime(1100, t + bedDur);
+    const bg = c.createGain();
+    bg.gain.setValueAtTime(0.075, t);
+    bg.gain.exponentialRampToValueAtTime(0.001, t + bedDur);
+    s.connect(f); f.connect(bg); bg.connect(o);
+    s.start(t); s.stop(t + bedDur);
+    [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5].forEach((fq, i) => {
+      const at = t + 0.10 + i * 0.055;
+      const osc = c.createOscillator(); osc.type = 'triangle';
+      osc.frequency.setValueAtTime(fq, at);
+      const lpf = lp(c, 2400);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.05, at + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0008, at + 0.11);
+      osc.connect(lpf); lpf.connect(g); g.connect(o);
+      osc.start(at); osc.stop(at + 0.12);
+    });
+    const end = t + 0.80;
+    const low = c.createOscillator(); low.type = 'triangle';
+    low.frequency.setValueAtTime(190, end);
+    low.frequency.exponentialRampToValueAtTime(120, end + 0.20);
+    const lg = c.createGain();
+    lg.gain.setValueAtTime(0.0001, end);
+    lg.gain.exponentialRampToValueAtTime(0.085, end + 0.012);
+    lg.gain.exponentialRampToValueAtTime(0.001, end + 0.22);
+    low.connect(lg); lg.connect(o);
+    low.start(end); low.stop(end + 0.23);
+  },
 };
 
 // How long each voice actually rings for, used only by the
@@ -593,6 +671,7 @@ export const CUE_DUR = {
   select: .14, scrap: .58, draw: .22, aceStrike: .44, aceCounter: .72,
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
   gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
+  slap: .30, roundSign: 1.10,
 };
 
 /** Schedule a cue into any context — the live one or an offline
@@ -628,6 +707,8 @@ export function playRoundLost()  { cue('roundLost'); }
 export function playGameWon()    { cue('gameWon'); }
 export function playGameLost()   { cue('gameLost'); }
 export function playCleanSweep() { cue('cleanSweep'); }
+export function playSlap()       { cue('slap'); }
+export function playRoundSign()  { cue('roundSign'); }
 
 /** The build-up, then `onDone`. Timed to the 580ms the previous
  *  sine crescendo took, so the reveal choreography is unchanged
@@ -638,106 +719,11 @@ export function playRevealBuild(onDone) {
   setTimeout(onDone, 580);
 }
 
-/** One per firework on the win screen — roughly twenty across
- *  eight seconds, over the top of the drum roll. Kept far below
- *  every table cue and randomised in pitch and level so twenty of
- *  them don't read as one sound repeating. The compressor on the
- *  bus is here mostly for this. */
-export function playFireworkPop() {
-  const c = getAudioCtx();
-  if (!c) return;
-  const o = c.createGain();
-  o.gain.value = 0.5 + Math.random() * 0.3;
-  o.connect(bus);
-  crack(c, o, c.currentTime + 0.02,
-    scaleMat(MAT.boneLow, 0.75 + Math.random() * 0.6),
-    { gain: 0.16, sub: false, seed: 1 + Math.floor(Math.random() * 4096) });
-}
-
 // ─────────────────────────────────────────────────────────────
-// Splash wordmark — untouched by both ports, and the Woodshed
-// pass is what finally justified leaving it alone.
-//
-// Chosen by ear in the splash-identity session from a live
-// comparison of sixteen options, and timed to the 0.82s
-// square-up animation. Its middle layer is six triangle taps on
-// a G MAJOR PENTATONIC, one per letter, on the letters' own
-// 0.028s stagger.
-//
-// Through the Cardboard & Bone era that made it the one tonal
-// thing in a game that banned tonality, and the 2026-08-26 note
-// here left open whether those six taps should become cardstock.
-// They should not, and the question is now closed: as of
-// 2026-09-13 the table's own outcome cues are tuned bars in THIS
-// EXACT SET (see `NOTE` and `RUN` above). The splash stopped
-// being the outlier without a line of it changing — the rest of
-// the game moved into its key.
-//
-// Still byte for byte as it was, including its direct connection
-// to ctx.destination rather than the trimmed bus, so its level is
-// unchanged.
-//
-// NO CALLER as of 2026-09-13. The wordmark's tap gesture was the
-// only thing that played it and Stan asked for that gesture to go
-// (see AnimatedTitle in backdrop.jsx). The cue is kept deliberately
-// rather than deleted: it is a tuned six-tap phrase in the same G
-// major pentatonic the table's outcome bars now use, and the
-// interstitial redesign is the obvious place for it. If that pass
-// finds no home for it, delete it there and drop the count in
-// CLAUDE.md rather than leaving it orphaned indefinitely.
+// `playFireworkPop` and `playSquareUp` both ended here until
+// 2026-09-14. The pop went with the canvas fireworks it scored (the
+// win screen and the Clean Sweep lightbox are gone; everything plays
+// on the table now). The square-up phrase did NOT go: it is the
+// `roundSign` voice above, retimed to the ROUND N sign — the home
+// its own comment said it was waiting for.
 // ─────────────────────────────────────────────────────────────
-export function playSquareUp() {
-  const ctx = getAudioCtx(); if(!ctx) return;
-  const t0 = ctx.currentTime;
-
-  // 1. Card edges brushing past each other while the hand is loose.
-  //    The noise swells and falls with sin() rather than decaying from
-  //    full, so it reads as a movement rather than a hit.
-  const bedDur = 0.30;
-  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * bedDur), ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) {
-    d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * (i / d.length)) * 0.9;
-  }
-  const src = ctx.createBufferSource(); src.buffer = buf;
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.setValueAtTime(2600, t0);
-  bp.frequency.exponentialRampToValueAtTime(1100, t0 + bedDur);
-  bp.Q.value = 0.7;
-  const bedGain = ctx.createGain();
-  bedGain.gain.setValueAtTime(0.075, t0);
-  bedGain.gain.exponentialRampToValueAtTime(0.001, t0 + bedDur);
-  src.connect(bp); bp.connect(bedGain); bedGain.connect(ctx.destination);
-  src.start(t0); src.stop(t0 + bedDur);
-
-  // 2. One tap per letter, on the letters' own 0.028s stagger.
-  const PENT = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
-  PENT.forEach((f, i) => {
-    const at = t0 + 0.16 + i * 0.028;
-    const o = ctx.createOscillator();
-    o.type = 'triangle';                    // no odd-harmonic bite, unlike square
-    o.frequency.setValueAtTime(f, at);
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 2400;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(0.05, at + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0008, at + 0.11);
-    o.connect(lp); lp.connect(g); g.connect(ctx.destination);
-    o.start(at); o.stop(at + 0.12);
-  });
-
-  // 3. The deck landing flush, under the last of the taps.
-  const end = t0 + 0.60;
-  const low = ctx.createOscillator();
-  low.type = 'triangle';
-  low.frequency.setValueAtTime(190, end);
-  low.frequency.exponentialRampToValueAtTime(120, end + 0.20);
-  const lowGain = ctx.createGain();
-  lowGain.gain.setValueAtTime(0.0001, end);
-  lowGain.gain.exponentialRampToValueAtTime(0.085, end + 0.012);
-  lowGain.gain.exponentialRampToValueAtTime(0.001, end + 0.22);
-  low.connect(lowGain); lowGain.connect(ctx.destination);
-  low.start(end); low.stop(end + 0.23);
-}

@@ -12,11 +12,15 @@ import { DS, F } from "../styles/theme.js";
 import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
+import { TAGLINE } from "../share.js";
 
-// The splash used to carry a SUBTITLE between the wordmark and PLAY
-// ("Build two hands at once."). Removed 2026-09-13 on Stan's call.
-// The 30 candidates are still in PROJECT-BRIEF.md if it ever comes
-// back; the wordmark and one button carry the screen now.
+// The SUBTITLE is back (Stan, 2026-09-14): "Poker with both hands", in
+// Fjalla, between the wordmark and PLAY. It was removed 2026-09-13 —
+// the previous line was "Build two hands at once." and its 30
+// candidates are still in PROJECT-BRIEF.md — and it returns as the
+// game's ONE line: the same string is the share sentence's tail and
+// the strapline on the share card, all read from TAGLINE in
+// src/share.js so none of the three can drift from the others.
 
 // A four-glyph suit row sat above the wordmark until 2026-09-13, in
 // the colours the cards printed. It went with the suits themselves
@@ -43,6 +47,17 @@ export function SplashScreen({ onStart }) {
               for the row that was removed. */}
           <div style={{height:'clamp(10px,4vh,40px)'}}/>
           <AnimatedTitle/>
+          {/* Fjalla, sentence case as Stan wrote it. Tracked at 0.06em,
+              not the 0.14em it first shipped with: wide tracking on a
+              sentence-case line read as a caption (the critique's note,
+              and Stan's call the same day).
+              Pulled up into the wordmark's own bottom margin so the
+              three things on this screen still read as one stack. */}
+          <div style={{fontFamily:F.display,fontSize:'clamp(18px,3.4vw,28px)',
+            color:DS.slateLight,letterSpacing:'0.06em',lineHeight:1.1,
+            marginTop:'clamp(-20px,-4vw,-10px)',marginBottom:'clamp(22px,5vw,34px)',
+            textShadow:'0 2px 0 rgba(0,0,0,.4)',
+            animation:'fadeUp .6s ease .35s both'}}>{TAGLINE}</div>
           <Btn onClick={onStart}>Play</Btn>
         </div>
       </div>
