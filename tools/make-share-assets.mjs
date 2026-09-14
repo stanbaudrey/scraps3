@@ -86,16 +86,15 @@ const WORDMARK = TITLE.split(/\s+[—–-]\s+/)[0].trim();
 // manifest and diffed by --check, so it cannot drift silently either.
 const STRAPLINE = 'A 5-minute card game with a twist';
 
-// The hand drawn on the card. NOTE for whoever changes this: the
-// house rule is that FLUSHES ARE NEVER VALID in SCRAPS, so a suited
-// A-K-Q-J-10 is a hand this game does not recognise. It is on the
-// card because it is the most legible "card game" image there is,
-// and it was chosen deliberately with that known. The valid
-// near-identical alternative, if this is ever revisited, is the same
-// five ranks in mixed suits — a straight, which IS the best hand
-// here. Switch HAND to HAND_STRAIGHT below to use it.
-const HAND          = [['10','♦'],['J','♦'],['Q','♦'],['K','♦'],['A','♦']];
-const HAND_STRAIGHT = [['10','♦'],['J','♣'],['Q','♥'],['K','♠'],['A','♦']];
+// The hand drawn on the card, as plain ranks. It used to carry suits,
+// and carrying them cost this card its only real inaccuracy: a suited
+// A-K-Q-J-10 was a hand the house rule did not recognise, shipped
+// knowingly because it was the most legible "card game" image
+// available. That tension is gone — cards have no suit as of
+// 2026-09-13, so these five ranks ARE a straight, which is the best
+// hand in the game, and the card now shows something the player can
+// actually be dealt.
+const HAND = ['10','J','Q','K','A'];
 
 // Everything baked into the pixels. Drift in ANY of these means
 // the committed PNGs no longer describe the project.
@@ -104,7 +103,7 @@ const sources = {
   description: DESC,
   wordmark: WORDMARK,
   strapline: STRAPLINE,
-  hand: HAND.map(([r, su]) => r + su).join(' '),
+  hand: HAND.join(' '),
   winScore: WIN_SCORE,
   palette: {
     dusk: DS.dusk, frost: DS.frost, voltage: DS.voltage,
@@ -120,30 +119,37 @@ const fontFace = (family, file, weight = 400) => `
 
 // The card: SwirlBg's three radial layers at rest, the Rye
 // wordmark with its one voltage letter, a real fanned hand drawn
-// with the same geometry and inks as the game's own PlayingCard
-// (frost face, 6px ink border, Baloo 2 rank, emberInk for a red
-// suit), and one line of copy. The rules line that used to sit here
-// was cut: a share card has about one second to be interesting and
-// "first to 10, win by 2" is not the interesting part.
-const CARD_W = 104, CARD_H = 146;   // CARD_DIMS.normal, kept in step by eye
+// with the same geometry and ink as the game's own PlayingCard
+// (frost face, 6px ink border, one big left-anchored Rye numeral,
+// one ink for every rank), and one line of copy. The rules line that
+// used to sit here was cut: a share card has about one second to be
+// interesting and "first to 10, win by 2" is not the interesting part.
+//
+// These constants mirror CARD_DIMS.normal and the numeral's own
+// placement in cards.jsx, and they are kept in step BY EYE — this
+// file cannot import a JSX module. If the card face is redesigned
+// again, this is the second place it lives.
+const CARD_W = 104, CARD_H = 146;
+// CARD_DIMS.normal's rank/gx/gy, plus the two Rye constants beside them.
+const RANK_FS = 104, GX = 11, GY = 12, RYE_CAP_LEAD = 0.108, FACE_BORDER = 6, TEN_SQUEEZE = 0.70;
 
 const handHtml = (hand, scale) => {
   const n = hand.length;
-  return hand.map(([rank, suit], i) => {
+  return hand.map((rank, i) => {
     const t = i - (n - 1) / 2;                 // -2..2 about the centre
     const rot = t * 7.5;                       // lean out from the middle
     const lift = Math.abs(t) * Math.abs(t) * 8; // outer cards sit lower
-    const red = suit === '\u2665' || suit === '\u2666';
-    const ink = red ? DS.emberInk : DS.ink;
-    const rankFs = (rank === '10' ? 37 * 0.82 : 37) * scale;
+    // Identical height for every rank; only "10" is condensed, and
+    // from its LEFT edge so all five numerals share a starting line.
+    const squeeze = rank === '10' ? `transform:scaleX(${TEN_SQUEEZE})` : '';
     return `<div class="pc" style="
       width:${CARD_W * scale}px;height:${CARD_H * scale}px;
       margin:0 ${-CARD_W * scale * 0.10}px;
       transform:rotate(${rot}deg) translateY(${lift * scale}px);
-      padding:${9 * scale}px ${10 * scale}px;
       border-width:${6 * scale}px">
-      <span style="color:${ink};font-size:${rankFs}px">${rank}</span
-      ><span style="color:${ink};font-size:${39 * scale}px;margin-top:${-2 * scale}px">${suit}</span>
+      <span class="rk" style="left:${(GX - FACE_BORDER) * scale}px;
+        top:${(GY - FACE_BORDER - RANK_FS * RYE_CAP_LEAD) * scale}px;
+        font-size:${RANK_FS * scale}px;${squeeze}">${rank}</span>
     </div>`;
   }).join('');
 };
@@ -151,7 +157,6 @@ const handHtml = (hand, scale) => {
 const cardHtml = ({ w, h, scale, hand = HAND }) => `<!doctype html><meta charset="utf-8"><style>
   ${fontFace('Rye', 'rye-latin.woff2')}
   ${fontFace('Fjalla One', 'fjalla-one-latin.woff2')}
-  ${fontFace('Baloo 2', 'baloo-2-latin.woff2', '100 900')}
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:${w}px;height:${h}px;overflow:hidden}
   /* Padding is not decoration here: share surfaces crop, round the
@@ -178,13 +183,14 @@ const cardHtml = ({ w, h, scale, hand = HAND }) => `<!doctype html><meta charset
      10 and the ace. */
   .fan{display:flex;justify-content:center;align-items:flex-start;
     margin:0.34em 0 1.5em}
-  /* Same face as the game deals: frost ground, heavy ink edge, the
-     rank and suit set tight in the top-left corner. */
+  /* Same face as the game deals: frost ground, heavy ink edge, one
+     big Rye numeral anchored to the top-left. */
   .pc{background:${DS.frost};border-style:solid;border-color:${DS.ink};
     border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.45);
-    display:flex;align-items:center;justify-content:flex-start;
-    line-height:1;flex-shrink:0}
-  .pc span{font-family:'Baloo 2',sans-serif;font-weight:600;line-height:1}
+    position:relative;overflow:hidden;flex-shrink:0}
+  .pc .rk{position:absolute;font-family:'Rye',serif;font-weight:400;
+    line-height:1;white-space:nowrap;color:${DS.ink};
+    display:inline-block;transform-origin:left center}
   .sub{font-family:'Fjalla One',sans-serif;color:${DS.slateLight};
     letter-spacing:0.04em;font-size:1.85em}
 </style>
@@ -287,9 +293,6 @@ original, not a digital version of an existing game.
   fresh cards. Both piles cap at 7 cards.
 - Aces are a weapon: discard one to strip two cards from the opponent's
   Scraps. She can counter with an Ace of her own.
-- **Flushes are never valid.** A five-card suited straight scores as a plain
-  straight, never a straight flush. This is a house rule and it is enforced
-  everywhere in the engine.
 - First to ${WIN_SCORE} points. Winning both small hands *and* the
   Scraps hand in one round is a FULL SCRAP, worth 5.
 

@@ -125,7 +125,7 @@ jobs:
               'Most likely causes, in the order worth checking:',
               '- **share:check** — a title, colour or WIN_SCORE moved and the share',
               '  card was not regenerated. Fix with `npm run share`, then commit.',
-              '- **fonts:check** — Google changed what it serves for one of the five',
+              '- **fonts:check** — Google changed what it serves for one of the four',
               '  families. Fix with `npm run fonts`, then commit.',
               '- **Live site** — production is down, or is serving something that is',
               '  not the game.',

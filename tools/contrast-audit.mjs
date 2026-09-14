@@ -8,7 +8,8 @@
 // spent two months naming a contrast target (`slate #8A8FA8` on
 // `dusk #1C1C28`) that the Forest Dusk reskin had already deleted.
 // Running this on 2026-08-27 found two live AA failures nobody had
-// seen: red suits on a hand card at 1.98:1, and the best-hand badge
+// seen: red suits on a hand card at 1.98:1 (the suits are gone
+// now, and that is partly why), and the best-hand badge
 // at 4.27:1.
 //
 // The PAIRS list is hand-maintained on purpose — it encodes which
@@ -49,11 +50,14 @@ const PAIRS = [
   ['ink','voltage','text on a primary button','normal'],
   ['ink','gold','text on a milestone button','normal'],
   ['ink','ember','text on a danger button','normal'],
-  ['ink','frost','card rank + suit on a face-up card','normal'],
+  ['ink','frost','card rank on a HAND card','normal'],
+  // The Scraps card stopped being a dark face on 2026-09-13. It is
+  // torn paper now, in one of two stocks, printed in the SAME single
+  // ink as the hand card — which is what let the suits go: `emberInk`
+  // measured 3.72:1 on a weathered stock and failed AA outright.
+  ['ink','stockPale','card rank on YOUR scrap (bleached stock)','normal'],
+  ['ink','stockKraft','card rank on HER scrap (kraft stock)','normal'],
   ['frost','ink','card rank on a face-down/ink card','normal'],
-  ['emberInk','frost','red suits, rank + pip, on a HAND card','normal'],
-  ['ember','ink','red suits on a SCRAPS card (dark face)','normal'],
-  ['voltage','ink','black suits on a SCRAPS card (dark face)','normal'],
   ['emberHover','inkLight','hand-name badge at rank 5+, either Scraps zone','normal'],
   ['voltage','inkLight','hand-name badge, your Scraps zone','normal'],
   ['slateLight','inkLight','hand-name badge, weak hand','normal'],

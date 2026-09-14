@@ -24,8 +24,10 @@ import { DS, F } from "../styles/theme.js";
 //
 // THE SCRIM IS LOAD-BEARING, NOT MOOD. Measured on the raw image at
 // the real splash layout, the brightest pixel under the type band is
-// 1.11:1 against `frost` — the near-white suits and parts of the
-// wordmark would simply not be there. With the three layers below it
+// 1.11:1 against `frost` — parts of the wordmark would simply not be
+// there. (The measurement was taken when a row of four near-white
+// suit glyphs sat above the wordmark; those went with the suits on
+// 2026-09-13, and the wordmark alone still needs the scrim.) With the three layers below it
 // measures 5.37:1 on desktop, Stan's 1024x662 and a portrait phone,
 // and 4.93:1 on a landscape phone: clear of AAA-for-large-text at
 // every viewport, with margin rather than exactly.
@@ -46,9 +48,12 @@ export function SceneBackdrop() {
       <img src="/scene-sunset.svg" alt=""
         style={{position:'absolute',inset:0,width:'100%',height:'100%',
           objectFit:'cover',display:'block'}}/>
-      {/* Vertical band: heaviest across the suits, wordmark, subtitle
-          and button, easing off above and below. Percentages are the
-          rows those elements measure at on the live splash. */}
+      {/* Vertical band: heaviest across the wordmark and the button,
+          easing off above and below. Percentages are the rows those
+          elements measure at on the live splash — they were set when a
+          suit row and a subtitle also sat in that band, and both have
+          since been removed, so the band is now wider than the type it
+          protects rather than narrower. Left as is deliberately. */}
       <div style={{position:'absolute',inset:0,background:
         `linear-gradient(180deg,
           ${DS.ink}00 0%,

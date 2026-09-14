@@ -13,7 +13,7 @@
 // working — only the values and their intent moved:
 //   ink     — near-black warm ink (was navy) — dark fills, text on light
 //   frost   — pale warm parchment "birch" (was near-white) — light fills, text on dark
-//   ember   — warm ember orange (was hot pink) — opponent / red suits / danger
+//   ember   — warm ember orange (was hot pink) — opponent / danger
 //   voltage — bright leaf "fern" green (was acid green) — yours / active / interactive
 //   slate   — warm sage-grey — muted / secondary
 //   gold, goldHover, canopy — new: gold marks a milestone ONLY
@@ -73,33 +73,69 @@ export const DS = {
   duskMid:    '#1E2C24',
   slateLight: '#C9C2AE',
   inkLight:   '#2E4235',
-  // Red suits printed on the pale card face, and NOWHERE else. `ember`
-  // is 1.98:1 against `frost` — the rank and suit on every heart and
-  // diamond in your hand were failing AA by a factor of two, measured
-  // 2026-08-27 in the Session 5 audit. It went unnoticed because the
-  // brief's contrast target still named the pre-reskin `#8A8FA8`
-  // on `#1C1C28`, a pairing that stopped existing in August.
-  // This token is 5.20:1 on frost. Ember itself is untouched and keeps
-  // its accent role: on the DARK Scraps card face it measures 6.65:1
-  // and needs no help, so only the light face uses this.
-  emberInk:   '#A8341F',
+  // `emberInk` lived here until 2026-09-13: a darker red for the
+  // hearts and diamonds printed on a pale card face, because plain
+  // `ember` measured 1.98:1 on frost and failed AA by a factor of
+  // two. It was deleted with the suits themselves. There is now
+  // exactly one ink on a card face, `ink`, on every card of every
+  // rank — which is the version of this problem that cannot come
+  // back. Recoverable from git if a second printed red is ever
+  // wanted for something else; it was '#A8341F', 5.20:1 on frost.
   voltageHover: '#B5E07B',
   emberHover:   '#F0A376',
   gold:       '#F4C771',
   goldHover:  '#F7D697',
   canopy:     '#3E5C46',
   // The table. `timber` is the board base, `timberLight` the
-  // sun-silvered grain and the lighter boards, `timberSeam` the gap
+  // lit grain and the lighter boards, `timberSeam` the gap
   // between two boards. Ground only — never state. See the canopy
   // rule above, which these live under.
-  timber:      '#3B3025',
-  timberLight: '#6B5C48',
-  timberSeam:  '#191309',
+  //
+  // REDWOOD, 2026-09-13 (Stan's call): "warmer, think more Redwood
+  // and less worn/aged. Redder, but not necessarily brighter."
+  // The move is hue and saturation at CONSTANT RELATIVE LUMINANCE —
+  // 30° → 14°, 23% → 36% saturation, with lightness re-solved so
+  // each token lands within 0.0003 of the luminance it had before.
+  // That is what keeps "not brighter" true in the only sense that
+  // matters here: every contrast pairing measured against the table
+  // is unchanged, frost-on-timber included (10.09:1 → 10.05:1).
+  // Pick new values the same way, not by eye: a redder table read
+  // as lighter would quietly cost the light-on-dark palette its
+  // whole margin.
+  timber:      '#482A22',
+  timberLight: '#7F5444',
+  timberSeam:  '#220F0B',
+  // ── Scrap paper stock, 2026-09-13 ──────────────────────────
+  // A card in your HAND is crisp `frost` cream. A card in a SCRAPS
+  // pile is torn, weathered stock — and the two piles print on two
+  // different papers, which is what carries ownership now that the
+  // coloured box around each pile is gone. `stockPale` is a
+  // bleached scrap (yours), `stockKraft` a browner one (hers).
+  //
+  // Both print the SAME near-black `ink`: 9.49:1 and 7.90:1, so
+  // both clear AAA with room to spare. That single-ink fact is
+  // why the suits could go — `emberInk` red measured 3.72:1 on a
+  // weathered stock and failed AA outright, and a red pip was the
+  // only thing that ever needed a second ink.
+  //
+  // The two differ in WARMTH, not lightness (38°/32% vs 28°/44%),
+  // so the pair survives colourblindness and greyscale: it reads
+  // as two papers, never as two colour codes.
+  stockPale:   '#D1C1A5',
+  stockKraft:  '#D1AB89',
 };
+// FOUR families, not five, since 2026-09-13. `card` was Baloo 2 — a
+// soft rounded face chosen back when a rank was a 20px corner index.
+// A rank is now a numeral filling the card, printed on torn stock, so
+// it went to Rye: the same western wood type already on the wordmark.
+// `title` and `card` are deliberately the SAME string rather than one
+// aliasing the other, so a future change to either does not silently
+// drag the other with it. Baloo 2 has no consumers and is no longer
+// vendored — see tools/fetch-fonts.mjs.
 export const F = {
   title:   "'Rye', serif",
   display: "'Fjalla One', sans-serif",
-  card:    "'Baloo 2', sans-serif",
+  card:    "'Rye', serif",
   ui:      "'Work Sans', sans-serif",
   mono:    "'IBM Plex Mono', monospace",
 };

@@ -57,7 +57,6 @@ const KEEP_SUBSETS = new Set(['latin', 'latin-ext']);
 const SPEC = [
   { family: 'Rye',           slug: 'rye',           css: 'Rye', preload: true },
   { family: 'Fjalla One',    slug: 'fjalla-one',    css: 'Fjalla+One', preload: true },
-  { family: 'Baloo 2',       slug: 'baloo-2',       css: 'Baloo+2:wght@600;700;800' },
   { family: 'Work Sans',     slug: 'work-sans',     css: 'Work+Sans:wght@400;500;600;700', preload: true },
   { family: 'IBM Plex Mono', slug: 'ibm-plex-mono', css: 'IBM+Plex+Mono:wght@400;500;700' },
 ];
@@ -101,10 +100,12 @@ async function main() {
     const sheet = await get(url);
     const faces = parseFaces(sheet, family).filter((f) => KEEP_SUBSETS.has(f.subset));
     if (!faces.length) throw new Error(`no latin faces parsed for ${family}`);
-    // Work Sans and Baloo 2 are variable fonts: Google serves ONE file per
-    // subset and varies only the font-weight descriptor, so several faces
-    // share a URL. Name by weight only where the weights are genuinely
-    // different files, or we write identical bytes four times over.
+    // Work Sans is a variable font: Google serves ONE file per subset and
+    // varies only the font-weight descriptor, so several faces share a URL.
+    // Name by weight only where the weights are genuinely different files,
+    // or we write identical bytes four times over. (Baloo 2 was the other
+    // variable family here until 2026-09-13, when Rye took over the card
+    // ranks and left it with no consumers.)
     for (const f of faces) f.slug = slug;
     for (const subset of new Set(faces.map((f) => f.subset))) {
       const group = faces.filter((f) => f.subset === subset);

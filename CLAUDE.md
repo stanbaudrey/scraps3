@@ -8,8 +8,12 @@ weapon: discard one to strip two cards from the opponent's Scraps pile, and
 she can counter with an Ace of her own. First to 10. Winning
 both small hands *and* the Scraps hand is a FULL SCRAP, worth 5.
 
-House rule, enforced everywhere in the engine: **flushes are never valid**. A
-five-card suited straight scores as a plain straight, never a straight flush.
+**Cards have no suit.** They carry a rank and an id, and nothing else. That
+was the house rule until 2026-09-13 — "flushes are never valid, a suited
+straight scores as a plain straight" — and it stopped being a rule the day
+the suits were removed, because a flush is now a hand that cannot be dealt
+rather than one the engine declines to score. Nothing had to change in the
+evaluator to make that true: it always read rank and value only.
 
 ## Stack
 
@@ -17,15 +21,21 @@ five-card suited straight scores as a plain straight, never a straight flush.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. 56 tests cover the engine and the reducer. (It was 37
-  until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56.)
-- Fonts are **self-hosted** from `public/fonts` since Session 6 — **five**
-  families, not four: **Rye** (the SCRAPS wordmark, and the storyboard's
-  one HOW TO PLAY title — nothing else), Fjalla One (headings and
-  subtitles), Baloo 2 (card ranks and suits), Work Sans (UI), IBM Plex
-  Mono (mono). Rye replaced **Bungee Shade** on 2026-09-13 at Stan's
-  request; the two `bungee-shade-*.woff2` files were deleted with it and
-  nothing in the project references that family any more. They used to load from
+- Vitest for tests. **53 tests** cover the engine and the reducer. (It was 37
+  until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
+  the card redesign then removed EIGHT flush tests — the spec estimated six —
+  and added five that guard the deck's shape instead, which is the invariant
+  that matters now that createDeck() no longer loops over four suits.)
+  `vite.config.js` excludes `.claude/**` from vitest: a git worktree parked
+  there is a second full checkout and was getting collected twice, reporting
+  111 tests for a project that has 53.
+- Fonts are **self-hosted** from `public/fonts` since Session 6 — **four**
+  families over **12 files**: **Rye** (the SCRAPS wordmark, the storyboard's
+  one HOW TO PLAY title, and every card rank), Fjalla One (headings and
+  subtitles), Work Sans (UI), IBM Plex Mono (mono). Rye replaced **Bungee
+  Shade** on the wordmark on 2026-09-13 and **Baloo 2** on the card ranks
+  later the same day; the `bungee-shade-*` and `baloo-2-*` woff2 files were
+  deleted with them and nothing references either family any more. They used to load from
   `fonts.googleapis.com`; nothing in the app reaches off-origin now. The
   `@font-face` rules live between the `FONT-FACE:BEGIN`/`END` sentinels in
   `index.html` and are **generated — never hand-edit them or the files in
@@ -91,7 +101,7 @@ it fails loudly instead of drifting to another port). Running `npm run dev`
 by hand without those flags starts on 5173 instead.
 
 ```bash
-npm test          # vitest, 56 tests, runs in under a second
+npm test          # vitest, 53 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -206,6 +216,74 @@ looks broken locally, it is not a missing-secret problem.
 
 ## Gotchas
 
+- **A card is a rank and an id.** `createDeck()` builds 52 cards as four
+  copies of thirteen ranks — the four-fold loop is the SAME loop that used
+  to iterate suits, and it is load-bearing for balance (see the next
+  entry), so keep it four whatever it counts. There is no `suit` field and
+  nothing needs one: evaluation, signals, trades and the AI all read rank
+  and value. Two fours are genuinely interchangeable and only `id` tells
+  them apart. Card LABELS are one word now ("king", "nine"), and two cards
+  in a pile can share one, which is correct.
+- **There is ONE ink on a card face.** The two-red-ink system is gone —
+  `emberInk` on the pale hand card and `ember` on the dark Scraps card,
+  picked by `isRed(suit)`. All four of `isRed`, `cardInk`, `SUIT_NAMES`
+  and `inkOverride` were deleted with it. The reason it could go is the
+  reason it existed: a red pip was the only thing that ever needed a
+  second ink, and `emberInk` measured 3.72:1 on a weathered stock, which
+  fails AA. `ink` on either paper stock measures 9.50:1 and 7.91:1.
+- **Two paper stocks carry pile ownership, not a border.** `stockPale`
+  (bleached, yours) and `stockKraft` (browner, hers). They differ in
+  WARMTH rather than lightness, so the pair survives greyscale and
+  colourblindness — it reads as two papers, never as two colour codes.
+  `PlayingCard` takes a `kraft` boolean; there is no colour prop any more.
+- **Card sizes are DERIVED from Rye's metrics, not chosen.** `CARD_DIMS`
+  carries `rank` (the numeral's font size), `gx` and `gy` (its origin from
+  the card's outer edges), and every one of them falls out of measurements
+  taken in a real browser: Q inks to 0.824em right of its origin and
+  overhangs its own advance, A inks 0.034em LEFT of its origin, 7 is
+  0.041em taller than every other rank, and caps start 0.108em below a
+  `line-height:1` box. Guess any of these and it looks perfect on a King
+  and clips on the one Queen in the pile. `small` is the one size that does
+  NOT take the width-derived maximum — see its comment; the reason is the
+  fan, not the card.
+- **The "10" is condensed, never shrunk.** `TEN_SQUEEZE = 0.70`, scaled
+  from the LEFT so all thirteen ranks share a starting line. Setting a
+  two-character rank at a smaller font size makes it read as a different,
+  smaller kind of card; this is the specific thing Stan called out.
+- **Scraps wear is a pure function of card id, and that is load-bearing
+  for MOTION.** `scrapLook(id, aspect)` derives one seeded `wear` scalar
+  and drives the tear, stains, foxing, crease, grime, ink fade and lean
+  from it, memoised in a module-level Map. Card flight is FLIP — the state
+  commits first, then a ghost is measured from the real card at both ends —
+  so a card that re-rolled its own shape between renders would shimmer at
+  rest and change shape mid-flight. Rotation is DECOUPLED from wear and
+  capped at `ROT_MAX = 4`, because a lean that scales with wear collides
+  with a numeral that fills the card.
+- **`box-shadow` ignores `clip-path`, so a torn card uses `drop-shadow`.**
+  An outer box-shadow on a clipped card draws the rectangle the card has
+  stopped being. An INSET one is fine and is how the edge grime works,
+  because it is painted inside the box and then clipped with everything
+  else. The per-card contact shadow is offset LEFT, which is physical
+  rather than stylistic: cards lie left to right and each covers the right
+  of the one before it, so a leftward shadow draws the seam between them.
+- **The zone cue is a filter, not a ring, and `GlowPulse`'s children must
+  be cards and only cards.** It applies `drop-shadow` to a wrapper, so the
+  glow traces the rendered alpha of whatever is inside — which is how it
+  hugs the real torn outlines instead of drawing a rectangle. Putting
+  anything else in there (the pooled pile shadow, a background, a caption)
+  would be traced too and the cue would go back to being a fuzzy box. The
+  pooled shadow is deliberately a SIBLING for exactly this reason.
+  `.live-cue-zone` is the reduced-motion static substitute and is
+  deliberately heavier than the animation's brightest frame, so it reads
+  as unambiguously on rather than as a stopped pulse.
+- **The Scraps pile is one size smaller than the hand, for legibility.**
+  A 7-card pile divides its width seven ways: at `small` in 340px that
+  exposes 40px of an 80px card and a full pile measured as "2 5 7 1 J Q K",
+  with the 10 showing as a 1. At `tiny` the same 340px exposes 72% and all
+  seven ranks read. Change pile sizes in `SIZES` in `GameScreen.jsx`, never
+  inside the zone — `flight.jsx` derives a ghost's landing scale from
+  `CARD_DIMS[toSize]`, so a zone rendering a size other than the one it was
+  passed would land every flight wrong.
 - **One deck now, not two.** `createDeck()` used to build two full 52-card
   decks (104 cards, 8 copies of every rank) — deliberate at the time, but it
   turned out to be why four-of-a-kind Scraps hands came up far more than a
@@ -341,9 +419,11 @@ versions and should not be deployed to.
 - **There is no README, and never was one.** Nothing in git history has ever
   added a `.md` file. So there are no stale README claims to correct.
   The "rules are written down nowhere" half of this gap closed in Session 7:
-  `public/llms.txt` states the full ruleset, including the no-flushes house
-  rule and the win condition, and it is generated from `WIN_SCORE` so it
-  cannot drift from the engine. It is written for crawlers rather than for
+  `public/llms.txt` states the full ruleset and the win condition, and it is
+  generated from `WIN_SCORE` so it cannot drift from the engine. (Its
+  no-flushes bullet was removed on 2026-09-13 rather than reworded, along
+  with the matching one in `index.html`'s `<noscript>` block: with no suits
+  there is no rule left to state.) It is written for crawlers rather than for
   a human browsing the repo, so a README would still be worth having.
 - **The git remote is fine, and the note that said otherwise was backwards.**
   This file and PROJECT-BRIEF.md both claimed `origin`

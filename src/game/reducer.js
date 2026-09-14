@@ -391,7 +391,7 @@ export function gameReducer(state, action) {
         discard: [...state.discard, ace, ...targets],
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
-        log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank + c.suit).join(', ')} from opponent's Scraps.`),
+        log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank).join(', ')} from opponent's Scraps.`),
       };
     }
 
@@ -451,7 +451,7 @@ export function gameReducer(state, action) {
         playerScraps: state.playerScraps.filter(c => !targetIds.has(c.id)),
         discard: [...state.discard, ace, ...targets],
         pendingAiAce: null,
-        log: addLog(state, action.logMsg || `Removed ${targets.map(c => c.rank + c.suit).join(', ')} from your Scraps.`),
+        log: addLog(state, action.logMsg || `Removed ${targets.map(c => c.rank).join(', ')} from your Scraps.`),
       };
     }
 
