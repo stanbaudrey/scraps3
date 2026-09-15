@@ -25,7 +25,10 @@
 // REST continues. One real, visually quiet <button> stays in the
 // DOM so Enter, Space and a screen reader have the same way
 // forward, and the layer is a dialog with the focus trap every
-// modal in overlays.jsx uses.
+// modal in overlays.jsx uses. NOTHING ADVANCES ITSELF except a
+// match-ending reveal running on into the match screen: the ROUND N
+// sign and the Clean Sweep beat both used to, and both wait for a
+// tap since 2026-09-14 (Stan).
 //
 // Skipping is per BEAT, not per screen. `fast` carries three flags
 // — the build (loser, slap, verdict, tick), the Clean Sweep beat,
@@ -76,8 +79,10 @@ const DEAL = { dur: 380, stagger: 70 };
 const FLIP = { dur: 520, stagger: 85 };
 // ROUND N: six glyphs at the wordmark's 90ms stagger overrun 1.5s
 // once a riffle follows, so the sign uses 55ms. Entrance done by
-// ~0.88s, one riffle pass to ~1.26s, advance at 1.35s.
-const SIGN = { stagger: 55, riffleAt: 800, riffleStagger: 25, riffle: 380, lineAt: 650, advance: 1350 };
+// ~0.88s, one riffle pass to ~1.26s, at rest by 1.35s — and then it
+// WAITS. It advanced itself at 1.35s until 2026-09-14 (Stan: "don't
+// automatically progress past the Round X screen").
+const SIGN = { stagger: 55, riffleAt: 800, riffleStagger: 25, riffle: 380, lineAt: 650, settle: 1350 };
 const SWEEP_EASE = 'cubic-bezier(.5,0,.9,.6)';
 // Hard drop, no glow. The verdict, the Clean Sweep title, the winning
 // score and the final score all carried a coloured glow text-shadow,
@@ -119,9 +124,9 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
   const rootRef = useRef(null);
   const R = useMemo(prefersReducedMotion, []);
   const dialogRef = useDialogFocus(true);
-  // The sign's dealer line rides in the dialog's name, because the
-  // sign auto-advances before any live region would get to it and
-  // who acts first is real information.
+  // The sign's dealer line rides in the dialog's name: who acts first
+  // is real information, and the name is read the moment the layer
+  // opens rather than whenever a live region gets round to it.
   const signMP = stage.kind === 'sign' && ((stage.playerScore || 0) >= MATCH_POINT || (stage.aiScore || 0) >= MATCH_POINT);
   const label = stage.kind === 'sign'
     ? `Round ${stage.roundNum}. ${stage.roundNum % 2 === 1 ? 'You go first.' : 'Opponent goes first.'}${signMP ? ' Match point.' : ''}`
@@ -222,25 +227,36 @@ function QuietButton({ onClick, children, show = true, style = {}, buttonRef = n
 // wordmark's riffle is 62% stillness and cannot be run once). The
 // dealer line sits small under it in Fjalla, because who acts first
 // is real information and the log is the only other place it lives.
-// Under 1.5s from the first letter moving to the next screen.
+// At rest inside 1.4s, then it holds for a tap, the same contract as
+// every reveal: a tap mid-entrance lands it, a tap at rest deals.
 // ─────────────────────────────────────────────────────────────
 function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const letters = `ROUND ${roundNum}`.split('');
   const { at, clear } = useTimeline(1);
   const doneRef = useRef(false);
+  const [settled, setSettled] = useState(!!instant);
   const finish = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
     clear();
     onDone();
   }, [clear, onDone]);
+  const tap = useCallback(() => {
+    if (settled) { finish(); return; }
+    clear();
+    setSettled(true);
+  }, [settled, finish, clear]);
   useEffect(() => {
     if (!instant) playRoundSign();
-    if (!instant) at(SIGN.advance, finish);
+    if (!instant) at(SIGN.settle, () => setSettled(true));
   }, []);
-  const stop = R || instant;
+  // Once settled the entrances come off: every one of them ends on
+  // the resting frame (letterAppear fills `both`, the riffle ends
+  // where it began), so dropping them after they finish changes
+  // nothing, and dropping them EARLY on a tap lands the sign at once.
+  const stop = R || instant || settled;
   return (
-    <div onClick={finish}
+    <div onClick={tap}
       style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',gap:'clamp(10px,2.4vh,22px)',
         padding:16,cursor:'pointer'}}>
@@ -264,7 +280,9 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
         {matchPoint && <span style={{color:DS.gold}}> · MATCH POINT</span>}
       </div>
       <div style={{position:'absolute',bottom:'clamp(8px,3vh,28px)'}}>
-        <QuietButton onClick={finish} style={{opacity:.55}}>Skip</QuietButton>
+        <QuietButton onClick={tap} style={settled ? {} : {opacity:.55}}>
+          {settled ? 'Tap to continue' : 'Skip'}
+        </QuietButton>
       </div>
     </div>
   );
@@ -441,7 +459,8 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, 
                 <PlayingCard card={null} faceDown size={size} liftTransform={false}/>
               </div>
               <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
-                <PlayingCard card={{ id:`letter-${k}`, rank:ch }} rankScale={0.84} size={size} liftTransform={false}/>
+                <PlayingCard card={{ id:`letter-${k}`, rank:ch }} rankScale={0.84} rankAlign="center"
+                  size={size} liftTransform={false}/>
               </div>
             </div>
           </div>
@@ -452,8 +471,10 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, 
 }
 
 const T = {
-  title: {fontFamily:F.display,color:DS.slateLight,letterSpacing:'0.12em',fontSize:'clamp(20px,3.4vw,28px)',lineHeight:1},
-  side:  {fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700,lineHeight:1},
+  // Rye (Stan, 2026-09-14) — the eighth consumer on theme.js's list.
+  // Tracked tighter than the Fjalla it replaced: Rye is a wide face
+  // and 0.12em on it read as gapped.
+  title: {fontFamily:F.title,color:DS.slateLight,letterSpacing:'0.05em',fontSize:'clamp(22px,3.6vw,30px)',lineHeight:1,textShadow:DROP},
   hand:  {fontFamily:F.display,fontSize:'clamp(20px,3.2vw,26px)',letterSpacing:'0.06em',lineHeight:1.1},
 };
 
@@ -472,8 +493,12 @@ const T = {
 // animations at zero duration lands every element exactly where the
 // full choreography would have left it.
 // ─────────────────────────────────────────────────────────────
+// `csRest` is the Clean Sweep beat at rest: title in, bonus point
+// rolled, waiting for a tap. It did not exist while the beat swept
+// itself after a hold (Stan, 2026-09-14: "don't automatically progress
+// past the Clean Sweep screen").
 const STEPS = ['open','loser','slap','winlabel','verdict','tick','rest',
-               'cleanSweep','sweep','deal','flip','final'];
+               'cleanSweep','csRest','sweep','deal','flip','final'];
 const idx = (s) => STEPS.indexOf(s);
 
 function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
@@ -515,6 +540,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const slapCount = tie ? 0 : winnerCards.length;
   const slapAt = 420;
   const slapEnd = slapAt + slapCount * SLAP.stagger;
+  // In a Scraps reveal up to seven cards slap down but only the five
+  // that make the hand are lit; the dimmed extras land SILENT (Stan,
+  // 2026-09-14). A hand reveal has no dimmed cards and every card
+  // sounds. The table still shivers under each landing either way.
+  const winnerBestIds = mineWon ? playerBestIds : aiBestIds;
+  const slapSounds = (i) => !isScraps || !winnerBestIds || winnerBestIds.has(winnerCards[i].id);
 
   // The outcome cue lands WITH the score, not with the screen. It
   // used to fire when the reveal mounted, two seconds before the
@@ -548,7 +579,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       at(slapAt, () => playSlap());
     } else {
       for (let i = 0; i < slapCount; i++) {
-        at(slapAt + i * SLAP.stagger + SLAP.land, () => { shake(2); playSlap(); });
+        const loud = slapSounds(i);
+        at(slapAt + i * SLAP.stagger + SLAP.land, () => { shake(2); if (loud) playSlap(); });
       }
     }
     at(slapEnd + 120, () => setStep('winlabel'));
@@ -570,7 +602,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   useEffect(() => {
-    if (step === 'rest' && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
+    if ((step === 'rest' || step === 'csRest') && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
     if (step === 'final' && finalBtnsRef.current) {
       const b = finalBtnsRef.current.querySelector('button');
       if (b) b.focus();
@@ -579,12 +611,14 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
   useEffect(() => {
     if (step !== 'cleanSweep') return;
-    if (!fast.beat) playCleanSweep();
+    // Her sweep is a LOSS and sounds like one (Stan, 2026-09-14): the
+    // round-lost run rather than the ten-bar climb, which is yours.
+    if (!fast.beat) (aiSweep ? playRoundLost : playCleanSweep)();
     // Title in (letters at 55ms), bonus line, the bonus point rolls
-    // in, a hold — then the sweep. If the match ends here the roll
-    // is the Rye jump and the hold covers it.
+    // in — then the beat RESTS and waits for a tap; it no longer
+    // sweeps itself. If the match ends here the roll is the Rye jump.
     if (endsIt) at(fast.beat ? 0 : 1100, cueEnd);
-    at(fast.beat ? 0 : (endsIt ? 2600 : 2100), runSweep);
+    at(fast.beat ? 0 : 1500, () => setStep('csRest'));
   }, [step]);
 
   // The sweep measures the REAL position of everything on the
@@ -673,14 +707,15 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       return;
     }
     if (s === 'cleanSweep') {
-      // Skip the beat's hold, not the beat: the bonus point is
-      // already on screen, so this goes straight to the sweep.
+      // Mid-beat: land on the beat's resting frame, bonus point in.
+      // A second tap sweeps.
       clear();
       setFast(f => ({ ...f, beat: true }));
       if (endsIt) cueEnd();
-      runSweep();
+      setStep('csRest');
       return;
     }
+    if (s === 'csRest') { runSweep(); return; }
     if (s === 'sweep' && !endsIt) {
       // The round's sweep hands off at once. Safe by construction —
       // the layer stays mounted and the ROUND sign lands on the same
@@ -729,7 +764,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const showWinLbl  = i >= idx('winlabel') || tie;
   const showVerdict = i >= idx('verdict');
   const ticked      = i >= idx('tick') && !tie;
-  const atRest      = step === 'rest';
+  const atRest      = step === 'rest' || step === 'csRest';
   const sweeping    = step === 'sweep';
   const matchScreen = i >= idx('deal');
   const beatOn      = sweepBeat && i >= idx('cleanSweep');
@@ -752,13 +787,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const show = isWinner ? showSlap : showLoser;
     if (!show) return <div style={{height: CARD_DIMS[cardSize].h + 60}}/>;
     const hidden = isWinner && !showWinLbl;
-    const label = (
-      <div data-sweep="text" data-sweep-id={`lbl-${who}`} className={fadeCls}
-        style={{...T.side, opacity: hidden ? 0 : 1,
-          animation: textAnim(`lbl-${who}`, hidden ? undefined : fadeIn(240))}}>
-        {isP ? 'YOU' : 'OPPONENT'}
-      </div>
-    );
+    // The OPPONENT / YOU labels that sat above her row and below yours
+    // went on 2026-09-14 (Stan). Top is hers and bottom is yours on
+    // every screen of the game, the papers say whose pile a Scraps row
+    // is, and the score row underneath still names both sides.
     const name = (
       <div data-sweep="text" data-sweep-id={`name-${who}`} className={fadeCls}
         style={{...T.hand, color: isWinner ? (isP ? DS.voltage : DS.ember) : DS.slate,
@@ -775,7 +807,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     );
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-        {isP ? <>{row}{name}{label}</> : <>{label}{row}{name}</>}
+        {row}{name}
       </div>
     );
   };
@@ -870,8 +902,11 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',padding:'0 14px',
             animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : btnDelay}ms both` : undefined,
             opacity: showFinal ? 1 : 0, pointerEvents: showFinal ? 'auto' : 'none'}}>
-          <Btn variant={won ? 'gold' : 'primary'} onClick={onNewGame}>New Game</Btn>
-          <Btn variant="ghost" onClick={doShare} disabled={shareState === 'busy'}>
+          {/* Both green (Stan, 2026-09-14): every filled button in the
+              game is voltage now, SHARE included, and NEW GAME lost its
+              gold on the win for the same rule. */}
+          <Btn onClick={onNewGame}>New Game</Btn>
+          <Btn onClick={doShare} disabled={shareState === 'busy'}>
             {shareState === 'copied' ? 'Copied' : shareState === 'failed' ? "Couldn't share" : 'Share'}
           </Btn>
         </div>

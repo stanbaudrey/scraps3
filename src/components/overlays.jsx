@@ -128,7 +128,7 @@ const CARD_PAD = 'clamp(18px,5vw,32px)';
 //
 // The Play Ace control here is an ILLUSTRATION, not a control: it
 // shows the player exactly what they are about to see on the
-// table — a gold tag sitting on top of an Ace, leaning with it —
+// table — a green tag sitting on top of an Ace, leaning with it —
 // so the real one is recognised on sight rather than discovered.
 // It shares one wiggle wrapper with the card for that reason; two
 // separate animations would drift apart and break the pairing.
@@ -189,11 +189,15 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
         </div>
 
         <button onClick={onDismiss} style={{
-          background:DS.gold,color:DS.ink,border:'none',
+          // Voltage, not gold (Stan, 2026-09-14): every filled button in
+          // the game is green now, so the one colour means "push this".
+          // The box's gold frame stays — drawing an Ace is a milestone,
+          // the button is not.
+          background:DS.voltage,color:DS.ink,border:'none',
           padding:'16px 44px',borderRadius:10,cursor:'pointer',
           fontFamily:F.ui,fontWeight:700,fontSize:18,
           letterSpacing:'0.1em',textTransform:'uppercase',
-          boxShadow:`0 0 24px ${DS.gold}88`,
+          boxShadow:`0 0 24px ${DS.voltage}88`,
           // Declares more than the 44px floor, for the reason
           // MODAL_BTN_MIN records. Measured at rest 2026-09-14: it
           // renders the full 54 at all six QA viewports, because Shell
@@ -210,16 +214,24 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
 // ─────────────────────────────────────────────────────────────
 // AceCounterModal — prompt player to counter opponent's ace
 // ─────────────────────────────────────────────────────────────
-export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
+// `afterCounter`: this Ace follows one the player just cancelled. She
+// had another; say so, because the player has just watched both Aces
+// leave the table and a second attack with no acknowledgement reads
+// as the game forgetting what happened (Stan, 2026-09-14).
+export function AceCounterModal({ onCounter, onAllow, playerScraps, afterCounter = false }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent played an Ace — counter or allow">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel={afterCounter
+      ? "Opponent played another Ace — counter or allow" : "Opponent played an Ace — counter or allow"}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
         <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
-          letterSpacing:'0.06em',marginBottom:14}}>OPPONENT PLAYS ACE!</div>
+          letterSpacing:'0.06em',marginBottom:14}}>
+          {afterCounter ? 'SHE HAD ANOTHER ACE!' : 'OPPONENT PLAYS ACE!'}
+        </div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
-          She will remove two cards from your Scraps.
+          {afterCounter ? 'She plays it. It will remove two cards from your Scraps.'
+            : 'She will remove two cards from your Scraps.'}
         </p>
         {/* Show player's scraps so they know what's at stake */}
         {playerScraps&&playerScraps.length>0&&(
@@ -243,7 +255,7 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
           trades it for hers instead of saving it for an attack of your own.
         </p>
         <div style={{display:'flex',gap:16,justifyContent:'center'}}>
-          <Btn variant="danger" onClick={onCounter}>
+          <Btn onClick={onCounter}>
             <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
               Counter <IconBolt size={16}/> Cancel Her Ace
             </span>
@@ -261,15 +273,19 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps }) {
 // counter with): the two targeted cards are revealed in the
 // center of the table. On OK they animate to the discard pile.
 // ─────────────────────────────────────────────────────────────
-export function OpponentAceReveal({ targets, onOk }) {
+export function OpponentAceReveal({ targets, onOk, afterCounter = false }) {
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent's Ace removed two of your Scraps cards">
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel={afterCounter
+      ? "She had another Ace. It removed two of your Scraps cards"
+      : "Opponent's Ace removed two of your Scraps cards"}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
         <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
-          OPPONENT plays an Ace and removes two cards from your Scraps
+          {afterCounter
+            ? 'She had another Ace. It removes two cards from your Scraps'
+            : 'OPPONENT plays an Ace and removes two cards from your Scraps'}
         </div>
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:24}}>
           {(targets||[]).map((c,i)=>(
@@ -278,7 +294,7 @@ export function OpponentAceReveal({ targets, onOk }) {
             </div>
           ))}
         </div>
-        <Btn variant="danger" onClick={onOk}>OK</Btn>
+        <Btn onClick={onOk}>OK</Btn>
       </div>
     </Shell>
   );
@@ -289,6 +305,16 @@ export function OpponentAceReveal({ targets, onOk }) {
 // Both Aces are shown cancelled; nothing was removed.
 // ─────────────────────────────────────────────────────────────
 export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) {
+  // THE BLACK SCREEN (Stan, 2026-09-14: "sometimes, when I hit DISCARD
+  // to attack my opponent's two cards, the screen goes black and I have
+  // to reload"). This modal read `cardSize` on the line below and no
+  // such variable existed — a ReferenceError thrown from render, which
+  // React answers by unmounting the whole tree onto the dusk body. It
+  // only fired when the opponent COUNTERED, so it looked intermittent:
+  // an attack she let through never opened this modal at all. Nothing
+  // in `npm test` renders a component, which is why 53 tests were green
+  // over a crash on one of the game's two signature moments.
+  const cardSize = 'normal';
   return (
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace">
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
@@ -429,8 +455,12 @@ export function QuitConfirmModal({ onQuit, onCancel }) {
           record is only updated for matches played to a finish.
         </p>
         <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+          {/* ONE green thing per screen (Stan's rule, 2026-09-14: "the
+              player should learn that the GREEN thing is what they
+              should push"). Quitting is the way out, not the thing to
+              push, so it is the ghost here rather than a second fill. */}
           <Btn onClick={onCancel}>Keep Playing</Btn>
-          <Btn variant="danger" onClick={onQuit}>Quit to Menu</Btn>
+          <Btn variant="ghost" onClick={onQuit}>Quit to Menu</Btn>
         </div>
       </div>
     </Shell>

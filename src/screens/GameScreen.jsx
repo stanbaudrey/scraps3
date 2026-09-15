@@ -166,13 +166,11 @@ export function GameScreen({ difficulty, onExit }) {
   const showInterstitial = !!stage && stage.kind === 'sign';
   const tableWoodRef = useRef(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
-  // Set when the player signals INTO an opponent signal that is already
-  // on the table. There is nothing left to decide at that point — both
-  // hands are committed — so the SHOW 'EM press was a button whose only
-  // job was to be pressed. Captured at the moment of signalling rather
-  // than derived at reveal time, because by then `aiSignal` is set in
-  // BOTH orders and can no longer tell you which came first.
-  const [autoReveal, setAutoReveal]         = useState(false);
+  // `autoReveal` lived here until 2026-09-14: when the player signalled
+  // INTO an opponent signal already on the table, the reveal ran itself
+  // and SHOW 'EM never appeared. Stan put the button back for that case
+  // ("keep that clickable button in place because it's a big deal"), so
+  // every reveal is now pressed for, whoever signalled first.
   const [waveIds, setWaveIds]               = useState(new Set());
   // Cards that belong to a hand but have not been dealt out of the
   // deck yet. RoundInterstitial is a SCRIM, not a cover: it sits at
@@ -298,7 +296,7 @@ export function GameScreen({ difficulty, onExit }) {
     setSelected([]); setScrapsDiscard([]);
     setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
-    setAutoReveal(false); setAiSignaledIds(new Set());
+    setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
     // The two cards that START in each Scraps pile are hidden with the
@@ -613,24 +611,31 @@ export function GameScreen({ difficulty, onExit }) {
   //   table. The player clicks OK.
   // Step 3: the two cards animate from the center to the discard
   //   pile, then play resumes. No silent removals ever.
-  function handleAiAce(aiAce, targetCards) {
+  // `afterCounter`: this Ace follows one the player just cancelled.
+  // Every entry into the sequence comes through HERE, because this is
+  // the one place that asks whether the player actually holds an Ace
+  // before offering the counter — see onPlayerCounterAce for the path
+  // that used to skip it.
+  function handleAiAce(aiAce, targetCards, afterCounter = false) {
     const s = stateRef.current;
     const playerHasAceNow = s.playerHand.some(c => c.rank === 'A');
     if (playerHasAceNow && s.playerScraps.length >= 2) {
       // Step 1: pause and ask the player — targets stay hidden
-      dispatch({ type: 'AI_ACE_PENDING', ace: aiAce, targets: targetCards });
+      dispatch({ type: 'AI_ACE_PENDING', ace: aiAce, targets: targetCards, afterCounter });
     } else {
       // No Ace to counter with — skip straight to Step 2
-      openAiAceReveal(aiAce, targetCards);
+      openAiAceReveal(aiAce, targetCards, afterCounter);
     }
   }
 
-  function openAiAceReveal(aiAce, targets) {
+  function openAiAceReveal(aiAce, targets, afterCounter = false) {
     // Dim the targeted cards in the Scraps pile while their copies
     // are shown center-table
     setScrapsFadeIds(new Set(targets.map(c => c.id)));
-    setAiAceReveal({ ace: aiAce, targets });
-    dispatch({ type: 'LOG', msg: 'Opponent plays an Ace and removes two cards from your Scraps.' });
+    setAiAceReveal({ ace: aiAce, targets, afterCounter });
+    dispatch({ type: 'LOG', msg: afterCounter
+      ? 'She had another Ace. It removes two cards from your Scraps.'
+      : 'Opponent plays an Ace and removes two cards from your Scraps.' });
   }
 
   function onPlayerCounterAce() {
@@ -643,8 +648,19 @@ export function GameScreen({ difficulty, onExit }) {
     // countered does not end an attacker's option if they are still
     // holding an Ace. If the opponent has another and your Scraps is
     // still a legal target, it comes straight back with it, and you may
-    // counter that one too. Scheduled rather than dispatched inline so
-    // the cancelled Aces are visibly gone before the next one lands.
+    // counter that one too — IF you still hold an Ace. Scheduled rather
+    // than dispatched inline so the cancelled Aces are visibly gone
+    // before the next one lands.
+    //
+    // THE PHANTOM COUNTER (Stan, 2026-09-14: "I counter her first Ace,
+    // she plays a second, and I am asked whether I'd like to counter
+    // again BUT I only had the one Ace"). This timer used to dispatch
+    // AI_ACE_PENDING directly, which opens the counter prompt with no
+    // check at all; the check lives in handleAiAce, and only the AI
+    // runner's first Ace went through it. Every Ace goes through it
+    // now, and the prompt cannot open on a hand with no Ace in it — the
+    // effect on `pendingAiAce` below is the same rule stated as an
+    // invariant, so no future entry path can reintroduce this.
     const s = stateRef.current;
     const spent = pendingAiAce.ace.id;
     const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== spent);
@@ -657,7 +673,7 @@ export function GameScreen({ difficulty, onExit }) {
         const targets = chooseAceTargets(cur.playerScraps);
         if (!targets || targets.length < 2) return;
         playAceStrike();
-        dispatch({ type: 'AI_ACE_PENDING', ace: nextAce, targets });
+        handleAiAce(nextAce, targets, true);
       }, 900);
     }
   }
@@ -667,7 +683,7 @@ export function GameScreen({ difficulty, onExit }) {
     // Step 2: reveal the targeted cards. pendingAiAce stays set
     // (AI_ACE_APPLY clears it) but the counter modal hides while
     // the reveal is up.
-    openAiAceReveal(pendingAiAce.ace, pendingAiAce.targets);
+    openAiAceReveal(pendingAiAce.ace, pendingAiAce.targets, pendingAiAce.afterCounter);
   }
 
   // Step 3: OK clicked — fly the two cards from the center of the
@@ -884,9 +900,9 @@ export function GameScreen({ difficulty, onExit }) {
     const sig = cur.length;
     dispatch({ type: 'PLAYER_SIGNAL', cards: [...cur] });
     if (aiSignal != null) {
-      // AI already signaled first — both signals are in, so there is
-      // nothing to press. The reveal runs itself; see the effect below.
-      setAutoReveal(true);
+      // AI already signaled first — both signals are in. A beat, then
+      // the reveal phase, where SHOW 'EM waits to be pressed exactly as
+      // it does when you signalled first.
       setTimeout(() => {
         dispatch({ type: 'GO_REVEAL' });
       }, 700);
@@ -1047,6 +1063,16 @@ export function GameScreen({ difficulty, onExit }) {
   const forcedAce = noLegalTrade && playerHasAce && aiScraps.length >= 2;
   const mustSkip  = noLegalTrade && !forcedAce && !pendingAiAce;
 
+  // THE INVARIANT behind the counter prompt: it is never asked of a
+  // player with no Ace. If the pending Ace is ever on the table while
+  // the hand holds none — whatever path put it there — it resolves the
+  // way "Let It Happen" would, straight to the reveal. Belt and braces
+  // over the routing fix in onPlayerCounterAce; see the note there.
+  useEffect(() => {
+    if (!pendingAiAce || aiAceReveal || playerHasAce) return;
+    openAiAceReveal(pendingAiAce.ace, pendingAiAce.targets, pendingAiAce.afterCounter);
+  }, [pendingAiAce, aiAceReveal, playerHasAce]);
+
   // Retire the full narrator instruction after the player turn that
   // showed it. Effect rather than render-time mutation, so the render
   // that displays the long form stays pure.
@@ -1107,29 +1133,8 @@ export function GameScreen({ difficulty, onExit }) {
   // board it was covering, then the next thing happens.
   const HANDOFF = { deal: 220, scraps: 520 };
 
-  // The reveal, when nobody has to ask for it. Same two steps the
-  // SHOW 'EM button runs — the 580ms build cue, then resolve — driven
-  // from the phase rather than from a press, so `resolveSmallHand`
-  // closes over the render where `playerPlayed` and `aiPlayed` are
-  // both real. Calling it from doSignal's own timer would have caught
-  // the pre-dispatch snapshot, which is the same trap the hand-off
-  // effect below exists to avoid.
-  useEffect(() => {
-    if (!autoReveal || !isReveal || revealData || revealBuilding || gameOver) return undefined;
-    // `autoReveal` is NOT cleared here, deliberately: it is what keeps
-    // the SHOW 'EM button unrendered, and clearing it up front put the
-    // button back on screen for the 580ms of the build — shaking, as
-    // '▶▶▶', which is the manual path's look on a screen nobody
-    // pressed anything on. `revealBuilding` guards the re-entry
-    // instead, and the flag is dropped when the reveal actually lands.
-    setRevealBuilding(true);
-    playRevealBuild(() => {
-      setRevealBuilding(false);
-      setAutoReveal(false);
-      resolveSmallHand();
-    });
-    return undefined;
-  }, [autoReveal, isReveal, revealData, revealBuilding, gameOver]);
+  // The self-running reveal (the `autoReveal` effect) sat here until
+  // 2026-09-14. Every reveal is pressed for now — see SHOW 'EM below.
   useEffect(() => {
     if (revealData || gameOver) return undefined;
     if (phase === 'replenish') {
@@ -1161,8 +1166,12 @@ export function GameScreen({ difficulty, onExit }) {
   // dropping the branch entirely would let the next condition fill the
   // hint line while cards are still mid-flight. Silent, not absent.
   if (settling) hint = '';
-  else if (aiAceReveal) hint = "Opponent's Ace discards two cards from your Scraps.";
-  else if (pendingAiAce) hint = 'Opponent played an Ace. Counter or let it happen?';
+  else if (aiAceReveal) hint = aiAceReveal.afterCounter
+    ? 'She had another Ace. It discards two cards from your Scraps.'
+    : "Opponent's Ace discards two cards from your Scraps.";
+  else if (pendingAiAce) hint = pendingAiAce.afterCounter
+    ? 'She had another Ace. Counter again, or let it happen?'
+    : 'Opponent played an Ace. Counter or let it happen?';
   else if (isScrapsDiscardMode) {
     const moving = pendingTrade ? pendingTrade.cards.length : 0;
     const lockedInScraps = playerScraps.some(c => !c.eligibleForDiscard);
@@ -1221,16 +1230,12 @@ export function GameScreen({ difficulty, onExit }) {
       you select before she makes her play.</>);
   }
   // There is nobody to wait for when she signalled first: her count is
-  // already on the table and this is the 700ms before the reveal opens
-  // itself. The band holds ONE line from the moment you commit through
-  // to the cards turning over, rather than announcing a wait that is
-  // not happening.
-  else if (isSignal && signalLocked) hint = autoReveal ? 'Both signals in.' : 'Signal locked. Waiting for her...';
-  // "Show 'em?" came off this line on 2026-09-14. Where the button is
-  // still there it says so itself; where the opponent signalled first
-  // there is no button, and asking a question nobody can answer was the
-  // worse half of the two.
-  else if (isReveal) hint = 'Both signals in.';
+  // already on the table and this is the 700ms before SHOW 'EM appears.
+  else if (isSignal && signalLocked) hint = aiSignal != null ? 'Signal locked.' : 'Signal locked. Waiting for her...';
+  // The reveal phase says NOTHING (Stan, 2026-09-14: "omit 'Both signals
+  // in.' — just centre the SHOW 'EM button in the narrator box"). The
+  // button is the whole band there; see `showEm` below.
+  else if (isReveal) hint = '';
   // Only while she is actually deciding. Once she has committed, the
   // band stays quiet through the handover — the log line already says
   // what she did, and the alternative is the narrator announcing a
@@ -1280,6 +1285,39 @@ export function GameScreen({ difficulty, onExit }) {
   // a layout change carries each anchor with the thing it anchors
   // and a card in flight during a rotation still lands on its
   // real destination.
+  // ── The two pile buttons ───────────────────────────────────
+  // DISCARD (the over-7 trade) and REMOVE (the Ace strike) each act on
+  // ONE pile, and in the wide layout that pile is in the right gutter,
+  // a long way from the narrator band. Stan (2026-09-14): "move the
+  // DISCARD button to directly above the Scraps hand to further
+  // clarify where the action is. Same for REMOVE: beneath the
+  // opponent's Scraps." Stacked, the piles sit against the band
+  // anyway, so the buttons stay in it. Compact sizing on the pile,
+  // because two of them have to share a 340px column.
+  const pileBtnCompact = stack ? tight : true;
+  const discardBtns = isScrapsDiscardMode ? (
+    <>
+      <BigBtn compact={pileBtnCompact} onClick={confirmScrapsDiscard} disabled={scrapsDiscard.length!==scrapsOverflow}>
+        Discard ({scrapsDiscard.length}/{scrapsOverflow})
+      </BigBtn>
+      <BigBtn variant="ghost" compact={pileBtnCompact} onClick={cancelScrapsDiscard}>Cancel</BigBtn>
+    </>
+  ) : null;
+  const removeBtns = aceMode ? (
+    <>
+      <BigBtn compact={pileBtnCompact} onClick={confirmAce} disabled={aceTargets.length!==2}>
+        Remove ({aceTargets.length}/2)
+      </BigBtn>
+      <BigBtn variant="ghost" compact={pileBtnCompact} onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
+    </>
+  ) : null;
+  const pileBtnRow = (btns) => btns && (
+    <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap',alignSelf:'stretch',
+      animation:'errRise 0.26s cubic-bezier(.22,1,.36,1)'}}>
+      {btns}
+    </div>
+  );
+
   const oppHandEl = (
     <div ref={aiHandRef} style={{
       opacity:isAiThinking?1:isPlayerTurn?0.5:1,
@@ -1303,6 +1341,8 @@ export function GameScreen({ difficulty, onExit }) {
         registerEl={registerCard} hiddenIds={allHiddenIds}
         isOpponent={true} glowZone={glowOppScraps}
         size={SZ.pile} width={stack?railW:340} fill={stack}/>
+      {/* REMOVE, under her pile, in the wide layout — see pileBtns. */}
+      {!stack&&pileBtnRow(removeBtns)}
     </div>
   );
 
@@ -1327,11 +1367,22 @@ export function GameScreen({ difficulty, onExit }) {
   // so a translucent empty box sat in the middle of the table during
   // every AI turn and every settle. It renders only when it has
   // something to say or something to press.
-  const hasActionButtons = isScrapsDiscardMode
+  // The over-7 DISCARD and the Ace's REMOVE sit in this band only when
+  // the layout is stacked; in the wide layout they sit on their piles
+  // (see pileBtns below), so they do not count as the band's buttons.
+  const hasActionButtons = (stack && isScrapsDiscardMode)
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
-    || aceMode || counterStand
-    || (isSignal && !signalLocked) || (isReveal && !autoReveal)
+    || (stack && aceMode) || counterStand
+    || (isSignal && !signalLocked) || isReveal
     || (pendingAiAce && !aiAceReveal);
+  // SHOW 'EM owns the whole band: no narrator line above it, the button
+  // centred in a box the same height as a normal turn's, so the table
+  // does not jump between the signal and the reveal. The heights are
+  // the measured natural height of the band on a player turn — padding,
+  // the three-line narrator slot, the gap and the action button — and
+  // want re-measuring if any of those change.
+  const showEm = isReveal;
+  const NARRATOR_H = tight ? 152 : 196;
   // The narrator's CHROME comes and goes; its SLOT never does.
   //
   // Returning null when the band had nothing to say collapsed the two
@@ -1348,7 +1399,10 @@ export function GameScreen({ difficulty, onExit }) {
         ? {width:'100%', flexShrink:0}
         : {flexShrink:1, flexBasis:760, maxWidth:760}),
       display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
-      padding:stack?'10px 12px':'14px 20px',
+      // More room under the button than over the narrator (Stan,
+      // 2026-09-14: the action button "seems like it's resting on the
+      // floor of the box").
+      padding:stack?'10px 12px 14px':'14px 20px 20px',
       ...(narratorSilent ? {
         background:'transparent', border:'1px solid transparent',
         // Hold the height too, so the band does not jump as the
@@ -1358,11 +1412,13 @@ export function GameScreen({ difficulty, onExit }) {
         background:`rgba(20,31,25,0.7)`,
         border:`1px solid ${DS.slate}22`,
       }),
+      ...(showEm ? { justifyContent:'center', minHeight: NARRATOR_H } : {}),
       borderRadius:14,
     }}>
       {/* Hint — the game's narrator owns this band (item 6).
-          The over-limit error takes over while active. */}
-      {tradeError ? (
+          The over-limit error takes over while active. SHOW 'EM
+          renders no narrator at all. */}
+      {showEm ? null : tradeError ? (
         <div style={{fontFamily:F.ui,fontSize:tight?17:25,color:DS.ember,
           fontWeight:700,textAlign:'center',lineHeight:1.3,
           // Was errBounce on a bounce curve — a 12px overshoot
@@ -1405,14 +1461,7 @@ export function GameScreen({ difficulty, onExit }) {
           question in the place the player is already looking. */}
       {/* Buttons */}
       <div style={{display:'flex',flexWrap:'wrap',gap:stack?8:12,alignItems:'center',justifyContent:'center'}}>
-        {isScrapsDiscardMode&&(
-          <>
-            <BigBtn variant="warning" compact={tight} onClick={confirmScrapsDiscard} disabled={scrapsDiscard.length!==scrapsOverflow}>
-              Discard ({scrapsDiscard.length}/{scrapsOverflow})
-            </BigBtn>
-            <BigBtn variant="ghost" compact={tight} onClick={cancelScrapsDiscard}>Cancel</BigBtn>
-          </>
-        )}
+        {stack&&discardBtns}
         {/* After a counter, END TURN is the only alternative to spending
             another Ace. It sits in the middle of the action row; the
             ATTACK tags stay above the Aces still in hand. */}
@@ -1435,19 +1484,12 @@ export function GameScreen({ difficulty, onExit }) {
                 move and names the card it would spend. */}
           </>
         )}
-        {aceMode&&(
-          <>
-            <BigBtn variant="gold" compact={tight} onClick={confirmAce} disabled={aceTargets.length!==2}>
-              Remove ({aceTargets.length}/2)
-            </BigBtn>
-            <BigBtn variant="ghost" compact={tight} onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
-          </>
-        )}
+        {stack&&removeBtns}
         {isSignal&&!signalLocked&&(
           <SignalBtn onClick={doSignal} disabled={!selValid} compact={tight}
             handLabel={selValid?signalHandLabel(selectedInHand):null}/>
         )}
-        {isReveal&&!autoReveal&&(
+        {showEm&&(
           <button
             type="button"
             // Busy, not disabled: the build is 580ms and disabling would
@@ -1455,9 +1497,12 @@ export function GameScreen({ difficulty, onExit }) {
             // to assistive tech that the shake says to everyone else.
             aria-busy={revealBuilding}
             className={revealBuilding ? 'live-cue-busy' : undefined}
+            // Voltage, like every filled button (Stan, 2026-09-14). It
+            // was slate, the one filled control on the table that was
+            // not green, on the press that matters most.
             {...pressStyles(
-              el=>{if(!revealBuilding){el.style.background=DS.slateLight;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.slateLight}`;}},
-              el=>{el.style.background=DS.slate;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.slate}88`;}
+              el=>{if(!revealBuilding){el.style.background=DS.voltageHover;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.voltage}`;}},
+              el=>{el.style.background=DS.voltage;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.voltage}66`;}
             )}
             onClick={()=>{
               if(revealBuilding) return;
@@ -1472,9 +1517,9 @@ export function GameScreen({ difficulty, onExit }) {
               fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
               padding:stack?'14px 30px':'18px 44px',fontSize:stack?17:22,
               minHeight:TOUCH_MIN,borderRadius:12,
-              background:DS.slate,color:DS.ink,
-              animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'none',
-              boxShadow:revealBuilding?`0 0 40px ${DS.slate}`:`0 0 20px ${DS.slate}88`,
+              background:DS.voltage,color:DS.ink,
+              animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'popIn 0.45s cubic-bezier(.34,1.6,.64,1)',
+              boxShadow:revealBuilding?`0 0 40px ${DS.voltage}`:`0 0 20px ${DS.voltage}66`,
               transition:'background 60ms, transform 60ms, box-shadow 60ms',
             }}>
             {revealBuilding?'▶▶▶':'Show \u2019em'}
@@ -1490,7 +1535,7 @@ export function GameScreen({ difficulty, onExit }) {
             itself — see the hand-off effect below. */}
         {pendingAiAce&&!aiAceReveal&&(
           <>
-            <BigBtn variant="danger" compact={tight} onClick={onPlayerCounterAce}>
+            <BigBtn compact={tight} onClick={onPlayerCounterAce}>
               <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
                 Counter <IconBolt size={18}/>
               </span>
@@ -1538,8 +1583,11 @@ export function GameScreen({ difficulty, onExit }) {
   );
 
   const playerScrapsEl = (
-    <div ref={playerScrapsRef} style={{flexShrink:0,
+    <div ref={playerScrapsRef} style={{flexShrink:0,display:'flex',flexDirection:'column',
+      alignItems:'center',gap:10,
       opacity:isScrapsDiscardMode||isPlayerTurn||settling?1:0.75,transition:'opacity 0.4s'}}>
+      {/* DISCARD, over your pile, in the wide layout — see pileBtns. */}
+      {!stack&&pileBtnRow(discardBtns)}
       <HorizontalScrapsZone
         cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
         label="Your Scraps"
@@ -1548,7 +1596,8 @@ export function GameScreen({ difficulty, onExit }) {
         onCardClick={toggleScrapsDiscardCard}
         discardMode={isScrapsDiscardMode}
         registerEl={registerCard} hiddenIds={allHiddenIds}
-        glowZone={glowPlayerScraps}
+        // The over-7 prompt's cue is the bolder one (GlowPulse `strong`).
+        glowZone={glowPlayerScraps} glowStrong
         size={SZ.pile} width={stack?railW:340} fill={stack}/>
     </div>
   );
@@ -1762,10 +1811,12 @@ export function GameScreen({ difficulty, onExit }) {
           onCounter={onPlayerCounterAce}
           onAllow={onPlayerAllowAce}
           playerScraps={playerScraps}
+          afterCounter={!!pendingAiAce.afterCounter}
         />
       )}
       {aiAceReveal&&(
-        <OpponentAceReveal targets={aiAceReveal.targets} onOk={onAiAceRevealOk}/>
+        <OpponentAceReveal targets={aiAceReveal.targets} onOk={onAiAceRevealOk}
+          afterCounter={!!aiAceReveal.afterCounter}/>
       )}
       {aiCounterNotice&&(
         <AiCounterNotice

@@ -14,8 +14,9 @@ import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdr
 import { loadStats } from "../game/stats.js";
 import { TAGLINE } from "../share.js";
 
-// The SUBTITLE is back (Stan, 2026-09-14): "Poker with both hands", in
-// Fjalla, between the wordmark and PLAY. It was removed 2026-09-13 —
+// The SUBTITLE is back (Stan, 2026-09-14): "Play poker with both hands"
+// (his revision later the same day; it returned as "Poker with both
+// hands"), in Fjalla, between the wordmark and PLAY. It was removed 2026-09-13 —
 // the previous line was "Build two hands at once." and its 30
 // candidates are still in PROJECT-BRIEF.md — and it returns as the
 // game's ONE line: the same string is the share sentence's tail and

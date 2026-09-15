@@ -17,16 +17,15 @@
 //
 // Every card here is fixed sample data, not a real deal — the
 // cards are hand-picked to be legible (one King on each side of
-// beat 1, a clean 2-9 / 10-K / Ace split on beat 2, a pair and a
-// trip on the scoring beat) and carry no Aces except where the
-// Ace itself is the subject.
+// beat 1, a clean 2-9 / 10-K / Ace split on beat 2; the scoring
+// beat has no cards at all since 2026-09-14) and carry no Aces
+// except where the Ace itself is the subject.
 // ============================================================
 import { useEffect, useState } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard } from "../components/cards.jsx";
 import { SceneBackdrop } from "../components/backdrop.jsx";
-import { IconBolt } from "../components/icons.jsx";
-import { TOUCH_MIN } from "../components/buttons.jsx";
+import { TOUCH_MIN, AceTag } from "../components/buttons.jsx";
 import { playSelect } from "../audio.js";
 import { FitBox } from "../ui/viewport.jsx";
 
@@ -51,14 +50,18 @@ const KING = C('K',13);
 const DRAW_TIERS = [
   { cards: [C('2',2), C('5',5), C('7',7), C('9',9)], label: 'DRAW 1 CARD', tone: DS.slateLight },
   { cards: [C('10',10), C('J',11), C('Q',12), C('K',13)], label: 'DRAW 2 CARDS', tone: DS.voltage },
-  // frost, not gold. gold is reserved for milestones only — Full
-  // Scrap, the win screen, and PLAYING your own Ace as a weapon.
+  // frost, not gold. gold is reserved for milestones only — the
+  // Clean Sweep and the win screen (it marked the ATTACK tag too,
+  // until every button went green on 2026-09-14).
   // Trading an Ace in for three cards is none of those, and the
   // reserved-token rule has drifted here before. The tiers now climb
   // in brightness instead: muted, fern, brightest.
   { cards: [C('A',14)], label: 'DRAW 3 CARDS', tone: DS.frost },
 ];
 
+// The Ace under the ATTACK tag on the last beat — the tag rides on its
+// card in the game, so the storyboard shows it the same way.
+const ACE = C('A',14);
 const OPP_SCRAPS = [C('2',2), C('3',3), C('4',4), C('5',5), C('6',6)];
 // The two cards the Ace takes. Picked off the array BY POSITION, not
 // by re-declaring them: ids are a counter now, so `C('5',5).id` would
@@ -137,14 +140,24 @@ function BeatHands() {
     // by a line. Aligning the columns by their BOTTOMS keeps both
     // cards on one level and lets the taller caption grow upward
     // instead, which is the direction with space in it.
-    <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-end',flexWrap:'wrap'}}>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+    // EQUAL columns (Stan, 2026-09-14: "the two King cards are pushing
+    // slightly to the left of center"). Each column used to be as wide
+    // as its own caption, and "Scraps (visible to opponent)" is about
+    // twice the width of "Hand (private)", so the two cards sat at the
+    // centres of two unequal boxes and the PAIR landed ~30px left of
+    // the screen's axis. Both columns share the row equally now, so
+    // the cards are symmetric about the centre whatever the captions
+    // measure; the wider caption wraps upward, which is the direction
+    // `flex-end` already gives it room in.
+    <div style={{display:'flex',gap:26,justifyContent:'center',alignItems:'flex-end',flexWrap:'wrap',
+      width:'100%',maxWidth:620}}>
+      <div style={{flex:'1 1 0',minWidth:150,maxWidth:290,display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
         <HandIntro><b style={{color:DS.frost}}>Hand</b> (private)</HandIntro>
         <Panel labelColor={DS.slate}>
           <CardRow cards={[KING]} size="normal"/>
         </Panel>
       </div>
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+      <div style={{flex:'1 1 0',minWidth:150,maxWidth:290,display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
         <HandIntro><b style={{color:DS.voltage}}>Scraps</b> (visible to opponent)</HandIntro>
         <Panel labelColor={DS.voltage} borderColor={`${DS.voltage}66`}>
           {/* The SAME card as the panel beside it, which is now the
@@ -196,8 +209,8 @@ function BeatTrade() {
   );
 }
 
-// ── Beat 3 — the Ace play ────────────────────────────────────
-// A still frame of the two taps it takes: the PLAY ACE button,
+// ── Beat 4 — the Ace play ────────────────────────────────────
+// A still frame of the two taps it takes: the ATTACK tag on an Ace,
 // then two cards toggled in the opponent's Scraps.
 function TapGlyph({ size = 46 }) {
   return (
@@ -213,18 +226,23 @@ function TapGlyph({ size = 46 }) {
 function BeatAce() {
   return (
     <div style={{display:'flex',gap:30,alignItems:'center',justifyContent:'center',flexWrap:'wrap'}}>
-      {/* The button, mid-tap */}
+      {/* The button, mid-tap. It is the game's own ATTACK tag on an Ace
+          (Stan, 2026-09-14: "shape the button to look more like the
+          in-game ATTACK button, including the new green colour" — and
+          no lightning bolt). The tag is one card wide and sits on top
+          of the card it would spend, exactly as it does in the hand,
+          so the reader meets the real control here and recognises it
+          on the table rather than a gold pill that resembled nothing
+          in the game. `live={false}` renders it inert and hidden from
+          assistive tech, the same way the drawn-Ace box shows it. */}
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
         <Wig>
-          <div style={{position:'relative'}}>
-            <div style={{background:DS.gold,color:DS.ink,borderRadius:12,
-              padding:'18px 32px',fontFamily:F.ui,fontWeight:700,fontSize:20,
-              letterSpacing:'0.08em',textTransform:'uppercase',
-              boxShadow:`0 0 26px ${DS.gold}88`,
-              display:'inline-flex',alignItems:'center',gap:10}}>
-              Attack <IconBolt size={18}/>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+            <div style={{position:'relative'}}>
+              <AceTag live={false} width={104}/>
+              <TapGlyph/>
             </div>
-            <TapGlyph/>
+            <PlayingCard card={ACE} size="normal" liftTransform={false}/>
           </div>
         </Wig>
       </div>
@@ -271,23 +289,19 @@ function BeatAce() {
   );
 }
 
-// ── Beat 4 — how a round scores ──────────────────────────────
-function ScoreSlot({ label, points, cards, isScrap = false, tone, delay }) {
+// ── Beat 3 — how a round scores ──────────────────────────────
+// Three boxes and nothing else (Stan, 2026-09-14: "remove the cards,
+// keep the boxes"). Each used to carry a sample pair or trip, which
+// put six more poker hands on a beat whose only point is the three
+// numbers. A point value is a label now, not a hand.
+function ScoreSlot({ label, points, tone }) {
   return (
     <div style={{background:DS.duskMid,border:`2px solid ${tone}55`,borderRadius:14,
-      padding:'14px 18px 16px',display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
-      <div style={{display:'flex',gap:6}}>
-        {cards.map((c, i) => (
-          <Wig key={c.id} delay={delay + i * 110}>
-            <PlayingCard card={c} size="tiny" isScrap={isScrap} liftTransform={false}/>
-          </Wig>
-        ))}
-      </div>
-      <div style={{textAlign:'center'}}>
-        <div style={{fontFamily:F.mono,fontSize:11,letterSpacing:'0.16em',
-          color:DS.slate,textTransform:'uppercase'}}>{label}</div>
-        <div style={{fontFamily:F.display,fontSize:26,color:tone,letterSpacing:'0.04em'}}>{points}</div>
-      </div>
+      padding:'16px 22px 18px',minWidth:124,display:'flex',flexDirection:'column',
+      alignItems:'center',gap:6}}>
+      <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.16em',
+        color:DS.slate,textTransform:'uppercase'}}>{label}</div>
+      <div style={{fontFamily:F.display,fontSize:30,color:tone,letterSpacing:'0.04em',lineHeight:1}}>{points}</div>
     </div>
   );
 }
@@ -295,12 +309,9 @@ function ScoreSlot({ label, points, cards, isScrap = false, tone, delay }) {
 function BeatScoring() {
   return (
     <div style={{display:'flex',gap:14,alignItems:'center',justifyContent:'center',flexWrap:'wrap'}}>
-      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight} delay={0}
-        cards={[C('8',8), C('8',8)]}/>
-      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight} delay={120}
-        cards={[C('J',11), C('J',11)]}/>
-      <ScoreSlot label="Scraps hand" points="2 PTS" tone={DS.voltage} delay={240} isScrap
-        cards={[C('K',13), C('K',13), C('K',13)]}/>
+      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight}/>
+      <ScoreSlot label="Hand" points="1 PT" tone={DS.slateLight}/>
+      <ScoreSlot label="Scraps" points="2 PTS" tone={DS.voltage}/>
     </div>
   );
 }
@@ -328,13 +339,23 @@ const BEATS = [
     below: 'Both hands have a 7 card limit.',
   },
   {
-    copy: (
-      <>Play two hands, then your best Scraps. Play to {WIN_SCORE}.</>
-    ),
+    copy: <>Play two hands, then your best Scraps.</>,
     visual: <BeatScoring/>,
+    // "Play to 10" moved off the top line and under the boxes, in
+    // bold, with the bonus beside it (Stan, 2026-09-14). The Clean
+    // Sweep is named on the table when it happens; here it is just
+    // the arithmetic.
+    below: (
+      <>
+        <span style={{color:DS.slateLight,fontWeight:500}}>Win all three for a bonus +1.</span>{' '}
+        <b style={{color:DS.frost,fontWeight:700}}>Play to {WIN_SCORE}.</b>
+      </>
+    ),
   },
   {
-    copy: <>Aces can <b style={{color:DS.gold}}>attack.</b> Discard two cards from opponent’s Scraps.</>,
+    // voltage, not gold: the ATTACK tag is green now and the word
+    // should match the control it names.
+    copy: <>Aces can <b style={{color:DS.voltage}}>attack.</b> Discard two cards from opponent’s Scraps.</>,
     visual: <BeatAce/>,
     cta: 'Let’s Play',
   },

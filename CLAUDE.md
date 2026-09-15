@@ -264,8 +264,9 @@ looks broken locally, it is not a missing-secret problem.
   PNG result card drawn on a canvas, share sheet without files, clipboard
   with a COPIED state), the share sentence, and `TAGLINE`.
 - **`src/screens/MenuScreens.jsx`** — the splash (wordmark, the subtitle
-  "Poker with both hands" in Fjalla — back since 2026-09-14 after a day
-  away — and one button) and the difficulty picker.
+  "Play poker with both hands" in Fjalla — back since 2026-09-14 after a
+  day away, reworded by Stan later the same day — and one button) and the
+  difficulty picker.
   The picker's two panels — and its **BACK** button, added the same day —
   are inert for `ARM_MS` (720ms) after mount so a click-streak carried
   over from the walkthrough can't pick a difficulty by accident. BACK
@@ -525,6 +526,23 @@ looks broken locally, it is not a missing-secret problem.
   is now the `roundSign` voice, retimed to the ROUND N sign's letters and
   routed through the bus and TRIM like every other cue. Nothing plays
   straight to `ctx.destination` any more.
+- **Never animate a `drop-shadow` between a `color-mix()` colour and a
+  plain one.** Chrome interpolates that pair through near-black: the pile
+  glow's computed filter read `rgba(7,8,3,.8)` on frames of every cycle,
+  and the "act here" cue ringed the pile in dark brown on the way down.
+  Measured 2026-09-14 in a standalone page; `rgb(from ...)` fails the same
+  way, a hex-with-alpha literal does not. So `GlowPulse` sets the colour at
+  each alpha the keyframes need as inline custom properties (`--glow-55`
+  and so on) and `zoneGlow` / `zoneGlowStrong` read those. `armFlash`
+  (transparent to color-mix) was checked and is fine; the static
+  reduced-motion rule keeps its color-mix because nothing interpolates
+  there.
+- **Nothing on the stage advances itself** except a match-ending reveal
+  running on into the match screen. The ROUND N sign and the Clean Sweep
+  beat both used to; since 2026-09-14 both land, say "Tap to continue",
+  and wait. Every reveal is pressed for too — `autoReveal`, which ran the
+  reveal by itself when you signalled into her signal, is gone, and SHOW
+  'EM is the whole narrator band in the reveal phase.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 
@@ -595,7 +613,7 @@ versions and should not be deployed to.
   the removed code weighed.)
 - **The page title and the share tagline disagree, on purpose for now.**
   The splash, the SHARE sentence and the OG card's strapline all say
-  "Poker with both hands" (Stan, 2026-09-14). The `<title>`, `og:title`
+  "Play poker with both hands" (Stan, 2026-09-14). The `<title>`, `og:title`
   and `twitter:title` still say "SCRAPS - Poker with two hands at once."
   Aligning them is a one-line edit to `index.html` plus `npm run share`,
   and it is Stan's copy call rather than a session's.
@@ -636,4 +654,12 @@ versions and should not be deployed to.
 - **No linter is configured.** There's no ESLint setup and no `lint` script,
   so "run the linter before pushing" currently has nothing to run.
   `npm test`, `npm run build` and `npm run fonts:check` are the available
-  checks.
+  checks. **Neither the tests nor the build catches an undefined
+  identifier in JSX**, and one shipped: `AiCounterNotice` read a `cardSize`
+  that did not exist, the render threw, React unmounted the tree, and Stan
+  saw a black screen whenever the opponent countered his Ace (found
+  2026-09-14). Before a preview, run ESLint's `no-undef` alone — a
+  four-line flat config with `ecmaFeatures: { jsx: true }`, browser
+  globals and `"no-undef": "error"`, via `npx -p eslint@9 eslint --config
+  <it> "src/**/*.{js,jsx}"`. It names that bug on the old file and is
+  clean on the current tree.

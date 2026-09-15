@@ -340,17 +340,24 @@ export function SignalBtn({ onClick, disabled, handLabel=null, compact=false }) 
 // which is what the You've-Drawn-an-Ace lightbox shows so the
 // player learns the shape before meeting it on the table.
 // ─────────────────────────────────────────────────────────────
+// VOLTAGE, not gold, since 2026-09-14. The tag was the one gold button
+// in the game ("playing your own Ace" was on gold's milestone list), and
+// Stan retired the exception: every filled button is green, so a
+// first-timer learns one rule — the green thing is the thing to push —
+// and does not have to work out whether yellow means something else.
+// Gold is back to marking outcomes only: the CLEAN SWEEP beat, the
+// winning score, the drawn-Ace box's frame.
 export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
   const interactive = live && !disabled;
   const hIn = (el) => {
     if (!interactive) return;
-    el.style.background = DS.goldHover;
-    el.style.boxShadow = `0 0 24px ${DS.gold}`;
+    el.style.background = DS.voltageHover;
+    el.style.boxShadow = `0 0 24px ${DS.voltage}`;
   };
   const hOut = (el) => {
     if (!interactive) return;
-    el.style.background = DS.gold;
-    el.style.boxShadow = `0 0 14px ${DS.gold}88`;
+    el.style.background = DS.voltage;
+    el.style.boxShadow = `0 0 14px ${DS.voltage}88`;
   };
   // A real <button> when it is live: this is the Ace strike, one of the
   // two most consequential moves in the game, and it used to be a div.
@@ -367,7 +374,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
       title={disabled ? "Her Scraps needs 2+ cards before an Ace can attack" : undefined}
       style={{
         width: Math.max(width, ACE_TAG_MIN_W), boxSizing:'border-box',
-        background: disabled ? DS.duskMid : DS.gold,
+        background: disabled ? DS.duskMid : DS.voltage,
         color: disabled ? DS.slate : DS.ink,
         border: disabled ? `1px solid ${DS.slate}55` : 'none',
         borderRadius:8, padding:'6px 4px',
@@ -375,7 +382,7 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         display:'flex', flexDirection:'column', justifyContent:'center',
         fontFamily:F.ui, fontWeight:700, fontSize:13, lineHeight:1.12,
         letterSpacing:'0.08em', textTransform:'uppercase', textAlign:'center',
-        boxShadow: disabled ? 'none' : `0 0 14px ${DS.gold}88`,
+        boxShadow: disabled ? 'none' : `0 0 14px ${DS.voltage}88`,
         cursor: interactive ? 'pointer' : 'default',
         pointerEvents: interactive ? 'auto' : 'none',
         userSelect:'none',

@@ -2,8 +2,8 @@
 // SCRAPS — Share. The SHARE button on the match screen.
 //
 // Added 2026-09-14. What it sends is a sentence with the result in
-// it and the game's line — "Poker with both hands", the splash
-// subtitle — plus the site's address, and where the platform can
+// it and the game's line — TAGLINE below, the splash subtitle — plus
+// the site's address, and where the platform can
 // carry one, a PICTURE of the result drawn on the spot.
 //
 // Three tiers, best first, and the button never has to know which:
@@ -32,7 +32,11 @@
 // ============================================================
 import { DS } from "./styles/theme.js";
 
-export const TAGLINE = 'Poker with both hands';
+// No trailing period on purpose: the share sentence appends its own,
+// and the share card sets this line as spaced capitals, where a period
+// would hang off the end as a stray dot. The splash shows it bare.
+// "Poker with both hands" until 2026-09-14 (Stan's revision).
+export const TAGLINE = 'Play poker with both hands';
 
 const DIFF = { easy: 'Easy', hard: 'Hard' };
 

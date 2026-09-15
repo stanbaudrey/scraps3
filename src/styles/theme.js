@@ -17,8 +17,11 @@
 //   voltage — bright leaf "fern" green (was acid green) — yours / active / interactive
 //   slate   — warm sage-grey — muted / secondary
 //   gold, goldHover, canopy — new: gold marks a milestone ONLY
-//   (Clean Sweep, the win screen, playing your own Ace) — never a
-//   general UI color.
+//   (Clean Sweep, the win screen) — never a general UI color, and
+//   since 2026-09-14 never a BUTTON either: "playing your own Ace"
+//   was on this list and the ATTACK tag was gold for it, until Stan
+//   made every filled button voltage so that green alone means
+//   "push this". Gold marks outcomes now, not actions.
 //
 // THE CANOPY RULE, amended 2026-08-30 (Stan's call, during the audit):
 //   canopy MAY CARRY GROUND, NEVER STATE.
@@ -61,15 +64,16 @@
 // ROUND N, win/lose screens, score numbers, hand names) now reads
 // F.display as "headers and subtitles."
 //
-// AMENDED 2026-09-14. Rye has exactly SEVEN consumers now, and the
+// AMENDED 2026-09-14. Rye has exactly EIGHT consumers now, and the
 // list is the rule: the wordmark; every card rank (F.card, the same
 // string); the storyboard's one HOW TO PLAY title; three moments on
 // the table that Stan put in Rye off the Win bench — ROUND N, the
-// CLEAN SWEEP beat, and the MATCH-WINNING SCORE as it lands; and the
-// verdict on the share card share.js draws, which is a torn Scraps
-// card and so sets its one word the way a rank is set. Nothing else.
-// The letter cards of the match screen count as ranks. A heading
-// that wants Rye and is not on this list is wrong.
+// CLEAN SWEEP beat, and the MATCH-WINNING SCORE as it lands; the
+// reveal's own title (Hand 1 / Hand 2 / Scraps, Stan's revision later
+// the same day); and the verdict on the share card share.js draws,
+// which is a torn Scraps card and so sets its one word the way a rank
+// is set. Nothing else. The letter cards of the match screen count as
+// ranks. A heading that wants Rye and is not on this list is wrong.
 // ============================================================
 
 export const DS = {

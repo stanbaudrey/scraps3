@@ -437,8 +437,11 @@ export function gameReducer(state, action) {
 
     // The AI played an Ace and the player holds one: pause for the
     // counter decision. The turn phase still advances on schedule.
+    // `afterCounter` rides along so the prompt can say "she had another
+    // Ace" when this one follows a counter (GameScreen.handleAiAce).
     case 'AI_ACE_PENDING':
-      return { ...state, pendingAiAce: { ace: action.ace, targets: action.targets } };
+      return { ...state, pendingAiAce: { ace: action.ace, targets: action.targets,
+        afterCounter: !!action.afterCounter } };
 
     case 'AI_ACE_APPLY': {
       const ace = state.aiHand.find(c => c.id === action.aceId);

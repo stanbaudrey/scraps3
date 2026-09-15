@@ -389,11 +389,18 @@ export function CardBackSVG({ w, h }) {
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
   selectable=false, dimmed=false, onClick, size='normal', kraft=false,
   extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true,
-  registerEl=null, hidden=false, rankScale=1 }) {
-  // `rankScale` exists for ONE caller: the match screen's letter cards
-  // (interstitials.jsx), whose "rank" is a letter at 0.84 of the rank
-  // size so a word of them reads as a word rather than as a hand of
-  // oversized ranks. Every real card leaves it at 1.
+  registerEl=null, hidden=false, rankScale=1, rankAlign='left' }) {
+  // `rankScale` and `rankAlign` exist for ONE caller: the match screen's
+  // letter cards (interstitials.jsx), whose "rank" is a letter at 0.84
+  // of the rank size so a word of them reads as a word rather than as a
+  // hand of oversized ranks. Every real card leaves them at 1 and
+  // 'left'. The left anchor is arithmetic for a card in a fan (see the
+  // header) and looks odd on a card that is one letter of YOU WIN and
+  // never overlapped (Stan, 2026-09-14) — so those centre the glyph on
+  // the card, both axes. Rye's caps sit 0.108em below a line-height:1
+  // box and its baseline at 0.865em, so a cap's visual centre is at
+  // 0.486em: flex-centring the box is within a pixel of centring the
+  // ink at every size this uses.
 
   // The motion system measures this node to build a card's real
   // flight path, and hides it (visibility, so LAYOUT SURVIVES —
@@ -552,7 +559,10 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
           ~10% opacity, clear of a numeral anchored to the top. */}
       {!faceDown&&!isScrap&&card&&<CardFaceRidge w={d.w} h={d.h}/>}
       {!faceDown&&card&&(
-        <div style={{position:'absolute',
+        <div style={rankAlign==='center'
+          ? {position:'absolute',inset:0,display:'flex',alignItems:'center',
+             justifyContent:'center',lineHeight:1,zIndex:1,pointerEvents:'none'}
+          : {position:'absolute',
           left:d.gx-(isScrap?0:FACE_BORDER),
           top:d.gy-(isScrap?0:FACE_BORDER)-d.rank*RYE_CAP_LEAD,
           lineHeight:1,zIndex:1,pointerEvents:'none'}}>
@@ -599,12 +609,30 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
 // of the alpha the filter traces, and the glow would go back to
 // being a fuzzy rectangle by a different route.
 // ─────────────────────────────────────────────────────────────
-export function GlowPulse({ active, color=DS.voltage, children, style:extStyle={} }) {
+// `strong` is the over-7 prompt's version (Stan, 2026-09-14: "a little
+// bolder, slightly faster, slightly brighter"): the same filter on the
+// same wrapper, on `zoneGlowStrong` — 1.1s instead of 1.6s, and a
+// brighter peak. The Ace strike's cue on her pile keeps the quiet one.
+// The keyframes take their colour at EACH alpha as its own custom
+// property, hex plus a two-digit alpha, rather than mixing it in the
+// keyframe with `color-mix(..., transparent)`. Measured 2026-09-14 in
+// Chrome: an animated drop-shadow interpolating between a color-mix()
+// result and a plain colour passes through garbage — one frame read
+// rgba(7,8,3,.8), a near-black shadow — for half of every cycle, so
+// the pile's "act here" glow went dark-brown on the way down instead
+// of dimming. The same colour as a hex-with-alpha literal interpolates
+// cleanly across the whole cycle. (The static reduced-motion rule keeps
+// its color-mix; nothing interpolates there.)
+const alpha = (hex, pct) => hex + Math.round(pct * 2.55).toString(16).padStart(2, '0');
+
+export function GlowPulse({ active, strong=false, color=DS.voltage, children, style:extStyle={} }) {
   return (
     <div className={active ? 'live-cue-zone' : undefined}
       style={{'--glow':color,
+      '--glow-34':alpha(color,34),'--glow-50':alpha(color,50),'--glow-55':alpha(color,55),
+      '--glow-62':alpha(color,62),'--glow-80':alpha(color,80),'--glow-85':alpha(color,85),
       filter:active?`drop-shadow(0 0 3px ${color}) drop-shadow(0 0 10px ${color}aa)`:undefined,
-      animation:active?'zoneGlow 1.6s ease-in-out infinite':'none',
+      animation:active?(strong?'zoneGlowStrong 1.1s ease-in-out infinite':'zoneGlow 1.6s ease-in-out infinite'):'none',
       ...extStyle}}>
       {children}
     </div>
@@ -875,7 +903,7 @@ export function HandUpgradeBadge({ cards, fontSize=15 }) {
 const SHADOW_BASE = (cardW) => cardW * 7 + 16;
 
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
-  onCardClick, discardMode=false, isOpponent=false, glowZone=false,
+  onCardClick, discardMode=false, isOpponent=false, glowZone=false, glowStrong=false,
   registerEl=null, hiddenIds=new Set(),
   size='small', width=340, fill=false }) {
 
@@ -974,7 +1002,7 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             transform:`scaleX(${((pileW + 16) / SHADOW_BASE(cardW)).toFixed(4)})`,
             transition:'transform 0.42s cubic-bezier(.4,0,.2,1)'}}/>
         )}
-        <GlowPulse active={glowZone} color={glowColor}
+        <GlowPulse active={glowZone} strong={glowStrong} color={glowColor}
           style={{position:'relative',zIndex:1,width:'100%',height:'100%'}}>
           <div style={{position:'relative',width:'100%',height:'100%'}}>
             {count === 0 && (
@@ -1055,18 +1083,23 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
           different papers.
 
           Side by side the two lines stack, because a 340px zone cannot
-          hold "YOUR SCRAPS 5/7" and "FOUR OF A KIND" on one row —
+          hold "YOUR SCRAPS" and "FOUR OF A KIND" on one row —
           measured overflow was 61px on THREE OF A KIND. Stacked, the
           zone is the full width of the screen and the type is a notch
           smaller, so the pair shares one row and buys back a whole
-          row per zone on the screen with the least height to spare. */}
+          row per zone on the screen with the least height to spare.
+
+          The "5/7" count that used to follow the label went on
+          2026-09-14 (Stan). The pile is the count — seven torn cards
+          are seven torn cards — and the one moment the number matters,
+          the over-7 trade, the narrator states it in a sentence. */}
       <div style={{display:'flex',flexDirection:oneRowCaption?'row':'column',
         alignItems:'center',justifyContent:'center',gap:oneRowCaption?8:1,
         marginTop:3,maxWidth:'100%',padding:'0 6px',minWidth:0}}>
         <span style={{fontFamily:F.mono,fontSize:fs,fontWeight:500,
           color:labelCol,opacity:0.82,
           letterSpacing:'0.14em',textTransform:'uppercase',whiteSpace:'nowrap',flexShrink:0}}>
-          {label} <span style={{color:DS.slate,fontWeight:400}}>{cards.length}/7</span>
+          {label}
         </span>
         <span style={{minWidth:0,overflow:'hidden',
           ...(oneRowCaption?{flex:1,textAlign:'right'}:{minHeight:19})}}>

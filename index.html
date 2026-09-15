@@ -379,6 +379,7 @@
         text-align: left;
         width: 100%;
         display: block;
+        position: relative;
         border: 2px solid color-mix(in srgb, var(--slate) 27%, transparent);
         border-radius: 14px;
         padding: 26px 30px;
@@ -388,11 +389,34 @@
         animation: panelDeal 620ms cubic-bezier(.2,.9,.3,1) backwards;
         transition: border-color 140ms, background 140ms, box-shadow 140ms, transform 140ms;
       }
+      /* THE HARD-BOX JUT (Stan, 2026-09-14: "the HARD button still
+         glitches a little after animating — a one-time fluke where it
+         juts to the left of the screen and quickly repositions").
+         `.armed` used to re-declare the `animation` shorthand on the
+         box itself, adding armFlash beside panelDeal. EASY's deal-in
+         (delay 0) has finished by the time the 720ms arm lands; HARD's
+         (delay 150ms, so 150-770ms) is STILL RUNNING, and rewriting a
+         running element's animation list is exactly the kind of change
+         a browser may answer by restarting the animation from its first
+         frame — which for panelDeal is translate(-46%,-24%): the box
+         jumps to the left and deals itself in again. Only HARD, only
+         once, and not on every browser, which is why it read as a fluke.
+         The flash lives on a pseudo-element now, so the box's own list
+         is written once and never touched again. */
+      .pick-box::after {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 14px;
+        pointer-events: none;
+      }
       .pick-box.armed {
         cursor: pointer;
         pointer-events: auto;
         border-color: color-mix(in srgb, var(--accent, var(--voltage)) 70%, transparent);
-        animation: panelDeal 620ms cubic-bezier(.2,.9,.3,1) backwards, armFlash 620ms ease-out;
+      }
+      .pick-box.armed::after {
+        animation: armFlash 620ms ease-out;
       }
       /* --accent is set per box from theme.js (voltage for EASY, ember
          for HARD) so the two options differ by more than their words.
@@ -443,12 +467,27 @@
          the gaps between them. `--glow` is set inline per pile, since
          yours glows voltage and hers ember off one set of keyframes.
          Two shadows, not one: the tight pass reads as an edge and the
-         wide one as light falling on the table. */
+         wide one as light falling on the table.
+         The `--glow-NN` properties are the same colour at NN% alpha,
+         set inline by GlowPulse (cards.jsx). They used to be
+         color-mix()ed here, and Chrome interpolates an animated
+         drop-shadow between a color-mix() colour and a plain one
+         through near-black — see the note on GlowPulse. */
       @keyframes zoneGlow{
-        0%,100%{filter:drop-shadow(0 0 2px color-mix(in srgb, var(--glow) 55%, transparent))
-                       drop-shadow(0 0 8px color-mix(in srgb, var(--glow) 34%, transparent))}
+        0%,100%{filter:drop-shadow(0 0 2px var(--glow-55))
+                       drop-shadow(0 0 8px var(--glow-34))}
         50%    {filter:drop-shadow(0 0 4px var(--glow))
-                       drop-shadow(0 0 17px color-mix(in srgb, var(--glow) 62%, transparent))}
+                       drop-shadow(0 0 17px var(--glow-62))}
+      }
+      /* The over-7 prompt's version (Stan, 2026-09-14): the same two
+         shadows, run at 1.1s instead of 1.6s, with a brighter trough
+         and a wider peak, so "pick cards to discard from THIS pile" is
+         louder than the Ace strike's "pick two from hers". */
+      @keyframes zoneGlowStrong{
+        0%,100%{filter:drop-shadow(0 0 3px var(--glow-80))
+                       drop-shadow(0 0 10px var(--glow-50))}
+        50%    {filter:drop-shadow(0 0 6px var(--glow))
+                       drop-shadow(0 0 24px var(--glow-85))}
       }
       /* A card arriving in a Scraps pile. It is being THROWN onto the
          heap, so it overshoots in rotation and bounces a few pixels —

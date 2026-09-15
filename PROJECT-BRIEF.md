@@ -5236,6 +5236,200 @@ declare 44.1 kHz and re-measure there.
 
 ---
 
+### Unplanned session — His revision list: the counter phantom, the black screen, cards that shrink, one green ✅ Done, on `dev` (2026-09-14)
+
+Twenty-two revisions from Stan's own notes, taken as a list and done as
+one pass. Three were bugs he asked to have diagnosed; the rest were calls
+about the storyboard, the table, the reveals and the buttons. Everything
+below is on `dev`; nothing is published yet.
+
+**The black screen on a DISCARD attack was a crash, and it is fixed.**
+`AiCounterNotice` in `overlays.jsx` — the modal that says the opponent
+countered your Ace — rendered each cancelled Ace at `size={cardSize}`, and
+no `cardSize` existed anywhere in that function. A `ReferenceError` thrown
+from render, which React answers by unmounting the whole tree onto the
+dusk body: a black screen, reload to recover. It only fired when she
+COUNTERED, so an attack she let through never opened the modal and the
+bug read as intermittent. Fifty-three tests were green over it because
+nothing in `npm test` renders a component. Fixed with one declaration;
+confirmed by mounting the modal on the overlay bench (a new
+`aiCounterNotice` case) where it now renders. The project has no linter,
+and this is the one-liner that catches exactly this class — run it
+before any preview:
+
+    npx -p eslint@9 eslint --config <a flat config with no-undef: error, jsx on, browser globals> "src/**/*.{js,jsx}"
+
+Run against the old file it names `cardSize` on line 308; against the
+tree as it stands it is clean. The config is four lines and lives in the
+session's scratchpad; worth adding to the repo as `lint` if a third bug
+of this shape ever appears.
+
+**The phantom counter prompt was a routing bug.** When you counter her
+Ace and she holds another, `onPlayerCounterAce`'s 900ms re-counter timer
+dispatched `AI_ACE_PENDING` directly — which opens the counter modal
+unconditionally — while the check for whether YOU still hold an Ace lives
+in `handleAiAce`, and only the AI runner's first Ace went through it. So
+after spending your only Ace on the counter, her second Ace asked you to
+counter again with a card you did not have. Every Ace goes through
+`handleAiAce` now, and an effect on `pendingAiAce` states the rule as an
+invariant: a pending Ace on the table with no Ace in your hand resolves
+the way LET IT HAPPEN would, whatever path put it there. The pending
+state carries `afterCounter`, so the second attack SAYS it is a second
+attack — "SHE HAD ANOTHER ACE!" on the prompt if you can still counter,
+"She had another Ace. It removes two cards from your Scraps" on the
+reveal if you cannot, and the same sentence in the narrator band and the
+log. Two more bench cases (`aceCounter2`, `oppAceReveal2`) render both.
+**Not driven end to end in a browser**: reaching it needs a deal where
+you hold one Ace and she holds two and chooses to attack twice, and the
+bot did not meet one. The fix is a read of one code path plus the
+invariant; say so if it comes up.
+
+**Cards shrink on their way into Scraps now.** `flight.jsx`'s `Ghost` drew
+the two looks at their own natural sizes and let the cross-fade do the
+resizing — a 104px hand card with a 60px Scraps card fading in at its
+centre — so the card never got smaller, it was replaced by a smaller one
+inside itself, and the big look was still under it when it landed. The
+ghost's box is the SOURCE card's natural box for the whole trip now, the
+destination look is pre-scaled to fill that same box, and one transform
+scale carries it from the measured source size to the measured
+destination size; both looks fade across each other at identical size.
+Measured in a real browser: hand → Scraps ghosts go 104 → 62 and 118 → 65
+(the second is a rotated fan card's bounding box), monotonic; deal-in
+ghosts grow 60 → 104-125; a pile → discard flight is the same size at both
+ends and stays it, which is what he asked for. The `DeckPile`-era rule
+that a flight could launch a third too large is documented in the file
+and no longer describes the code.
+
+**One green.** Every FILLED button is voltage now: ATTACK (the tag was the
+one gold button, and gold is back to marking outcomes only — the comment
+in `theme.js` says so), OKAY on the drawn-Ace box, SHOW 'EM (was slate),
+COUNTER (was ember, in the band and in the modal), OK on her Ace reveal,
+REMOVE (was gold), DISCARD (was the outlined `warning`), NEW GAME on a
+win (was gold), and SHARE (was a ghost). Ghost and outlined secondaries —
+SKIP, BACK, CANCEL, LET IT HAPPEN, END TURN — stay as they were. One
+judgment call inside that rule, flagged to him: QUIT TO MENU in the quit
+confirm was ember-filled and is now the ghost, so that screen has one
+green thing to push (KEEP PLAYING) rather than two. The storyboard's
+"attack" in `Aces can attack.` went from gold to voltage to match the
+control it names.
+
+**The storyboard.** Beat 1's two Kings were ~30px left of centre because
+each column was as wide as its own caption and "Scraps (visible to
+opponent)" is twice "Hand (private)"; the columns share the row equally
+now and the pair measures 1.1px off the axis at 1280. Beat 3 keeps its
+three boxes — HAND / 1 PT, HAND / 1 PT, SCRAPS / 2 PTS — with no sample
+cards in them (he wrote "2 PT"; the plural was kept, his call if it
+grates), the top line is "Play two hands, then your best Scraps." and a
+new line under the boxes reads "Win all three for a bonus +1. **Play to
+10.**" with the last sentence bold. Beat 4's attack button is the game's
+real `AceTag` on an Ace card, green, no lightning bolt — the reader now
+meets the control they will see in the hand rather than a gold pill that
+resembled nothing in the game; the Ace under it was added so the
+one-card-wide tag has something to sit on, which is how it looks on the
+table.
+
+**The HARD box jut.** `.pick-box.armed` re-declared the `animation`
+shorthand on the box itself to add `armFlash`. EASY's deal-in (delay 0)
+has finished when the 720ms arm lands; HARD's (delay 150ms, running to
+770ms) has not, and rewriting a RUNNING element's animation list is the
+kind of change a browser may answer by restarting it from its first frame
+— which for `panelDeal` is `translate(-46%,-24%)`: a jump to the left and
+a second deal-in. Only HARD, only once, browser-dependent, which is why it
+read as a fluke. The flash lives on a `::after` pseudo-element now, so
+the box's own list is written once and never touched. Measured after:
+HARD's left edge constant across every frame after 780ms, `panelDeal`
+the only animation on the box at 300ms, `armFlash` only on the pseudo at
+900ms. Chromium did not reproduce the jump before the change either, so
+this is a fix for a mechanism rather than a reproduced defect; the
+mechanism is the one that fits his description.
+
+**The table.** The "N/7" count came off both Scraps captions. In the
+wide layout DISCARD + CANCEL sit directly ABOVE your pile and REMOVE +
+CANCEL directly UNDER hers, in compact sizing so the pair fits a 340px
+column; stacked, they stay in the narrator band, which sits against both
+piles anyway. Measured: DISCARD's bottom edge 14px above the pile's top,
+REMOVE's top 56px below hers. The over-7 prompt's pile glow is
+`zoneGlowStrong` — 1.1s instead of 1.6s, brighter trough, wider peak —
+while the Ace strike's glow on her pile keeps the quiet one. SHOW 'EM is
+always there now: `autoReveal`, which ran the reveal by itself when you
+signalled into her signal, is deleted, and the button is the whole band —
+no "Both signals in.", no narrator line, centred in a box held at the
+height of a normal turn (`NARRATOR_H`, 196 / 152) so the table does not
+resize between the signal and the reveal. The band's bottom padding went
+14 → 20 (10 → 14 stacked) so the action button stops resting on its
+floor.
+
+**A finding under the glow, and it was already shipping.** Sampling the
+pile glow's computed filter across a cycle gave `rgba(7, 8, 3, .8)` on
+one frame — a near-black shadow — and the screenshot showed the pile
+ringed in dark brown rather than green. Chrome mis-interpolates an
+animated `drop-shadow` between a `color-mix(..., transparent)` colour
+and a plain one; the shipped `zoneGlow` used exactly that pattern and
+has been passing through the same dark frames since 2026-09-13. Isolated
+in a standalone page against three variants: `color-mix` and the
+relative-colour `rgb(from ...)` both go dark for half the cycle; the same
+colour as a hex-with-alpha literal interpolates cleanly. `GlowPulse` now
+sets `--glow-34` … `--glow-85` inline (the colour at each alpha the two
+keyframes need) and both keyframes read those. Every frame of a cycle
+now samples `rgba(163, 216, 90, x)`. `armFlash` was checked for the same
+defect (transparent ↔ color-mix) and interpolates correctly; left alone.
+
+**The reveals.** The title (Hand 1 / Hand 2 / Scraps) is in Rye — the
+eighth consumer on `theme.js`'s list, tracked at 0.05em because Rye is
+wide. The OPPONENT / YOU labels above her row and below yours are gone;
+the score row still names both sides. In a Scraps reveal only the cards
+that MAKE the winning hand sound their `slap`; the dimmed extras land
+silent (the table still shivers under each). Her Clean Sweep sounds like
+a loss — `roundLost`, the round cue walked backwards — instead of the
+ten-bar climb, which is yours; a first placement, not a bench pick. The
+Clean Sweep beat no longer sweeps itself: a new `csRest` step holds it at
+rest until a tap, and the ROUND N sign no longer advances itself either —
+it lands, says "Tap to continue" in place of "Skip", and waits; a tap
+mid-entrance lands it, a tap at rest deals. Both holds measured on the
+bench (4.5s and 3s after landing, still up, then sweeping / dealing on
+the next tap). The match screen's letter cards centre their glyph
+(`rankAlign="center"` on `PlayingCard`, both axes, measured 0.0px off);
+real cards keep the left anchor the fan needs.
+
+**The tagline is "Play poker with both hands"** — splash, share sentence,
+share card. `npm run share` regenerated the card and the manifest;
+`share:check` passes. No trailing period on the splash, deliberately: the
+share sentence appends its own and the card sets the line as spaced
+capitals. The `<title>` / `og:title` split ("Poker with two hands at
+once.") is still his call.
+
+**How it was confirmed.** Playwright's Node API from the npx cache
+against Vite on 5194 (5193 was held by a parked worktree's Vite again,
+left alone). A scripted pass at 1280×800 and at 375×667: the four beats
+screenshotted and measured, the picker sampled every frame for 1.3s, the
+sign held 2.6s, deal and scrap ghost widths sampled every frame, the
+over-7 prompt and the Ace strike driven to their button placements, then
+a bot that plays the game — lowest card, one-card signals, taps through
+every reveal, discards on demand — through round 1 and into round 2,
+where it recorded SHOW 'EM appearing after her signal and pressed it.
+Zero page errors across both passes. The bench page grew four cases
+(`aiCounterNotice`, `oppAceReveal2`, `aceCounter2`, `sweepLoss`). Gates:
+53 tests, build, `share:check`, the lookbook scan (the same pre-existing
+hits as the last pass, nothing new from this one).
+
+**Traps hit.** A block of JSX declared after the element that used it
+(`pileBtnRow` under `oppScrapsEl`) crashed the game screen on mount —
+caught by a two-line probe that clicks EASY and reads `pageerror`, which
+is worth running after any edit to `GameScreen.jsx`. Playwright refuses
+to click the ATTACK tag because it wiggles forever ("element is not
+stable"); `force: true`. The bot's stall detector never reset its counter
+between actions and reported a stall on a game that was fine; a
+false alarm is the expensive kind. The session's process exited
+mid-verification once and was resumed; nothing was lost because every
+edit was on disk and every result in a log.
+
+**Open.** The phantom-counter path (above) is verified by reading, not by
+play. The Clean Sweep loss cue is a first placement. SHARE on his iPhone
+is still untested. The title/tagline split. And whether QUIT TO MENU as a
+ghost, the plural "2 PTS", and the period-less tagline are what he meant.
+
+---
+
 ## Session tracker
 
 | # | Session | Status |
@@ -5271,6 +5465,7 @@ declare 44.1 kHz and re-measure there.
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
 | — | *Unplanned:* Interstitials onto the table, fireworks out | Done + **PUBLISHED** (2026-09-14) at `a7455b5`, production serving `index-CqazxhAx.js` (the previewed bundle) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
+| — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done, on `dev` |
 
 
 ---
@@ -5355,11 +5550,14 @@ splash has its subtitle back, SHARE exists, and the same-day critique fixes
 quicker quieter loss, MATCH POINT on the stage, a torn share card) shipped
 with it. The entry above the tracker has everything.
 
-**Three bugs from his own notes block outrank everything else**, and none
-has a test yet: the black screen on a DISCARD attack (a crash, reproduce
-first), the Ace-counter prompt offered without an Ace in hand, and cards
-not shrinking to pile size on their way into Scraps. The fourth, the splash
-subtitle, closed in the interstitials pass.
+**His 2026-09-14 revision list is on `dev` and waiting for his eyes.**
+All twenty-two items, the three bugs included (the black screen was a
+`ReferenceError` in the counter notice; the phantom counter a timer that
+skipped the Ace check; the flights now scale). The entry above the tracker
+has every decision and the four judgment calls to confirm with him: QUIT
+TO MENU as a ghost, "2 PTS" for his "2 PT", no period on the splash line,
+and `roundLost` as the sound of her Clean Sweep. Publish once he has
+looked.
 
 **Two things only Stan can check on the live game.** SHARE on his iPhone:
 the sheet should carry the drawn result card, the sentence and the address
@@ -5371,12 +5569,13 @@ by first principles rather than by a bench.
 
 **Copy call open:** the `<title>`, `og:title` and `twitter:title` still say
 "Poker with two hands at once." while the splash, the share sentence and
-the OG card say "Poker with both hands". One line in `index.html` plus
+the OG card say "Play poker with both hands". One line in `index.html` plus
 `npm run share`; his to decide.
 
-**Nothing is in flight.** `dev` and `main` are level once the publish log
-merges, production is serving the interstitials pass, and the responsive
-and touch-target gates are clean on it.
+**In flight:** the revision pass above, on `dev`, unpublished. Production
+is serving the interstitials pass. Before publishing run the `no-undef`
+scan the entry describes; it is the only check in this repo that catches
+a render crash.
 
 **The responsive gate is trustworthy again, and it was not before
 (2026-09-14).** It had been failing intermittently on a 54px button it was

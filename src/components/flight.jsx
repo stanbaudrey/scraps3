@@ -67,10 +67,22 @@ function screenMatrix(el) {
 // It carries BOTH looks (source and destination) stacked, and
 // cross-fades between them mid-flight, so a card leaving the
 // hand for the Scraps pile visibly becomes a Scraps card on the
-// way instead of switching at either end. Size rides along with
-// that cross-fade — the two looks are drawn at their own natural
-// sizes, so a 104px hand card becomes an 80px Scraps card as the
-// fade crosses over, with no step change.
+// way instead of switching at either end.
+//
+// SIZE IS A SCALE, NOT A CROSS-FADE (Stan, 2026-09-14: "when cards
+// slide from hand to Scraps, they need to shrink to the Scraps card
+// size while en route"). The old version drew each look at its own
+// natural size and let the fade do the resizing — a 104px hand card
+// with a 60px Scraps card fading in at its centre — so the card never
+// shrank, it was replaced by a smaller one inside itself, and the
+// larger look was still under it when it landed. Now the ghost's box
+// is the SOURCE card's natural box for the whole trip, the
+// destination look is pre-scaled to fill that same box, and the one
+// transform scale carries the box from the measured source size to
+// the measured destination size. The two looks fade across each
+// other at identical size, and the card simply gets smaller (or, on
+// a deal, bigger) as it travels. A card thrown to the discard from a
+// pile is the same size at both ends and stays that size.
 //
 // The arc is perpendicular to the actual travel direction and
 // scales with distance, so a short hop bows gently and a long
@@ -79,15 +91,16 @@ function screenMatrix(el) {
 // loop.
 //
 // SCALE is derived from each end's MEASURED box against the
-// natural size of the card being drawn there, never from the two
-// boxes against each other. Same reasoning as the FLIP rule
-// above, applied to size instead of position: the ghost draws a
+// natural size of the SOURCE card, never from the two boxes
+// against each other. Same reasoning as the FLIP rule above,
+// applied to size instead of position: the ghost's box is a
 // `fromSize` card, so the scale that makes it match the real card
 // it left is from.width / (natural width of fromSize) — and the
-// scale that makes it match the card it is becoming is
-// to.width / (natural width of toSize).
+// scale that lands it on the card it is becoming is
+// to.width / (natural width of fromSize), with the destination
+// look pre-scaled by natW(fromSize)/natW(toSize) inside the box.
 //
-// The old `from.width / to.width` compared the two ends to each
+// An older `from.width / to.width` compared the two ends to each
 // other and drew the source card at it, so a hand→Scraps flight
 // (104 → 80) launched a 104px card at 1.3x — 135px, a third
 // larger than the card it was supposedly leaving. It also had no
@@ -99,6 +112,7 @@ function Ghost({ flight, onDone }) {
   const { from, to, card, faceDown, fromScrap, toScrap, fromSize, toSize, arc, delay } = flight;
   const elRef = useRef(null);
   const toRef = useRef(null);
+  const fromRef = useRef(null);
   const rafRef = useRef(0);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
@@ -109,7 +123,14 @@ function Ghost({ flight, onDone }) {
   // trueW is present when the end was a real card (rotation removed);
   // the fixed piles pass a plain rect, which is unrotated anyway.
   const scale0 = (from.trueW || from.width) / natW(fromSize) || 1;
-  const scale1 = (to.trueW   || to.width)   / natW(toSize)   || 1;
+  // The box is the SOURCE card's natural box throughout (see the
+  // header), so the landing scale is the destination's measured width
+  // against THAT box — not against the destination card's own natural
+  // width. `k` is how much the destination look has to be enlarged to
+  // fill the source box; the two multiply out so that at e=1 the
+  // destination look is drawn at exactly to.trueW.
+  const k = natW(fromSize) / natW(toSize);
+  const scale1 = (to.trueW   || to.width)   / natW(fromSize) || 1;
   const rot0 = from.rot || 0;
   const rot1 = to.rot   || 0;
 
@@ -137,8 +158,14 @@ function Ghost({ flight, onDone }) {
       const rot = rot0 + (rot1 - rot0) * e + arc * 9 * Math.sin(e * Math.PI);
       el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${s})`;
       if (toRef.current) {
-        // Cross-fade the two looks across the middle of the trip.
-        toRef.current.style.opacity = String(Math.max(0, Math.min((e - 0.35) / 0.35, 1)));
+        // Cross-fade the two looks across the middle of the trip. Both
+        // fade — the source out as the destination comes in — because
+        // they are the same size now and a torn Scraps look on top of
+        // an intact hand card would show the hand card's edges through
+        // every bite of the tear.
+        const mix = Math.max(0, Math.min((e - 0.35) / 0.35, 1));
+        toRef.current.style.opacity = String(mix);
+        if (fromRef.current) fromRef.current.style.opacity = String(1 - mix);
       }
       if (raw < 1) rafRef.current = requestAnimationFrame(step);
       else doneRef.current();
@@ -165,13 +192,20 @@ function Ghost({ flight, onDone }) {
     }}>
       <div style={{position:'relative', transform:'translate(-50%,-50%)',
         filter:'drop-shadow(0 12px 26px rgba(0,0,0,.6))'}}>
-        <PlayingCard card={card} faceDown={faceDown} isScrap={fromScrap}
-          size={fromSize} liftTransform={false}/>
+        <div ref={fromRef}>
+          <PlayingCard card={card} faceDown={faceDown} isScrap={fromScrap}
+            size={fromSize} liftTransform={false}/>
+        </div>
         {!sameLook&&(
           <div ref={toRef} style={{position:'absolute',inset:0,opacity:0,
             display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <PlayingCard card={card} faceDown={faceDown} isScrap={toScrap}
-              size={toSize} liftTransform={false}/>
+            {/* Pre-scaled to the source box, so the cross-fade swaps
+                two cards of one size and the outer scale alone does
+                the shrinking. */}
+            <div style={{transform:`scale(${k})`,transformOrigin:'center',flexShrink:0}}>
+              <PlayingCard card={card} faceDown={faceDown} isScrap={toScrap}
+                size={toSize} liftTransform={false}/>
+            </div>
           </div>
         )}
       </div>
