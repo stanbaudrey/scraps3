@@ -5656,9 +5656,15 @@ sitting at the top with the work already done.*
 
 **`CAPACITY.md` is live and needs nothing.** Added 2026-09-14, committed
 inside `adebb85` by accident rather than on purpose. This project is the
-least exposed of the eight: no backend, bandwidth only. The one open item
-it raises is not technical, it is that there is still no custom domain
-and the site ships on `scraps3.vercel.app`.
+least exposed of the eight: no backend, bandwidth only, and the single
+ceiling is Vercel Hobby's 100 GB a month.
+
+**Its first draft got the domain wrong, and the reason generalises.** It
+said the project had no custom domain, because it chose the most frequent
+URL in this brief and `scraps3.vercel.app` outnumbers `scraps.games` here
+purely because it is the historical address. In a brief this long,
+frequency measures history, not currency. Line 5 and the Notion page both
+say `scraps.games` and both were right.
 
 **Both of his 2026-09-14 revision lists are LIVE (`adebb85`).** The
 interstitials pass (`a7455b5`) plus twenty-eight revisions on top of it:
