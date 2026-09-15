@@ -5510,7 +5510,7 @@ new data collection, so the privacy and pre-launch checklists did not
 apply; no environment variables, nothing scheduled. Full `/impeccable
 critique` not run: the lists were his own calls, not a rework.
 
-### Unplanned session — Six from his list: the storyboard rail, the pile labels, the jumping table, the Scraps beat, the black blink ✅ Done, on `claude/storyboard-mobile-layout-tc9jnv` (2026-09-15)
+### Unplanned session — Six from his list: the storyboard rail, the pile labels, the jumping table, the Scraps beat, the black blink ✅ Done + **PUBLISHED** (2026-09-15)
 
 Run from **Claude Code on the web**, in a remote container, which matters
 for the last paragraph: `~/.claude/skills/publish` and `~/.claude/skills/wrap`
@@ -5620,13 +5620,45 @@ into the next round reporting that the beat had never happened. Every real
 action on the bare table is a button; the fallback existed only for the
 stage, and belongs only there.
 
-**Not published, and not previewed.** The work is committed and pushed to
-`claude/storyboard-mobile-layout-tc9jnv` only. `/publish` and `/wrap` are
-Mac-local skills that this remote container does not have, so the publish
-pre-flight (the privacy grep on `dist/`, the design detector, the live-bundle
-hash check) did not run and nothing was merged to `dev` or `main`. This entry
-is the wrap's visible output written by hand; the publish is Stan's to run,
-or to hand back with a go-ahead.
+**PUBLISHED 2026-09-15, `7f229ce`** on Stan's go-ahead, with the publish
+skill absent and the pre-flight run by hand. **`scraps.games` serves
+`assets/index-DTQFhWtb.js`, the same content-hashed bundle the local build
+produced and every check ran against**, and the live HTML carries the new
+`-webkit-tap-highlight-color: transparent` rule, so the fix is served rather
+than merely committed. Checked by fetching the live HTML, not by reading the
+build log. `og.png` serves as `image/png` at 340,695 bytes, equal to the
+local file, the three font preloads point at Rye, Fjalla One and Work Sans
+(no stale 404 on the critical path), and `scraps3.vercel.app` still 308s to
+the apex.
+
+**`dev` was two commits ahead of `main` and this branch came off `main`**, so
+the two were merged rather than either being fast-forwarded over: `3b1fada`
+(the capacity pass log) and `cdfe16c` (the domain correction in `CAPACITY.md`)
+were doc-only and unpublished, and both are now live with this work. A
+by-product is that the capacity entry, dated 2026-09-14, now sits BELOW this
+one in the file. Left as the merge landed rather than reshuffled during a
+publish.
+
+Pre-flight, as far as this container allows: 55 tests, build, `share:check`
+current with nothing regenerated, `fonts:check` clean against Google (18
+faces, 0 changed, 0 stale), the `no-undef` scan clean, and a personal-data
+grep over `dist/` returning nothing for the surname, the email, the old
+`unclescrunch` handle or the Sisters origin story. The secret grep DID hit,
+and it is a false positive worth recording so the next run does not stop on
+it: React ships `__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED` as a
+real export, so any `grep -i secret` over a React bundle matches three times.
+**Not run, and they are the gap in this publish: the design detector**
+(a Mac-local tool) **and anything else `~/.claude/skills/publish/SKILL.md`
+specifies that is not written down here.** `/wrap` was equally absent; this
+entry and its tracker row were written by hand.
+
+**The container cannot reach the site it publishes.** The network policy
+answered 403 to `CONNECT scraps.games:443`, and the same for every
+`*.vercel.app` host, so `curl` returns status 000 and is not evidence of
+anything. The live verification above went through the Vercel MCP server's
+own fetch, which is the route that works from here. A bare deployment URL is
+SSO-protected and 302s to `vercel.com/sso-api`; the apex is the one that
+returns the HTML.
 
 ---
 
@@ -5667,7 +5699,7 @@ or to hand back with a go-ahead.
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 | — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done + **PUBLISHED** (2026-09-14 evening, `adebb85`) |
 | — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
-| — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done, **on `claude/storyboard-mobile-layout-tc9jnv`, not published** — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container, so `/publish` and `/wrap` were unavailable |
+| — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done + **PUBLISHED** at `7f229ce`, production serving `index-DTQFhWtb.js` — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container: `/publish` and `/wrap` were unavailable, so the pre-flight was run by hand and the design detector did not run. `dev`'s two unpublished doc commits were merged in rather than skipped |
 
 
 ---
