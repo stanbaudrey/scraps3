@@ -5488,6 +5488,28 @@ animation loop, so "first appearance" is the DOM order, not the deal
 order; sample first MOVEMENT instead, and key on the element rather than
 `data-flight`, which is `anon` for every face-down card.
 
+**PUBLISHED 2026-09-14 (evening), `adebb85`** — both of the day's revision
+lists together, since the first (`d918164`) had been on preview since the
+afternoon and Stan said publish. `main` fast-forwarded to `dev`; Vercel
+built production in 5s; **scraps.games serves `assets/index-BjwdH7Uj.js`,
+the same content-hashed bundle the local build produced, every check ran
+against, and the preview (`scraps3-8vux4sukc`) served** — checked by
+fetching the live HTML, not by reading the build log. `og.png` serves as
+`image/png` and the old `scraps3.vercel.app` still 308s to the apex.
+Pre-flight: nothing uncommitted, `dev` level with `origin`, no
+divergence either way; no personal data in `dist/` (the surname grep
+returns nothing); `share:check` current with nothing regenerated (the
+tagline string did not move); the design detector live against a
+planted-Inter control, not degraded, stderr empty on twelve absolute
+paths, **nine findings, all `bounce-easing`, the identical nine the last
+publish recorded** — nothing new from either list. The first run of the
+detector was VOID, exactly as the publish skill warns: a space-joined
+shell variable went in as one argument, stderr said `cannot access`, and
+the JSON said zero. Re-run with separate paths. Not a first launch and no
+new data collection, so the privacy and pre-launch checklists did not
+apply; no environment variables, nothing scheduled. Full `/impeccable
+critique` not run: the lists were his own calls, not a rework.
+
 ---
 
 ## Session tracker
@@ -5525,8 +5547,8 @@ order; sample first MOVEMENT instead, and key on the element rather than
 | — | *Unplanned:* The Signpost — interstitial bench | **Bench published, picks pending** (2026-09-14) — seven treatments plus the shipping reference, five moments, leaf-shower and scrap-confetti alternatives to the fireworks, on a ported mock of the real table and sound kit. No game code changed. Scrap-letters handoff measured 6.6s vs 3.7s shipping. Verified in real Chrome at three viewports. Four bugs from Stan's notes block surfaced, not fixed |
 | — | *Unplanned:* Interstitials onto the table, fireworks out | Done + **PUBLISHED** (2026-09-14) at `a7455b5`, production serving `index-CqazxhAx.js` (the previewed bundle) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
-| — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done, on `dev` |
-| — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done |
+| — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done + **PUBLISHED** (2026-09-14 evening, `adebb85`) |
+| — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
 
 
 ---
@@ -5604,21 +5626,33 @@ confidence to say so.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**The interstitials are LIVE (2026-09-14, `a7455b5`).** Every
-between-hands moment plays on the table, the fireworks are gone, the
-splash has its subtitle back, SHARE exists, and the same-day critique fixes
-(inert table under the stage, skippable sweep, the +N score ghost, a
-quicker quieter loss, MATCH POINT on the stage, a torn share card) shipped
-with it. The entry above the tracker has everything.
+**Both of his 2026-09-14 revision lists are LIVE (`adebb85`).** The
+interstitials pass (`a7455b5`) plus twenty-eight revisions on top of it:
+the three bugs (the black screen was a `ReferenceError` in the counter
+notice; the phantom counter a timer that skipped the Ace check; the
+flights now scale), every filled button green, the storyboard and reveal
+copy calls, the seat-by-seat deal, Click/Tap on the rail. The two entries
+above the tracker have every decision.
 
-**His 2026-09-14 revision list is on `dev` and waiting for his eyes.**
-All twenty-two items, the three bugs included (the black screen was a
-`ReferenceError` in the counter notice; the phantom counter a timer that
-skipped the Ace check; the flights now scale). The entry above the tracker
-has every decision and the four judgment calls to confirm with him: QUIT
-TO MENU as a ghost, "2 PTS" for his "2 PT", no period on the splash line,
-and `roundLost` as the sound of her Clean Sweep. Publish once he has
-looked.
+**Four judgment calls from the first list are live and unconfirmed by
+him:** QUIT TO MENU as a ghost so the quit screen has one green thing;
+"2 PTS" for his "2 PT"; `roundLost` as the sound of her Clean Sweep (a
+first placement); and "Play to 10." kept bold inside the body-copy line.
+Cheap to change, so raise them before anything else if he has not.
+
+**One path is verified by reading, not by play:** counter her Ace, then
+watch her play a second. Reaching it needs a deal where you hold one Ace
+and she holds two and chooses to attack twice. The fix is one routing
+change plus an invariant effect; a rigged deal on the overlay bench would
+close it properly.
+
+**His DO NOT START block in Notion is the next real work, and it waits
+for a conversation:** a harder HARD, a REALLY HARD mode that skews the
+deck and unlocks after beating HARD (with a CTA on the picker and a
+button on the win screen), the picker's record set larger without BEST,
+whether the game keeps memory across sessions and what the privacy notice
+then has to say, and dropping the signal from Hand 2. Do not begin any of
+it without him.
 
 **Two things only Stan can check on the live game.** SHARE on his iPhone:
 the sheet should carry the drawn result card, the sentence and the address
@@ -5633,10 +5667,10 @@ by first principles rather than by a bench.
 the OG card say "Play poker with both hands". One line in `index.html` plus
 `npm run share`; his to decide.
 
-**In flight:** the revision pass above, on `dev`, unpublished. Production
-is serving the interstitials pass. Before publishing run the `no-undef`
-scan the entry describes; it is the only check in this repo that catches
-a render crash.
+**Nothing is in flight.** `dev` and `main` are level at `adebb85` once
+the publish log merges, and production serves it. Before any publish run
+the `no-undef` scan the revision entry describes; it is the only check in
+this repo that catches a render crash, and the tests were green over one.
 
 **The responsive gate is trustworthy again, and it was not before
 (2026-09-14).** It had been failing intermittently on a 54px button it was
