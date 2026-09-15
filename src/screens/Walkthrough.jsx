@@ -380,9 +380,19 @@ export const LAST_BEAT = BEATS.length - 1;
 // evening: "don't say Tap anywhere on desktop"). Read once at mount from
 // the same media query the hover rules use; a laptop with a trackpad is
 // a fine pointer and gets Click.
-const pointerVerb = () => {
-  try { return window.matchMedia('(hover: hover) and (pointer: fine)').matches ? 'Click' : 'Tap'; }
-  catch { return 'Tap'; }
+//
+// The same read answers the footer's second clause, because a phone has
+// no Enter to press and the rail was advertising one (Stan, 2026-09-15:
+// "there is no enter on mobile; just say TAP ANYWHERE"). The keydown
+// listener below is NOT gated on this — a hardware keyboard paired with
+// a tablet still works. We only stop promising a key that screen has no
+// way to show.
+const pointerKind = () => {
+  try {
+    return window.matchMedia('(hover: hover) and (pointer: fine)').matches
+      ? { verb: 'Click', keys: true }
+      : { verb: 'Tap', keys: false };
+  } catch { return { verb: 'Tap', keys: false }; }
 };
 
 export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
@@ -390,7 +400,7 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
   // reader to the LAST beat rather than the first — they have already
   // read the whole thing and want the page they just left.
   const [i, setI] = useState(startAt);
-  const [verb] = useState(pointerVerb);
+  const [{ verb, keys }] = useState(pointerKind);
   const beat = BEATS[i];
   const last = i === BEATS.length - 1;
 
@@ -515,7 +525,7 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
         </div>
         {!last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
-            color:DS.slate,textTransform:'uppercase'}}>{verb} anywhere, or press Enter</div>
+            color:DS.slate,textTransform:'uppercase'}}>{verb} anywhere{keys ? ', or press Enter' : ''}</div>
         )}
         {last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',

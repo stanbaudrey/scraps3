@@ -44,14 +44,16 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **53 tests** cover the engine and the reducer. (It was 37
+- Vitest for tests. **55 tests** cover the engine and the reducer. (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
-  that matters now that createDeck() no longer loops over four suits.)
+  that matters now that createDeck() no longer loops over four suits, leaving
+  53; the 2026-09-15 Scraps hand-off added the two that cover
+  `HANDS_DISCARDED`.)
   `vite.config.js` excludes `.claude/**` from vitest: a git worktree parked
   there is a second full checkout and was getting collected twice, reporting
-  111 tests for a project that has 53.
+  111 tests for a project that has 55.
 - Fonts are **self-hosted** from `public/fonts` since Session 6 — **four**
   families over **12 files**: **Rye** (the SCRAPS wordmark, the storyboard's
   one HOW TO PLAY title, every card rank — the match screen's letter cards
@@ -133,7 +135,7 @@ it fails loudly instead of drifting to another port). Running `npm run dev`
 by hand without those flags starts on 5173 instead.
 
 ```bash
-npm test          # vitest, 53 tests, runs in under a second
+npm test          # vitest, 55 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -200,6 +202,19 @@ would hang it), records whether the page was actually still, and says
 was not. **A check that fails for a reason unrelated to the thing it
 watches is worse than no check.**
 
+The same lesson landed a second time, and worse, on 2026-09-15: the walk
+had been sitting on the ROUND 1 sign at every viewport since the sign
+stopped advancing itself the day before. `dismiss()` looked for
+`/^continue/i`, the sign's button says "Tap to continue", and it sits
+under the layer's own tap surface so an ordinary click is refused as
+intercepted. So `4-table` and `5-after-trade` were both a photograph of
+the sign, the trade step found no cards to click, and the run died
+thirty seconds later on the rules button the sign was covering — and
+`Trade \d`, the button name the trade step looked for, had not existed
+since the vocabulary was settled either. It was green on nothing, for a
+month. Both are fixed; the walk reaches a real dealt table again and
+comes back ALL CLEAR on 54 measured rows across the six viewports.
+
 `tools/overlay-targets.mjs` is the companion, and it exists because the
 harness above walks a REAL game: it only reaches a modal the random deal
 happens to open. The Ace explainer had therefore never been measured
@@ -244,12 +259,12 @@ looks broken locally, it is not a missing-secret problem.
   52-card deck — see Session 2's balance fix in PROJECT-BRIEF.md), shuffling,
   hand evaluation, signal validation, trade legality, and the AI's
   decision-making. No React, no side effects.
-- **`src/game/reducer.js`** (~515 lines) — the state machine. One pure reducer
+- **`src/game/reducer.js`** (~615 lines) — the state machine. One pure reducer
   owns all game state: cards, scores, signals, and the phase. Turn order is
   dealer-aware and the dealer alternates each round; the non-dealer acts
   first. This file's header comment explains the phase vocabulary — read it
   before touching turn flow.
-- **`src/screens/GameScreen.jsx`** (~1780 lines) — the table. Holds only
+- **`src/screens/GameScreen.jsx`** (~1950 lines) — the table. Holds only
   UI-local state (selections, animation flags, the interstitial `stage`),
   schedules the timers that dispatch actions, and renders. See Known Issues.
 - **`src/components/interstitials.jsx`** (2026-09-14) — everything that
@@ -546,6 +561,25 @@ looks broken locally, it is not a missing-secret problem.
   and wait. Every reveal is pressed for too — `autoReveal`, which ran the
   reveal by itself when you signalled into her signal, is gone, and SHOW
   'EM is the whole narrator band in the reveal phase.
+- **`scraps-reveal` is a beat on the TABLE, not a phase passed through**
+  (2026-09-15, Stan). It used to last 520ms: the hand 2 reveal closed, the
+  narrator flashed "Scraps hands up." over a board still holding two dead
+  hands, and the Scraps reveal opened on top. Now the table comes back,
+  `sweepHandsAway` throws whatever is left in both hands off the right edge
+  (`HANDS_DISCARDED` — the only reducer action that moves no phase), and
+  PLAY SCRAPS HAND asks for the last hand of the round. Both fans render
+  with `showEmpty={false}` for the length of it, so the wood is bare rather
+  than carrying two dashed "empty" slots, and their boxes keep their height
+  so nothing else moves.
+- **The narrator band is a fixed SLOT with a floating PANEL, and the two are
+  not the same box.** FitBox scales the table by its natural height, so every
+  pixel the band gains or loses resizes the opponent's hand; on a phone the
+  copy changing length was visibly resizing the whole table between turns.
+  The slot is `NARRATOR_H` — derived in `GameScreen.jsx` from the band's own
+  padding, its three-line narrator reservation, its gap and one button row,
+  NOT measured and pasted — and the panel is centred inside it, so the chrome
+  still shrinks to what is being said while the cards never hear about it.
+  Put anything new in the panel, never in the slot.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 
@@ -604,7 +638,7 @@ versions and should not be deployed to.
   rename ran the other way — the account was `unclescrunch` and is now
   `stanbaudrey` — so `origin` already points at the live name and
   "repointing" it would aim at the stale one. Left alone deliberately.
-- **`GameScreen.jsx` is ~1780 lines** and mixes three concerns: UI state, the
+- **`GameScreen.jsx` is ~1950 lines** and mixes three concerns: UI state, the
   animation timer choreography, and the rendering of the whole table. Unlike
   the engine and reducer, nothing in the file claims this is deliberate. The
   animation scheduling is the natural first thing to lift out. (Session 3

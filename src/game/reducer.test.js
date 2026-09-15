@@ -253,6 +253,37 @@ describe('discard pile resets every round', () => {
   });
 });
 
+// ── The sweep into the Scraps hand ───────────────────────────
+// Hand 2 is scored, both private hands are over, and the table clears
+// itself down to the two Scraps piles before the Scraps hand is played
+// (2026-09-15). The Scraps piles must survive it — they ARE the hand
+// about to be scored — and the phase must not move, because
+// `scraps-reveal` is already where the game is.
+describe('HANDS_DISCARDED clears both hands into the discard', () => {
+  it('empties the hands, keeps the Scraps piles, and leaves the phase alone', () => {
+    let s = freshRound(1);
+    s = { ...s, phase: 'scraps-reveal' };
+    const held = s.playerHand.length + s.aiHand.length;
+    const before = s.discard.length;
+    const pScraps = s.playerScraps.length, aScraps = s.aiScraps.length;
+    expect(held).toBeGreaterThan(0);
+
+    s = gameReducer(s, { type: 'HANDS_DISCARDED' });
+    expect(s.playerHand).toHaveLength(0);
+    expect(s.aiHand).toHaveLength(0);
+    expect(s.discard).toHaveLength(before + held);
+    expect(s.playerScraps).toHaveLength(pScraps);
+    expect(s.aiScraps).toHaveLength(aScraps);
+    expect(s.phase).toBe('scraps-reveal');
+  });
+
+  it('is idempotent, so a second pass costs nothing', () => {
+    let s = gameReducer({ ...freshRound(1), phase: 'scraps-reveal' }, { type: 'HANDS_DISCARDED' });
+    const again = gameReducer(s, { type: 'HANDS_DISCARDED' });
+    expect(again).toBe(s);
+  });
+});
+
 // ── An empty Scraps pile ─────────────────────────────────────
 // Reachable in normal play: an Ace discards two cards and every Ace
 // guard admits a pile of exactly 2. This used to return null, and the

@@ -570,6 +570,27 @@ export function gameReducer(state, action) {
       };
     }
 
+    // ── Both private hands are over ──────────────────────────
+    // Hand 2 is scored, so whatever is still sitting in either hand
+    // will never be played: it leaves the table for the discard, and
+    // the two Scraps piles are the only cards on the wood when the
+    // Scraps hand is played. `discard` is exactly the right word here
+    // and the only one — these cards are not scrapped, they are done.
+    //
+    // The PHASE is untouched on purpose. This is the table being
+    // cleared, not a step of the machine; `scraps-reveal` is already
+    // where the game is and the Scraps reveal is still what follows.
+    // Idempotent, so React.StrictMode's double-invoke (and any second
+    // pass of the hand-off effect) costs nothing.
+    case 'HANDS_DISCARDED': {
+      if (!state.playerHand.length && !state.aiHand.length) return state;
+      return {
+        ...state,
+        playerHand: [], aiHand: [],
+        discard: [...state.discard, ...state.playerHand, ...state.aiHand],
+      };
+    }
+
     // ── Scraps hand scored ───────────────────────────────────
     case 'SCRAPS_SCORED': {
       const { pPts, aPts, winner, cleanSweep, aiSweep, pName } = action;

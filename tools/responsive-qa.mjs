@@ -186,6 +186,25 @@ for (const vp of VIEWPORTS) {
       const b = page.getByRole('button', { name });
       if (await b.count()) { await b.first().click().catch(() => {}); await page.waitForTimeout(300); }
     }
+    // The interstitial layer, which the list above CANNOT clear (fixed
+    // 2026-09-15). Two reasons it needs its own case: its button reads
+    // "Tap to continue", which `/^continue/i` does not match, and it
+    // sits UNDER the layer's own tap surface, so an ordinary click is
+    // refused as intercepted — `force` is the point, not a shortcut.
+    // Until this existed the walk sat on the ROUND 1 sign for every
+    // viewport: `4-table` and `5-after-trade` were both a photograph of
+    // the sign, the trade step found no cards, and the run died 30s
+    // later on the rules button the sign was covering. The sign stopped
+    // advancing itself on 2026-09-14 and nothing here was taught to tap
+    // it, so the harness had been measuring a screen with no table on it
+    // ever since.
+    for (let i = 0; i < 4; i++) {
+      const stage = page.locator('[role="dialog"] button').first();
+      if (!(await stage.count())) break;
+      await stage.click({ force: true, timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(350);
+    }
+    await settle();
   };
 
   await shot('1-splash');
@@ -220,7 +239,10 @@ for (const vp of VIEWPORTS) {
   if (n >= 2) {
     await hand.nth(0).click().catch(() => {});
     await page.waitForTimeout(200);
-    const trade = page.getByRole('button', { name: /Trade \d/ });
+    // "Trade In (2)" became "SCRAP n → DRAW n" when the vocabulary was
+    // settled; the old name matched nothing, so the walk never took a
+    // turn even on the runs that reached a table.
+    const trade = page.getByRole('button', { name: /Scrap \d/i });
     if (await trade.count()) {
       await trade.first().click();
       await page.waitForTimeout(2600);

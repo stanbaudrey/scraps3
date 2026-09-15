@@ -316,6 +316,16 @@
          carry role=button, so they are covered too. Pinch zoom on
          the page is deliberately left alone. */
       button, [role="button"] { touch-action: manipulation; }
+      /* No grey/black flash on a tap. Touch browsers paint a
+         -webkit-tap-highlight-color rectangle over anything tappable,
+         and a card is a [role=button] whose real outline is a
+         clip-path — so the highlight drew the RECTANGLE the card has
+         stopped being, as a dark blink a frame before the card lifted.
+         Desktop never had it, which is the whole reason toggling a
+         card felt unbroken under a mouse and chipped under a thumb
+         (Stan, 2026-09-15). Inherited, so declaring it on the root
+         covers every control on every screen. */
+      html { -webkit-tap-highlight-color: transparent; }
       /* Wider, higher-contrast scrollbar than the original 5px/27% —
          a clipped/overflowing panel needs a visible cue that more
          content is reachable, not just a hidden native scrollbar. */

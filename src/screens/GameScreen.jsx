@@ -109,6 +109,23 @@ const SIZES = {
 // A rect literal rather than a DOMRect: Ghost only reads left/top/
 // width/height (plus the optional trueW/rot a real card carries), and
 // a card measured off-screen has no DOMRect to borrow.
+// The Scraps hand-off (2026-09-15, Stan). `scraps: 520` used to be the
+// third entry in GameScreen's own HANDOFF and was the whole beat: the
+// hand 2 reveal closed, the narrator said "Scraps hands up." for half a
+// second over a table still holding two dead hands, and the Scraps
+// reveal opened over the top of it. Nobody could read the line and
+// nothing was being asked.
+//
+// It is a beat with a job now. The table comes back, both private hands
+// are swept off it to the discard, and the player is asked for the last
+// hand of the round. `ready` counts from the START of the sweep rather
+// than from its end: the trailing cards are still leaving as the prompt
+// lands, which reads as one continuous motion instead of
+// sweep-stop-ask. It is a plain timer and not a wait on `animating`, so
+// a flight that never reports back cannot strand the round with no way
+// forward.
+const SCRAPS_HANDOFF = { sweep: 240, step: 45, ready: 800 };
+
 const OFF_MARGIN = 40;
 const rectAt = (left, top, d) => ({
   left, top, width: d.w, height: d.h,
@@ -166,6 +183,14 @@ export function GameScreen({ difficulty, onExit }) {
   const showInterstitial = !!stage && stage.kind === 'sign';
   const tableWoodRef = useRef(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
+  // The beat between hand 2 and the Scraps hand (2026-09-15, Stan).
+  // False for the moment the table comes back and sweeps both private
+  // hands off it; true once the wood is down to the two Scraps piles
+  // and the last hand of the round is the player's to call. There is
+  // no third value — the sweep is the only thing that happens while
+  // this is false, and `phase === 'scraps-reveal'` is what says we are
+  // in the beat at all.
+  const [scrapsReady, setScrapsReady] = useState(false);
   // `autoReveal` lived here until 2026-09-14: when the player signalled
   // INTO an opponent signal already on the table, the reveal ran itself
   // and SHOW 'EM never appeared. Stan put the button back for that case
@@ -299,6 +324,7 @@ export function GameScreen({ difficulty, onExit }) {
     setAiSignaledIds(new Set());
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
+    setScrapsReady(false);
     // The two cards that START in each Scraps pile are hidden with the
     // hands and dealt with them (Stan, 2026-09-14). They used to be
     // simply THERE the moment the interstitial lifted, which made the
@@ -975,7 +1001,33 @@ export function GameScreen({ difficulty, onExit }) {
     dealWave(drawn.slice(0, pN), drawn.slice(pN, pN + aN));
   }
 
+  // The table clearing itself down to the two Scraps piles. Measured
+  // FIRST, committed, THEN flown — the FLIP order every move on this
+  // table uses, and the reason the ghosts can be dropped at any frame
+  // and still leave a correct board. Face-down cards fly as backs
+  // (`card: null, faceDown: true`), the same shape dealWave uses for
+  // the opponent's seat.
+  function sweepHandsAway() {
+    const s = stateRef.current;
+    if (!s.playerHand.length && !s.aiHand.length) return;
+    const going = [
+      ...s.playerHand.map(c => ({ card: c, faceDown: false, size: szRef.current.hand })),
+      ...s.aiHand.map(c => ({ card: c, faceDown: true, size: szRef.current.oppHand })),
+    ].map(g => ({ ...g, rect: rectOf(g.card.id) })).filter(g => g.rect);
+    dispatch({ type: 'HANDS_DISCARDED' });
+    if (!going.length) return;
+    playScrap();
+    fly(going.map((g, i) => ({
+      card: g.faceDown ? null : g.card, faceDown: g.faceDown,
+      fromRect: g.rect, toRect: discardAnchor(i),
+      fromSize: g.size, toSize: szRef.current.pile,
+      arc: ((i % 3) - 1) * 0.4, delay: i * SCRAPS_HANDOFF.step,
+    })));
+  }
+
   function resolveScrap() {
+    // Leaving the beat: the next round enters it fresh.
+    setScrapsReady(false);
     // Always resolves now, including when a pile is empty: an empty
     // pile is a hand that loses to anything, and the other player takes
     // the 2 points. This used to bail out on a null and leave the game
@@ -1019,6 +1071,12 @@ export function GameScreen({ difficulty, onExit }) {
   const settling = animating && (AI_TURN_PHASES.includes(phase) || isAiSignaling);
   const isAiThinking = !settling && (AI_TURN_PHASES.includes(phase) || isAiSignaling);
   const isScrapsDiscardMode = pendingTrade !== null;
+  // `scraps-reveal` is a beat the player acts on now, not a phase the
+  // game passes through: the table clears down to the two Scraps piles
+  // and waits on PLAY SCRAPS HAND. `scrapsAsk` is the half of it that
+  // has a question in it; before that the sweep is still running.
+  const isScrapsHandoff = phase === 'scraps-reveal';
+  const scrapsAsk = isScrapsHandoff && scrapsReady;
   const selectedInHand = selected.filter(c => playerHand.find(h => h.id === c.id));
   const selIds = new Set(selectedInHand.map(c => c.id));
   const aceTargetIds = new Set(aceTargets.map(c => c.id));
@@ -1130,7 +1188,10 @@ export function GameScreen({ difficulty, onExit }) {
   // The delays are a beat of table between two full-screen moments, not
   // a pause for thought: the overlay unmounts instantly, you see the
   // board it was covering, then the next thing happens.
-  const HANDOFF = { deal: 220, scraps: 520 };
+  // The third hand-off, the Scraps one, is SCRAPS_HANDOFF at the top of
+  // this file — `sweepHandsAway` reads it and is defined well above
+  // here.
+  const HANDOFF = { deal: 220 };
 
   // The self-running reveal (the `autoReveal` effect) sat here until
   // 2026-09-14. Every reveal is pressed for now — see SHOW 'EM below.
@@ -1141,8 +1202,9 @@ export function GameScreen({ difficulty, onExit }) {
       return () => clearTimeout(t);
     }
     if (phase === 'scraps-reveal') {
-      const t = setTimeout(() => resolveScrap(), HANDOFF.scraps);
-      return () => clearTimeout(t);
+      const sweep = setTimeout(() => sweepHandsAway(), SCRAPS_HANDOFF.sweep);
+      const ask   = setTimeout(() => setScrapsReady(true), SCRAPS_HANDOFF.ready);
+      return () => { clearTimeout(sweep); clearTimeout(ask); };
     }
     // 'round-end' no longer runs a timer here. The Scraps reveal starts
     // the next round itself from `onSwept` (resolveScrap), so that
@@ -1246,7 +1308,10 @@ export function GameScreen({ difficulty, onExit }) {
   // resolveSmallHand / resolveScrap), so these are narration on the way
   // past, not a prompt anybody has to answer.
   else if (phase === 'replenish') hint = 'Dealing the second hand...';
-  else if (phase === 'scraps-reveal') hint = 'Scraps hands up.';
+  // Stan's copy, 2026-09-15. Silent while the sweep runs: the table
+  // clearing itself is the sentence, and a narrator talking over it
+  // would be the third thing moving.
+  else if (isScrapsHandoff) hint = scrapsAsk ? 'Two hands done. Time for Scraps.' : '';
   else if (phase === 'round-end') hint = 'Round complete.';
 
   // The three bottom-bar discs (rules, sound, quit) share one shape.
@@ -1325,6 +1390,7 @@ export function GameScreen({ difficulty, onExit }) {
       <FannedHand cards={aiHand} faceDown aiSignaledIds={aiSignaledIds}
         activeWiggle={isAiThinking} waveIds={waveIds}
         registerEl={registerCard} hiddenIds={allHiddenIds}
+        showEmpty={!isScrapsHandoff}
         size={SZ.oppHand} maxWidth={stack?Math.max(120,railW-152):null}/>
     </div>
   );
@@ -1335,7 +1401,7 @@ export function GameScreen({ difficulty, onExit }) {
       opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
       {!stack&&<RoundProgressIndicator phase={phase} compact={tight}/>}
       <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
-        label="Opp Scraps" selectable={aceMode}
+        label="Opponent's Scraps" selectable={aceMode}
         selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
         registerEl={registerCard} hiddenIds={allHiddenIds}
         isOpponent={true} glowZone={glowOppScraps}
@@ -1372,31 +1438,60 @@ export function GameScreen({ difficulty, onExit }) {
   const hasActionButtons = (stack && isScrapsDiscardMode)
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
     || (stack && aceMode) || counterStand
-    || (isSignal && !signalLocked) || isReveal
+    || (isSignal && !signalLocked) || isReveal || scrapsAsk
     || (pendingAiAce && !aiAceReveal);
   // SHOW 'EM owns the whole band: no narrator line above it, the button
   // centred in a box the same height as a normal turn's, so the table
-  // does not jump between the signal and the reveal. The heights are
-  // the measured natural height of the band on a player turn — padding,
-  // the three-line narrator slot, the gap and the action button — and
-  // want re-measuring if any of those change.
+  // does not jump between the signal and the reveal.
   const showEm = isReveal;
-  const NARRATOR_H = tight ? 152 : 196;
-  // The narrator's CHROME comes and goes; its SLOT never does.
+  // The band's TALL CASE, derived from the same numbers the band is
+  // built out of rather than measured once in a browser and left to
+  // drift. Three real cases, because `stack` and `tight` disagree on a
+  // landscape phone: small type inside the wide layout's roomier box.
+  //   stack        24 + 66.3 + 8  + 54 = 152
+  //   wide, tight  34 + 66.3 + 10 + 62 = 172
+  //   wide, roomy  34 + 97.5 + 10 + 62 = 204
+  const NARRATOR_H = Math.round(
+      (stack ? 24 : 34)           // padding, top + bottom
+    + (tight ? 17 : 25) * 3.9     // the narrator's three-line slot
+    + (stack ? 8 : 10)            // the gap above the buttons
+    + (stack ? 54 : 62));         // the tallest button row it can hold
+  const narratorSilent = !hint && !tradeError && !hasActionButtons;
+
+  // THE SLOT AND THE PANEL ARE TWO DIFFERENT THINGS, and that is the
+  // whole fix for the table jumping between turns (Stan, 2026-09-15:
+  // "the narrator box enlarges, causing everything else to snap into a
+  // new size ... hold the non-narrator-box elements at a certain
+  // distance").
   //
+  // FitBox scales the table by its natural height, so every pixel this
+  // band gains or loses resizes THE OPPONENT'S HAND. The band already
+  // reserved three lines for the copy, which covered most turns — but
+  // it still collapsed to 64px when it had nothing to say and grew a
+  // button row when it did, and each of those moved every card on the
+  // table. So the SLOT is NARRATOR_H at all times and the PANEL floats
+  // centred inside it: the chrome still shrinks to whatever is being
+  // said, the cards never hear about it.
+  //
+  // `minHeight`, not `height`: a turn whose buttons wrap to two rows
+  // grows the slot rather than overflowing it. Rare, and no worse than
+  // what the band did before.
+  //
+  // The slot also carries the flex-basis the layout is built around.
   // Returning null when the band had nothing to say collapsed the two
   // gutters together, and because the left gutter aligns its contents
   // `flex-end`, the deck slid from the left margin to the middle of the
   // table and sat under the narrator text that arrived a moment later.
-  // The panel keeps its flex-basis at all times and only drops its
-  // background, border and padding when empty, so the three bands stay
-  // on the one centre axis the layout is built around.
-  const narratorSilent = !hint && !tradeError && !hasActionButtons;
   const actionEl = (
     <div style={{
       ...(stack
         ? {width:'100%', flexShrink:0}
         : {flexShrink:1, flexBasis:760, maxWidth:760}),
+      minHeight: NARRATOR_H,
+      display:'flex',flexDirection:'column',justifyContent:'center',
+    }}>
+    <div style={{
+      width:'100%',
       display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
       // More room under the button than over the narrator (Stan,
       // 2026-09-14: the action button "seems like it's resting on the
@@ -1404,13 +1499,14 @@ export function GameScreen({ difficulty, onExit }) {
       padding:stack?'10px 12px 14px':'14px 20px 20px',
       ...(narratorSilent ? {
         background:'transparent', border:'1px solid transparent',
-        // Hold the height too, so the band does not jump as the
-        // narrator comes and goes between turns.
-        minHeight: tight ? 64 : 92,
       } : {
         background:`rgba(20,31,25,0.7)`,
         border:`1px solid ${DS.slate}22`,
       }),
+      // SHOW 'EM is the whole band, and its box stays a full-height one
+      // rather than hugging the button: the press that matters most
+      // should not arrive in a smaller frame than the turn before it.
+      // Every other turn lets the chrome shrink to what it holds.
       ...(showEm ? { justifyContent:'center', minHeight: NARRATOR_H } : {}),
       borderRadius:14,
     }}>
@@ -1532,6 +1628,18 @@ export function GameScreen({ difficulty, onExit }) {
             continuation button (see continueLabel in resolveSmallHand
             and resolveScrap), and the phase it lands in now carries
             itself — see the hand-off effect below. */}
+        {/* PLAY SCRAPS HAND. This one came BACK on 2026-09-15 (Stan):
+            it was one of the three buttons the note above describes
+            moving onto the results screen ahead of it, and the half
+            second it left behind turned out to be the one hand-off
+            that wanted a beat of its own. It is not a second press for
+            a decision already made — the hand 2 reveal it follows is
+            about hand 2, and this asks for the Scraps hand. */}
+        {scrapsAsk&&(
+          <BigBtn compact={tight} onClick={()=>{ playSelect(); resolveScrap(); }}>
+            Play Scraps Hand
+          </BigBtn>
+        )}
         {pendingAiAce&&!aiAceReveal&&(
           <>
             <BigBtn compact={tight} onClick={onPlayerCounterAce}>
@@ -1543,6 +1651,7 @@ export function GameScreen({ difficulty, onExit }) {
           </>
         )}
       </div>
+    </div>
     </div>
   );
 
@@ -1569,6 +1678,7 @@ export function GameScreen({ difficulty, onExit }) {
         selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
         activeWiggle={glowHand&&!pendingAiAce}
         cardSlot={aceSlot}
+        showEmpty={!isScrapsHandoff}
         size={SZ.hand} maxWidth={stack?railW:null}
       />
       {/* Name the hand you can actually SEE. Built from playerHand

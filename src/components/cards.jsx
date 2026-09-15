@@ -8,8 +8,12 @@
 //    opponent's hidden hand.
 //  • Cards carry a single, larger index. The rotated bottom
 //    index is gone (glyph soup at these sizes).
-//  • Each Scraps zone carries its own label + best-hand badge
-//    INSIDE its border, so ownership is unambiguous.
+//  • Each Scraps zone carries a best-hand badge and nothing else.
+//    Ownership is the paper stock and the side of the table the
+//    pile is on; the border that used to carry it went in 2026-09,
+//    and the OPP SCRAPS / YOUR SCRAPS caption followed it on
+//    2026-09-15 — the pile's name is an accessible one now, not a
+//    printed one.
 //  • The badge under the player's hand is a change-detector:
 //    subtle at rest, flashes only when the best hand upgrades.
 // ============================================================
@@ -672,7 +676,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
   wiggleIds=new Set(), activeWiggle=false, aiSignaledIds=new Set(),
   shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set(),
   registerEl=null, hiddenIds=new Set(), cardSlot=null,
-  size='normal', maxWidth=null }) {
+  size='normal', maxWidth=null, showEmpty=true }) {
 
   const sorted=faceDown?cards:sortByValue(cards);
   const count=sorted.length;
@@ -702,7 +706,13 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
       <div style={{position:'relative',height:d.h+head+foot,
         width:Math.max(span,W),
         display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
-        {count===0&&(
+        {/* The dashed slot says "your hand is empty and will refill" —
+            which is true mid-round and a lie during the sweep into the
+            Scraps hand, where both hands are empty because the round is
+            DONE with them. `showEmpty={false}` leaves bare wood there
+            and, because this box keeps its height either way, leaves it
+            without moving anything else on the table. */}
+        {count===0&&showEmpty&&(
           <div style={{border:`2px dashed ${DS.slate}44`,borderRadius:12,width:W,height:d.h,
             display:'flex',alignItems:'center',justifyContent:'center',
             color:DS.slate+'66',fontSize:16,fontFamily:F.mono}}>empty</div>
@@ -908,13 +918,14 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
   size='small', width=340, fill=false }) {
 
   const sorted = sortByValue(cards);
-  const labelCol = discardMode ? DS.voltage : isOpponent ? DS.ember : DS.voltage;
   const glowColor = isOpponent ? DS.ember : DS.voltage;
   const count = sorted.length;
   const d = CARD_DIMS[size] || CARD_DIMS.small;
   const cardW = d.w, cardH = d.h;
-  const oneRowCaption = fill;
-  const fs = fill && size === 'tiny' ? 11 : 13;
+  // The badge is a notch smaller in the stacked layout, where it sits
+  // under a full-width pile on the screen with the least height to
+  // spare, and a notch smaller again on the tiny cards.
+  const badgeFs = fill ? (size === 'tiny' ? 11 : 13) : 15;
 
   // ── The re-sort, which is two motions that must not look alike ──
   // A card lands, the pile re-sorts, and the cards already there
@@ -969,8 +980,16 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
   const padTop = size === 'tiny' ? 6 : 8;
   const frameH = cardH + padTop + (size === 'tiny' ? 10 : 14);
 
+  // `label` is the pile's NAME and no longer its caption: OPP SCRAPS and
+  // YOUR SCRAPS came off the table on 2026-09-15 (Stan). Two paper
+  // stocks and absolute top/bottom placement already say whose pile is
+  // whose to anyone looking at it, and the two words were repeating that
+  // over every board. They stay in the accessibility tree, where
+  // position and paper say nothing at all — a screen reader still meets
+  // a named group, it is only the timber that is quieter.
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+    <div role="group" aria-label={label || undefined}
+      style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
       <div style={{position:'relative',width:innerW + 20,maxWidth:'100%',height:frameH,
         display:'flex',justifyContent:'center'}}>
         {/* ONE pooled contact shadow for the whole heap, and a
@@ -1076,34 +1095,28 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
           </div>
         </GlowPulse>
       </div>
-      {/* The caption is everything the header row and the border used
-          to carry, set quiet. Ownership is the label's colour at 0.82
-          alpha rather than a 2px rule around a panel, which is as loud
-          as it needs to be once the two piles are also printed on two
-          different papers.
+      {/* The caption is the best hand in the pile and nothing else now.
+          The OPP SCRAPS / YOUR SCRAPS line that used to lead it is gone
+          (Stan, 2026-09-15) — see the note on `label` above — and with
+          it the two-versus-one-row problem the pair had: "YOUR SCRAPS"
+          beside "FOUR OF A KIND" overflowed a 340px zone by 61px, which
+          is why the side-by-side layout stacked them. One centred badge
+          fits either zone at either width.
 
-          Side by side the two lines stack, because a 340px zone cannot
-          hold "YOUR SCRAPS" and "FOUR OF A KIND" on one row —
-          measured overflow was 61px on THREE OF A KIND. Stacked, the
-          zone is the full width of the screen and the type is a notch
-          smaller, so the pair shares one row and buys back a whole
-          row per zone on the screen with the least height to spare.
+          The row holds its height whether or not there is a hand to
+          name, so a pile does not shove the band below it around as it
+          crosses from HIGH CARD into a pair. Same reasoning as the
+          narrator's three-line slot in GameScreen.
 
           The "5/7" count that used to follow the label went on
           2026-09-14 (Stan). The pile is the count — seven torn cards
           are seven torn cards — and the one moment the number matters,
           the over-7 trade, the narrator states it in a sentence. */}
-      <div style={{display:'flex',flexDirection:oneRowCaption?'row':'column',
-        alignItems:'center',justifyContent:'center',gap:oneRowCaption?8:1,
-        marginTop:3,maxWidth:'100%',padding:'0 6px',minWidth:0}}>
-        <span style={{fontFamily:F.mono,fontSize:fs,fontWeight:500,
-          color:labelCol,opacity:0.82,
-          letterSpacing:'0.14em',textTransform:'uppercase',whiteSpace:'nowrap',flexShrink:0}}>
-          {label}
-        </span>
-        <span style={{minWidth:0,overflow:'hidden',
-          ...(oneRowCaption?{flex:1,textAlign:'right'}:{minHeight:19})}}>
-          <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'} fontSize={oneRowCaption?fs:15}/>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',
+        marginTop:3,maxWidth:'100%',padding:'0 6px',minWidth:0,
+        minHeight:badgeFs + 6}}>
+        <span style={{minWidth:0,overflow:'hidden'}}>
+          <ZoneBadge cards={cards} owner={isOpponent?'opponent':'player'} fontSize={badgeFs}/>
         </span>
       </div>
     </div>
