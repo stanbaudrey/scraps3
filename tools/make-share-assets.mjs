@@ -114,9 +114,16 @@ const HAND = ['10','J','Q','K','A'];
 // from the app it describes: the palette comes from theme.js, the
 // @font-face rules are borrowed verbatim from index.html (so
 // `npm run fonts` reaches this page too), and every URL derives from
-// SITE. --check byte-compares the result, and PRIVACY_UPDATED is in
-// `sources` so an edited notice that was never regenerated fails by
-// name instead of as an anonymous hash mismatch.
+// SITE. --check byte-compares the whole file, so an edited notice that
+// was never regenerated still fails.
+//
+// THERE IS NO "last updated" DATE, and that is deliberate (Stan,
+// 2026-09-15). No law requires one on a notice like this. More to the
+// point, a hand-typed date would be the ONLY value on this page not
+// derived from the app, so it is the only thing here that can silently
+// go stale. Do not "fix" that by generating it from the build clock
+// either: it would then change on every regeneration and claim an
+// update that never happened, which is a worse lie than no date.
 // Stan's own words, and DELIBERATELY THIS SHORT (2026-09-15). The
 // first version ran four paragraphs and spent one of them listing
 // what the game does NOT do — no analytics, no tracking pixels, no
@@ -135,7 +142,6 @@ const HAND = ['10','J','Q','K','A'];
 // basis, retention period or contact route, because Stan's call is
 // no name and no contact line. That is a deliberate trade for a
 // hobby game, recorded so nobody "fixes" it by accident.
-const PRIVACY_UPDATED = '15 September 2026';
 const PRIVACY = [
   `SCRAPS saves two things to your browser: a win-loss record for each difficulty and a note that you've seen the "How to Play" intro. Clearing your browser data removes them.`,
   `This site is hosted on Vercel, so they log your IP address.`,
@@ -151,7 +157,6 @@ const sources = {
   strapline: STRAPLINE,
   hand: HAND.join(' '),
   winScore: WIN_SCORE,
-  privacyUpdated: PRIVACY_UPDATED,
   palette: {
     dusk: DS.dusk, frost: DS.frost, voltage: DS.voltage,
     slate: DS.slate, slateLight: DS.slateLight,
@@ -425,13 +430,6 @@ ${fontFaceBlock}
       margin: clamp(24px, 6vw, 38px) 0 clamp(18px, 4vw, 26px);
     }
     p { margin: 0 0 20px; }
-    .updated {
-      font-family: 'IBM Plex Mono', ui-monospace, monospace;
-      font-size: 13px;
-      letter-spacing: 0.04em;
-      color: ${DS.slate};
-      margin-top: 30px;
-    }
     .back {
       display: inline-block;
       margin-top: 34px;
@@ -462,7 +460,6 @@ ${fontFaceBlock}
       <a class="home" href="/">SCRAP<span class="v">S</span></a>
       <h1>Privacy</h1>
 ${PRIVACY.map(p => `      <p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`).join('\n')}
-      <p class="updated">Last updated ${PRIVACY_UPDATED}</p>
       <a class="back" href="/">Back to the game</a>
     </main>
   </body>
