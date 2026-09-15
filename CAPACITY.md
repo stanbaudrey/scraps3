@@ -3,7 +3,8 @@
 Written 2026-09-14. This project has the simplest risk profile of the eight.
 The cross-project picture is in `~/Projects/Brain/CAPACITY.md`.
 
-Production: https://scraps3.vercel.app
+Production: https://scraps.games (registered 2026-09-08, live 2026-09-12;
+`scraps3.vercel.app` and `www.scraps.games` both 308 to the apex)
 
 ## The situation
 
@@ -51,11 +52,13 @@ are already drawing on it, leaving this project out is defensible. Just know it
 is a choice, and that adding analytics here would draw from the same pool the
 other projects need.
 
-**There is still no custom domain.** It ships on `scraps3.vercel.app`. Per the
-domain rule in `~/.claude/CLAUDE.md`, a name gets priced at kickoff and bought
-at scaffold, and this one has neither. That is a naming and identity question
-rather than a capacity one, but a viral link is a bad moment to discover the
-domain you wanted is gone. Worth pricing before anything gets shared widely.
+**The domain is done and this file originally said otherwise.** The first draft
+claimed there was no custom domain, because it picked the most frequent URL in
+the repository and `scraps3.vercel.app` appears more often than `scraps.games`
+precisely because it is the historical one. The live address is
+`https://scraps.games`, registered 2026-09-08 and published 2026-09-12, with
+the old Vercel address and `www` both 308ing to the apex. Frequency is a bad
+proxy for currency in a long brief; read the top of the file or Notion instead.
 
 ## What to actually do
 
