@@ -5510,6 +5510,124 @@ new data collection, so the privacy and pre-launch checklists did not
 apply; no environment variables, nothing scheduled. Full `/impeccable
 critique` not run: the lists were his own calls, not a rework.
 
+### Unplanned session — Six from his list: the storyboard rail, the pile labels, the jumping table, the Scraps beat, the black blink ✅ Done, on `claude/storyboard-mobile-layout-tc9jnv` (2026-09-15)
+
+Run from **Claude Code on the web**, in a remote container, which matters
+for the last paragraph: `~/.claude/skills/publish` and `~/.claude/skills/wrap`
+live on Stan's Mac and are not in that container, so neither could run.
+
+**The storyboard rail drops its Enter clause on a touch screen.** It read
+"TAP ANYWHERE, OR PRESS ENTER" on a phone, promising a key that screen has
+no way to show. `pointerVerb` became `pointerKind` and returns `{verb, keys}`
+off the one `(hover: hover) and (pointer: fine)` read it already did, so the
+same query decides both halves. The keydown listener is deliberately NOT
+gated on it: a hardware keyboard paired with a tablet still works, we only
+stopped advertising it.
+
+**OPP SCRAPS and YOUR SCRAPS came off both piles**, and YOUR SCRAPS AT
+STAKE came off the Ace counter modal with them. Two paper stocks and
+absolute top/bottom placement already carry ownership, and in the modal the
+sentence directly above already says she will remove two cards from your
+Scraps. All three survive as accessible names on a `role="group"`, which is
+the honest split: position, paper and "directly above" are exactly the three
+things a screen reader cannot use. That also collapsed the caption's
+two-versus-one-row problem, the one the file's own comment recorded at 61px
+of overflow on THREE OF A KIND, down to a single centred badge in a row that
+holds its height.
+
+**The narrator band is now a fixed SLOT with a floating PANEL, and that is
+the whole fix for the table resizing between turns.** `FitBox` scales the
+table by its natural height, so every pixel the band gained or lost was
+resizing the opponent's hand. The band already reserved three lines for its
+copy, which is why this was never obvious in the source: it still collapsed
+to 64px when it had nothing to say and still grew a button row when it did.
+The slot is `NARRATOR_H` at all times and the panel is centred inside it, so
+the chrome still shrinks to whatever is being said while nothing else moves.
+`NARRATOR_H` is **derived** from the band's own padding, its three-line
+reservation, its gap and one button row rather than measured once and pasted,
+because the old pair of constants (152/196) keyed off `tight` alone and
+under-reserved the landscape phone, where `tight` type sits in the wide
+layout's roomier box. Three real cases now: 152 stacked, 172 wide-and-tight,
+204 wide-and-roomy. `minHeight` not `height`, so a two-row button wrap grows
+the slot instead of overflowing it.
+
+**`scraps-reveal` is a beat on the table now, not a phase passed through.**
+It used to last 520ms: the hand 2 reveal closed, the narrator flashed
+"Scraps hands up." over a board still holding two dead hands, and the Scraps
+reveal opened on top. Nobody could read the line and nothing was being asked.
+Now the table comes back, `sweepHandsAway` throws whatever is left in both
+hands off the right edge to the discard at 240ms, and **PLAY SCRAPS HAND**
+asks for the last hand of the round at 800ms, counted from the start of the
+sweep rather than its end so the trailing cards are still leaving as the
+prompt lands. A plain timer, not a wait on `animating`, so a flight that
+never reports back cannot strand the round with no way forward.
+`HANDS_DISCARDED` is the reducer's only action that moves no phase, and it is
+idempotent. Both fans take a new `showEmpty={false}` for the length of the
+beat so the wood is bare rather than carrying two dashed "empty" slots, and
+their boxes keep their height so the Scraps piles do not slide.
+
+**The black blink on tap was the browser, not the game.** Touch browsers
+paint a `-webkit-tap-highlight-color` rectangle over anything tappable, at
+`rgba(0, 0, 0, 0.18)` by default in Chromium, and a card is a `[role=button]`
+whose real outline is a `clip-path`. So the highlight drew the rectangle the
+card has stopped being, one frame before the card lifted. Declared
+`transparent` on the root, which inherits everywhere. Desktop never paints it
+at all, which is the entire reason the two felt different, and it is why
+reading the CSS would never have found it: the rule that caused it was not in
+the file.
+
+**Verified in a real browser.** A full round driven at 390x844: the round
+progress strip sits at **y=35 on every frame** across the long narrator copy,
+the short copy, the silent AI turns and the empty band, while the panel
+itself swings between **97 and 153px**. The hand-off reached and photographed
+with both hands gone, both Scraps in place and PLAY SCRAPS HAND live, then
+the Scraps reveal behind it. No page errors. 55 tests (the two new ones cover
+`HANDS_DISCARDED`, including that it leaves the phase and both Scraps piles
+alone), build, `share:check` current with nothing regenerated, and the
+`no-undef` scan clean.
+
+#### The QA gate was green on nothing, for a month
+
+`tools/responsive-qa.mjs` had been walking into the ROUND 1 sign at every
+viewport since the sign stopped advancing itself on 2026-09-14. `dismiss()`
+looked for `/^continue/i` and the sign's button reads "Tap to continue"; it
+also sits under the layer's own tap surface, so Playwright refuses an
+ordinary click as intercepted. So `4-table` and `5-after-trade` were both a
+photograph of the sign, the trade step found no cards, and the run died
+thirty seconds later on the rules button the sign was covering. Its trade
+button name, `Trade \d`, had not existed since the vocabulary was settled
+either. **This is the second time this harness has been wrong about the thing
+it watches rather than about the app**, after the 450ms-timer finding on
+2026-09-14, and this time it was not reporting a false failure, it was
+reporting nothing at all. Both fixed; the walk reaches a real dealt table
+again and comes back **ALL CLEAR on 54 measured rows across the six
+viewports**.
+
+#### Two traps worth keeping, both about driving the stage
+
+**The stage's quiet button cannot be clicked normally, on purpose.** It sits
+under the tap layer so that a tap anywhere reaches the layer, which means
+Playwright's actionability check refuses it and `getByRole(...).click()` hangs
+for its full timeout. `{ force: true }` on `[role="dialog"] button` is the
+route, and it is the route the harness now uses. Repeated `page.mouse.click`
+at one coordinate is not a substitute: identical positions in quick
+succession register as a multi-click.
+
+**Do not give a game driver a blind fallback tap at the vertical middle.**
+The new PLAY SCRAPS HAND button mounts exactly there, so a fallback tap was
+pressing it before the probe could ever see the prompt, and the run sailed
+into the next round reporting that the beat had never happened. Every real
+action on the bare table is a button; the fallback existed only for the
+stage, and belongs only there.
+
+**Not published, and not previewed.** The work is committed and pushed to
+`claude/storyboard-mobile-layout-tc9jnv` only. `/publish` and `/wrap` are
+Mac-local skills that this remote container does not have, so the publish
+pre-flight (the privacy grep on `dist/`, the design detector, the live-bundle
+hash check) did not run and nothing was merged to `dev` or `main`. This entry
+is the wrap's visible output written by hand; the publish is Stan's to run,
+or to hand back with a go-ahead.
+
 ---
 
 ## Session tracker
@@ -5549,6 +5667,7 @@ critique` not run: the lists were his own calls, not a rework.
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 | — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done + **PUBLISHED** (2026-09-14 evening, `adebb85`) |
 | — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
+| — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done, **on `claude/storyboard-mobile-layout-tc9jnv`, not published** — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container, so `/publish` and `/wrap` were unavailable |
 
 
 ---

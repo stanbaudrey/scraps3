@@ -233,13 +233,18 @@ export function AceCounterModal({ onCounter, onAllow, playerScraps, afterCounter
           {afterCounter ? 'She plays it. It will remove two cards from your Scraps.'
             : 'She will remove two cards from your Scraps.'}
         </p>
-        {/* Show player's scraps so they know what's at stake */}
+        {/* The player's Scraps, so they can see what is at stake. The
+            YOUR SCRAPS AT STAKE caption came off on 2026-09-15 (Stan),
+            the same call that took the labels off the two piles: the
+            sentence directly above already says she will remove two
+            cards from your Scraps, so the caption was saying it twice
+            in three lines. It survives as the group's accessible name —
+            a screen reader has no "directly above" to read from. */}
         {playerScraps&&playerScraps.length>0&&(
-          <div style={{margin:'0 auto 18px',background:DS.inkLight,
+          <div role="group" aria-label="Your Scraps, at stake"
+            style={{margin:'0 auto 18px',background:DS.inkLight,
             border:`2px solid ${DS.ember}66`,borderRadius:12,padding:'12px 16px',
             display:'inline-block'}}>
-            <div style={{fontFamily:F.mono,fontSize:12,color:DS.ember,marginBottom:8,
-              letterSpacing:'0.12em'}}>YOUR SCRAPS AT STAKE</div>
             <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
               {playerScraps.map(c=>(
                 <PlayingCard key={c.id} card={c} size="small" isScrap={true}/>
