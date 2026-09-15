@@ -325,40 +325,39 @@ export function GameScreen({ difficulty, onExit }) {
     // deck to fly from" case to fall back out of — see deckAnchor.
     const deckRect = deckAnchor();
     const STEP = 90;
-    const pSorted = [...playerCards].sort((a, b) => a.value - b.value);
+    // ORDER (Stan, 2026-09-14 evening): one seat, then the other. All
+    // five of a player's hand cards, then both of that player's Scraps
+    // cards, and only then the other player's seven. It used to be both
+    // hands and then both piles interleaved, which read as the dealer
+    // running round the table twice. The NON-dealer is dealt first, as
+    // at a real table: odd rounds she deals, so you are; even rounds you
+    // deal, so she is. `deckAnchor` already puts the deck on the dealer's
+    // edge, so the two agree. The replenish deal (hands only) follows
+    // the same rule. Your hand deals in value order because the fan is
+    // sorted; hers is face down and deals in slot order.
+    const playerFirst = stateRef.current.roundNum % 2 === 1;
     const moves = [];
-    pSorted.forEach((card, i) => moves.push({
-      card, fromRect: deckRect, toId: card.id,
-      fromSize: szRef.current.pile, toSize: szRef.current.hand,
-      arc: ((i % 3) - 1) * 0.5, delay: i * STEP,
-    }));
-    aiCards.forEach((card, i) => moves.push({
-      card: null, faceDown: true, fromRect: deckRect, toId: card.id,
-      fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
-      arc: ((i % 3) - 1) * 0.5, delay: (pSorted.length + i) * STEP,
-    }));
-    // The starting Scraps, after both hands and BOTH SIDES AT ONCE —
-    // two beats rather than four. Sequentially they added 360ms to a
-    // deal that was already 810, and the two piles are a single
-    // gesture at the end of a deal ("and two face up each"), not four
-    // more cards off the top. Face up on both sides, because a Scraps
-    // pile is public from the moment it exists.
-    const scrapStart = (pSorted.length + aiCards.length) * STEP;
-    const pScraps = [...playerScrapsCards].sort((a, b) => a.value - b.value);
-    const aScraps = [...aiScrapsCards].sort((a, b) => a.value - b.value);
-    for (let i = 0; i < Math.max(pScraps.length, aScraps.length); i++) {
-      const delay = scrapStart + i * STEP;
-      if (pScraps[i]) moves.push({
-        card: pScraps[i], fromRect: deckRect, toId: pScraps[i].id, toScrap: true,
+    let n = 0;
+    const seat = (hand, scraps, mine) => {
+      const h = mine ? [...hand].sort((a, b) => a.value - b.value) : hand;
+      h.forEach((card, i) => moves.push(mine ? {
+        card, fromRect: deckRect, toId: card.id,
+        fromSize: szRef.current.pile, toSize: szRef.current.hand,
+        arc: ((i % 3) - 1) * 0.5, delay: n++ * STEP,
+      } : {
+        card: null, faceDown: true, fromRect: deckRect, toId: card.id,
+        fromSize: szRef.current.pile, toSize: szRef.current.oppHand,
+        arc: ((i % 3) - 1) * 0.5, delay: n++ * STEP,
+      }));
+      // Face up, because a Scraps pile is public from the moment it exists.
+      [...scraps].sort((a, b) => a.value - b.value).forEach(card => moves.push({
+        card, fromRect: deckRect, toId: card.id, toScrap: true,
         fromSize: szRef.current.pile, toSize: szRef.current.pile,
-        arc: 0.45, delay,
-      });
-      if (aScraps[i]) moves.push({
-        card: aScraps[i], fromRect: deckRect, toId: aScraps[i].id, toScrap: true,
-        fromSize: szRef.current.pile, toSize: szRef.current.pile,
-        arc: -0.45, delay,
-      });
-    }
+        arc: mine ? 0.45 : -0.45, delay: n++ * STEP,
+      }));
+    };
+    if (playerFirst) { seat(playerCards, playerScrapsCards, true); seat(aiCards, aiScrapsCards, false); }
+    else { seat(aiCards, aiScrapsCards, false); seat(playerCards, playerScrapsCards, true); }
     fly(moves);
     // Batched with fly()'s own update: the motion hook builds its
     // flights in a LAYOUT effect, so the handoff lands before paint

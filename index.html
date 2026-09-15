@@ -450,6 +450,9 @@
         animation: wtWiggle 1.1s ease-in-out infinite alternate;
         transform-origin: 50% 88%;
       }
+      /* Storyboard beat 2's line break before "Draw fresh cards." —
+         desktop only. 700 is the layout's `tight` threshold. */
+      @media (max-width: 699px) { .wt-br { display: none; } }
 
       /* Shared keyframes — used across splash, game screen, and overlays */
       @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}

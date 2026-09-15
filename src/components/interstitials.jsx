@@ -475,7 +475,6 @@ const T = {
   // Tracked tighter than the Fjalla it replaced: Rye is a wide face
   // and 0.12em on it read as gapped.
   title: {fontFamily:F.title,color:DS.slateLight,letterSpacing:'0.05em',fontSize:'clamp(22px,3.6vw,30px)',lineHeight:1,textShadow:DROP},
-  hand:  {fontFamily:F.display,fontSize:'clamp(20px,3.2vw,26px)',letterSpacing:'0.06em',lineHeight:1.1},
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -761,7 +760,9 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const i = idx(step);
   const showLoser   = i >= idx('loser');
   const showSlap    = i >= idx('slap');
-  const showWinLbl  = i >= idx('winlabel') || tie;
+  // 'winlabel' is still a step — it is the beat between the last slap
+  // and the verdict — but nothing renders on it now that the side
+  // labels and hand names are gone.
   const showVerdict = i >= idx('verdict');
   const ticked      = i >= idx('tick') && !tie;
   const atRest      = step === 'rest' || step === 'csRest';
@@ -786,19 +787,14 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const isWinner = !tie && ((isP && mineWon) || (!isP && winner === 'ai'));
     const show = isWinner ? showSlap : showLoser;
     if (!show) return <div style={{height: CARD_DIMS[cardSize].h + 60}}/>;
-    const hidden = isWinner && !showWinLbl;
     // The OPPONENT / YOU labels that sat above her row and below yours
-    // went on 2026-09-14 (Stan). Top is hers and bottom is yours on
-    // every screen of the game, the papers say whose pile a Scraps row
-    // is, and the score row underneath still names both sides.
-    const name = (
-      <div data-sweep="text" data-sweep-id={`name-${who}`} className={fadeCls}
-        style={{...T.hand, color: isWinner ? (isP ? DS.voltage : DS.ember) : DS.slate,
-          opacity: hidden ? 0 : 1,
-          animation: textAnim(`name-${who}`, hidden ? undefined : fadeIn(240, 60))}}>
-        {isP ? playerHandName : aiHandName}
-      </div>
-    );
+    // went on 2026-09-14 (Stan), and the hand names under each row
+    // (Pair, Straight) went the same evening. Top is hers and bottom is
+    // yours on every screen of the game, the papers say whose pile a
+    // Scraps row is, the score row underneath still names both sides —
+    // and the cards ARE the hand. The names still reach a screen reader
+    // through the status line below, which is where they carry
+    // information a sighted player reads off the cards.
     const row = (
       <CardRow cards={cards} size={cardSize} isScrap={isScraps} kraft={!isP && isScraps}
         bestIds={isP ? playerBestIds : aiBestIds}
@@ -807,7 +803,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     );
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-        {row}{name}
+        {row}
       </div>
     );
   };

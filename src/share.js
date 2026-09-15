@@ -34,7 +34,7 @@ import { DS } from "./styles/theme.js";
 
 // No trailing period on purpose: the share sentence appends its own,
 // and the share card sets this line as spaced capitals, where a period
-// would hang off the end as a stray dot. The splash shows it bare.
+// would hang off the end as a stray dot. The splash adds its own.
 // "Poker with both hands" until 2026-09-14 (Stan's revision).
 export const TAGLINE = 'Play poker with both hands';
 

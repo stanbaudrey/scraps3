@@ -54,11 +54,15 @@ export function SplashScreen({ onStart }) {
               and Stan's call the same day).
               Pulled up into the wordmark's own bottom margin so the
               three things on this screen still read as one stack. */}
-          <div style={{fontFamily:F.display,fontSize:'clamp(18px,3.4vw,28px)',
+          {/* A size up (18-28 → 20-32) and a full stop of its own (Stan,
+              2026-09-14 evening). TAGLINE itself stays bare: the share
+              sentence appends its period and the share card sets the
+              line as spaced capitals. */}
+          <div style={{fontFamily:F.display,fontSize:'clamp(20px,3.8vw,32px)',
             color:DS.slateLight,letterSpacing:'0.06em',lineHeight:1.1,
             marginTop:'clamp(-20px,-4vw,-10px)',marginBottom:'clamp(22px,5vw,34px)',
             textShadow:'0 2px 0 rgba(0,0,0,.4)',
-            animation:'fadeUp .6s ease .35s both'}}>{TAGLINE}</div>
+            animation:'fadeUp .6s ease .35s both'}}>{TAGLINE}.</div>
           <Btn onClick={onStart}>Play</Btn>
         </div>
       </div>

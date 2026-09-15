@@ -264,9 +264,10 @@ looks broken locally, it is not a missing-secret problem.
   PNG result card drawn on a canvas, share sheet without files, clipboard
   with a COPIED state), the share sentence, and `TAGLINE`.
 - **`src/screens/MenuScreens.jsx`** — the splash (wordmark, the subtitle
-  "Play poker with both hands" in Fjalla — back since 2026-09-14 after a
-  day away, reworded by Stan later the same day — and one button) and the
-  difficulty picker.
+  "Play poker with both hands." in Fjalla — back since 2026-09-14 after a
+  day away, reworded by Stan later the same day, and the splash alone
+  adds the full stop to `TAGLINE` — and one button) and the difficulty
+  picker.
   The picker's two panels — and its **BACK** button, added the same day —
   are inert for `ARM_MS` (720ms) after mount so a click-streak carried
   over from the walkthrough can't pick a difficulty by accident. BACK
@@ -454,7 +455,9 @@ looks broken locally, it is not a missing-secret problem.
   carries the sign, so the two must move together or a card spins
   against its own travel). The opening deal is all FOURTEEN cards of
   the round, the two that start in each Scraps pile included — measured
-  as 14 simultaneous ghosts. Both anchors are computed rects (`deckAnchor` /
+  as 14 simultaneous ghosts — dealt SEAT BY SEAT since 2026-09-14
+  (Stan): the non-dealer's five hand cards, then that player's two
+  Scraps cards, then the dealer's seven the same way. Both anchors are computed rects (`deckAnchor` /
   `discardAnchor` in `GameScreen.jsx`), not measured elements, so there
   is no longer a "no deck to fly from" fallback to worry about. The
   spin is not a new animation: a flight already rotates a card from

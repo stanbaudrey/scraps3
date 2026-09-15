@@ -334,7 +334,10 @@ const BEATS = [
     visual: <BeatHands/>,
   },
   {
-    copy: <>Scrap cards from your hand into your Scraps pile. Draw fresh cards.</>,
+    // The break before "Draw fresh cards." is desktop-only (`.wt-br`,
+    // hidden under 700px in index.html): on a phone the first sentence
+    // already wraps and a forced break would strand a third line.
+    copy: <>Scrap cards from your hand into your Scraps pile.<br className="wt-br"/> Draw fresh cards.</>,
     visual: <BeatTrade/>,
     below: 'Both hands have a 7 card limit.',
   },
@@ -345,12 +348,7 @@ const BEATS = [
     // bold, with the bonus beside it (Stan, 2026-09-14). The Clean
     // Sweep is named on the table when it happens; here it is just
     // the arithmetic.
-    below: (
-      <>
-        <span style={{color:DS.slateLight,fontWeight:500}}>Win all three for a bonus +1.</span>{' '}
-        <b style={{color:DS.frost,fontWeight:700}}>Play to {WIN_SCORE}.</b>
-      </>
-    ),
+    below: <>Win all three for a bonus +1. <b style={{color:DS.frost}}>Play to {WIN_SCORE}.</b></>,
   },
   {
     // voltage, not gold: the ATTACK tag is green now and the word
@@ -378,11 +376,21 @@ export const LAST_BEAT = BEATS.length - 1;
 // off the cards on 2026-09-13, so a flush cannot be dealt.) There is no
 // reason to maintain a second, worse explanation of the rules beside
 // this one.
+// "Tap" on a touch screen, "Click" under a mouse (Stan, 2026-09-14
+// evening: "don't say Tap anywhere on desktop"). Read once at mount from
+// the same media query the hover rules use; a laptop with a trackpad is
+// a fine pointer and gets Click.
+const pointerVerb = () => {
+  try { return window.matchMedia('(hover: hover) and (pointer: fine)').matches ? 'Click' : 'Tap'; }
+  catch { return 'Tap'; }
+};
+
 export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
   // `startAt` is for the difficulty picker's BACK, which returns the
   // reader to the LAST beat rather than the first — they have already
   // read the whole thing and want the page they just left.
   const [i, setI] = useState(startAt);
+  const [verb] = useState(pointerVerb);
   const beat = BEATS[i];
   const last = i === BEATS.length - 1;
 
@@ -473,8 +481,12 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
 
           {beat.visual}
 
+          {/* The same type as the top copy (Stan, 2026-09-14 evening): it
+              was 18px/600 in frost, a caption's weight and colour under
+              a body line, and read as a different voice. */}
           {beat.below && (
-            <p style={{fontFamily:F.ui,fontSize:18,fontWeight:600,color:DS.frost,textAlign:'center'}}>
+            <p style={{fontFamily:F.ui,fontSize:'clamp(18px,2.4vw,27px)',lineHeight:1.45,
+              fontWeight:500,color:DS.slateLight,textAlign:'center',maxWidth:800}}>
               {beat.below}
             </p>
           )}
@@ -503,11 +515,11 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
         </div>
         {!last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
-            color:DS.slate,textTransform:'uppercase'}}>Tap anywhere, or press Enter</div>
+            color:DS.slate,textTransform:'uppercase'}}>{verb} anywhere, or press Enter</div>
         )}
         {last && (
           <div style={{fontFamily:F.mono,fontSize:12,letterSpacing:'0.2em',
-            color:DS.slate,textTransform:'uppercase'}}>{asReference ? 'Tap anywhere to close' : 'Tap anywhere to begin'}</div>
+            color:DS.slate,textTransform:'uppercase'}}>{verb} anywhere {asReference ? 'to close' : 'to begin'}</div>
         )}
         {/* BACK is always rendered, merely invisible on the first
             beat, so SKIP does not jump sideways the moment a reader

@@ -5441,6 +5441,55 @@ size, dropping Hand 2's signal) was read and left untouched, as asked.
 
 ---
 
+### Unplanned session — Six more from his notes, then publish (2026-09-14, evening)
+
+The second list of the day, off the preview of the first. **The splash
+subtitle has its full stop and is a size up** (18-28 → 20-32px): the
+period is added by the splash alone, since `TAGLINE` feeds the share
+sentence, which appends its own, and the share card, which sets the line
+as spaced capitals. **Storyboard 2** breaks before "Draw fresh cards." on
+desktop only (`.wt-br`, hidden under the 700px `tight` threshold, because
+on a phone the first sentence already wraps and a forced break stranded a
+third line), and its "7 card limit" line is set in the top copy's type.
+**Storyboard 3's** "Win all three … Play to 10." is set the same way, with
+"Play to 10." still bold in frost, as the previous list asked. **The rail
+says CLICK ANYWHERE under a fine pointer and TAP ANYWHERE on touch**, read
+once at mount from the same `(hover: hover) and (pointer: fine)` query
+the hover rules use — so his Mac gets Click and his iPhone gets Tap.
+**The deal goes seat by seat**: the non-dealer's five hand cards, then
+that player's two Scraps cards, then the dealer's seven the same way
+(odd rounds she deals, so you are dealt first; even rounds the reverse).
+It used to be both hands then both piles interleaved, which read as the
+dealer going round the table twice. The replenish deal follows the same
+rule. **The reveal screens lost their hand names** (Pair, Straight) — the
+cards are the hand — while the screen-reader status line keeps them,
+since that is where a name carries information a sighted player reads
+off the cards. `T.hand` and `showWinLbl` went with it; the `winlabel`
+step stays as the beat between the last slap and the verdict.
+
+**Confirmed in a real browser** (Playwright's Node API on 5194) at
+1280×800 and 375×667: the subtitle text and size at both widths; the
+rail verb (Click on the desktop context, Tap on the touch one); beat 2's
+break present on desktop and `display:none` on the phone, with the
+`below` line's computed size, weight, colour and leading equal to the top
+copy's on both beats and both widths; the deal sampled by first movement
+of each ghost — your hand at 59/142/242/326/410ms, your Scraps at
+510/593, her hand at 710 through 1076, her Scraps at 1175/1258, twice;
+and a reveal reached by the bot with zero `name-*` and zero `lbl-*`
+elements and the status line still naming the hands. No page errors. 53
+tests, build, `share:check` (nothing regenerated: the tagline string is
+unchanged), the `no-undef` scan clean.
+
+**Two measurement traps, both mine.** A `<p>`'s `getClientRects()` is one
+rect however many lines it wraps to, so a "line count" from it is always
+1 — read the screenshot or the element's height against its line-height.
+And every ghost of a deal is mounted at once with its delay inside the
+animation loop, so "first appearance" is the DOM order, not the deal
+order; sample first MOVEMENT instead, and key on the element rather than
+`data-flight`, which is `anon` for every face-down card.
+
+---
+
 ## Session tracker
 
 | # | Session | Status |
@@ -5477,6 +5526,7 @@ size, dropping Hand 2's signal) was read and left untouched, as asked.
 | — | *Unplanned:* Interstitials onto the table, fireworks out | Done + **PUBLISHED** (2026-09-14) at `a7455b5`, production serving `index-CqazxhAx.js` (the previewed bundle) — every between-hands moment on the redwood in one aligned layer: ROUND N in Rye with a riffle, slap-down reveals with a rolling, waving score, the sweep to the discard into the next round's sign, the CLEAN SWEEP beat, letter-card match screens (YOU WIN / OPPONENT WINS.), NEW GAME + SHARE with a canvas-drawn share image for the iOS sheet. Five scrim screens and both fireworks loops deleted; `slap` and `roundSign` cues added and measured; splash subtitle "Poker with both hands" back. Verified in real Chrome: bench frames at 1280 and 390, a real round driven 1→2, a whole match to the loss screen and NEW GAME (0 errors), reduced motion forced, all three share tiers forced, both size gates clear, share assets regenerated. Then critiqued (26/36) and its P1 plus four P2s plus eight of Stan's notes built the same day: inert table under the stage, skippable sweep, +N score ghost, labelled final score, hard drops for glows, a quicker quieter loss, MATCH POINT on the stage, a torn share card. iPhone share sheet untested |
 | — | *Unplanned:* The QA gate was measuring an animation | Done + **PUBLISHED** (2026-09-14) at `6bd985b`, bundle byte-identical to what was already live — **no game code changed.** The intermittent `small targets [{"Okay",[72,27]}]` failure was `popIn` caught mid-flight, not a small button: 54 x scale(.5) = 27 and 54 x 0.698 = 38 are the two numbers it reported. Measured at rest the button is 143x54 at every viewport and `Shell` applies **no scale to that modal at all**, so both suggested fixes would have changed nothing. `responsive-qa.mjs` now settles on `document.getAnimations()` rather than a 450ms timer, records whether the page was still and what was moving, names the dialog on top, and prints the viewport it is walking. Five clean runs with the Ace lightbox confirmed up and measured. New `tools/overlay-targets.mjs` measures all six modals at rest on demand: **42 pairs, nothing under 44px outside landscape phone**, where reveal's Continue is 32 and win's NEW GAME is 36 — both newly measured, both inside the accepted trade |
 | — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done, on `dev` |
+| — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done |
 
 
 ---
