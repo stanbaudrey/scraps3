@@ -5620,11 +5620,45 @@ confidence to say so.
 
 ---
 
+### Unplanned pass — Capacity documentation, and a file that rode along uninvited (2026-09-14)
+
+Stan asked what would break first if a project of his got shared widely.
+The answer became one `CAPACITY.md` per affected project. This project's
+is short, because the answer here is bandwidth and nothing else: no API
+routes, no database, and a search for `fetch`, `XMLHttpRequest` and
+`sendBeacon` across `src` returns nothing. Every visitor is an edge cache
+hit. The only ceiling is Vercel Hobby's 100 GB a month, which at roughly
+1 MB a visit is about 100,000 visits, and there is no overage path on
+Hobby because Spend Management is a Pro feature.
+
+**The thing worth recording is how the file got committed.** It was
+written at 19:52 as an untracked file. At 19:51 to 19:53 the revision
+pass running concurrently in this repo committed `adebb85` and published
+`3c7a14c`, and `CAPACITY.md` was swept into `adebb85` along with the
+interstitials work. So a commit whose message is about splash timing,
+storyboard type and seat-by-seat dealing also carries 65 lines of
+capacity documentation, and it is already on `main` and in production.
+
+Nothing is broken by that and it is not worth rewriting shared history
+to fix. But it is a live example of the cost of `git add -A` in a repo
+where another session may be working: **stage paths, not the tree.** The
+same evening the same thing nearly happened in knowtient, where a staged
+`scripts/schema.sql` belonging to another pass sat in the index while an
+unrelated commit was being made there.
+
+---
+
 ## Where the next session should start
 
 *Rewritten at the end of every pass. Priority order, defects above
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
+
+**`CAPACITY.md` is live and needs nothing.** Added 2026-09-14, committed
+inside `adebb85` by accident rather than on purpose. This project is the
+least exposed of the eight: no backend, bandwidth only. The one open item
+it raises is not technical, it is that there is still no custom domain
+and the site ships on `scraps3.vercel.app`.
 
 **Both of his 2026-09-14 revision lists are LIVE (`adebb85`).** The
 interstitials pass (`a7455b5`) plus twenty-eight revisions on top of it:
