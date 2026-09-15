@@ -68,7 +68,12 @@ jobs:
           BASE=https://scraps.games
           OLDBASE=https://scraps3.vercel.app
           fail=0
-          for p in / /og.png /favicon.svg /favicon-32.png /favicon-180.png \
+          # /privacy is a REWRITE (vercel.json maps it to /privacy.html),
+          # so this line also guards the rewrite, not just the file. It is
+          # the one path sitemap.xml and llms.txt advertise that nothing
+          # else checks, and `vite preview` serves it locally even with no
+          # rewrite at all, so a local pass proves nothing about it.
+          for p in / /privacy /og.png /favicon.svg /favicon-32.png /favicon-180.png \
                    /robots.txt /sitemap.xml /llms.txt /share-manifest.json; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$BASE$p" || echo 000)
             if [ "$code" = "200" ]; then echo "  ok   $code  $p"
