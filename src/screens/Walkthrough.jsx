@@ -375,7 +375,11 @@ export const LAST_BEAT = BEATS.length - 1;
 // game had never shown them. (That rule is itself gone now: suits came
 // off the cards on 2026-09-13, so a flush cannot be dealt.) There is no
 // reason to maintain a second, worse explanation of the rules beside
-// this one.
+// this one. RulesModal was finally DELETED on 2026-09-14: it had gone
+// on being tree-shaken out of every build since it lost its importer,
+// and it held the only copy of the privacy notice, which is why that
+// notice stopped shipping at all. The notice is /privacy now, linked
+// from the footer below.
 // "Tap" on a touch screen, "Click" under a mouse (Stan, 2026-09-14
 // evening: "don't say Tap anywhere on desktop"). Read once at mount from
 // the same media query the hover rules use; a laptop with a trackpad is
@@ -548,6 +552,21 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
             padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',
             fontFamily:F.ui,fontWeight:700,fontSize:14,
             letterSpacing:'0.14em',textTransform:'uppercase'}}>{asReference ? 'Close' : 'Skip'}</button>
+          {/* The privacy notice. It rides in THIS row rather than on a
+              line of its own so it costs the footer no height at all —
+              the row is already TOUCH_MIN tall for Back and Skip, and a
+              landscape phone has no 44px to spare below them. Quieter
+              than its neighbours on purpose: no border, mono, slate.
+
+              A new tab, not a navigation. This same footer is what the
+              ? disc on the table opens mid-match, and /privacy is a
+              real static page outside the app, so following it in place
+              would throw away a game in progress. */}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer"
+            style={{pointerEvents:'auto',display:'inline-flex',alignItems:'center',
+              minHeight:TOUCH_MIN,padding:'9px 12px',color:DS.slate,
+              fontFamily:F.mono,fontSize:12,letterSpacing:'0.14em',
+              textTransform:'uppercase',textDecoration:'none'}}>Privacy</a>
         </div>
       </div>
     </div>

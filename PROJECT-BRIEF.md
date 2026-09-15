@@ -5660,6 +5660,95 @@ own fetch, which is the route that works from here. A bare deployment URL is
 SSO-protected and 302s to `vercel.com/sso-api`; the apex is the one that
 returns the HTML.
 
+### Unplanned session — The privacy notice had stopped shipping; it is /privacy now (2026-09-14)
+
+Acting on a prompt Stan had written a couple of days earlier, re-checked
+against the code before anything was built. The premise held and was
+**worse than the prompt described**. The prompt said the notice was
+unreachable. It was not shipping at all: `RulesModal` lost its last importer
+on 2026-08-30 when the storyboard took over as the in-game rules, so Vite
+tree-shook the entire component out of the bundle. Grepping the built
+`dist/assets/*.js` for "No account, no sign-up" returned nothing. Meanwhile
+`llms.txt` went on telling every crawler and reader to "see the Privacy
+notice inside the game's rules panel", and that text was live on
+scraps.games. Confirmed by fetching it, not by reading the generator.
+
+**Five things in the prompt had drifted, and are recorded here because the
+next stale prompt will drift the same ways.** Its line number (~707) was
+365 lines off after the interstitials work. The table bar had grown a fourth
+disc (log history), so its "beside the ?, sound and quit discs" option meant
+a fifth control, not a fourth. Its splash-link option **contradicted a
+decision Stan had already made** on 2026-09-13, recorded in
+`MenuScreens.jsx`: the suit row came off and "NOTHING replaces it" — the
+wordmark and one button carry that screen. Its static-page option was
+described as "the project's first route", implying a router; a static
+`public/privacy.html` needs none. And the finding was **already logged in
+this brief** at the 2026-09-14 publish entry, so it was a queued decision
+rather than a discovery.
+
+**Stan's two calls, put to him before any code was written.** Placement:
+the static page. Wording: add the SHARE paragraph.
+
+**What was built.**
+
+- **`public/privacy.html`, generated, not hand-written.** The copy, the
+  `PRIVACY_UPDATED` date and the page template live in
+  `tools/make-share-assets.mjs` beside `llms.txt` and `robots.txt`. The
+  palette is imported from `theme.js`, every URL derives from `SITE`, and
+  the `@font-face` rules are **lifted verbatim out of `index.html`'s
+  FONT-FACE sentinels**, so `npm run fonts` reaches this page too and the
+  four self-hosted families cannot drift from the app's. It is in
+  `textFiles`, so `share:check` byte-compares it and `share-manifest.json`
+  lists it, which puts it under CLAUDE.md's existing "do not hand-edit
+  anything the manifest lists" rule with no new convention invented.
+- **A fourth paragraph, for SHARE.** `src/share.js` landed 2026-09-14, after
+  the notice was last dated. It hands a result sentence, the site address
+  and a rendered PNG to the OS share sheet, or the sentence to the
+  clipboard. No network request is made, so the old "no network requests at
+  all" line stayed literally true — but a notice that enumerates what leaves
+  your browser and omits the one feature that sends anything is thin. Dated
+  **14 September 2026**.
+- **`RulesModal` and `PRIVACY` deleted** from `overlays.jsx`, 78 lines, plus
+  the seven imports that went unused with them (`useState`, `WIN_SCORE`,
+  and five of six icons; `IconBolt` stays, used by the Ace counter). This
+  was **required by the fix, not cleanup**: adding the copy to the generator
+  while leaving the array in place would have given the project two copies
+  of the privacy text, which is worse than the one-unreachable-copy state
+  being repaired.
+- **A `Privacy` link in the storyboard footer**, in the existing Back/Skip
+  row rather than on a line of its own, so it costs the footer **zero
+  height** on a landscape phone that has none to spare. Measured at exactly
+  44px, the row's own height. `target="_blank"` on purpose: that footer is
+  what the `?` disc opens mid-match, and a same-tab navigation to a static
+  page would throw away a game in progress.
+- **`llms.txt` repointed** at `${SITE}/privacy` and listed under Links;
+  `sitemap.xml` gained the page; `vercel.json` gained one targeted rewrite,
+  `/privacy` → `/privacy.html`. Deliberately NOT `cleanUrls`, which changes
+  URL semantics site-wide to solve one path.
+
+**Verified, and how.** 55 tests, clean build, `share:check` green. The
+build is the load-bearing one: after deleting `RulesModal` the bundle hash
+came back **byte-identical** (`index-DTQFhWtb.js`), which proves the
+component really had been tree-shaken and the deletion changed nothing that
+shipped. The drift guard was **dispatched rather than assumed**, both ways:
+editing `PRIVACY_UPDATED` without regenerating failed by name
+(`privacyUpdated: baked in "14 September 2026", live now "15 September
+2026"`), hand-editing `public/privacy.html` failed as a byte mismatch, and
+the **real exit code was checked with the pipe removed** — 1 when tampered,
+0 when restored. In a real browser on the production build: all four fonts
+report `document.fonts.check` true, contrast measured from rendered colours
+at 9.53:1 body, 10.10:1 heading, 7.56:1 the mono date (all clear AAA), no
+horizontal scroll at 375, and the Back link 51px tall. `responsive-qa.mjs`
+**ALL CLEAR at all six viewports** with the new footer link in place.
+
+**Worth knowing next time.** The generator's `sitemap.xml` `lastmod` uses
+`toISOString()`, which is UTC, so it reads 2026-09-15 for a session run on
+the evening of the 14th Pacific. Pre-existing and correct for a sitemap, but
+it will keep disagreeing with hand-written dates in the copy. Also: `vite
+preview` already serves `/privacy` without any rewrite, via its own
+extensionless fallback, so **local success there does not prove the Vercel
+rewrite works** — that has to be checked on the deployment itself.
+
 ---
 
 ## Session tracker
@@ -5700,6 +5789,7 @@ returns the HTML.
 | — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done + **PUBLISHED** (2026-09-14 evening, `adebb85`) |
 | — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
 | — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done + **PUBLISHED** at `7f229ce`, production serving `index-DTQFhWtb.js` — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container: `/publish` and `/wrap` were unavailable, so the pre-flight was run by hand and the design detector did not run. `dev`'s two unpublished doc commits were merged in rather than skipped |
+| — | *Unplanned:* The privacy notice had stopped shipping (2026-09-14) | Done, on `dev` — the notice was not merely unreachable, `RulesModal` had been **tree-shaken out of every build** since losing its importer on 2026-08-30, while `llms.txt` kept pointing readers at it live. Now a generated `public/privacy.html` in the `share:check` byte-compare, built from `theme.js` tokens, `SITE`, and `index.html`'s own FONT-FACE block. Fourth paragraph added for the SHARE button that landed after the notice was last dated; re-dated 14 September 2026. `RulesModal` + `PRIVACY` deleted (78 lines) — **required, not tidying**: leaving the array would have made two copies. `Privacy` link rides the storyboard's existing Back/Skip row at exactly 44px for **zero added footer height**, `target="_blank"` so the `?` disc can't drop a running match. `llms.txt`, `sitemap.xml` and a targeted `vercel.json` rewrite (not `cleanUrls`) repointed. Verified: bundle hash **byte-identical** after the deletion, proving the tree-shake; drift guard dispatched both ways with the **real exit code** read (1 tampered / 0 clean); fonts, AAA contrast and no-scroll measured in a real browser; `responsive-qa.mjs` ALL CLEAR at six viewports. Found: `vite preview` serves `/privacy` without any rewrite, so the Vercel rewrite must be checked on the deployment |
 
 
 ---

@@ -99,6 +99,32 @@ const STRAPLINE = tagM[1];
 // actually be dealt.
 const HAND = ['10','J','Q','K','A'];
 
+// ── The privacy notice ──────────────────────────────────────
+// This copy lived in a `RulesModal` in src/components/overlays.jsx
+// until 2026-09-14. That modal lost its last importer on 2026-08-30
+// when the storyboard took over as the in-game rules, so Vite
+// tree-shook the whole thing out — the notice was not merely
+// unreachable, it had stopped shipping at all, while llms.txt went on
+// pointing readers at "the Privacy notice inside the game's rules
+// panel". It is a static page now, for the reason a privacy notice
+// usually is one: it wants an address that can be linked to, and it
+// has no business being a screen in a card game.
+//
+// It is GENERATED rather than hand-written so the page cannot drift
+// from the app it describes: the palette comes from theme.js, the
+// @font-face rules are borrowed verbatim from index.html (so
+// `npm run fonts` reaches this page too), and every URL derives from
+// SITE. --check byte-compares the result, and PRIVACY_UPDATED is in
+// `sources` so an edited notice that was never regenerated fails by
+// name instead of as an anonymous hash mismatch.
+const PRIVACY_UPDATED = '14 September 2026';
+const PRIVACY = [
+  `SCRAPS runs entirely in your browser, and two things get saved on your browser's storage. Your win-loss record and best winning margin for each difficulty, which stays until you clear your browser data. And a note that you have already seen the intro, so it does not replay every time you press Play, which clears when you close the tab.`,
+  `No account, no sign-up, and nothing on a server keeping track of you. Once the page has loaded the game makes no network requests at all: no analytics, no tracking pixels, no cookies, no third-party scripts. Even the fonts are served from this site rather than from Google.`,
+  `The SHARE button at the end of a match is the one thing that sends anything anywhere, and only when you press it. It hands your result, this site's address and a picture of the result to whichever app you choose from your device's share sheet, or copies the same sentence to your clipboard if your browser has no share sheet. Where it goes next is between you and the app you picked. Nothing reaches us either way, and nothing is sent at all if you never press it.`,
+  `This site is hosted on Vercel. Like any web host, they receive your IP address and keep that in their logs.`,
+];
+
 // Everything baked into the pixels. Drift in ANY of these means
 // the committed PNGs no longer describe the project.
 const sources = {
@@ -108,6 +134,7 @@ const sources = {
   strapline: STRAPLINE,
   hand: HAND.join(' '),
   winScore: WIN_SCORE,
+  privacyUpdated: PRIVACY_UPDATED,
   palette: {
     dusk: DS.dusk, frost: DS.frost, voltage: DS.voltage,
     slate: DS.slate, slateLight: DS.slateLight,
@@ -266,6 +293,12 @@ const sitemapXml = (lastmod) => `<?xml version="1.0" encoding="UTF-8"?>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
+  <url>
+    <loc>${SITE}/privacy</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>
 `;
 
@@ -303,7 +336,8 @@ original, not a digital version of an existing game.
 
 - Free, no account, no download, no backend. Runs entirely in the browser.
 - Nothing is collected beyond a local win/loss record kept in your own
-  browser; see the Privacy notice inside the game's rules panel.
+  browser, and the SHARE button sends only what you press it on. Full
+  notice: ${SITE}/privacy
 - Built with Vite and React, with no runtime dependencies beyond React.
   Every graphic is inline SVG and every sound is synthesised live with the
   Web Audio API — the project ships no image or audio files.
@@ -311,6 +345,112 @@ original, not a digital version of an existing game.
 ## Links
 
 - Play: ${SITE}/
+- Privacy: ${SITE}/privacy
+`;
+
+// The @font-face rules are lifted from index.html rather than
+// rewritten, so the four self-hosted families stay in step with
+// whatever `npm run fonts` last wrote. Both files serve them from
+// the same /fonts paths, so the block needs no rewriting to work here.
+const fontFaceBlock = (() => {
+  const m = indexHtml.match(/\/\* FONT-FACE:BEGIN \*\/[\s\S]*?\/\* FONT-FACE:END \*\//);
+  if (!m) fail('could not find the FONT-FACE block in index.html — /privacy borrows its @font-face rules from there');
+  return m[0].replace(/^ {6}/gm, '    ');
+})();
+
+const privacyHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy — ${WORDMARK}</title>
+    <meta name="description" content="What ${WORDMARK} stores, what it sends, and what it does not collect." />
+    <link rel="canonical" href="${SITE}/privacy" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
+    <meta name="theme-color" content="${DS.dusk}" />
+    <style>
+${fontFaceBlock}
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: ${DS.dusk};
+      color: ${DS.slateLight};
+      font-family: 'Work Sans', system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-text-size-adjust: 100%;
+    }
+    .wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: clamp(28px, 7vw, 64px) clamp(20px, 6vw, 32px) 64px;
+    }
+    /* The wordmark is the game's own Rye, and it is a link home
+       rather than decoration: this page is reachable from a new tab,
+       so it needs its own way back. */
+    .home {
+      display: inline-block;
+      font-family: 'Rye', serif;
+      font-size: clamp(26px, 6vw, 34px);
+      color: ${DS.frost};
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .home .v { color: ${DS.voltage}; }
+    .home:hover, .home:focus-visible { color: ${DS.voltage}; }
+    h1 {
+      font-family: 'Fjalla One', sans-serif;
+      font-weight: 400;
+      color: ${DS.voltage};
+      font-size: clamp(32px, 8vw, 46px);
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      margin: clamp(24px, 6vw, 38px) 0 clamp(18px, 4vw, 26px);
+    }
+    p { margin: 0 0 20px; }
+    .updated {
+      font-family: 'IBM Plex Mono', ui-monospace, monospace;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: ${DS.slate};
+      margin-top: 30px;
+    }
+    .back {
+      display: inline-block;
+      margin-top: 34px;
+      font-family: 'Work Sans', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: ${DS.slateLight};
+      text-decoration: none;
+      border: 2px solid ${DS.slate}66;
+      border-radius: 8px;
+      /* 44px on the short axis, the same floor every control in the
+         game is held to. */
+      padding: 12px 26px;
+      min-height: 44px;
+    }
+    .back:hover, .back:focus-visible {
+      color: ${DS.voltage};
+      border-color: ${DS.voltage};
+    }
+    /* Focus stays visible for keyboard users on both links. */
+    a:focus-visible { outline: 3px solid ${DS.voltage}; outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a class="home" href="/">SCRAP<span class="v">S</span></a>
+      <h1>Privacy</h1>
+${PRIVACY.map(p => `      <p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`).join('\n')}
+      <p class="updated">Last updated ${PRIVACY_UPDATED}</p>
+      <a class="back" href="/">Back to the game</a>
+    </main>
+  </body>
+</html>
 `;
 
 // ── Generate or check ───────────────────────────────────────
@@ -323,6 +463,7 @@ const textFiles = {
   'favicon.svg': faviconSvg + '\n',
   'robots.txt':  robotsTxt,
   'llms.txt':    llmsTxt,
+  'privacy.html': privacyHtml,
 };
 
 const manifestPath = path.join(PUBLIC, 'share-manifest.json');

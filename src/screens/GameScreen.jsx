@@ -1909,7 +1909,9 @@ export function GameScreen({ difficulty, onExit }) {
 
       {/* The rules ARE the storyboard now. RulesModal was a separate,
           worse explanation of the same rules that truncated on a phone
-          before it reached the house rule. */}
+          before it reached the house rule; deleted 2026-09-14. Its
+          privacy notice moved to the generated /privacy page, which the
+          storyboard footer links to. */}
       {showRules&&<Walkthrough asReference onDone={()=>setShowRules(false)}/>}
       {confirmQuit&&<QuitConfirmModal onCancel={()=>setConfirmQuit(false)} onQuit={onExit}/>}
       {/* The interstitial layer: ROUND N, every reveal, the Clean Sweep
