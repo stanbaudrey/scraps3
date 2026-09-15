@@ -5917,17 +5917,11 @@ unrelated commit was being made there.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
-**`CAPACITY.md` is live and needs nothing.** Added 2026-09-14, committed
-inside `adebb85` by accident rather than on purpose. This project is the
-least exposed of the eight: no backend, bandwidth only, and the single
-ceiling is Vercel Hobby's 100 GB a month.
-
-**Its first draft got the domain wrong, and the reason generalises.** It
-said the project had no custom domain, because it chose the most frequent
-URL in this brief and `scraps3.vercel.app` outnumbers `scraps.games` here
-purely because it is the historical address. In a brief this long,
-frequency measures history, not currency. Line 5 and the Notion page both
-say `scraps.games` and both were right.
+**`CAPACITY.md` is live and needs nothing** (2026-09-14): no backend,
+bandwidth only, Vercel Hobby's 100 GB a month is the single ceiling.
+Demoted from the top of this list because it is closed. Its one carry-over
+lesson: **in a brief this long, frequency measures history, not currency** —
+its draft picked the most common URL here and got the live domain wrong.
 
 **Both of his 2026-09-14 revision lists are LIVE (`adebb85`).** The
 interstitials pass (`a7455b5`) plus twenty-eight revisions on top of it:
@@ -5936,6 +5930,33 @@ notice; the phantom counter a timer that skipped the Ace check; the
 flights now scale), every filled button green, the storyboard and reveal
 copy calls, the seat-by-seat deal, Click/Tap on the rail. The two entries
 above the tracker have every decision.
+
+**The privacy notice is live at [scraps.games/privacy](https://scraps.games/privacy)
+(2026-09-15), and the page is GENERATED — never hand-edit
+`public/privacy.html`.** Its copy, template and tokens live in
+`tools/make-share-assets.mjs`; `npm run share` rewrites it and
+`npm run share:check` byte-compares it. It carries **no "last updated"
+date**, on purpose (see the generator header before adding one back). The
+notice had not merely been unreachable, it had stopped shipping at all:
+`RulesModal` lost its importer on 2026-08-30 and Vite tree-shook it out,
+while `llms.txt` kept pointing readers at it. `RulesModal` and its
+`PRIVACY` array are now deleted.
+
+**Two things that pass opened, both small.** `/privacy` is a **Vercel
+rewrite**, and `vite preview` serves it locally even with no rewrite at
+all, so a local pass proves nothing — the monthly workflow now fetches it
+as a tenth path, which is the only guard on that rewrite. And the notice is
+reachable from the table's `?` and from `llms.txt`/`sitemap.xml`, but from
+**nowhere on the splash or the difficulty picker**, which follows from
+Stan's 2026-09-13 call that the wordmark and one button carry the splash.
+Not a defect; raise it only if he does.
+
+**The DO NOT START item about memory across sessions now has a real page to
+amend.** That item asks what the privacy notice would have to say if the
+game remembered you between sessions. The answer is now concrete: edit the
+`PRIVACY` array in `tools/make-share-assets.mjs` and run `npm run share`.
+It is three lines and names exactly two stored things, so a third would be
+a visible, deliberate addition rather than an edit to prose nobody reads.
 
 **Four judgment calls from the first list are live and unconfirmed by
 him:** QUIT TO MENU as a ghost so the quit screen has one green thing;
@@ -5970,10 +5991,10 @@ by first principles rather than by a bench.
 the OG card say "Play poker with both hands". One line in `index.html` plus
 `npm run share`; his to decide.
 
-**Nothing is in flight.** `dev` and `main` are level at `adebb85` once
-the publish log merges, and production serves it. Before any publish run
-the `no-undef` scan the revision entry describes; it is the only check in
-this repo that catches a render crash, and the tests were green over one.
+**Nothing is in flight.** `dev` and `main` are level at `55d27a0` and
+production serves it. Before any publish run the `no-undef` scan the
+revision entry describes; it is the only check in this repo that catches a
+render crash, and the tests were green over one.
 
 **The responsive gate is trustworthy again, and it was not before
 (2026-09-14).** It had been failing intermittently on a 54px button it was
