@@ -5701,13 +5701,25 @@ the static page. Wording: add the SHARE paragraph.
   `textFiles`, so `share:check` byte-compares it and `share-manifest.json`
   lists it, which puts it under CLAUDE.md's existing "do not hand-edit
   anything the manifest lists" rule with no new convention invented.
-- **A fourth paragraph, for SHARE.** `src/share.js` landed 2026-09-14, after
-  the notice was last dated. It hands a result sentence, the site address
-  and a rendered PNG to the OS share sheet, or the sentence to the
-  clipboard. No network request is made, so the old "no network requests at
-  all" line stayed literally true — but a notice that enumerates what leaves
-  your browser and omits the one feature that sends anything is thin. Dated
-  **14 September 2026**.
+- **The copy is Stan's own, and three lines long.** It went through a
+  SHARE paragraph first, then he cut the whole thing back: "couldn't we
+  just say what IS saved/gathered and move on?" He was right, and the
+  principle is worth keeping. **You disclose what you do, not what you
+  don't.** The version that shipped names the two things stored on the
+  device and the one thing that reaches a third party (Vercel's logs get
+  the IP), and closes with "Nothing else is collected" — four words doing
+  the job of a paragraph that had listed no analytics, no tracking pixels,
+  no cookies, no third-party scripts, none of which is a disclosure
+  obligation. The SHARE paragraph went too: the player hands their own
+  result to an app they picked, with the share sheet visible while it
+  happens, and nothing is collected from it. Dated **15 September 2026**.
+  `llms.txt` lost its matching SHARE clause in the same pass, so the
+  summary and the notice it links to cannot disagree.
+  **Recorded so nobody pads it back out**, in the generator's own header:
+  this is a plain-English transparency statement, NOT a GDPR Article 13
+  notice. There is no named controller, legal basis, retention period or
+  contact route, because Stan's standing call is no name and no contact
+  line. That is a deliberate trade for a hobby game, not an oversight.
 - **`RulesModal` and `PRIVACY` deleted** from `overlays.jsx`, 78 lines, plus
   the seven imports that went unused with them (`useState`, `WIN_SCORE`,
   and five of six icons; `IconBolt` stays, used by the Ace counter). This
@@ -5789,7 +5801,7 @@ rewrite works** — that has to be checked on the deployment itself.
 | — | *Unplanned:* His revision list — counter phantom, black screen, cards that shrink, one green (2026-09-14) | Done + **PUBLISHED** (2026-09-14 evening, `adebb85`) |
 | — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
 | — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done + **PUBLISHED** at `7f229ce`, production serving `index-DTQFhWtb.js` — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container: `/publish` and `/wrap` were unavailable, so the pre-flight was run by hand and the design detector did not run. `dev`'s two unpublished doc commits were merged in rather than skipped |
-| — | *Unplanned:* The privacy notice had stopped shipping (2026-09-14) | Done, on `dev` — the notice was not merely unreachable, `RulesModal` had been **tree-shaken out of every build** since losing its importer on 2026-08-30, while `llms.txt` kept pointing readers at it live. Now a generated `public/privacy.html` in the `share:check` byte-compare, built from `theme.js` tokens, `SITE`, and `index.html`'s own FONT-FACE block. Fourth paragraph added for the SHARE button that landed after the notice was last dated; re-dated 14 September 2026. `RulesModal` + `PRIVACY` deleted (78 lines) — **required, not tidying**: leaving the array would have made two copies. `Privacy` link rides the storyboard's existing Back/Skip row at exactly 44px for **zero added footer height**, `target="_blank"` so the `?` disc can't drop a running match. `llms.txt`, `sitemap.xml` and a targeted `vercel.json` rewrite (not `cleanUrls`) repointed. Verified: bundle hash **byte-identical** after the deletion, proving the tree-shake; drift guard dispatched both ways with the **real exit code** read (1 tampered / 0 clean); fonts, AAA contrast and no-scroll measured in a real browser; `responsive-qa.mjs` ALL CLEAR at six viewports. Found: `vite preview` serves `/privacy` without any rewrite, so the Vercel rewrite must be checked on the deployment |
+| — | *Unplanned:* The privacy notice had stopped shipping (2026-09-14) | Done, on `dev` — the notice was not merely unreachable, `RulesModal` had been **tree-shaken out of every build** since losing its importer on 2026-08-30, while `llms.txt` kept pointing readers at it live. Now a generated `public/privacy.html` in the `share:check` byte-compare, built from `theme.js` tokens, `SITE`, and `index.html`'s own FONT-FACE block. Copy is **Stan’s own and three lines**: he cut a first four-paragraph draft back to what is actually saved plus Vercel’s IP logs, closing on “Nothing else is collected.” **You disclose what you do, not what you don’t** — the cut paragraph listed absences (no analytics, no pixels, no cookies), which is not a disclosure obligation. Dated 15 September 2026; `llms.txt` lost its matching SHARE clause so the two cannot disagree. Recorded in the generator header that this is a transparency statement, NOT a GDPR Art.13 notice (no controller, basis, retention or contact — his standing no-name call). `RulesModal` + `PRIVACY` deleted (78 lines) — **required, not tidying**: leaving the array would have made two copies. `Privacy` link rides the storyboard's existing Back/Skip row at exactly 44px for **zero added footer height**, `target="_blank"` so the `?` disc can't drop a running match. `llms.txt`, `sitemap.xml` and a targeted `vercel.json` rewrite (not `cleanUrls`) repointed. Verified: bundle hash **byte-identical** after the deletion, proving the tree-shake; drift guard dispatched both ways with the **real exit code** read (1 tampered / 0 clean); fonts, AAA contrast and no-scroll measured in a real browser; `responsive-qa.mjs` ALL CLEAR at six viewports. Found: `vite preview` serves `/privacy` without any rewrite, so the Vercel rewrite must be checked on the deployment |
 
 
 ---

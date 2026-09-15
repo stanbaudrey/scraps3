@@ -117,12 +117,29 @@ const HAND = ['10','J','Q','K','A'];
 // SITE. --check byte-compares the result, and PRIVACY_UPDATED is in
 // `sources` so an edited notice that was never regenerated fails by
 // name instead of as an anonymous hash mismatch.
-const PRIVACY_UPDATED = '14 September 2026';
+// Stan's own words, and DELIBERATELY THIS SHORT (2026-09-15). The
+// first version ran four paragraphs and spent one of them listing
+// what the game does NOT do — no analytics, no tracking pixels, no
+// cookies, no third-party scripts. None of that is a disclosure
+// obligation: you disclose what you do. "Nothing else is collected"
+// does the same job in four words and is a checkable claim rather
+// than a list of absences. The SHARE paragraph went the same way —
+// the player hands their own result to an app they picked, with the
+// share sheet visible while it happens, and nothing is collected
+// from it. Do not pad this back out.
+//
+// What is left is the actual minimum: what is stored on the device,
+// and the one thing that reaches a third party (Vercel's logs get
+// the IP). Note this is a plain-English transparency statement, not
+// a GDPR Article 13 notice — there is no named controller, legal
+// basis, retention period or contact route, because Stan's call is
+// no name and no contact line. That is a deliberate trade for a
+// hobby game, recorded so nobody "fixes" it by accident.
+const PRIVACY_UPDATED = '15 September 2026';
 const PRIVACY = [
-  `SCRAPS runs entirely in your browser, and two things get saved on your browser's storage. Your win-loss record and best winning margin for each difficulty, which stays until you clear your browser data. And a note that you have already seen the intro, so it does not replay every time you press Play, which clears when you close the tab.`,
-  `No account, no sign-up, and nothing on a server keeping track of you. Once the page has loaded the game makes no network requests at all: no analytics, no tracking pixels, no cookies, no third-party scripts. Even the fonts are served from this site rather than from Google.`,
-  `The SHARE button at the end of a match is the one thing that sends anything anywhere, and only when you press it. It hands your result, this site's address and a picture of the result to whichever app you choose from your device's share sheet, or copies the same sentence to your clipboard if your browser has no share sheet. Where it goes next is between you and the app you picked. Nothing reaches us either way, and nothing is sent at all if you never press it.`,
-  `This site is hosted on Vercel. Like any web host, they receive your IP address and keep that in their logs.`,
+  `SCRAPS saves two things to your browser: a win-loss record for each difficulty and a note that you've seen the "How to Play" intro. Clearing your browser data removes them.`,
+  `This site is hosted on Vercel, so they log your IP address.`,
+  `Nothing else is collected.`,
 ];
 
 // Everything baked into the pixels. Drift in ANY of these means
@@ -336,8 +353,7 @@ original, not a digital version of an existing game.
 
 - Free, no account, no download, no backend. Runs entirely in the browser.
 - Nothing is collected beyond a local win/loss record kept in your own
-  browser, and the SHARE button sends only what you press it on. Full
-  notice: ${SITE}/privacy
+  browser. Full notice: ${SITE}/privacy
 - Built with Vite and React, with no runtime dependencies beyond React.
   Every graphic is inline SVG and every sound is synthesised live with the
   Web Audio API — the project ships no image or audio files.

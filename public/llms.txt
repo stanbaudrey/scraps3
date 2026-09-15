@@ -22,8 +22,7 @@ original, not a digital version of an existing game.
 
 - Free, no account, no download, no backend. Runs entirely in the browser.
 - Nothing is collected beyond a local win/loss record kept in your own
-  browser, and the SHARE button sends only what you press it on. Full
-  notice: https://scraps.games/privacy
+  browser. Full notice: https://scraps.games/privacy
 - Built with Vite and React, with no runtime dependencies beyond React.
   Every graphic is inline SVG and every sound is synthesised live with the
   Web Audio API — the project ships no image or audio files.
