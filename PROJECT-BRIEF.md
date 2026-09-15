@@ -5428,6 +5428,17 @@ play. The Clean Sweep loss cue is a first placement. SHARE on his iPhone
 is still untested. The title/tagline split. And whether QUIT TO MENU as a
 ghost, the plural "2 PTS", and the period-less tagline are what he meant.
 
+**On preview (2026-09-14, `d918164`).** Pushed to `dev`; Vercel built it
+in 5s. The deployment's metadata names commit `d918164` — local HEAD —
+and the preview's HTML (fetched through the Vercel MCP at the immutable
+deployment URL; the branch alias 302s to SSO as usual) references
+`assets/index-CSz1NQ_5.js`, the same content-hashed bundle the local
+build produced and every check above ran against. Branch alias:
+`scraps3-git-dev-samvaudrey-3466s-projects.vercel.app`. Notion carries
+the session paragraph and marks his twenty-two notes picked up; his
+DO-NOT-START block (a harder HARD, a REALLY HARD mode, the record's type
+size, dropping Hand 2's signal) was read and left untouched, as asked.
+
 ---
 
 ## Session tracker
