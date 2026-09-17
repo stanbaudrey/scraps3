@@ -732,6 +732,16 @@ looks broken locally, it is not a missing-secret problem.
   `visibility: hidden`, until the attack ends; measured after, the Ace
   lands within 0.5px of the gap at four viewports. Anything added to the
   attack that appears or disappears has to reserve its space the same way.
+- **The attack protects itself from its own button.** The global skip
+  (any mousedown, Enter or Space while cards fly) ignores, during an
+  attack only, the second press of a double-click (`e.detail > 1`), a held
+  key (`e.repeat`) and anything in the first 250ms after REMOVE. Without
+  it a double-click on REMOVE skipped the whole throw it had just started.
+- **`buttonKeys` answers only keys pressed on its own element.** A fan slot
+  is a `role="button"` that can contain a REAL button (the ATTACK tag), and
+  the slot's handler used to catch the tag's Enter as it bubbled, cancel it
+  and select the Ace for scrapping, so no keyboard user could attack. Found
+  2026-09-16; it predated The Throw.
 - **An effect keyed on a counter fires on a CHANGE, never on mount.** Her
   pile's hop reads `joltKey` against a ref, because the two layouts put the
   pile under different parents and a rotation remounts it holding the last

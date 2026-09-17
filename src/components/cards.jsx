@@ -282,6 +282,10 @@ function scrapLook(id, aspect){
 export function buttonKeys(fn){
   return (e) => {
     if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    // Only keys pressed on THIS element. The ATTACK tag is a real button
+    // inside its Ace's slot, and its Enter used to bubble up here, get
+    // cancelled, and select the Ace for scrapping instead of attacking.
+    if (e.target !== e.currentTarget) return;
     e.preventDefault();
     e.stopPropagation();
     fn();
@@ -567,7 +571,7 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
           the card to arrive (520ms) and runs once. Clipped by this card's
           own overflow, and hidden outright under reduced motion. */}
       {glint&&(
-        <div aria-hidden="true" className="card-glint" style={{position:'absolute',inset:-6,
+        <div aria-hidden="true" className="card-glint" style={{position:'absolute',inset:0,
           zIndex:2,pointerEvents:'none',backgroundRepeat:'no-repeat',backgroundSize:'260% 100%',
           backgroundImage:`linear-gradient(105deg, ${DS.frost}00 38%, ${DS.frost}B3 50%, ${DS.frost}00 62%)`,
           animation:'cardGlint 560ms ease-in-out 520ms both'}}/>

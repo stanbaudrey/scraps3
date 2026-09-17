@@ -737,7 +737,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const herRect = aiAce ? rectOf(aiAce.id) : null;
 
     const st = {
-      countered: !!aiAce, committed: false, impacted: false, timers: [],
+      countered: !!aiAce, committed: false, impacted: false, timers: [], t0: performance.now(),
       notice: aiAce ? { playerAce: ace, aiAce, stillArmed } : null,
       // THE COMMIT, in one place, so the timeline and a skip both land
       // here and it can only ever happen once.
@@ -1540,6 +1540,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     if (!animating) return;
     const onSkip = (e) => {
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      // The attack is the one flight worth protecting from its own
+      // button: the second click of a double-click on REMOVE, a key held
+      // down, or a second tap right behind the first would otherwise skip
+      // the whole throw it just started. A deliberate click still lands it.
+      const st = strikeRef.current;
+      if (st && (e.detail > 1 || e.repeat || performance.now() - st.t0 < 250)) return;
       clearDrawSfx();
       // An Ace attack in the air commits and clears in the same beat, so
       // dropping its ghosts never leaves the Ace back in your hand.

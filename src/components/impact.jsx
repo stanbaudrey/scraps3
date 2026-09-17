@@ -27,12 +27,13 @@ import { easeOut } from "./throwMotion.js";
 
 // Debris colours, all tokens. Chips are the table's own wood; paper is
 // the two Scraps stocks and a card face; sparks are ATTACK's green;
-// embers are hers.
+// embers are hers, lit with frost. Never gold: gold marks a milestone
+// and nothing else (theme.js).
 const COLORS = {
   chips:  [DS.timberLight, DS.timber, DS.timberSeam, DS.stockKraft],
   paper:  [DS.stockPale, DS.stockKraft, DS.frost],
   sparks: [DS.voltage, DS.voltageCharge, DS.frost],
-  ember:  [DS.ember, DS.emberHover, DS.gold],
+  ember:  [DS.ember, DS.emberHover, DS.frost],
 };
 const TAU = Math.PI * 2;
 
