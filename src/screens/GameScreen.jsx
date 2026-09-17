@@ -10,7 +10,7 @@
 // React.StrictMode's development double-invocation is harmless.
 // ============================================================
 
-import { useReducer, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useReducer, useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import {
   evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
   aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, scrapValue,
@@ -23,8 +23,12 @@ import {
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
-  playInvalid, playRevealBuild } from "../audio.js";
-import { useCardMotion } from "../components/flight.jsx";
+  playInvalid, playRevealBuild,
+  playArmDraw, playLock, playWhoosh, playChips, playClash } from "../audio.js";
+import { useCardMotion, prefersReducedMotion, screenPose } from "../components/flight.jsx";
+import { useImpactFx, AttackTagEcho, shakeElement } from "../components/impact.jsx";
+import { THROW, CLASH, RM_FADE, throwMotion, knockOffPair, clashMotions, fadeMotion }
+  from "../components/throwMotion.js";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS, sortByValue } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, GameLog, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
@@ -130,15 +134,33 @@ const SCRAPS_HANDOFF = { sweep: 240, step: 45, ready: 800 };
 // wait. See dealSecondHand.
 const HANDOFF = { deal: 220 };
 
+// A card's pose on screen, as the scripted flights take it (throwMotion.js):
+// its centre, its signed angle, and its scale against the natural box of
+// `size`. `r` is a rect from the motion hook's rectOf.
+const poseOf = (r, size) => ({
+  x: r.left + r.width / 2, y: r.top + r.height / 2, rot: r.rot || 0,
+  s: (r.trueW || r.width) / CARD_DIMS[size].w,
+});
+
+// `rig` is for the attack bench only (tools/bench/attack.jsx): a fixed
+// deal instead of a shuffle, and any starting state over the default. The
+// game itself never passes it. The Ace attack needs an Ace in your hand, a
+// pile of hers worth hitting and, for her counter, an Ace in hers and a
+// reason to spend it, and a shuffle will not produce that on demand.
+const initGame = (rig) => (rig && rig.state
+  ? { ...createInitialState(), ...rig.state }
+  : createInitialState());
+
 const OFF_MARGIN = 40;
 const rectAt = (left, top, d) => ({
   left, top, width: d.w, height: d.h,
   right: left + d.w, bottom: top + d.h, x: left, y: top,
 });
 
-export function GameScreen({ difficulty, onExit }) {
+export function GameScreen({ difficulty, onExit, rig = null }) {
   // ── Game state machine ─────────────────────────────────────
-  const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(gameReducer, rig, initGame);
+  const rigRef = useRef(rig);
   const {
     // `deck` and `discard` are no longer read here: the two piles came
     // off the table on 2026-09-13 and nothing renders their counts.
@@ -162,6 +184,36 @@ export function GameScreen({ difficulty, onExit }) {
   const [aceTargets, setAceTargets]         = useState([]);
   const [aiAceReveal, setAiAceReveal]       = useState(null); // { ace, targets } — step 2 of the opponent-Ace sequence
   const [aiCounterNotice, setAiCounterNotice] = useState(null); // { playerAce, aiAce } — AI countered the player's Ace
+  // ── THE THROW (Stan's pick off The Chopping Block, 2026-09-16) ──
+  // The Ace attack's own choreography: ATTACK lifts the Ace out of the
+  // fan and the table goes dark around her pile; REMOVE throws it.
+  //
+  // `strike` is the throw in progress, from REMOVE until the table
+  // lights come back: `{ countered, impacted }`. It is UI state and
+  // deliberately NOT the game's: the hit commits to the reducer only at
+  // the moment of impact, after the hit-stop, because until then her
+  // targets are still sitting in her pile waiting to be struck. That is
+  // the old 520ms shake-then-commit, stretched into a throw. Everything
+  // the timeline needs to finish itself — its timers, the commit, the
+  // counter notice — lives in `strikeRef`, so a skip can land all of it
+  // in one call (finishStrike) and the board is correct either way.
+  const [strike, setStrike] = useState(null);
+  const strikeRef = useRef(null);
+  // The ATTACK tag's press, played on a copy of the tag (impact.jsx).
+  const [tagEcho, setTagEcho] = useState(null);
+  const armTimers = useRef([]);
+  // Bumped when her pile is hit, so its remaining cards hop.
+  const [joltKey, setJoltKey] = useState(0);
+  // Where the pool of light sits in the dim: her pile, in the dim
+  // layer's own unscaled pixels. Measured when the dim turns on.
+  const [dimSpot, setDimSpot] = useState(null);
+  const dimRef = useRef(null);
+  // FitBox's settled scale, reported by FitBox itself (its transform eases
+  // there over 260ms, so a rect read too early is the old scale).
+  const [tableK, setTableK] = useState(1);
+  const frameRef = useRef(null);   // FitBox's outer box — the table that shakes
+  const shakeRef = useRef(null);
+  const fx = useImpactFx();
   // Which round's full narrator instruction has been shown, and on
   // which turn. Both, because the full text has to survive the WHOLE
   // of the turn that shows it — keyed on the round alone it retired
@@ -234,7 +286,6 @@ export function GameScreen({ difficulty, onExit }) {
   const dealTimer = useRef(null);
   useEffect(() => () => clearTimeout(dealTimer.current), []);
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
-  const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
@@ -343,7 +394,8 @@ export function GameScreen({ difficulty, onExit }) {
 
   // ── Round setup ────────────────────────────────────────────
   const startNewRound = useCallback((alternate) => {
-    const deal = buildRoundDeal();
+    const deal = rigRef.current && rigRef.current.deal
+      ? rigRef.current.deal() : buildRoundDeal();
     dispatch({ type: 'START_ROUND', deal, alternate });
     // The fresh hands sit behind the BEGIN ROUND interstitial
     // until dealWave flies them out of the deck.
@@ -351,7 +403,7 @@ export function GameScreen({ difficulty, onExit }) {
     setAceMode(null); setAceTargets([]);
     setAiAceReveal(null); setAiCounterNotice(null);
     setAiSignaledIds(new Set());
-    setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
+    setScrapsFadeIds(new Set());
     setWaveIds(new Set());
     setScrapsReady(false);
     // Silent from here until the deal that the sign's tap starts lands.
@@ -596,18 +648,64 @@ export function GameScreen({ difficulty, onExit }) {
   }
 
   // ── Player Ace ─────────────────────────────────────────────
-  function doPlayAce(ace) {
+  // THE THROW, in three presses. ATTACK arms it (doPlayAce): the tag is
+  // struck, the Ace comes up out of your fan and hovers, and the table
+  // goes dark around her pile. Each card you pick gets a sight
+  // (toggleAceTarget). REMOVE throws it (confirmAce): drawn back, thrown
+  // spinning into the gap between the two targets, a hit-stop, and both
+  // cards knocked off the table while the Ace spins away. If she
+  // counters, her Ace comes up out of her hand and the two meet in the air.
+
+  // The table's scale on screen, read off a real element.
+  const tableScale = () => {
+    const el = aiScrapsRef.current;
+    if (!el || !el.offsetWidth) return 1;
+    return el.getBoundingClientRect().width / el.offsetWidth || 1;
+  };
+  // What every distance and speed in the attack is multiplied by. They
+  // were tuned on the bench's 960px table at 1. The table's own scale
+  // covers a table shrunk to fit, but not a NARROW one: a portrait phone
+  // runs its table at scale 1 on 390px, and at full speed the two
+  // knocked-off cards left by the sides in half a second instead of
+  // falling through the table. So the viewport's width caps it too, at
+  // the 0.62 the bench's phone table used for 390px.
+  const motionScale = (k = tableScale()) =>
+    Math.min(1.3, Math.max(0.5, Math.min(k, window.innerWidth / 630)));
+
+  function doPlayAce(ace, e) {
     if (aiScraps.length < 2) { dispatch({ type: 'LOG', msg: 'Opponent needs at least 2 Scraps cards to target.' }); return; }
+    if (strikeRef.current) return;
+    playArmDraw();
+    const tag = e && e.currentTarget;
+    if (tag && tag.offsetWidth && !prefersReducedMotion()) {
+      const pose = screenPose(tag);
+      const K = motionScale();
+      armTimers.current.forEach(clearTimeout);
+      setTagEcho({ key: performance.now(), ...pose, natW: tag.offsetWidth });
+      armTimers.current = [
+        // The spark: a ring and a spit of green off the tag, on the snap.
+        setTimeout(() => {
+          fx.ring(pose.x, pose.y, { r0: 10 * K, r1: 76 * K, dur: 0.34, color: DS.voltageCharge, lw: 4 * K });
+          fx.burst(pose.x, pose.y, { n: 14, kind: 'sparks', spread: Math.PI * 1.7,
+            sp: [120, 380], g: 700, life: [0.3, 0.6], K });
+        }, 220),
+        setTimeout(() => setTagEcho(null), 420),
+      ];
+    }
     setAceMode(ace); setAceTargets([]); setSelected([]);
     dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to discard." });
   }
   function toggleAceTarget(card) {
+    if (strikeRef.current) return;
     playSelect();
+    // A sight settles on a card as it is picked (HorizontalScrapsZone
+    // draws it), with its own small lock under the select.
+    if (!aceTargets.some(c => c.id === card.id) && aceTargets.length < 2) playLock();
     setAceTargets(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : prev.length < 2 ? [...prev, card] : prev);
   }
 
   function confirmAce() {
-    if (aceTargets.length !== 2) return;
+    if (aceTargets.length !== 2 || strikeRef.current) return;
     // The Ace the player actually tagged, not just the first one in
     // hand — the control is attached to a specific card now.
     const ace = (aceMode && playerHand.find(c => c.id === aceMode.id))
@@ -626,49 +724,172 @@ export function GameScreen({ difficulty, onExit }) {
     // a bogus hand. The result was constant per difficulty and blind to
     // the table: easy true, hard true, i.e. always countered.
     const s = stateRef.current;
-    if (shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)) {
-      const aiAce = s.aiHand.find(c => c.rank === 'A');
-      if (aiAce) {
+    const aiAce = shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)
+      ? (s.aiHand.find(c => c.rank === 'A') || null) : null;
+    const stillArmed = !!aiAce && s.playerHand.some(c => c.rank === 'A' && c.id !== ace.id);
+    const targets = [...aceTargets];
+    const sz = szRef.current;
+    const k = tableScale();
+    const K = motionScale(k);
+    // FIRST, as ever: every card that is about to move, where it is now.
+    const aceRect = rectOf(ace.id);
+    const targetRects = targets.map(c => rectOf(c.id));
+    const herRect = aiAce ? rectOf(aiAce.id) : null;
+
+    const st = {
+      countered: !!aiAce, committed: false, impacted: false, timers: [],
+      notice: aiAce ? { playerAce: ace, aiAce, stillArmed } : null,
+      // THE COMMIT, in one place, so the timeline and a skip both land
+      // here and it can only ever happen once.
+      commit() {
+        if (st.committed) return;
+        st.committed = true;
+        if (aiAce) {
+          dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
+          setCounterStand(stillArmed);
+        } else {
+          dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
+        }
         setAceMode(null); setAceTargets([]); setSelected([]);
+      },
+    };
+    strikeRef.current = st;
+    const later = (fn, ms) => { st.timers.push(setTimeout(fn, ms)); };
+    const rm = prefersReducedMotion();
+    setCounterStand(false);
+    setStrike({ countered: !!aiAce, impacted: rm });
+
+    const measured = aceRect && targetRects.every(Boolean) && (!aiAce || herRect);
+
+    // REDUCED MOTION, or a table that could not be measured: nothing
+    // travels. The hit commits at once and every card that leaves fades
+    // where it stands over 280ms. The sounds all still play — a motion
+    // preference is not a sound preference.
+    if (rm || !measured) {
+      st.impacted = true;
+      const moves = [];
+      const fade = (card, rect, size, extra) => rect && moves.push({ card, fromSize: size,
+        motion: fadeMotion(poseOf(rect, size)), rmSafe: true, ...extra });
+      if (aiAce) {
         playAceCounter();
-        const stillArmed = s.playerHand.filter(c => c.rank === 'A' && c.id !== ace.id).length > 0;
-        dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
-        setAiCounterNotice({ playerAce: ace, aiAce, stillArmed });
-        setCounterStand(stillArmed);
-        return;
+        fade(ace, aceRect, sz.hand);
+        fade(null, herRect, sz.oppHand, { faceDown: true });
+      } else {
+        playAceStrike(); playChips();
+        targets.forEach((c, i) => fade(c, targetRects[i], sz.pile, { fromScrap: true, kraft: true }));
+        fade(ace, aceRect, sz.hand);
       }
+      st.commit();
+      fly(moves);
+      later(endStrike, RM_FADE);
+      return;
     }
 
-    const targets = [...aceTargets];
-    // Shake the struck cards where they sit, then send them to the
-    // discard from their real positions in the opponent's pile.
-    // The strike lands with the SHAKE, not with the cards leaving
-    // 520ms later — the shake is the visual of this sound, and the
-    // crush is 360ms so it finishes inside it.
-    playAceStrike();
-    setCounterStand(false);
-    setScrapsShakeIds(new Set(targets.map(c => c.id)));
-    setTimeout(() => {
-      const first = targets.map(c => ({ card: c, rect: rectOf(c.id) }));
-      const aceRect = rectOf(ace.id);
-      const discardRect = discardAnchor();
-      setAceMode(null); setAceTargets([]); setSelected([]);
-      setScrapsShakeIds(new Set());
-      dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
-      if (discardRect) {
-        const moves = first.filter(f => f.rect).map((f, i) => ({
-          card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
-          fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
-          arc: i === 0 ? -0.5 : 0.5, delay: i * 90,
-        }));
-        // The spent Ace goes to the discard too, so the cost of the
-        // strike is visible rather than silent.
-        if (aceRect) moves.push({ card: ace, fromRect: aceRect, toRect: discardRect,
-          fromSize: szRef.current.hand, toSize: szRef.current.pile, arc: 0.4 });
-        fly(moves);
-      }
-    }, 520);
+    const centers = targetRects.map(r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+    const P = { x: (centers[0].x + centers[1].x) / 2, y: (centers[0].y + centers[1].y) / 2 };
+    const pileW = CARD_DIMS[sz.pile].w * k, handW = CARD_DIMS[sz.hand].w;
+
+    if (!aiAce) {
+      // ── It lands ──
+      const m = throwMotion({ rest: poseOf(aceRect, sz.hand), impact: P, K,
+        s1: pileW * 1.02 / handW, arc: stack ? 0.12 : 0.18 });
+      // The ghost's clock and every timer below start at this instant.
+      fly([{ card: ace, fromSize: sz.hand, motion: m, trails: 3, hideIds: [ace.id],
+        born: performance.now() }]);
+      later(playWhoosh, THROW.draw);
+      // Contact. The ring goes out and holds still for the hit-stop.
+      later(() => {
+        st.impacted = true;
+        playAceStrike(); playChips();
+        fx.ring(P.x, P.y, { r0: 10 * K, r1: 120 * K, dur: 0.36, color: DS.frost, lw: 6 * K,
+          wait: THROW.hold / 1000 });
+        setStrike(v => v && { ...v, impacted: true });
+      }, m.impactAt);
+      // The hit-stop ends: the table jumps, chips fly, the two targets
+      // are knocked up and off and the rest of her pile hops. Measured
+      // HERE, still in her pile, then committed, then flown.
+      later(() => {
+        const poses = targets.map((c, i) => ({ ...poseOf(rectOf(c.id) || targetRects[i], sz.pile), id: c.id }));
+        st.commit();
+        const floorY = window.innerHeight + CARD_DIMS[sz.pile].h * k + 40;
+        const pair = knockOffPair(poses, K, floorY);
+        fly(pair.map(({ motion, pose }) => ({
+          card: targets.find(c => c.id === pose.id), fromScrap: true, kraft: true,
+          fromSize: sz.pile, motion })));
+        shakeRef.current = shakeElement(frameRef.current, 10 * K, 320);
+        fx.burst(P.x, P.y, { n: 26, kind: 'chips', spread: Math.PI * 1.3, sp: [200, 620], g: 1500, K });
+        fx.burst(P.x, P.y, { n: 8, kind: 'paper', spread: Math.PI, sp: [150, 420], g: 900,
+          life: [0.6, 1], K });
+        setJoltKey(n => n + 1);
+        later(endStrike, Math.max(THROW.rebound, ...pair.map(p => p.motion.dur)));
+      }, m.commitAt);
+      return;
+    }
+
+    // ── She counters ──
+    // Her Ace comes up out of her hand, turning face up; both fly; they
+    // meet in the air a little past the middle of the table.
+    const mine = poseOf(aceRect, sz.hand);
+    const meet = { x: mine.x + (P.x - mine.x) * 0.55, y: mine.y + (P.y - mine.y) * 0.5 };
+    const cm = clashMotions({ mine, hers: poseOf(herRect, sz.hand), meet, K, s1: pileW * 1.1 / handW });
+    const t0 = performance.now();
+    fly([
+      { card: ace, fromSize: sz.hand, motion: cm.mine, trails: 3, hideIds: [ace.id], born: t0 },
+      { card: aiAce, fromSize: sz.hand, motion: cm.hers, trails: 2, hideIds: [aiAce.id], born: t0 },
+    ]);
+    playLock();
+    later(playWhoosh, CLASH.rise);
+    later(() => {
+      st.impacted = true;
+      playClash();
+      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 100 * K, dur: 0.3, color: DS.ember, lw: 5 * K,
+        wait: CLASH.hold / 1000 });
+      setStrike(v => v && { ...v, impacted: true });
+    }, cm.clashAt);
+    later(() => {
+      st.commit();
+      shakeRef.current = shakeElement(frameRef.current, 8 * K, 260);
+      fx.burst(meet.x, meet.y, { n: 18, kind: 'ember', spread: Math.PI * 2, sp: [160, 520], g: 900,
+        life: [0.35, 0.7], K });
+      later(endStrike, CLASH.away);
+    }, cm.commitAt);
   }
+
+  // The lights come back. For a counter, this is when her notice opens:
+  // after the two Aces have gone, not over the top of them.
+  function endStrike() {
+    const st = strikeRef.current;
+    if (!st) return;
+    st.timers.forEach(clearTimeout);
+    strikeRef.current = null;
+    setStrike(null);
+    if (st.notice) setAiCounterNotice(st.notice);
+  }
+
+  // A click or Enter while the attack is in the air lands all of it:
+  // the hit commits if it has not (with its sound, so a skipped attack is
+  // never a silent one), the effects clear, and the table comes back.
+  function finishStrike() {
+    const st = strikeRef.current;
+    if (!st) return;
+    st.timers.forEach(clearTimeout);
+    st.timers = [];
+    if (!st.impacted) {
+      st.impacted = true;
+      if (st.countered) playAceCounter(); else playAceStrike();
+    }
+    st.commit();
+    fx.stop();
+    if (shakeRef.current) { try { shakeRef.current.cancel(); } catch (err) { /* already gone */ } }
+    shakeRef.current = null;
+    endStrike();
+  }
+  const finishStrikeRef = useRef(finishStrike);
+  finishStrikeRef.current = finishStrike;
+  useEffect(() => () => {
+    armTimers.current.forEach(clearTimeout);
+    if (strikeRef.current) strikeRef.current.timers.forEach(clearTimeout);
+  }, []);
 
   // ── Opponent-Ace feedback sequence ─────────────────────────
   // Step 1 (only if the player holds an Ace): the counter modal
@@ -819,6 +1040,10 @@ export function GameScreen({ difficulty, onExit }) {
     // their wave launches, with nothing flying, and she would have
     // started her turn in that beat.
     if (dealHold) { setAiGo(null); return; }
+    // Your Ace attack is still playing out, or its lights are still down.
+    // Held rather than merely waited on, because a counter's notice opens
+    // at the END of the attack, in the same render that clears `strike`.
+    if (strike) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
     // The Ace explainer is up: NOTHING moves until OKAY. `setAiGo(null)`
@@ -832,7 +1057,7 @@ export function GameScreen({ difficulty, onExit }) {
     // yet to repeat.
     if (aceDrawnCard) { setAiGo(null); return; }
     setAiGo(phase);
-  }, [phase, animating, aiCounterNotice, aceDrawnCard, dealHold]);
+  }, [phase, animating, aiCounterNotice, aceDrawnCard, dealHold, strike]);
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
@@ -1181,18 +1406,25 @@ export function GameScreen({ difficulty, onExit }) {
   // land (`!animating`) and for the Ace explainer to be dismissed, and
   // then fades and lifts into place over ~260ms rather than snapping in.
   const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode
-    && !pendingAiAce && !animating && !aceDrawnCard && !dealHold;
+    && !pendingAiAce && !animating && !aceDrawnCard && !dealHold && !strike;
   const aceSlot = useCallback((card, width) => {
     if (!canOfferAce || card.rank !== 'A') return null;
     return (
       <div style={{animation:'aceTagIn 0.26s cubic-bezier(.22,1,.36,1) both'}}>
-        <AceTag onClick={() => doPlayAce(card)} disabled={aiScraps.length < 2}
+        <AceTag onClick={(e) => doPlayAce(card, e)} disabled={aiScraps.length < 2}
           width={width}/>
       </div>
     );
   }, [canOfferAce, aiScraps.length]);
   const glowPlayerScraps = isScrapsDiscardMode;
-  const glowOppScraps = aceMode;
+  // "Act here" is for picking. Once REMOVE is pressed the pile is a
+  // target, not a choice, and the glow goes.
+  const glowOppScraps = !!aceMode && !strike;
+  // The attack's dim, from ATTACK until the lights come back. Three
+  // things stay lit above it: her pile (with its buttons), the narrator
+  // band, and the armed Ace itself.
+  const dimOn = !!aceMode || !!strike;
+  const rmNow = prefersReducedMotion();
 
   // No-legal-trade handling: if no trade can keep the hand at 7 or
   // fewer, the only legal move is an Ace (when the opponent's
@@ -1220,6 +1452,56 @@ export function GameScreen({ difficulty, onExit }) {
     setDealStage(null);
     setNarratorEpoch(n => n + 1);
   }, [dealStage, animating]);
+
+  // THE DIM'S GEOMETRY. The dim lives inside the scaled table (see
+  // `dimLayer`), and the table is scaled and centred inside its frame, so
+  // on a table shrunk to fit there is bare wood beside it and below it
+  // that the dim has to reach too. It is measured to cover EXACTLY the
+  // frame, and no further: an overhang past the frame is overflow, and
+  // overflow in a clipped box is something to scroll (FitBox's
+  // `fit-frame` note has the day that bit). The pool of light sits on
+  // her pile, from her real cards. Everything is in the table's own
+  // unscaled pixels, which is what the dim is laid out in.
+  //
+  // Measured when the dim comes on and whenever the table re-lays itself
+  // out under it. Kept through the fade-out, so the wood at the edges
+  // does not pop back early, then dropped: stale overhangs after a later
+  // resize could reach past the frame.
+  useLayoutEffect(() => {
+    if (!dimOn) {
+      const t = setTimeout(() => setDimSpot(null), 450);
+      return () => clearTimeout(t);
+    }
+    const dim = dimRef.current, frame = frameRef.current;
+    const table = dim && dim.offsetParent;
+    if (!dim || !frame || !table || !table.offsetWidth) return undefined;
+    // The overhangs come from LAYOUT sizes and the scale FitBox settled
+    // on, never from the transform on screen, which may still be easing
+    // toward it: arming an attack adds REMOVE under her pile, the table
+    // grows, and FitBox rescales it a frame or two later. The table is
+    // centred in the frame and hangs from its top edge.
+    const k = tableK || 1;
+    const W = table.offsetWidth, H = table.offsetHeight;
+    const side = Math.max(0, (frame.clientWidth - W * k) / 2 / k);
+    const spot = { l: side, r: side, t: 0, b: Math.max(0, (frame.clientHeight - H * k) / k),
+      rx: 0, ry: 0, cx: 0, cy: 0 };
+    // Her pile, in the table's own pixels. Rects at any instant give
+    // this correctly, eased scale or not: both ends are read together.
+    const tr = table.getBoundingClientRect();
+    const kv = tr.width / W || 1;
+    const rects = stateRef.current.aiScraps.map(c => rectOf(c.id)).filter(Boolean);
+    if (rects.length) {
+      const d = CARD_DIMS[szRef.current.pile];
+      const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
+      const top = Math.min(...rects.map(r => r.top)), bottom = Math.max(...rects.map(r => r.bottom));
+      spot.cx = ((left + right) / 2 - tr.left) / kv + side;
+      spot.cy = ((top + bottom) / 2 - tr.top) / kv;
+      spot.rx = Math.max((right - left) / kv * 0.95, d.w * 2.4);
+      spot.ry = d.h * 1.9;
+    }
+    setDimSpot(spot);
+    return undefined;
+  }, [dimOn, vp.w, vp.h, stack, tight, rectOf, tableK]);
 
   // Retire the full narrator instruction after the player turn that
   // showed it. Effect rather than render-time mutation, so the render
@@ -1259,6 +1541,9 @@ export function GameScreen({ difficulty, onExit }) {
     const onSkip = (e) => {
       if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
       clearDrawSfx();
+      // An Ace attack in the air commits and clears in the same beat, so
+      // dropping its ghosts never leaves the Ace back in your hand.
+      finishStrikeRef.current();
       skipAll();
     };
     window.addEventListener('mousedown', onSkip);
@@ -1331,6 +1616,8 @@ export function GameScreen({ difficulty, onExit }) {
   // still in the REMOVE button, which is where a count belongs — on the
   // control it gates. Saying it twice made the instruction re-render on
   // every tap and read as a progress bar rather than a sentence.
+  // Quiet while the Ace is in the air: the throw is the sentence.
+  else if (strike) hint = '';
   else if (aceMode) hint = "Select 2 cards from opponent's Scraps to discard.";
   else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to attack with an Ace.';
   else if (isPlayerTurn) {
@@ -1451,17 +1738,23 @@ export function GameScreen({ difficulty, onExit }) {
       <BigBtn variant="ghost" compact={pileBtnCompact} onClick={cancelScrapsDiscard}>Cancel</BigBtn>
     </>
   ) : null;
-  const removeBtns = aceMode ? (
+  const removePair = (
     <>
       <BigBtn compact={pileBtnCompact} onClick={confirmAce} disabled={aceTargets.length!==2}>
         Remove ({aceTargets.length}/2)
       </BigBtn>
       <BigBtn variant="ghost" compact={pileBtnCompact} onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
     </>
-  ) : null;
-  const pileBtnRow = (btns) => btns && (
+  );
+  const removeBtns = aceMode && !strike ? removePair : null;
+  // `hidden` keeps a row's space and takes away the row. Under her pile
+  // the REMOVE row stays laid out, invisible, for the whole attack: that
+  // column sets the wide table's height, so dropping the row the moment
+  // REMOVE is pressed rescaled the table while the Ace was in the air
+  // and it landed ~18px off the gap it was aimed at (1024x662).
+  const pileBtnRow = (btns, hidden = false) => btns && (
     <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap',alignSelf:'stretch',
-      animation:'errRise 0.26s cubic-bezier(.22,1,.36,1)'}}>
+      animation:'errRise 0.26s cubic-bezier(.22,1,.36,1)',visibility:hidden?'hidden':undefined}}>
       {btns}
     </div>
   );
@@ -1482,16 +1775,28 @@ export function GameScreen({ difficulty, onExit }) {
   const oppScrapsEl = (
     <div ref={aiScrapsRef} style={{display:'flex',flexDirection:'column',gap:8,flexShrink:0,
       alignItems:stack?'stretch':'flex-start',
-      opacity:aceMode?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
+      // Fully opaque through the whole attack, never 0.75: an opacity
+      // below 1 is a stacking context, and it would pull the pile back
+      // down under the attack's dim.
+      opacity:dimOn?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
       {!stack&&<RoundProgressIndicator phase={phase} compact={tight}/>}
-      <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
-        label="Opponent's Scraps" selectable={aceMode}
-        selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
-        registerEl={registerCard} hiddenIds={allHiddenIds}
-        isOpponent={true} glowZone={glowOppScraps}
-        size={SZ.pile} width={stack?railW:340} fill={stack}/>
-      {/* REMOVE, under her pile, in the wide layout — see pileBtns. */}
-      {!stack&&pileBtnRow(removeBtns)}
+      {/* Her pile and its REMOVE row, lifted above the attack's dim
+          while it is down (z 31 over the dim's 30). */}
+      <div style={{display:'flex',flexDirection:'column',gap:8,
+        alignItems:stack?'stretch':'flex-start',
+        position:'relative',zIndex:dimOn?31:undefined}}>
+        <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
+          label="Opponent's Scraps" selectable={!!aceMode&&!strike}
+          selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
+          registerEl={registerCard} hiddenIds={allHiddenIds}
+          isOpponent={true} glowZone={glowOppScraps}
+          // The sights stay on until the Ace arrives.
+          markIds={aceMode&&!(strike&&strike.impacted)?aceTargetIds:null}
+          joltKey={joltKey}
+          size={SZ.pile} width={stack?railW:340} fill={stack}/>
+        {/* REMOVE, under her pile, in the wide layout — see pileBtns. */}
+        {!stack&&(aceMode||strike)&&pileBtnRow(removePair, !!strike)}
+      </div>
     </div>
   );
 
@@ -1521,7 +1826,7 @@ export function GameScreen({ difficulty, onExit }) {
   // (see pileBtns below), so they do not count as the band's buttons.
   const hasActionButtons = !dealHold && ((stack && isScrapsDiscardMode)
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
-    || (stack && aceMode) || counterStand
+    || (stack && aceMode && !strike) || (counterStand && !strike)
     || (isSignal && !signalLocked) || isReveal || scrapsAsk
     || (pendingAiAce && !aiAceReveal));
   // SHOW 'EM owns the whole band: no narrator line above it, the button
@@ -1573,6 +1878,9 @@ export function GameScreen({ difficulty, onExit }) {
         : {flexShrink:1, flexBasis:760, maxWidth:760}),
       minHeight: NARRATOR_H,
       display:'flex',flexDirection:'column',justifyContent:'center',
+      // Above the attack's dim, so the instruction and (stacked) REMOVE
+      // read at full strength while the table around them is dark.
+      position:'relative',zIndex:dimOn?31:undefined,
     }}>
     {/* THE ENTRANCE (Stan, 2026-09-16). Keyed on the deal it follows,
         so it runs once per deal — the box rises and fades in, then its
@@ -1656,7 +1964,7 @@ export function GameScreen({ difficulty, onExit }) {
         {/* After a counter, END TURN is the only alternative to spending
             another Ace. It sits in the middle of the action row; the
             ATTACK tags stay above the Aces still in hand. */}
-        {counterStand&&isPlayerTurn&&!aceMode&&(
+        {counterStand&&isPlayerTurn&&!aceMode&&!strike&&(
           <BigBtn variant="ghost" compact={tight}
             onClick={()=>{ setCounterStand(false); setSelected([]); dispatch({ type:'PLAYER_END_TURN' }); }}>
             End Turn
@@ -1790,6 +2098,8 @@ export function GameScreen({ difficulty, onExit }) {
         activeWiggle={glowHand&&!pendingAiAce}
         cardSlot={aceSlot}
         showEmpty={!isScrapsHandoff}
+        // The armed Ace, up out of the fan and over the dim.
+        raisedId={aceMode?aceMode.id:null} raisedStill={rmNow}
         size={SZ.hand} maxWidth={stack?railW:null}
       />
       {/* Name the hand you can actually SEE. Built from playerHand
@@ -1822,6 +2132,33 @@ export function GameScreen({ difficulty, onExit }) {
     </div>
   );
 
+  // THE DIM (The Throw). The table goes dark around her pile for the
+  // attack, and only for the attack. It lives INSIDE the scaled table so
+  // the lit things can sit above it in the same stacking context (her
+  // pile and the band at z 31, the armed Ace at 40, the dim at 30), and
+  // it is stretched to the edges of the table's frame by `dimSpot` — see
+  // the geometry effect above. Unmeasured, it is the table's own box.
+  const shade = (a) => DS.shade + a;
+  const dimBg = dimSpot && dimSpot.rx
+    ? `radial-gradient(ellipse ${dimSpot.rx}px ${dimSpot.ry}px at ${dimSpot.cx}px ${dimSpot.cy}px, `
+      + `${shade('00')} 0%, ${shade('00')} 45%, ${shade('80')} 78%, ${shade('A8')} 100%)`
+    : shade('A8');
+  const dimFade = dimOn ? 'opacity 360ms ease 200ms' : 'opacity 400ms ease';
+  const dimLayer = (
+    <div ref={dimRef} aria-hidden="true" className="attack-dim" style={{
+      position:'absolute', zIndex:30, pointerEvents:'none', background:dimBg,
+      left:dimSpot?-dimSpot.l:0, right:dimSpot?-dimSpot.r:0,
+      top:dimSpot?-dimSpot.t:0, bottom:dimSpot?-dimSpot.b:0,
+      opacity:dimOn?1:0, transition:dimFade,
+    }}/>
+  );
+  const barDim = (
+    <div aria-hidden="true" className="attack-dim" style={{
+      position:'absolute', inset:0, zIndex:41, pointerEvents:'none',
+      background:shade('8C'), opacity:dimOn?1:0, transition:dimFade,
+    }}/>
+  );
+
   return (
     <>
     {/* `inert` while a stage is up: the layer is opaque, so nothing
@@ -1839,8 +2176,13 @@ export function GameScreen({ difficulty, onExit }) {
           screen reader's heading list is empty. */}
       <h1 className="sr-only">SCRAPS — game table</h1>
       <GameAnnouncer messages={log} hint={hint}/>
-      <OpponentBar aiScore={aiScore}
-        difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
+      {/* The score bars go down with the table when an Ace attack dims
+          it, so the brightest thing on screen is never a score. */}
+      <div style={{position:'relative',flexShrink:0}}>
+        <OpponentBar aiScore={aiScore}
+          difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
+        {barDim}
+      </div>
 
       {/* Table. Ownership mapping is absolute in BOTH layouts: top
           of screen = opponent's stuff, bottom = yours, everywhere,
@@ -1855,7 +2197,7 @@ export function GameScreen({ difficulty, onExit }) {
           were the interim fallbacks from Session 1 and the forest
           reskin; they are gone, and nothing replaces them, because
           there is no longer a case where the table does not fit. */}
-      <FitBox modeMinW={MODE_MIN_W[mode]}
+      <FitBox modeMinW={MODE_MIN_W[mode]} frameRef={frameRef} onFit={setTableK}
         // The table is a real surface now, not a gradient. `backdrop`
         // paints behind the scaled content and is NOT scaled with it,
         // so the wood reaches the edges of the viewport however far
@@ -1863,6 +2205,7 @@ export function GameScreen({ difficulty, onExit }) {
         // the card so the furniture stays in proportion to the game.
         backdrop={<TableSurface cardH={CARD_DIMS[SZ.hand].h} anchorRef={tableWoodRef}/>}
         style={{background:DS.timber}}>
+        {dimLayer}
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',
           justifyContent:'space-evenly',
           padding:stack?'5px 10px':'8px 14px',gap:stack?5:4}}>
@@ -1968,6 +2311,7 @@ export function GameScreen({ difficulty, onExit }) {
             <GameLog messages={log}/>
           </div>
         )}
+        {barDim}
         <PlayerBar playerScore={playerScore} compact={tight}>
           {/* The log is the ONLY record of what the opponent did while
               an animation was playing, and a truncated line behind a
@@ -2062,6 +2406,9 @@ export function GameScreen({ difficulty, onExit }) {
       onNewGame={()=>onExit('difficulty')}
       difficulty={difficulty} winStats={winStats}/>}
     {flightsOverlay}
+    {/* The Throw's press and its debris, over everything, flights included. */}
+    {tagEcho&&<AttackTagEcho key={tagEcho.key} echo={tagEcho}/>}
+    {fx.layer}
     </>
   );
 }

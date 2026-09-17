@@ -203,6 +203,32 @@ function tap(c, out, t, mat, { gain = 1, exc = 0.006, curve = 4, seed = 1 } = {}
   src(c, noiseBuf(c, exc, curve, 0.0006, seed), t, gain).connect(body(c, out, mat, t));
 }
 
+// Air moving past something: seeded noise through a bandpass that
+// travels from `f0` to `f1`, swelling to `peakAt` of the way through
+// and dying. Rising reads as approaching. Added 2026-09-16 for The
+// Throw — the thrown Ace and the ATTACK press's draw — and it is still
+// no note: the band sweeps, nothing is pitched.
+function swish(c, out, t, { dur = 0.3, f0 = 600, f1 = 2800, q = 0.9, gain = 0.2, seed = 31, peakAt = 0.72 } = {}) {
+  const n = Math.ceil(c.sampleRate * dur);
+  const b = c.createBuffer(1, n, c.sampleRate);
+  const d = b.getChannelData(0);
+  let x = (seed * 0x9E3779B9) >>> 0 || 1;
+  for (let i = 0; i < n; i++) {
+    x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0;
+    d[i] = (x / 0x100000000) * 2 - 1;
+  }
+  const s = c.createBufferSource(); s.buffer = b;
+  const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t);
+  f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + dur * peakAt);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(out);
+  s.start(t); s.stop(t + dur);
+}
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -290,6 +316,16 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 //   scrap .30 · roundSign .40 · roundLost .46 · roundWon .50
 //   aceStrike .56 · gameLost .66 · gameWon .72 · aceCounter .80
 //   cleanSweep .94 · revealBuild .297
+//   the attack's own: lock .12 · whoosh .18 · chips .26 · armDraw .30
+//   · clash .56
+//
+// The five attack cues are NEW on 2026-09-16 (The Throw). Their
+// targets are the ones The Chopping Block bench auditioned them at:
+// `lock` sits with `select`, which it answers; `whoosh` under
+// everything, because it is air; `armDraw` with the scrap; `clash`
+// level with `aceStrike`, the hit it replaces when she counters, with
+// `aceCounter` still playing over it. Measured the same way as the
+// rest, at 48 kHz.
 //
 // `slap` and `roundSign` are NEW on 2026-09-14 (the interstitials
 // pass) and their targets are a first placement, not a pick from a
@@ -360,6 +396,17 @@ const TRIM = {
   // Whoever measures next should say which rate they used.
   slap:        0.5368,
   roundSign:   4.9099,
+  // The Throw's cues, 2026-09-16, tools/trim-measure.mjs at 48 kHz.
+  // armDraw, lock, whoosh and clash measured identical to their bench
+  // trims, which is the check that the port is the voice Stan heard.
+  // `chips` is not identical and should not be: the bench jittered its
+  // taps from a seeded random stream, and here the jitter is a fixed
+  // table, so its peak moved and it was measured fresh.
+  armDraw:     3.7968,
+  lock:        8.0234,
+  whoosh:      1.5310,
+  chips:       17.8972,
+  clash:       1.9616,
 };
 
 // Every cue routes through here, so a cue is written at its
@@ -376,7 +423,10 @@ const TRIM = {
 const BURSTY = { select: 3, draw: 4 };
 const burstN = { select: 0, draw: 0 };
 
-function cue(name) {
+// `delay` (seconds) schedules a cue on the audio clock rather than on a
+// timer, for the few that must land a fixed hair after another: the
+// wood chips 15ms under the Ace's hit, a sight's lock after its select.
+function cue(name, delay = 0) {
   const c = getAudioCtx();
   if (!c) return;
   const out = c.createGain();
@@ -384,7 +434,7 @@ function cue(name) {
   out.connect(bus);
   const i = BURSTY[name] ? (burstN[name]++ % BURSTY[name]) : 0;
   // A sound must never take the game down with it.
-  try { renderCue(name, c, out, c.currentTime + 0.02, i); } catch (e) {}
+  try { renderCue(name, c, out, c.currentTime + 0.02 + delay, i); } catch (e) {}
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -663,6 +713,52 @@ const VOICES = {
     low.connect(lg); lg.connect(o);
     low.start(end); low.stop(end + 0.23);
   },
+
+  // ── The Throw, 2026-09-16 ──────────────────────────────────
+  // Five cues for the Ace attack, from The Chopping Block bench. All
+  // untuned: an attack is a physical event, and under the kit's rule
+  // only a score outcome is a note.
+
+  /** ATTACK pressed: a card snapped up out of the fan. A dowel click,
+   *  a short rising draw of air, and a bright wood tick as the Ace
+   *  settles into its hover. */
+  armDraw: (c, o, t) => {
+    tap(c, o, t, MAT.dowel, { gain: .8, exc: .003, curve: 6, seed: 12 });
+    swish(c, o, t + .01, { dur: .2, f0: 900, f1: 3400, gain: .14, seed: 13 });
+    tap(c, o, t + .18, MAT.woodHi, { gain: .55, exc: .004, curve: 5, seed: 14 });
+  },
+
+  /** A sight settles on a target. One small, hard, high dowel tick,
+   *  answering the select that picked the card. */
+  lock: (c, o, t) => {
+    tap(c, o, t, scaleMat(MAT.dowel, 1.2), { gain: .7, exc: .002, curve: 7, seed: 111 });
+  },
+
+  /** The Ace thrown: air, rising as it comes. */
+  whoosh: (c, o, t) => swish(c, o, t, { dur: .36, f0: 420, f1: 2300, q: .8, gain: .22, seed: 51 }),
+
+  /** Wood chips off the table under the hit: seven little dowel and
+   *  block ticks thinning out. The jitter is a fixed table, not a
+   *  random draw, so the cue stays bit-identical and measurable. */
+  chips: (c, o, t) => {
+    const J = [.004, .011, .002, .009, .006, .001, .008];
+    const K = [1.04, .93, 1.19, .97, 1.12, .9, 1.07];
+    for (let i = 0; i < 7; i++) {
+      tap(c, o, t + i * .017 + J[i], scaleMat(i % 2 ? MAT.dowel : MAT.block, K[i]),
+        { gain: .55 - i * .06, exc: .002, curve: 6, seed: 62 + i });
+    }
+  },
+
+  /** Her counter: two Aces meeting in the air. Bright wood and a dowel
+   *  struck together over a crate, with a short body under it.
+   *  `aceCounter` plays 20ms behind it, so the answer still sounds
+   *  bigger than the question. */
+  clash: (c, o, t) => {
+    tap(c, o, t, MAT.woodHi, { gain: 1.1, exc: .006, curve: 4, seed: 101 });
+    tap(c, o, t, MAT.dowel, { gain: .8, exc: .003, curve: 6, seed: 102 });
+    tap(c, o, t + .003, MAT.crate, { gain: .6, exc: .008, curve: 3.5, seed: 103 });
+    thud(c, o, t, 110, 40, .18, .3);
+  },
 };
 
 // How long each voice actually rings for, used only by the
@@ -672,6 +768,7 @@ export const CUE_DUR = {
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
   gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
   slap: .30, roundSign: 1.10,
+  armDraw: .36, lock: .08, whoosh: .36, chips: .28, clash: .36,
 };
 
 /** Schedule a cue into any context — the live one or an offline
@@ -709,6 +806,12 @@ export function playGameLost()   { cue('gameLost'); }
 export function playCleanSweep() { cue('cleanSweep'); }
 export function playSlap()       { cue('slap'); }
 export function playRoundSign()  { cue('roundSign'); }
+// The Throw (2026-09-16).
+export function playArmDraw()    { cue('armDraw'); }
+export function playLock()       { cue('lock', 0.06); }
+export function playWhoosh()     { cue('whoosh'); }
+export function playChips()      { cue('chips', 0.015); }
+export function playClash()      { cue('clash'); cue('aceCounter', 0.02); }
 
 /** The build-up, then `onDone`. Timed to the 580ms the previous
  *  sine crescendo took, so the reveal choreography is unchanged

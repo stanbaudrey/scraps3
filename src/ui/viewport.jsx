@@ -29,7 +29,7 @@
 // 1280x720 laptop, 1.0 on a modern phone, ~0.75 on a 375x667
 // iPhone SE, which is the shortest screen worth supporting.
 // ============================================================
-import { useState, useRef, useLayoutEffect, useSyncExternalStore } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 // ─────────────────────────────────────────────────────────────
 // useViewport — window size + pointer coarseness, as ONE
@@ -153,13 +153,31 @@ export const MODE_MIN_W = { wide: 1000, stack: 360 };
 // edges of the viewport no matter how far the table itself is scaled
 // down. Anything that should shrink with the cards belongs in
 // `children` instead.
-export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, max = 1, style = {} }) {
+//
+// `frameRef`, optional, is handed the OUTER box: the whole visible table,
+// backdrop and scaled content together. The Ace attack shakes it
+// (GameScreen, The Throw) — the table jumps inside its frame while the
+// score bars above and below hold still.
+//
+// `onFit`, optional, hears the scale every time it settles on a new one.
+// The scale is state here and the transform eases to it over 260ms, so a
+// caller that measures the table in the same commit as a change that
+// resizes it reads the OLD scale; this is how it learns to measure again.
+export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, max = 1, style = {}, frameRef = null, onFit = null }) {
   const outerRef = useRef(null);
   const innerRef = useRef(null);
   const contentRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!frameRef) return undefined;
+    frameRef.current = outerRef.current;
+    return () => { frameRef.current = null; };
+  }, [frameRef]);
   const [fit, setFit] = useState({ k: 1, w: modeMinW });
   const fitRef = useRef(fit);
   fitRef.current = fit;
+  const onFitRef = useRef(onFit);
+  onFitRef.current = onFit;
+  useEffect(() => { if (onFitRef.current) onFitRef.current(fit.k); }, [fit.k, fit.w]);
 
   useLayoutEffect(() => {
     const outer = outerRef.current, inner = innerRef.current, content = contentRef.current;
@@ -212,7 +230,15 @@ export function FitBox({ children, backdrop = null, modeMinW = 360, min = 0.3, m
   }, [modeMinW, min, max]);
 
   return (
-    <div ref={outerRef} style={{
+    // `fit-frame` upgrades `overflow:hidden` to `overflow:clip` wherever
+    // the browser has it (index.html). Both clip, but a `hidden` box is
+    // still a SCROLL CONTAINER — nobody can scroll it by hand, and yet
+    // anything that asks for an element to be scrolled into view can move
+    // it. That happened on 2026-09-16: the Ace attack's dim briefly gave
+    // this box something to scroll, and the responsive harness caught the
+    // whole table shifted 500px up its frame after an ordinary click.
+    // `clip` has no scroll position to move.
+    <div ref={outerRef} className="fit-frame" style={{
       position:'relative', flex:1, minWidth:0, minHeight:0,
       overflow:'hidden',
       display:'flex', justifyContent:'center',

@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>attack bench</title>
+<!-- Borrows index.html's whole <style> block (reset, fonts, every
+     keyframe, the reduced-motion rules) — see overlay-targets.html. -->
+<script>
+  (async () => {
+    const html = await fetch('/index.html').then(r => r.text());
+    const m = html.match(/<style>([\s\S]*?)<\/style>/);
+    if (m) { const s = document.createElement('style'); s.textContent = m[1]; document.head.appendChild(s); }
+    document.dispatchEvent(new Event('bench-styles-ready'));
+  })();
+</script>
+</head>
+<body><div id="root"></div>
+<script type="module" src="/tools/bench/attack.jsx"></script></body></html>

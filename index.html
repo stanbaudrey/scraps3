@@ -621,6 +621,33 @@
          under reduced motion, with a fade substitute below. */
       @keyframes narratorIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
       @keyframes narratorCopyIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+      /* THE THROW (Stan's pick off The Chopping Block, 2026-09-16). The
+         Ace attack's CSS half; the paths themselves are scripted
+         (src/components/throwMotion.js). Reduced motion: the tag's press
+         is not rendered, the lift and the hover do not run (a still ring
+         instead), the glint is hidden, the jolt is off, the sights land
+         on their frame, and the dim keeps a plain 0.28s fade.
+         attackTagPop/Out — ATTACK squashed like a struck match, sprung
+           past its size, then blown outward and gone (impact.jsx).
+         aceHover — the armed Ace hanging over the table, turning a
+           little. Starts and ends level, so it can begin late without
+           snapping to its first frame.
+         cardGlint — one pass of light across the armed Ace.
+         reticleIn — a sight settling onto a target.
+         scrapJolt — her pile's remaining cards hopping with the hit. */
+      @keyframes attackTagPop{0%{transform:scale(.94)}40%{transform:scale(.84,.78)}75%{transform:scale(1.16)}100%{transform:scale(1)}}
+      @keyframes attackTagOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(1.35)}}
+      @keyframes aceHover{0%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-2.5px) rotate(2deg)}50%{transform:translateY(-5px) rotate(0deg)}75%{transform:translateY(-2.5px) rotate(-2deg)}100%{transform:translateY(0) rotate(0deg)}}
+      @keyframes cardGlint{from{background-position:140% 0}to{background-position:-40% 0}}
+      @keyframes reticleIn{from{opacity:0;transform:scale(1.9) rotate(60deg)}to{opacity:1;transform:scale(1) rotate(0deg)}}
+      @keyframes scrapJolt{0%{transform:none}35%{transform:translateY(calc(var(--jolt-amp, 10px) * -1)) rotate(var(--jolt-rot, 5deg))}70%{transform:translateY(calc(var(--jolt-amp, 10px) * .15)) rotate(calc(var(--jolt-rot, 5deg) * -.3))}100%{transform:none}}
+      .scrap-jolt{animation:scrapJolt .34s ease-out both}
+      .reticle{transform-origin:center}
+      /* FitBox's frame clips without being a scroll container. See the
+         note on `fit-frame` in src/ui/viewport.jsx: a box with
+         `overflow:hidden` can still be scrolled by script or by
+         scroll-into-view, and nothing in this game may scroll. */
+      @supports (overflow: clip) { .fit-frame { overflow: clip !important; } }
       /* SHOW 'EM, charging (Stan, 2026-09-16): no arrows, the button
          itself winds up. One pass of 580ms, the length of the revealBuild
          cue it plays under, whose eleven taps close from 85ms apart to
@@ -844,6 +871,11 @@
         /* The narrator's entrance after a deal: a plain fade onto its
            frame, the same 0.28s the pile and the stage use. */
         .narrator-in { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
+        /* The Throw. The dim still fades, over the same 0.28s; a fade is
+           not travel. The glint and the jolt simply do not happen. */
+        .attack-dim { transition-duration: 0.28s !important; transition-delay: 0s !important; }
+        .card-glint { display: none !important; }
+        .scrap-jolt { animation: none !important; }
         .stage-wave { animation: none !important; text-shadow: 0 0 14px var(--glow), 0 0 4px var(--glow) !important; }
         .stage-fade { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
         .stage-flip { animation-duration: 1ms !important; }

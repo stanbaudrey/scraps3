@@ -380,7 +380,9 @@ export function AceTag({ onClick, disabled=false, live=true, width=104 }) {
         ? 'Attack with this Ace — unavailable until her Scraps has 2 or more cards'
         : 'Attack with this Ace, discarding two of her Scraps cards' } : { 'aria-hidden': true })}
       {...pressStyles(hIn,hOut)}
-      onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(); } : undefined}
+      // The event goes through: the attack's press effect is played on a
+      // copy of this tag, measured from `e.currentTarget` (impact.jsx).
+      onClick={interactive ? (e) => { e.stopPropagation(); onClick && onClick(e); } : undefined}
       title={disabled ? "Her Scraps needs 2+ cards before an Ace can attack" : undefined}
       style={{
         width: Math.max(width, ACE_TAG_MIN_W), boxSizing:'border-box',

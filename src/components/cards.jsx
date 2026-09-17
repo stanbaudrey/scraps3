@@ -393,7 +393,7 @@ export function CardBackSVG({ w, h }) {
 export function PlayingCard({ card, faceDown=false, isScrap=false, selected=false,
   selectable=false, dimmed=false, onClick, size='normal', kraft=false,
   extraStyle={}, wiggle=false, shake=false, fading=false, fadingIn=false, liftTransform=true,
-  registerEl=null, hidden=false, rankScale=1, rankAlign='left' }) {
+  registerEl=null, hidden=false, rankScale=1, rankAlign='left', glint=false }) {
   // `rankScale` and `rankAlign` exist for ONE caller: the match screen's
   // letter cards (interstitials.jsx), whose "rank" is a letter at 0.84
   // of the rank size so a word of them reads as a word rather than as a
@@ -562,6 +562,16 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
           under them reads as clutter. It sits in the bottom third at
           ~10% opacity, clear of a numeral anchored to the top. */}
       {!faceDown&&!isScrap&&card&&<CardFaceRidge w={d.w} h={d.h}/>}
+      {/* The GLINT (The Throw, 2026-09-16): one pass of light across the
+          Ace as it comes up out of the fan to hover, armed. It waits for
+          the card to arrive (520ms) and runs once. Clipped by this card's
+          own overflow, and hidden outright under reduced motion. */}
+      {glint&&(
+        <div aria-hidden="true" className="card-glint" style={{position:'absolute',inset:-6,
+          zIndex:2,pointerEvents:'none',backgroundRepeat:'no-repeat',backgroundSize:'260% 100%',
+          backgroundImage:`linear-gradient(105deg, ${DS.frost}00 38%, ${DS.frost}B3 50%, ${DS.frost}00 62%)`,
+          animation:'cardGlint 560ms ease-in-out 520ms both'}}/>
+      )}
       {!faceDown&&card&&(
         <div style={rankAlign==='center'
           ? {position:'absolute',inset:0,display:'flex',alignItems:'center',
@@ -676,7 +686,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
   wiggleIds=new Set(), activeWiggle=false, aiSignaledIds=new Set(),
   shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set(),
   registerEl=null, hiddenIds=new Set(), cardSlot=null,
-  size='normal', maxWidth=null, showEmpty=true }) {
+  size='normal', maxWidth=null, showEmpty=true, raisedId=null, raisedStill=false }) {
 
   const sorted=faceDown?cards:sortByValue(cards);
   const count=sorted.length;
@@ -734,6 +744,16 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
           // otherwise overlap their tags by the fan's overlap amount.
           const slotW=Math.min(W,Math.round(step));
           const slot=cardSlot?cardSlot(card,slotW):null;
+          // ARMED (The Throw, 2026-09-16). Pressing ATTACK lifts that Ace
+          // up out of the fan, tipped back and a size larger, and it
+          // hovers there over the table while you pick its targets. The
+          // lift waits 200ms for the tag's press to play, then springs.
+          // It sits ABOVE the attack's dim (GameScreen's layer at z 30),
+          // which is why its z-index is 40 rather than the fan's own.
+          // Under reduced motion it does not move at all and takes the
+          // still ring instead (`raisedStill`, live-cue-card).
+          const isRaised=raisedId!=null&&card.id===raisedId;
+          const raise=isRaised&&!raisedStill?Math.round(d.h*0.3):0;
           // A slot (today: the Play Ace button) has to move with its
           // card, wiggle included. So when one is present the wiggle
           // moves up to a wrapper around BOTH, and the card itself
@@ -746,6 +766,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
               wiggle={doWiggle&&!slot}
               shake={shakeIds.has(card.id)}
               fading={fadingIds.has(card.id)}
+              glint={isRaised&&!raisedStill}
               extraStyle={isTradeSel?{border:`6px solid ${DS.voltage}`,
                 boxShadow:`0 0 0 3px ${DS.voltage}55`}:{}}
             />
@@ -760,11 +781,15 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
               } : {})}
               style={{
               position:'absolute',bottom:foot,left:'50%',
-              transform:isSel||isAiSig
+              transform:raise
+                ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-raise}px) rotate(${rot-8}deg) scale(1.12)`
+                :isSel||isAiSig
                 ?`translateX(calc(-50% + ${tx}px)) translateY(${ty-lift}px) rotate(${rot}deg)`
                 :`translateX(calc(-50% + ${tx}px)) translateY(${ty}px) rotate(${rot}deg)`,
-              transition:'all 0.56s cubic-bezier(.34,1.2,.64,1)',
-              zIndex:slot?count+5:i,
+              transition:raise
+                ?'transform 320ms cubic-bezier(.34,1.56,.64,1) 200ms'
+                :'all 0.56s cubic-bezier(.34,1.2,.64,1)',
+              zIndex:isRaised?40:slot?count+5:i,
             }} onClick={()=>onCardClick&&onCardClick(card)}>
               {/* The ruffle animates `transform`, and so does THIS card's
                   fan placement — `translateX(calc(-50% + tx))` is what
@@ -780,12 +805,18 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                   instead of one overwriting the other. */}
               <div style={{animation: waveIds.has(card.id)
                 ? 'cardRuffle 0.34s cubic-bezier(.33,.9,.4,1)' : undefined}}>
-                {slot?(
-                  <div className={doWiggle ? 'live-cue-card' : undefined}
+                {slot||isRaised?(
+                  <div className={doWiggle||isRaised ? 'live-cue-card' : undefined}
                     style={{position:'relative',
-                    animation:doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
-                    <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
-                      marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
+                    // The hover starts once the lift has landed, from level,
+                    // so it never snaps to its first frame.
+                    animation:isRaised
+                      ?(raisedStill?undefined:'aceHover 2.6s ease-in-out 540ms infinite')
+                      :doWiggle?'cardWiggle 0.5s ease-in-out infinite alternate':undefined}}>
+                    {slot&&(
+                      <div style={{position:'absolute',bottom:'100%',left:0,width:'100%',
+                        marginBottom:5,display:'flex',justifyContent:'center'}}>{slot}</div>
+                    )}
                     {body}
                   </div>
                 ):body}
@@ -912,10 +943,25 @@ export function HandUpgradeBadge({ cards, fontSize=15 }) {
 // bands, and a pile is capped at 7 cards, so 7 is the honest maximum.
 const SHADOW_BASE = (cardW) => cardW * 7 + 16;
 
+// A sight on a target: a ring, a centre pip and four ticks, in her
+// ember because it marks her card. It settles in from a larger, turned
+// ring (`reticleIn`), which under reduced motion lands on its frame.
+function Reticle({ size }) {
+  return (
+    <svg className="reticle" width={size} height={size} viewBox="0 0 48 48" style={{overflow:'visible',
+      filter:'drop-shadow(0 1px 1px rgba(0,0,0,.5))',
+      animation:'reticleIn 240ms cubic-bezier(.2,.9,.3,1.2) both'}}>
+      <circle cx="24" cy="24" r="17" fill="none" stroke={DS.ember} strokeWidth="2.8"/>
+      <circle cx="24" cy="24" r="2.8" fill={DS.ember}/>
+      <path d="M24 1v9M24 38v9M1 24h9M38 24h9" stroke={DS.ember} strokeWidth="2.8" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
   onCardClick, discardMode=false, isOpponent=false, glowZone=false, glowStrong=false,
   registerEl=null, hiddenIds=new Set(),
-  size='small', width=340, fill=false }) {
+  size='small', width=340, fill=false, markIds=null, joltKey=0 }) {
 
   const sorted = sortByValue(cards);
   const glowColor = isOpponent ? DS.ember : DS.voltage;
@@ -961,6 +1007,23 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
   const arrivedAt = arrived
     ? sorted.findIndex(c => arrived.has(String(c.id)) || arrived.has(c.id))
     : -1;
+
+  // THE JOLT (The Throw, 2026-09-16). When your thrown Ace knocks two
+  // cards off this pile, the ones left behind hop with the hit and
+  // settle, one after another, leaning alternately. GameScreen bumps
+  // `joltKey` at the moment of the knock. The pile jolts when the key
+  // CHANGES, never on mount: the two layouts put this pile under
+  // different parents, so a rotation remounts it holding the last key,
+  // and reading "not 0" as "jolt" replayed the hit on every rotation.
+  const [jolting, setJolting] = useState(false);
+  const joltSeen = useRef(joltKey);
+  useEffect(() => {
+    if (joltKey === joltSeen.current) return;
+    joltSeen.current = joltKey;
+    setJolting(true);
+    const t = setTimeout(() => setJolting(false), 520);
+    return () => { clearTimeout(t); setJolting(false); };
+  }, [joltKey]);
 
   // Fan overlap: compress as cards grow so the pile always fits.
   // The 20px that used to be the container's padding is kept as
@@ -1082,7 +1145,10 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                       0.62s. Same trap the opponent's ruffle hit in
                       FannedHand; same fix, an inner element with no
                       placement of its own. */}
-                  <div className={isArrival ? 'scrap-settle' : undefined}>
+                  <div className={isArrival ? 'scrap-settle' : jolting ? 'scrap-jolt' : undefined}
+                    style={jolting && !isArrival ? {animationDelay:`${i * 18}ms`,
+                      '--jolt-amp':`${Math.round(cardH * 0.12)}px`,
+                      '--jolt-rot':`${i % 2 ? 5 : -5}deg`} : undefined}>
                     <PlayingCard card={card} size={size} isScrap={true}
                       kraft={isOpponent}
                       selectable={isElig} selected={isSel} liftTransform={false}
@@ -1094,6 +1160,26 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             })}
           </div>
         </GlowPulse>
+        {/* THE SIGHTS (The Throw, 2026-09-16): each card picked as a
+            target of your Ace gets a sight settled over it. A SIBLING of
+            GlowPulse and never a child of it, for the reason in its
+            header — the glow traces the alpha of everything inside it,
+            and a sight in there would be ringed in ember too. Laid out
+            with the same arithmetic as the cards, lift included. */}
+        {markIds && markIds.size > 0 && (
+          <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:2,pointerEvents:'none'}}>
+            {sorted.map((card, i) => markIds.has(card.id) && (
+              <div key={card.id} style={{position:'absolute',
+                left: Math.round((innerW + 20 - pileW) / 2) + i * step, top: padTop,
+                width: cardW, height: cardH,
+                transform: `translateY(${selectedIds.has(card.id) ? -lift : 0}px)`,
+                transition: 'transform 0.22s cubic-bezier(.34,1.2,.64,1)',
+                display:'flex', alignItems:'center', justifyContent:'center'}}>
+                <Reticle size={Math.round(cardW * 0.9)}/>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {/* The caption is the best hand in the pile and nothing else now.
           The OPP SCRAPS / YOUR SCRAPS line that used to lead it is gone

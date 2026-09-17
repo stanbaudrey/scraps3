@@ -44,14 +44,16 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **57 tests** cover the engine and the reducer. (It was 37
+- Vitest for tests. **64 tests** cover the engine, the reducer and the Ace
+  attack's motion math (`src/components/throwMotion.test.js`, seven, added
+  with The Throw on 2026-09-16). (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
   that matters now that createDeck() no longer loops over four suits, leaving
   53; the 2026-09-15 Scraps hand-off added the two that cover
   `HANDS_DISCARDED`, and the 2026-09-16 pass two that hold PLAY HAND 2's
-  hidden refill to the cards REPLENISH actually deals.)
+  hidden refill to the cards REPLENISH actually deals, making 57.)
   `vite.config.js` excludes `.claude/**` from vitest: a git worktree parked
   there is a second full checkout and was getting collected twice, reporting
   111 tests for a project that has 55.
@@ -94,7 +96,7 @@ evaluator to make that true: it always read rank and value only.
   resonators acting as the body of an object.
   **The rule is now: a physical event is an untuned object, a score outcome
   is a tuned bar.** That is a real change from the old rule, which was the
-  flat "no oscillator ever plays a note" — six of the **sixteen** cues are
+  flat "no oscillator ever plays a note" — six of the **twenty-one** cues are
   now xylophone or marimba bars in G major pentatonic, built by `bar()` from a
   real bar's partials (1 : 3.01 : 6.03 for a xylophone, 1 : 3.99 : 9.18 for a
   marimba — the ratios a genuine undercut arch produces). A xylophone bar is
@@ -107,7 +109,11 @@ evaluator to make that true: it always read rank and value only.
   cues added that day are `slap` (a winning card landing on the table, thud
   plus block, untuned) and `roundSign` (the ROUND N sign: the splash's old
   square-up phrase, retimed to the sign's letters and routed through TRIM at
-  last). **There is no brass anywhere** — the bench offered four brass
+  last). The Ace attack added five on 2026-09-16, all untuned: `armDraw`
+  (ATTACK pressed), `lock` (a sight on a target), `whoosh` (the throw),
+  `chips` (under the hit) and `clash` (her counter meeting your Ace), plus
+  a `swish()` helper — swept noise, no pitch. Four measured identical to
+  their bench trims. **There is no brass anywhere** — the bench offered four brass
   options on every messaging cue and Stan took none. See the file's own header
   and the Gotchas below.
 - Asset files in the repo, and there are only two kinds: the **14
@@ -142,7 +148,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 57 tests, runs in under a second
+npm test          # vitest, 64 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -273,6 +279,14 @@ button exists for keyboards and screen readers). The match screen's NEW
 GAME and SHARE sit outside the scaled column, pinned to the bottom of the
 viewport, and render their full 54 everywhere.
 
+`tools/bench/attack.html` (2026-09-16) is the Ace attack's bench: the real
+`GameScreen` with a rigged deal, through an optional `rig` prop the game
+never passes. `?case=lands` (your Ace, a pile of hers she will not defend),
+`?case=counter` (she holds an Ace and a two-pair pile, so she counters),
+`?case=counter2` (as counter, with a second Ace in your hand, so the turn
+stays live). It exists because a shuffle does not produce an attack on
+demand, and one that does not reach the state cannot test it.
+
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
 `process.env`. The `.env.local` file that appeared during setup holds only a
@@ -339,7 +353,13 @@ looks broken locally, it is not a missing-secret problem.
   covers the HUD exactly when the stakes peak, so the warning lives on the
   ROUND sign and under the reveal's score row now),
   `buttons.jsx`, `icons.jsx` (inline 24×24 SVG set that replaced all emoji),
-  `flight.jsx` (card motion), `backdrop.jsx`.
+  `flight.jsx` (card motion, including `MotionGhost`, a card on a scripted
+  path), `backdrop.jsx`, and The Throw's two (2026-09-16):
+  `throwMotion.js` (the Ace attack's paths as pure functions of time,
+  tested) and `impact.jsx` (the debris canvas, the ATTACK tag's press, the
+  table shake — the three effects nothing else in the game may use, so the
+  attack stays the rare thing; the canvas drops to 0x0 whenever nothing is
+  flying, since a full-viewport backing store is ~11MB on a Retina screen).
 - **`src/ui/viewport.jsx`** — the responsive layer, added in Session 3.
   `FitBox` measures the **content box**, not `clientHeight`: a caller
   that passes padding through `style` (the storyboard does) would
@@ -669,6 +689,59 @@ looks broken locally, it is not a missing-secret problem.
   NOT measured and pasted — and the panel is centred inside it, so the chrome
   still shrinks to what is being said while the cards never hear about it.
   Put anything new in the panel, never in the slot.
+- **The Ace attack commits at IMPACT, not at REMOVE** (The Throw,
+  2026-09-16). Her two targets have to sit in her pile until the thrown Ace
+  arrives, so the reducer hears `PLAYER_ACE_APPLY` (or `AI_COUNTER_ACE`) at
+  the end of the hit-stop, from a timer — the same shape as the old 520ms
+  shake-then-commit. Everything the attack still owes lives in `strikeRef`
+  with ONE `commit()`, and `finishStrike` is wired into the global skip
+  listener, so a click at any frame commits it (with the hit's sound if it
+  had not played), clears the effects and ends the attack. The thrown Ace is
+  a scripted flight with `hideIds`, which is what keeps the real Ace hidden
+  in your hand until the commit removes it. Add a step to the attack and it
+  goes through `commit()` and `finishStrike`, or a skip will strand it. The
+  AI's turn gate holds while `strike` is set, so her counter notice (which
+  opens at the END of the clash) can never have her moving behind it.
+- **Nothing may overhang FitBox's frame, and the frame is `overflow:clip`.**
+  The attack's dim lives INSIDE the scaled table so her pile, the narrator
+  band and the lifted Ace can sit above it in one stacking context (dim 30,
+  those 31 and 40) — and anything lifted above it must have no ancestor
+  with opacity below 1, which is why her pile's column stays at opacity 1
+  through the attack. It is stretched to the frame's edges from the scale
+  FitBox SETTLES on (`onFit`, not the transform on screen, which eases for
+  260ms and was read early the first time). Its first version overhung the
+  frame instead, which gave `overflow:hidden` something to scroll, and
+  `tools/responsive-qa.mjs` caught the whole table 500px up its frame after
+  an ordinary click. `.fit-frame` upgrades the frame to `overflow:clip` where
+  supported, which clips without being a scroll container at all.
+- **A scripted flight is timed from its launch, not its first frame, and
+  the caller stamps the launch.** `MotionGhost` reads `born`, which
+  GameScreen passes as `performance.now()` in the same breath as it sets
+  the attack's sound, ring and commit timers. A ghost that started its clock
+  on its first paint put the hit's sound a frame ahead of the Ace, and a
+  stamp taken inside `fly()`'s layout effect still ran a render late (6ms
+  on a fast Mac, more on a phone). `fly()` stamps its own only for a move
+  that passes none.
+- **Nothing on the table may change size while the Ace is in the air.**
+  Every attack path is aimed from rects measured at REMOVE, so a table that
+  rescales mid-throw moves the targets out from under it. REMOVE's row under
+  her pile sets the wide table's height and used to unmount the instant it
+  was pressed: the table rescaled 0.782 to 0.826 at 1024x662 and the Ace hit
+  ~18px off the gap, which no check measured and a freeze-frame does not
+  show (found by review, 2026-09-16). The row stays laid out,
+  `visibility: hidden`, until the attack ends; measured after, the Ace
+  lands within 0.5px of the gap at four viewports. Anything added to the
+  attack that appears or disappears has to reserve its space the same way.
+- **An effect keyed on a counter fires on a CHANGE, never on mount.** Her
+  pile's hop reads `joltKey` against a ref, because the two layouts put the
+  pile under different parents and a rotation remounts it holding the last
+  key; "jolt when non-zero" replayed the hit on every rotation for the rest
+  of the match.
+- **The attack's speeds scale with the table AND the window's width**
+  (`motionScale` in GameScreen: the table's scale, capped at
+  innerWidth / 630, clamped 0.5 to 1.3). A portrait phone runs its table at
+  scale 1 on 390px, and at full speed the knocked-off cards left by the sides
+  in half a second.
 - Audio only starts after a user gesture, per browser autoplay policy. Silence
   before the first click is the browser, not a bug.
 

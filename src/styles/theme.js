@@ -125,6 +125,13 @@ export const DS = {
   timber:      '#482A22',
   timberLight: '#7F5444',
   timberSeam:  '#220F0B',
+  // The dark the table falls into around an Ace attack (The Throw,
+  // 2026-09-16): a warm near-black, laid over the whole table at up to
+  // two-thirds strength with a pool of light left on her pile. Warm so
+  // the redwood reads as the same wood in shadow rather than going
+  // grey. Ground, never state — the dim says nothing on its own; the
+  // glow and the sights on her pile say where to act.
+  shade:       '#0E0704',
   // ── Scrap paper stock, 2026-09-13 ──────────────────────────
   // A card in your HAND is crisp `frost` cream. A card in a SCRAPS
   // pile is torn, weathered stock — and the two piles print on two

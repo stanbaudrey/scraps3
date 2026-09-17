@@ -36,21 +36,33 @@
 // ============================================================
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import { PlayingCard, CARD_DIMS } from "./cards.jsx";
+import { TRAIL } from "./throwMotion.js";
 
 const DURATION = 620;
-const prefersReducedMotion = () => {
+export const prefersReducedMotion = () => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   catch { return false; }
 };
 
 const centerOf = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+// Where an element really is on screen: its centre, and the scale and
+// SIGNED angle it is drawn at, every ancestor's transform included. For
+// the few effects that have to stand a copy exactly on top of a live
+// element that is leaning, like the ATTACK tag inside the hand's wiggle.
+export function screenPose(el) {
+  const r = el.getBoundingClientRect();
+  const m = screenMatrix(el);
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2,
+    scale: Math.hypot(m.a, m.b) || 1, rot: Math.atan2(m.b, m.a) * 180 / Math.PI };
+}
 const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
 // The transform an element actually ends up drawn with, composed all
 // the way up the tree — the fan's per-card rotate AND the FitBox scale
 // that fits the table to the viewport. getBoundingClientRect flattens
 // both into an axis-aligned box and loses the angle; this keeps them.
-function screenMatrix(el) {
+export function screenMatrix(el) {
   let m = new DOMMatrix();
   for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
     const t = getComputedStyle(n).transform;
@@ -214,6 +226,85 @@ function Ghost({ flight, onDone }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// MotionGhost — a card on a SCRIPTED path (The Throw, 2026-09-16).
+//
+// Ghost above flies one bow between two measured boxes. The Ace
+// attack needs paths that bow cannot draw: a draw-back and a spinning
+// throw, a hold for the hit-stop, a ballistic tumble off the table.
+// Those are pure functions of time in throwMotion.js, and this plays
+// one: `motion.at(ms)` hands back the pose for that moment and this
+// writes it to the DOM, once per frame, with no React render in the
+// loop.
+//
+// Same box rule as Ghost: the element is the `fromSize` card's natural
+// box, its origin is the card's centre, and `s` scales that box to
+// whatever the motion says, so a pose measured off a real card lands
+// on it exactly.
+//
+// TRAILS are extra copies of the card drawn a few frames behind it at
+// falling opacity, shown only while the motion says the card is really
+// travelling (`trail`). They render first, so the card itself is on top.
+//
+// Under reduced motion a scripted flight ends at once, like any other,
+// unless it is `rmSafe` — a fade in place, which is what the reduced-
+// motion attack uses instead of the throw.
+// ─────────────────────────────────────────────────────────────
+const poseTransform = (p) =>
+  `translate3d(${p.x}px,${p.y}px,0) rotate(${p.rot}deg) scale(${p.s * (p.sx ?? 1)},${p.s})`;
+
+function MotionGhost({ flight, onDone }) {
+  const { motion, card, faceDown, fromScrap, kraft, fromSize, trails, rmSafe, born } = flight;
+  const els = useRef([]);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  const p0 = useMemo(() => motion.at(0), []);
+
+  useEffect(() => {
+    if (prefersReducedMotion() && !rmSafe) { doneRef.current(); return; }
+    let raf = 0;
+    const paint = (t) => {
+      for (let i = 0; i <= trails; i++) {
+        const el = els.current[i];
+        if (!el) continue;
+        const ti = t - i * TRAIL.lag;
+        const p = motion.at(Math.max(0, ti));
+        const show = i === 0 || (p.trail && ti > 0);
+        el.style.opacity = show ? String((p.o ?? 1) * (TRAIL.alpha[i] ?? 0.1)) : '0';
+        if (show) el.style.transform = poseTransform(p);
+      }
+    };
+    const step = (now) => {
+      const t = Math.max(0, now - born);
+      paint(Math.min(t, motion.dur));
+      if (t < motion.dur) raf = requestAnimationFrame(step);
+      else doneRef.current();
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const order = [];
+  for (let i = trails; i >= 0; i--) order.push(i);
+  return (
+    <>{order.map(i => (
+      <div key={i} ref={el => { els.current[i] = el; }}
+        data-flight={card ? card.id : 'anon'} data-trail={i || undefined} style={{
+        position:'fixed', left:0, top:0, zIndex:1000, pointerEvents:'none',
+        transformOrigin:'0 0', willChange:'transform, opacity',
+        transform: poseTransform(p0),
+        opacity: i === 0 ? (p0.o ?? 1) : 0,
+      }}>
+        <div style={{position:'relative', transform:'translate(-50%,-50%)',
+          filter: i === 0 ? 'drop-shadow(0 12px 26px rgba(0,0,0,.6))' : undefined}}>
+          <PlayingCard card={card} faceDown={faceDown} isScrap={fromScrap} kraft={kraft}
+            size={fromSize} liftTransform={false}/>
+        </div>
+      </div>
+    ))}</>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // useCardMotion
 //
 //   registerCard(id, el)  cards call this via ref
@@ -230,7 +321,9 @@ function Ghost({ flight, onDone }) {
 //
 // A move is { card, fromId|fromRect, toId|toRect, ... }. Ids are
 // resolved against the registry; rects are for the fixed piles
-// (deck, discard) which are not cards.
+// (deck, discard) which are not cards. A move with a `motion`
+// (throwMotion.js) is a scripted flight instead and needs neither:
+// see MotionGhost.
 // ─────────────────────────────────────────────────────────────
 export function useCardMotion() {
   const els = useRef(new Map());
@@ -280,6 +373,27 @@ export function useCardMotion() {
     if (!queue) return;
     const built = [];
     for (const m of queue) {
+      // A SCRIPTED flight (The Throw). Its path is a function of time
+      // built from rects measured before the commit, so there is no
+      // destination to read here. It can hide cards of its own while it
+      // flies (`hideIds`): the thrown Ace stands in for the one still in
+      // your hand until the hit commits.
+      if (m.motion) {
+        built.push({
+          // Timed from the moment it was launched, not from its first
+          // painted frame: GameScreen schedules the impact's sound, ring
+          // and commit on timers from that same moment, and a clock that
+          // started a frame late put the hit's sound ahead of the Ace.
+          // The caller passes its own `born`, stamped where it set those
+          // timers; this layout effect runs a render later (6ms on a
+          // fast Mac, more on a phone).
+          id: nextId.current++, motion: m.motion, born: m.born ?? performance.now(),
+          card: m.card ?? null, faceDown: !!m.faceDown, fromScrap: !!m.fromScrap,
+          kraft: !!m.kraft, fromSize: m.fromSize || 'small', trails: m.trails || 0,
+          rmSafe: !!m.rmSafe, hideIds: m.hideIds || null, hideId: null,
+        });
+        continue;
+      }
       const from = m.fromRect || (m.fromId != null ? rectOf(m.fromId) : null);
       const to   = m.toRect   || (m.toId   != null ? rectOf(m.toId)   : null);
       if (!from || !to) continue;   // element gone: skip, never guess
@@ -309,7 +423,10 @@ export function useCardMotion() {
 
   const hiddenIds = useMemo(() => {
     const s = new Set();
-    for (const f of flights) if (f.hideId != null) s.add(f.hideId);
+    for (const f of flights) {
+      if (f.hideId != null) s.add(f.hideId);
+      if (f.hideIds) for (const id of f.hideIds) s.add(id);
+    }
     return s;
   }, [flights]);
 
@@ -324,7 +441,9 @@ export function useCardMotion() {
   // whenever anything else moved. Returning the element keeps each
   // Ghost mounted and reconciled by key.
   const flightsOverlay = (
-    <>{flights.map(f => <Ghost key={f.id} flight={f} onDone={() => land(f.id)}/>)}</>
+    <>{flights.map(f => f.motion
+      ? <MotionGhost key={f.id} flight={f} onDone={() => land(f.id)}/>
+      : <Ghost key={f.id} flight={f} onDone={() => land(f.id)}/>)}</>
   );
 
   return { registerCard, rectOf, fly, hiddenIds, animating, skipAll, flightsOverlay };
