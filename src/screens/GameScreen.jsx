@@ -18,7 +18,7 @@ import {
 } from "../game/engine.js";
 import {
   gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
-  checkWin, AI_TURN_PHASES, AI_SIGNAL_PHASES,
+  checkWin, planReplenish, AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
@@ -1056,9 +1056,9 @@ export function GameScreen({ difficulty, onExit }) {
   // That split existed to let the refill be worked out AFTER the score
   // committed, from the hands the score leaves behind. Those hands are
   // simply the current ones minus the two played sets, which is exactly
-  // and only what SMALL_HAND_SCORED removes — so the same numbers come
-  // out of the snapshot taken here, and REPLENISH, run right behind it,
-  // draws the identical cards off the identical deck.
+  // and only what SMALL_HAND_SCORED removes — so `planReplenish`, the
+  // same function REPLENISH runs, names the identical cards from the
+  // snapshot taken here. reducer.test.js holds the two to that.
   //
   // The wave waits a beat (HANDOFF.deal) so the gaps are seen opening
   // first, and dealHold keeps the narrator, the buttons and the opponent
@@ -1066,18 +1066,17 @@ export function GameScreen({ difficulty, onExit }) {
   function dealSecondHand(scored) {
     const s = stateRef.current;
     const played = new Set([...(s.playerPlayed || []), ...(s.aiPlayed || [])].map(c => c.id));
-    const pN = Math.max(0, 5 - s.playerHand.filter(c => !played.has(c.id)).length);
-    const aN = Math.max(0, 5 - s.aiHand.filter(c => !played.has(c.id)).length);
-    const drawn = s.deck.slice(0, pN + aN);
+    const plan = planReplenish(
+      s.playerHand.filter(c => !played.has(c.id)),
+      s.aiHand.filter(c => !played.has(c.id)), s.deck);
     setStage(null);
     setSelected([]);
     dispatch(scored);
     dispatch({ type: 'REPLENISH' });
-    setPendingDealIds(new Set(drawn.map(c => c.id)));
+    setPendingDealIds(new Set([...plan.player, ...plan.ai].map(c => c.id)));
     setDealStage('pending');
     clearTimeout(dealTimer.current);
-    dealTimer.current = setTimeout(
-      () => dealWave(drawn.slice(0, pN), drawn.slice(pN, pN + aN)), HANDOFF.deal);
+    dealTimer.current = setTimeout(() => dealWave(plan.player, plan.ai), HANDOFF.deal);
   }
 
   // The table clearing itself down to the two Scraps piles. Measured

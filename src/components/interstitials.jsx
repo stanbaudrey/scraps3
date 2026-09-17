@@ -142,7 +142,13 @@ function useTimeline(scale = 1) {
 // there.
 // ─────────────────────────────────────────────────────────────
 const SLIDE = { dur: 200, ease: 'cubic-bezier(.45,0,.55,1)' };
-function SlideBox({ children, style = {} }) {
+// `instant` is a skip: the box SNAPS to its content instead of sliding,
+// the same resting-frame rule every entrance here keeps. A tap in the
+// first 200ms of the CLEAN SWEEP beat drops the title's wait, so its
+// letters paint at once; left to slide, the box would still be short of
+// them and the title would sit over the cards until it caught up.
+// Switching the transition off mid-slide cancels it and lands the end.
+function SlideBox({ children, style = {}, instant = false }) {
   const outerRef = useRef(null);
   const innerRef = useRef(null);
   useLayoutEffect(() => {
@@ -161,7 +167,7 @@ function SlideBox({ children, style = {} }) {
   }, []);
   return (
     <div ref={outerRef} style={{display:'flex',flexDirection:'column',justifyContent:'center',
-      transition:`height ${SLIDE.dur}ms ${SLIDE.ease}`,...style}}>
+      transition: instant ? 'none' : `height ${SLIDE.dur}ms ${SLIDE.ease}`,...style}}>
       <div ref={innerRef} style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center'}}>
         {children}
       </div>
@@ -393,7 +399,7 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
     setRolling(true);
     const t = setTimeout(() => setRolling(false), ld + ROLL + 40);
     return () => clearTimeout(t);
-  }, [tick, to, instant]);
+  }, [tick, to, instant, lead]);
   const size = rye ? 52 : 44;
   const numStyle = {fontFamily: rye ? F.title : F.display, fontSize: size,
     lineHeight:1, color: rye ? (mine ? DS.gold : DS.ember) : color, display:'block',
@@ -406,7 +412,11 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
       <span style={{fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>{label}</span>
       <span className={tick && wave && !rye ? 'stage-wave' : undefined}
         style={{position:'relative',display:'block',height:size,minWidth: rye ? 64 : 54,
-          overflow: rolling ? 'hidden' : 'visible',
+          // `!instant` as well: a skip mid-roll cancels the timer that
+          // would have cleared `rolling`, and the effect returns early
+          // without setting another, so the clip would otherwise stick and
+          // cut the top off the wave for the rest of the scene.
+          overflow: rolling && !instant ? 'hidden' : 'visible',
           '--glow': glow,
           animation: !tick ? undefined
             : rye ? `scoreJump ${instant ? 0 : JUMP}ms ease-out ${ld + dur}ms both`
@@ -1054,7 +1064,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               holds — the larger of the old floor and the verdict's own
               size — so the verdict landing does not nudge the table
               either. */}
-          <SlideBox>
+          <SlideBox instant={instant || (beatOn && fast.beat)}>
           <div style={{minHeight: beatOn ? undefined : 'max(clamp(44px,6vh,56px), clamp(34px,7vw,56px))',
             display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6}}>
             {beatOn ? (
@@ -1101,7 +1111,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               it slides rather than shoving the cards above it. MATCH POINT
               sits inside the box on the column's own gap, so the table is
               spaced exactly as it was when it was a column child. */}
-          <SlideBox style={{width:'100%'}}>
+          <SlideBox style={{width:'100%'}} instant={instant || (beatOn ? fast.beat : fb)}>
             <div style={{marginTop:'clamp(2px,1vh,8px)',width:'100%',display:'flex',justifyContent:'center'}}>
               {scoreRow}
             </div>

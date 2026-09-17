@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   gameReducer, createInitialState, buildRoundDeal,
   firstActorForRound, tradeOrder, nextPhaseAfterTrade,
-  scoreScrapsOutcome, checkWin,
+  scoreScrapsOutcome, checkWin, planReplenish,
 } from './reducer.js';
 import { scrapValue, RANK_VALUES, shouldCounterAce } from './engine.js';
 
@@ -106,6 +106,42 @@ describe('dealer-aware turn order', () => {
     o = gameReducer(o, { type: 'REPLENISH' });
     expect(o.phase).toBe('player-turn-2a');
   });
+});
+
+describe('PLAY HAND 2 hides exactly the cards REPLENISH deals', () => {
+  // GameScreen.dealSecondHand works the Hand 2 refill out BEFORE the
+  // Hand 1 score commits, from the hands minus the two played sets, so
+  // it can hide the new cards in their gaps; the reducer then commits
+  // SMALL_HAND_SCORED and REPLENISH. If the two ever named different
+  // cards, a hidden card would never be dealt and a dealt card would
+  // appear with no flight. Both rounds, because the refill order is
+  // player first either way while the turn order is not.
+  for (const roundNum of [1, 2]) {
+    it(`round ${roundNum}: the plan made before the score equals the deal made after it`, () => {
+      let s = freshRound(roundNum);
+      s = runHandOfTrades(s, []);
+      const playerPlayed = s.playerHand.slice(0, 2);
+      const aiPlayed = s.aiHand.slice(0, 3);
+      s = { ...s, phase: 'reveal-1', playerPlayed, aiPlayed };
+
+      const played = new Set([...playerPlayed, ...aiPlayed].map(x => x.id));
+      const plan = planReplenish(
+        s.playerHand.filter(x => !played.has(x.id)),
+        s.aiHand.filter(x => !played.has(x.id)), s.deck);
+
+      const beforeP = new Set(s.playerHand.map(x => x.id));
+      const beforeA = new Set(s.aiHand.map(x => x.id));
+      let t = gameReducer(s, { type: 'SMALL_HAND_SCORED', winner: 'player', pts: 1,
+        pName: '', aName: '', fromPhase: 'reveal-1' });
+      t = gameReducer(t, { type: 'REPLENISH' });
+
+      expect(t.playerHand.filter(x => !beforeP.has(x.id)).map(x => x.id)).toEqual(plan.player.map(x => x.id));
+      expect(t.aiHand.filter(x => !beforeA.has(x.id)).map(x => x.id)).toEqual(plan.ai.map(x => x.id));
+      expect(t.playerHand).toHaveLength(5);
+      expect(t.aiHand).toHaveLength(5);
+      expect(t.deck).toHaveLength(s.deck.length - plan.take);
+    });
+  }
 });
 
 describe('signal order follows the dealer', () => {

@@ -145,6 +145,23 @@ export function buildRoundDeal() {
   };
 }
 
+// ── The Hand 2 refill (pure, testable) ───────────────────────
+// Each hand draws back up to five, off the top of the deck, the
+// player's cards first. ONE function for it, because two callers have
+// to name the same cards: REPLENISH below, which runs after the Hand 1
+// score has taken the played cards out of the hands, and PLAY HAND 2 in
+// GameScreen (`dealSecondHand`), which works the refill out BEFORE that
+// commit so the new cards can already be sitting hidden in their gaps
+// when the table comes back. Two copies of this arithmetic would be two
+// answers the moment either changed.
+export const HAND_REFILL = 5;
+export function planReplenish(playerHand, aiHand, deck) {
+  const pN = Math.max(0, HAND_REFILL - playerHand.length);
+  const aN = Math.max(0, HAND_REFILL - aiHand.length);
+  const drawn = deck.slice(0, pN + aN);
+  return { player: drawn.slice(0, pN), ai: drawn.slice(pN, pN + aN), take: pN + aN };
+}
+
 // ── Initial state ────────────────────────────────────────────
 export function createInitialState() {
   return {
@@ -553,15 +570,13 @@ export function gameReducer(state, action) {
     // Hand 2 starts with the round's first actor — NOT hard-coded
     // to the player.
     case 'REPLENISH': {
-      const pN = Math.max(0, 5 - state.playerHand.length);
-      const aN = Math.max(0, 5 - state.aiHand.length);
-      const drawn = state.deck.slice(0, pN + aN);
+      const plan = planReplenish(state.playerHand, state.aiHand, state.deck);
       const first = firstActorForRound(state.roundNum);
       return {
         ...state,
-        playerHand: [...state.playerHand, ...drawn.slice(0, pN)],
-        aiHand: [...state.aiHand, ...drawn.slice(pN, pN + aN)],
-        deck: state.deck.slice(pN + aN),
+        playerHand: [...state.playerHand, ...plan.player],
+        aiHand: [...state.aiHand, ...plan.ai],
+        deck: state.deck.slice(plan.take),
         playerScraps: state.playerScraps.map(c => ({ ...c, eligibleForDiscard: true })),
         aiScraps: state.aiScraps.map(c => ({ ...c, eligibleForDiscard: true })),
         currentTurn: state.currentTurn + 1,

@@ -44,13 +44,14 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **55 tests** cover the engine and the reducer. (It was 37
+- Vitest for tests. **57 tests** cover the engine and the reducer. (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
   that matters now that createDeck() no longer loops over four suits, leaving
   53; the 2026-09-15 Scraps hand-off added the two that cover
-  `HANDS_DISCARDED`.)
+  `HANDS_DISCARDED`, and the 2026-09-16 pass two that hold PLAY HAND 2's
+  hidden refill to the cards REPLENISH actually deals.)
   `vite.config.js` excludes `.claude/**` from vitest: a git worktree parked
   there is a second full checkout and was getting collected twice, reporting
   111 tests for a project that has 55.
@@ -141,7 +142,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 55 tests, runs in under a second
+npm test          # vitest, 57 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -600,11 +601,14 @@ looks broken locally, it is not a missing-secret problem.
   where they belong; the wave follows `HANDOFF.deal` later and fills the
   gaps left to right. It used to commit the score, show the held-over
   cards closing up into the middle of the fan, then push them back out
-  220ms later for REPLENISH. The refill is worked out from the snapshot
-  minus the two played sets, which is exactly what `SMALL_HAND_SCORED`
-  removes — **if that action ever changes what it takes out of the hands,
-  `dealSecondHand` has to change with it**, or the hidden cards and the
-  cards REPLENISH draws will disagree.
+  220ms later for REPLENISH. Both sides call `planReplenish` (reducer.js)
+  for the refill; the UI calls it on the snapshot minus the two played
+  sets, which is exactly what `SMALL_HAND_SCORED` removes, and
+  reducer.test.js checks the plan made before the score against the cards
+  REPLENISH deals after it, in an odd and an even round (break-tested: it
+  fails if the played cards are not taken out first). **If
+  `SMALL_HAND_SCORED` ever changes what it removes from the hands, that
+  test is what will say so.**
 - **Nothing speaks until the cards are down** (`dealStage`, 2026-09-16).
   `'pending'` from the round being built (or PLAY HAND 2) until the wave
   launches, `'dealing'` while it flies, `null` once `animating` clears.
