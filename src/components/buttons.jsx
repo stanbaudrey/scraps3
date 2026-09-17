@@ -130,12 +130,22 @@ export function pressStyles(applyIn, applyOut) {
 // order and makes assistive tech say so, which is exactly what
 // MenuScreens' picker already does for its 720ms arm lock. AceTag was
 // the one control that had this right all along.
-export function Btn({ children, onClick, variant='primary', disabled=false, small=false }) {
+// `grow` is for a ROW of these that has to survive a narrow screen
+// (Stan, 2026-09-16: the Ace counter's two buttons "bleed offscreen to
+// the left and right" on his phone — measured at 390px, the pair was
+// 487px wide on a 313px card, starting 13px off the left edge). A
+// growing button takes its share of the row, wraps onto a line of its
+// own when the pair no longer fits side by side, and wraps its own
+// label as a last resort rather than overflowing. The row it sits in
+// has to `flex-wrap`. Nothing about it depends on the viewport, so it
+// holds for larger text or a smaller screen alike.
+export function Btn({ children, onClick, variant='primary', disabled=false, small=false, grow=false }) {
   const base={border:'none',cursor:disabled?'not-allowed':'pointer',
     fontFamily:F.ui,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
     padding:small?'10px 20px':'14px 28px',
     fontSize:small?15:17,borderRadius:8,opacity:disabled?0.35:1,
     minHeight:MODAL_BTN_MIN,
+    ...(grow ? { flex:'1 1 auto', minWidth:0, maxWidth:'100%', whiteSpace:'normal' } : {}),
     transition:'transform 60ms,box-shadow 60ms,background 60ms'};
   const V={
     primary:{background:DS.voltage,color:DS.ink,boxShadow:disabled?'none':`0 0 20px ${DS.voltage}55`},

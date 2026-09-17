@@ -96,6 +96,12 @@ export const DS = {
   // back. Recoverable from git if a second printed red is ever
   // wanted for something else; it was '#A8341F', 5.20:1 on frost.
   voltageHover: '#B5E07B',
+  // SHOW 'EM at full charge, the last frame before a reveal (2026-09-16).
+  // The same fern two steps paler than the hover, so a button gaining
+  // energy reads as heating up rather than as changing colour. It never
+  // rests: it exists only at the end of that one 580ms pass. Ink on it
+  // measures above 13:1.
+  voltageCharge: '#D6F0AC',
   emberHover:   '#F0A376',
   gold:       '#F4C771',
   goldHover:  '#F7D697',

@@ -11,7 +11,7 @@
 import { useEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn, AceTag, MODAL_BTN_MIN } from "./buttons.jsx";
-import { PlayingCard } from "./cards.jsx";
+import { PlayingCard, cardLabel } from "./cards.jsx";
 import { FitBox } from "../ui/viewport.jsx";
 import { useViewport } from "../ui/viewport.jsx";
 import { IconBolt } from "./icons.jsx";
@@ -218,54 +218,60 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
 // had another; say so, because the player has just watched both Aces
 // leave the table and a second attack with no acknowledgement reads
 // as the game forgetting what happened (Stan, 2026-09-14).
-export function AceCounterModal({ onCounter, onAllow, playerScraps, afterCounter = false }) {
+//
+// REBUILT 2026-09-16 on Stan's copy: a headline, "She plans to remove
+// these cards from your Scraps:", THE TWO CARDS SHE IS AIMING AT, one
+// line on what countering does, the buttons. That is a rule change as
+// well as a copy one, and worth knowing before touching this: the
+// prompt used to show the player's WHOLE pile and keep her two targets
+// hidden until after the decision (the counter was blind, by the
+// original design). "These cards" can only mean her targets, so the
+// player now counters knowing what the Ace would take.
+export function AceCounterModal({ onCounter, onAllow, targets, afterCounter = false }) {
   return (
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel={afterCounter
-      ? "Opponent played another Ace — counter or allow" : "Opponent played an Ace — counter or allow"}>
+      ? 'She had another Ace. Counter it, or let it happen?' : 'She plays an Ace. Counter it, or let it happen?'}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
-        <div style={{fontFamily:F.display,fontSize:36,color:DS.ember,
-          letterSpacing:'0.06em',marginBottom:14}}>
-          {afterCounter ? 'SHE HAD ANOTHER ACE!' : 'OPPONENT PLAYS ACE!'}
+        {/* 9vw keeps "SHE PLAYS AN ACE." on one line down to a 320px
+            screen; it reaches its full 36 at 400. */}
+        <div style={{fontFamily:F.display,fontSize:'clamp(28px,9vw,36px)',color:DS.ember,
+          letterSpacing:'0.06em',lineHeight:1.15,marginBottom:12}}>
+          {afterCounter ? 'SHE HAD ANOTHER ACE.' : 'SHE PLAYS AN ACE.'}
         </div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:14}}>
-          {afterCounter ? 'She plays it. It will remove two cards from your Scraps.'
-            : 'She will remove two cards from your Scraps.'}
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.5,marginBottom:16}}>
+          She plans to remove these cards from your Scraps:
         </p>
-        {/* The player's Scraps, so they can see what is at stake. The
-            YOUR SCRAPS AT STAKE caption came off on 2026-09-15 (Stan),
-            the same call that took the labels off the two piles: the
-            sentence directly above already says she will remove two
-            cards from your Scraps, so the caption was saying it twice
-            in three lines. It survives as the group's accessible name —
-            a screen reader has no "directly above" to read from. */}
-        {playerScraps&&playerScraps.length>0&&(
-          <div role="group" aria-label="Your Scraps, at stake"
-            style={{margin:'0 auto 18px',background:DS.inkLight,
-            border:`2px solid ${DS.ember}66`,borderRadius:12,padding:'12px 16px',
-            display:'inline-block'}}>
-            <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap'}}>
-              {playerScraps.map(c=>(
-                <PlayingCard key={c.id} card={c} size="small" isScrap={true}/>
-              ))}
-            </div>
+        {/* Torn stock, pale — they are still sitting in YOUR pile. The
+            group name carries the ranks, since "these cards" means
+            nothing to a screen reader without them. */}
+        {targets&&targets.length>0&&(
+          <div role="group" aria-label={`Her targets: ${targets.map(cardLabel).join(' and ')}`}
+            style={{display:'flex',gap:14,justifyContent:'center',flexWrap:'wrap',marginBottom:18}}>
+            {targets.map((c,i)=>(
+              <div key={c.id} style={{animation:`popIn 0.4s ${SETTLE} ${0.12+i*0.1}s both`}}>
+                <PlayingCard card={c} size="normal" isScrap={true} liftTransform={false}/>
+              </div>
+            ))}
           </div>
         )}
-        <p style={{fontFamily:F.ui,color:DS.voltage,fontSize:17,fontWeight:700,
-          marginBottom:24}}>You have an Ace. Counter to cancel hers?</p>
-        <p style={{fontFamily:F.ui,color:DS.slate,fontSize:14,marginBottom:24,lineHeight:1.5}}>
-          Countering cancels her Ace and nothing is discarded from either Scraps.
-          Both Aces go to the pile, so your Ace is spent either way: countering
-          trades it for hers instead of saving it for an attack of your own.
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.5,marginBottom:22}}>
+          You can counter with your Ace to cancel her attack, and then both Aces get discarded.
         </p>
-        <div style={{display:'flex',gap:16,justifyContent:'center'}}>
-          <Btn onClick={onCounter}>
-            <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+        {/* WRAPS. The pair used to sit in a row that could not wrap, 487px
+            of buttons on a 313px card at 390 wide, centred, so both ran
+            off the screen. Now each takes its share of the row, drops to
+            its own full-width line when they no longer fit together, and
+            the COUNTER label breaks after the bolt before it overflows. */}
+        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+          <Btn onClick={onCounter} grow>
+            <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+              flexWrap:'wrap',columnGap:8,rowGap:2}}>
               Counter <IconBolt size={16}/> Cancel Her Ace
             </span>
           </Btn>
-          <Btn variant="ghost" onClick={onAllow}>Let It Happen</Btn>
+          <Btn variant="ghost" onClick={onAllow} grow>Let It Happen</Btn>
         </div>
       </div>
     </Shell>
@@ -282,15 +288,19 @@ export function OpponentAceReveal({ targets, onOk, afterCounter = false }) {
   return (
     <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel={afterCounter
       ? "She had another Ace. It removed two of your Scraps cards"
-      : "Opponent's Ace removed two of your Scraps cards"}>
+      : "She attacks you with an Ace, and removes two cards from your Scraps"}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
-        <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
+        <div style={{fontFamily:F.display,fontSize:'clamp(26px,7.5vw,32px)',color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
+          {/* Stan's copy, 2026-09-16, with the verb in bold the way the
+              storyboard sets it. Fjalla has no bold weight, so the word
+              is also lifted to frost, which is what carries the stress
+              on every screen; the synthesised weight only adds to it. */}
           {afterCounter
             ? 'She had another Ace. It removes two cards from your Scraps'
-            : 'OPPONENT plays an Ace and removes two cards from your Scraps'}
+            : <>She <b style={{color:DS.frost}}>attacks</b> you with an Ace, and removes two cards from your Scraps.</>}
         </div>
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:24}}>
           {(targets||[]).map((c,i)=>(

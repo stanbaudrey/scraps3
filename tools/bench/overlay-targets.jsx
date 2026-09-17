@@ -20,6 +20,7 @@
 //   open http://localhost:5193/tools/bench/overlay-targets.html?case=reveal
 //
 // Cases: reveal | scraps | matchWin | matchLoss | sweepWin | sweepLoss | tie | sign
+//        | signMP | mp9 | mp8
 //        | aceDrawn | aceCounter | aceCounter2 | aiCounterNotice | oppAceReveal | oppAceReveal2
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -31,6 +32,11 @@ const d = createDeck();
 const five = (o) => d.slice(o, o + 5);
 const ace = d.find(c => c.rank === 'A');
 const noop = () => {};
+// Records which way out a scene took, for a script to read back:
+// window.__calls lists 'continue', 'swept', 'signDone' and 'newGame' in
+// the order they fired. The reveal's PLAY HAND 2 (2026-09-16) is only
+// checkable this way — a tap on the wood at rest must NOT continue.
+const called = (name) => () => { (window.__calls = window.__calls || []).push(name); };
 
 const reveal = (over) => ({
   kind: 'reveal', key: 'bench', which: 'hand1',
@@ -43,7 +49,8 @@ const params = new URLSearchParams(location.search);
 const live = params.get('live') === '1';
 const stage = (s) => (
   <TableStage stage={s} cardH={146} tableAnchorRef={{ current: null }} instant={!live}
-    onSignDone={noop} onContinue={noop} onSwept={noop} onNewGame={noop}
+    onSignDone={called('signDone')} onContinue={called('continue')} onSwept={called('swept')}
+    onNewGame={called('newGame')}
     difficulty="hard" winStats={{ margin: 4, bestMargin: 4, isNewRecord: true }}/>
 );
 
@@ -62,13 +69,19 @@ const CASES = {
   sweepLoss:  stage(reveal({ which: 'scraps', winner: 'ai', pts: 2, before: { p: 2, a: 4 },
                 aiSweep: true, playerCards: d.slice(10, 17), aiCards: d.slice(20, 27) })),
   sign:       stage({ kind: 'sign', roundNum: 2 }),
+  // MATCH POINT is exactly 9 since 2026-09-16. `signMP` has her on 9 and
+  // must say it; `mp9` rolls you onto 9 and must say it; `mp8` rolls you
+  // onto 8 and must NOT (the old rule, 8 or more, did).
+  signMP:     stage({ kind: 'sign', roundNum: 3, playerScore: 6, aiScore: 9 }),
+  mp9:        stage(reveal({ winner: 'player', before: { p: 8, a: 4 } })),
+  mp8:        stage(reveal({ winner: 'player', before: { p: 7, a: 4 } })),
   aceDrawn:   <AceDrawnLightbox ace={ace} onDismiss={noop} />,
-  aceCounter: <AceCounterModal onCounter={noop} onAllow={noop} playerScraps={five(10)} />,
+  aceCounter: <AceCounterModal onCounter={noop} onAllow={noop} targets={d.slice(12, 14)} />,
   // The re-counter prompt, and the two modals that follow an Ace. The
   // AI-countered notice is here because it CRASHED the game until
   // 2026-09-14 (an undeclared variable in render) and nothing else
   // ever mounted it outside a live match.
-  aceCounter2: <AceCounterModal onCounter={noop} onAllow={noop} playerScraps={five(10)} afterCounter />,
+  aceCounter2: <AceCounterModal onCounter={noop} onAllow={noop} targets={d.slice(12, 14)} afterCounter />,
   aiCounterNotice: <AiCounterNotice playerAce={ace} aiAce={{ ...ace, id: 'bench-ace-2' }} onOk={noop} stillArmed={false} />,
   oppAceReveal: <OpponentAceReveal targets={d.slice(12, 14)} onOk={noop} />,
   oppAceReveal2: <OpponentAceReveal targets={d.slice(12, 14)} onOk={noop} afterCounter />,

@@ -613,6 +613,42 @@
          below collapses it to its filled end state, which is correct:
          the tag is still there, it simply does not travel. */
       @keyframes aceTagIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+      /* The narrator arriving once the cards are down (Stan, 2026-09-16).
+         Nothing is in the band while a deal is in the air; when the last
+         card lands the panel rises and fades in, and its first line and
+         buttons follow it a beat later (narratorCopyIn, 140ms behind).
+         A settle, not a pop: it is the table waking up, not news. Group 1
+         under reduced motion, with a fade substitute below. */
+      @keyframes narratorIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes narratorCopyIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+      /* SHOW 'EM, charging (Stan, 2026-09-16): no arrows, the button
+         itself winds up. One pass of 580ms, the length of the revealBuild
+         cue it plays under, whose eleven taps close from 85ms apart to
+         26ms. A shake peak sits on each tap (0, 85, 158, 221, 275, 322,
+         362, 396, 426, 452, 478ms), then four more at the cue's final
+         spacing, so it vibrates faster AND wider as the sound
+         accelerates, while it swells 7% and brightens from --charge-0 to
+         --charge-2 with the glow opening up. The colours are set inline
+         from theme.js. `forwards`, not `both`: it starts on the button's
+         own resting style and holds the charged frame until the reveal
+         covers it. */
+      @keyframes showEmCharge{
+        0%   {transform:translate(0,0) rotate(0deg) scale(1);background-color:var(--charge-0);box-shadow:0 0 20px var(--charge-glow-0)}
+        14.7%{transform:translate(-1px,0) rotate(-.3deg) scale(1.004)}
+        27.2%{transform:translate(1.2px,0) rotate(.35deg) scale(1.008)}
+        38.1%{transform:translate(-1.4px,.2px) rotate(-.45deg) scale(1.012)}
+        47.4%{transform:translate(1.7px,-.2px) rotate(.55deg) scale(1.018)}
+        55.5%{transform:translate(-2px,.3px) rotate(-.7deg) scale(1.024);background-color:var(--charge-1)}
+        62.4%{transform:translate(2.3px,-.3px) rotate(.8deg) scale(1.03)}
+        68.3%{transform:translate(-2.6px,.4px) rotate(-.9deg) scale(1.036)}
+        73.4%{transform:translate(2.9px,-.4px) rotate(1deg) scale(1.042)}
+        77.9%{transform:translate(-3.1px,.5px) rotate(-1.1deg) scale(1.048)}
+        82.4%{transform:translate(3.3px,-.5px) rotate(1.2deg) scale(1.054)}
+        86.9%{transform:translate(-3.5px,.5px) rotate(-1.3deg) scale(1.06)}
+        91.4%{transform:translate(3.7px,-.5px) rotate(1.4deg) scale(1.064)}
+        95.9%{transform:translate(-3.9px,.5px) rotate(-1.5deg) scale(1.068)}
+        100% {transform:translate(0,0) rotate(0deg) scale(1.07);background-color:var(--charge-2);box-shadow:0 0 36px var(--charge-2),0 0 80px var(--charge-glow-1)}
+      }
       /* The treeline sway lived here until 2026-09-01, and the four-suit
          riffle on the splash until 2026-09-13. Both belonged to things
          that no longer render — `RidgeBackdrop` when Stan cut the
@@ -805,6 +841,9 @@
            deal-on collapse to their final frame under the blanket
            rule, which is the cleared table with the words already on
            it — exactly the still the bench showed for each. */
+        /* The narrator's entrance after a deal: a plain fade onto its
+           frame, the same 0.28s the pile and the stage use. */
+        .narrator-in { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
         .stage-wave { animation: none !important; text-shadow: 0 0 14px var(--glow), 0 0 4px var(--glow) !important; }
         .stage-fade { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
         .stage-flip { animation-duration: 1ms !important; }

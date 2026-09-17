@@ -129,10 +129,16 @@ npm install
 npm run dev
 ```
 
-The dev server is pinned to **port 5193** through the shared launch config at
-`~/Projects/.claude/launch.json` (entry `scraps3-dev`, using `--strictPort` so
+The dev server is pinned to **port 5193** through the project's own launch
+config at `.claude/launch.json` (entry `scraps3-dev`, using `--strictPort` so
 it fails loudly instead of drifting to another port). Running `npm run dev`
-by hand without those flags starts on 5173 instead.
+by hand without those flags starts on 5173 instead. A second entry,
+`scraps3-dev-alt`, runs the same server on **5194**, for when 5193 is held:
+on 2026-09-16 it was a two-day-old Vite server started from a parked
+worktree under `.claude/worktrees/`, serving that worktree's stale files.
+Check what owns the port (`lsof -nP -iTCP:5193 -sTCP:LISTEN`) before
+trusting anything on it, and do not kill it — it may be another session's.
+Every harness below takes `PORT=5194`.
 
 ```bash
 npm test          # vitest, 55 tests, runs in under a second
@@ -215,6 +221,18 @@ since the vocabulary was settled either. It was green on nothing, for a
 month. Both are fixed; the walk reaches a real dealt table again and
 comes back ALL CLEAR on 54 measured rows across the six viewports.
 
+**And a third time, found 2026-09-16: it still never took a turn.** The
+trade step's card selector was `[data-card-id][role="button"]`, which asks
+for both attributes on ONE element — but `data-card-id` is on the card and
+`role="button"` on the fan slot wrapping it, so it matched nothing, and
+`5-after-trade` was the same photograph as `4-table` at every viewport.
+It is `[role="button"][aria-pressed]:has([data-card-id])` now, and it
+WAITS for the SCRAP button rather than counting it, because the band's
+buttons only arrive once the deal has landed. Checked by looking: the
+laptop walk now scraps a card, watches her turn, and comes back to "Your
+turn. Scrap cards." **Before trusting this harness, open `4-table` and
+`5-after-trade` side by side. If they match, it measured nothing.**
+
 `tools/overlay-targets.mjs` is the companion, and it exists because the
 harness above walks a REAL game: it only reaches a modal the random deal
 happens to open. The Ace explainer had therefore never been measured
@@ -231,7 +249,14 @@ node tools/overlay-targets.mjs   # needs the same dev server on 5193
 Its seven cases since 2026-09-14 are `reveal`, `scraps`, `matchWin`,
 `matchLoss` and `sign` (the real `TableStage`, mounted with `instant` so
 each scene sits on its resting frame; add `&live=1` to run the
-choreography instead) plus `aceDrawn` and `aceCounter`. **The bench page
+choreography instead) plus `aceDrawn` and `aceCounter`. The bench page
+itself carries more cases than the harness measures — `sweepWin`,
+`sweepLoss`, `tie`, `aceCounter2`, `aiCounterNotice`, `oppAceReveal(2)`,
+and since 2026-09-16 `signMP` (her on 9), `mp9` and `mp8` for the MATCH
+POINT rule — and it records which way out a scene took in
+`window.__calls` (`continue`, `swept`, `signDone`, `newGame`), which is
+the only way to check from a script that a tap on the wood does NOT
+continue past Hand 1. **The bench page
 borrows `index.html`'s whole `<style>` block at load**, because every
 keyframe, the fonts and `.sr-only` live there and a second HTML page
 gets none of them — the first frames off this bench showed fallback
@@ -561,6 +586,58 @@ looks broken locally, it is not a missing-secret problem.
   and wait. Every reveal is pressed for too — `autoReveal`, which ran the
   reveal by itself when you signalled into her signal, is gone, and SHOW
   'EM is the whole narrator band in the reveal phase.
+- **The Hand 1 reveal is the one stage screen with a named button**
+  (2026-09-16, Stan): a green PLAY HAND 2 where the others say "Tap to
+  continue". A tap on the wood still skips its build, but at REST only
+  the button, or Enter/Space, moves on (`handCta` in `RevealScene`). The
+  root's `onClick` calls `onTap()` with no argument on purpose: the key
+  path passes `true`, and a click handed straight through would pass its
+  event object, which is truthy, and read as a key.
+- **PLAY HAND 2 deals the hand, and `replenish` is never rendered.**
+  `dealSecondHand` dispatches `SMALL_HAND_SCORED` and `REPLENISH` in one
+  handler, so the table comes back with the refill already in the hands,
+  HIDDEN in its slots, and the held-over cards move once, straight to
+  where they belong; the wave follows `HANDOFF.deal` later and fills the
+  gaps left to right. It used to commit the score, show the held-over
+  cards closing up into the middle of the fan, then push them back out
+  220ms later for REPLENISH. The refill is worked out from the snapshot
+  minus the two played sets, which is exactly what `SMALL_HAND_SCORED`
+  removes — **if that action ever changes what it takes out of the hands,
+  `dealSecondHand` has to change with it**, or the hidden cards and the
+  cards REPLENISH draws will disagree.
+- **Nothing speaks until the cards are down** (`dealStage`, 2026-09-16).
+  `'pending'` from the round being built (or PLAY HAND 2) until the wave
+  launches, `'dealing'` while it flies, `null` once `animating` clears.
+  While it is not null the narrator band is EMPTY (no panel, no buttons),
+  the hand does not wiggle, ATTACK and the Ace explainer wait, the skip
+  modal waits, and the AI gate holds her. Measured: the band stayed empty
+  on every frame of a deal and entered one frame after the last ghost
+  landed. It is state, not a ref, because a wave with nothing to fly never
+  sets `animating` and the effect that ends the hold still has to re-run.
+  The panel's entrance is keyed on `narratorEpoch`, so it plays once per
+  deal and never on an ordinary turn.
+- **Every reveal is a CENTRED column, so anything in it that changes
+  height moves every card on the table.** `SlideBox` (interstitials.jsx)
+  turns that into a 200ms eased slide and wraps the two places that grow:
+  the verdict box (the CLEAN SWEEP title and line replacing the verdict,
+  +68px, which used to jump the cards 34px each way in one frame) and the
+  score row with MATCH POINT under it. The CLEAN SWEEP letters, sound and
+  bonus roll wait out the slide (`CS_LEAD`). Anything new that appears
+  mid-reveal belongs inside one, or has to reserve its height from the
+  first frame. The hand rows' placeholders are the row's exact height for
+  the same reason: they were 60px taller, a leftover from the removed side
+  labels, and each row landing jumped the table 30px.
+- **MATCH POINT is exactly 9** (`WIN_SCORE - 1`, `===`), on the ROUND sign
+  and under the reveal's score, since 2026-09-16 (Stan). It was `>= 8`, on
+  the reasoning that the Scraps hand pays 2; a player on 8 can still end
+  the match on the Scraps hand with no warning, and that is the trade.
+- **The Ace counter is no longer blind.** `AceCounterModal` takes
+  `targets` and shows her two cards under "She plans to remove these cards
+  from your Scraps:" (Stan's copy, 2026-09-16). It used to show the whole
+  pile and keep the targets hidden until after the decision. Its buttons
+  are `Btn grow` in a wrapping row: side by side when they fit, stacked
+  full width when not (including desktop, where the pair is 1px wider than
+  the card), and they never overflow the screen at any width tested.
 - **`scraps-reveal` is a beat on the TABLE, not a phase passed through**
   (2026-09-15, Stan). It used to last 520ms: the hand 2 reveal closed, the
   narrator flashed "Scraps hands up." over a board still holding two dead

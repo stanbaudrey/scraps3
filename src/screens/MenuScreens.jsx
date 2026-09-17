@@ -13,6 +13,7 @@ import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats } from "../game/stats.js";
 import { TAGLINE } from "../share.js";
+import { RAIL_BOTTOM, railBtnStyle } from "./Walkthrough.jsx";
 
 // The SUBTITLE is back (Stan, 2026-09-14): "Play poker with both hands"
 // (his revision later the same day; it returned as "Poker with both
@@ -107,16 +108,23 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
   // opponent/danger colour everywhere else in the game, and this is the
   // screen where you pick an opponent — so the two boxes now differ by
   // something other than the words inside them.
+  // Stan's copy, 2026-09-16. The two hyphenated terms are held together:
+  // a browser will break a line AT a hyphen, and on a 390px phone HARD
+  // came out as "win a 2-" over "pointer." A nowrap span rather than a
+  // non-breaking hyphen character, which Work Sans may not carry.
+  const keep = (s) => <span style={{whiteSpace:'nowrap'}}>{s}</span>;
   const opts = [
     { id:'easy', label:'EASY', tone:DS.voltage,
-      desc:'Doesn’t take risks. Rarely weaponizes Aces.' },
+      desc:'Doesn’t take risks. Rarely attacks. Not too bright.' },
     { id:'hard', label:'HARD', tone:DS.ember,
-      desc:'Aggressive. Bold. Will sacrifice hands to win Scraps.' },
+      desc:<>Bold. Sacrifices a {keep('1-pt')} hand to win a {keep('2-pointer.')}</> },
   ];
 
   return (
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
       justifyContent:'center',background:DS.dusk,padding:'clamp(12px,3vh,24px)',
+      // The strip BACK is pinned in (see below), kept clear of the panels.
+      ...(onBack ? { paddingBottom:`calc(${RAIL_BOTTOM + TOUCH_MIN}px + clamp(12px,3vh,24px))` } : {}),
       position:'relative',overflow:'hidden'}}>
       {/* The same table the game is played on. Two backgrounds in the
           whole product, by Stan's call 2026-09-01: the scene carries
@@ -162,21 +170,29 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
             </button>
           );
         })}
-        {/* Quieter than the two panels by design: it is the way out of
-            a decision, not a third option to weigh. Ghost outline in
-            slate, no accent, no glow. */}
-        {onBack && (
-          <div style={{display:'flex',justifyContent:'center',marginTop:'clamp(2px,1vh,8px)'}}>
-            <button type="button" onClick={armed ? onBack : undefined} disabled={!armed}
-              style={{background:'transparent',border:`2px solid ${DS.slate}66`,
-                color:DS.slateLight,borderRadius:8,padding:'10px 26px',
-                minHeight:TOUCH_MIN,cursor:armed?'pointer':'default',
-                opacity:armed?1:0.4,transition:'opacity 0.3s',
-                fontFamily:F.ui,fontWeight:700,fontSize:14,
-                letterSpacing:'0.14em',textTransform:'uppercase'}}>Back</button>
-          </div>
-        )}
       </div>
+      {/* Quieter than the two panels by design: it is the way out of
+          a decision, not a third option to weigh. Ghost outline in
+          slate, no accent, no glow.
+
+          PINNED to the storyboard's rail (Stan, 2026-09-16): it sits at
+          exactly the height the storyboard's own Back had on the beat
+          this screen follows, the same button in the same place, only
+          centred — so it does not jump when the screen changes. It used
+          to follow the panels in the flow and landed wherever their
+          height put it. RAIL_BOTTOM and railBtnStyle come from the
+          storyboard so the two cannot drift apart. The column above
+          reserves the same strip at the bottom, so the panels never run
+          under it on a short screen. */}
+      {onBack && (
+        <div style={{position:'absolute',left:0,right:0,bottom:RAIL_BOTTOM,zIndex:1,
+          display:'flex',justifyContent:'center',pointerEvents:'none'}}>
+          <button type="button" onClick={armed ? onBack : undefined} disabled={!armed}
+            style={{...railBtnStyle,pointerEvents:'auto',
+              cursor:armed?'pointer':'default',
+              opacity:armed?1:0.4,transition:'opacity 0.3s'}}>Back</button>
+        </div>
+      )}
     </div>
   );
 }

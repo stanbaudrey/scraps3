@@ -25,7 +25,7 @@ import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
   playInvalid, playRevealBuild } from "../audio.js";
 import { useCardMotion } from "../components/flight.jsx";
-import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS } from "../components/cards.jsx";
+import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS, sortByValue } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, GameLog, GameAnnouncer } from "../components/hud.jsx";
 import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
@@ -125,6 +125,10 @@ const SIZES = {
 // a flight that never reports back cannot strand the round with no way
 // forward.
 const SCRAPS_HANDOFF = { sweep: 240, step: 45, ready: 800 };
+// PLAY HAND 2 to the first card leaving the deck: long enough to see the
+// held-over cards move over and the new gaps open, short of reading as a
+// wait. See dealSecondHand.
+const HANDOFF = { deal: 220 };
 
 const OFF_MARGIN = 40;
 const rectAt = (left, top, d) => ({
@@ -206,6 +210,29 @@ export function GameScreen({ difficulty, onExit }) {
   // Hidden from the moment the round is built; the motion hook's
   // own hiddenIds takes over the instant the wave launches.
   const [pendingDealIds, setPendingDealIds] = useState(new Set());
+  // NOTHING SPEAKS UNTIL THE CARDS ARE DOWN (Stan, 2026-09-16: "don't
+  // show the first narrator copy until after all the cards are dealt,
+  // then animate in the narrator box and first instructions").
+  //
+  //   'pending'  a deal is built and waiting — the ROUND sign is up, or
+  //              the Hand 2 cards are sitting hidden in their gaps
+  //   'dealing'  the wave is in the air
+  //   null       every card has landed: the table is live
+  //
+  // While it is not null the narrator band is silent and empty, the
+  // turn's buttons and the ATTACK tag stay off, your hand does not
+  // wiggle, and the opponent is gated from moving — the whole "it is
+  // your turn" signal arrives at once, when the last card lands. A
+  // STATE rather than a ref because a wave with nothing to fly never
+  // sets `animating`, and the effect that ends the hold still has to
+  // re-run to see it.
+  const [dealStage, setDealStage] = useState('pending');
+  const dealHold = dealStage !== null;
+  // Bumped each time a hold ends. The narrator panel is keyed on it, so
+  // its entrance runs once per deal and never on an ordinary turn.
+  const [narratorEpoch, setNarratorEpoch] = useState(0);
+  const dealTimer = useRef(null);
+  useEffect(() => () => clearTimeout(dealTimer.current), []);
   const [aiSignaledIds, setAiSignaledIds]   = useState(new Set());
   const [scrapsShakeIds, setScrapsShakeIds] = useState(new Set());
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
@@ -325,6 +352,9 @@ export function GameScreen({ difficulty, onExit }) {
     setScrapsShakeIds(new Set()); setScrapsFadeIds(new Set());
     setWaveIds(new Set());
     setScrapsReady(false);
+    // Silent from here until the deal that the sign's tap starts lands.
+    clearTimeout(dealTimer.current);
+    setDealStage('pending');
     // The two cards that START in each Scraps pile are hidden with the
     // hands and dealt with them (Stan, 2026-09-14). They used to be
     // simply THERE the moment the interstitial lifted, which made the
@@ -358,9 +388,14 @@ export function GameScreen({ difficulty, onExit }) {
     // running round the table twice. The NON-dealer is dealt first, as
     // at a real table: odd rounds she deals, so you are; even rounds you
     // deal, so she is. `deckAnchor` already puts the deck on the dealer's
-    // edge, so the two agree. The replenish deal (hands only) follows
+    // edge, so the two agree. The Hand 2 deal (hands only) follows
     // the same rule. Your hand deals in value order because the fan is
-    // sorted; hers is face down and deals in slot order.
+    // sorted, which is LEFT TO RIGHT into gaps that are already open
+    // (Stan, 2026-09-16): every card is laid out hidden in its final slot
+    // before its ghost leaves, so the gaps stand open and fill one by one
+    // across the fan. Hers is face down and deals in slot order, which is
+    // left to right as well.
+    setDealStage('dealing');
     const playerFirst = stateRef.current.roundNum % 2 === 1;
     const moves = [];
     let n = 0;
@@ -495,7 +530,13 @@ export function GameScreen({ difficulty, onExit }) {
         delay: i * STEP,
       }));
     if (deckRect) {
-      drawn.forEach((card, i) => moves.push({
+      // LEFT TO RIGHT (Stan, 2026-09-16). The drawn cards already sit
+      // hidden in their sorted slots from the commit above, so their
+      // gaps open as the scrapped cards leave; flown in deck order they
+      // then filled those gaps in a scatter across the fan. Sorted the
+      // same way the fan sorts (stable, so two equal ranks keep the
+      // order the fan puts them in), they fill from the left.
+      sortByValue(drawn).forEach((card, i) => moves.push({
         card, fromRect: deckRect, toId: card.id,
         fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
@@ -536,7 +577,8 @@ export function GameScreen({ difficulty, onExit }) {
     }));
     const LAND = 160 + Math.max(0, entering.length - 1) * 90 + 320;
     if (deckRect) {
-      drawn.forEach((card, i) => moves.push({
+      // Left to right, as in executeTrade.
+      sortByValue(drawn).forEach((card, i) => moves.push({
         card, fromRect: deckRect, toId: card.id,
         fromSize: szRef.current.pile, toSize: szRef.current.hand,
         arc: ((i % 3) - 1) * 0.5, delay: LAND + i * 120,
@@ -750,12 +792,12 @@ export function GameScreen({ difficulty, onExit }) {
   // The AI phase in which the opponent has already COMMITTED her move.
   //
   // Her turn has two halves and the narrator only has copy for the
-  // first. Deciding: "Opponent is thinking...". Acting: her cards fly,
-  // `animating` goes true, `settling` silences the band. Then the cards
-  // land and `animating` drops — but the phase does not advance for
-  // another 2.1s, so the narrator came BACK with "Opponent is
-  // thinking..." over a move she had visibly already made. That is the
-  // flash Stan reported on 2026-09-14.
+  // first. Deciding: "She's thinking..." (it said "Opponent is
+  // thinking..." until 2026-09-16). Acting: her cards fly, `animating`
+  // goes true, `settling` silences the band. Then the cards land and
+  // `animating` drops — but the phase does not advance for another 2.1s,
+  // so the narrator came BACK with its thinking line over a move she had
+  // visibly already made. That is the flash Stan reported on 2026-09-14.
   //
   // Reset at the top of each runner pass rather than compared against
   // the phase alone, because phase names repeat across rounds and a
@@ -770,6 +812,11 @@ export function GameScreen({ difficulty, onExit }) {
   aceDrawnRef.current = aceDrawnCard;
   useEffect(() => {
     if (!AI_TURN_PHASES.includes(phase)) { setAiGo(null); return; }
+    // A deal is pending or in the air. `animating` alone does not cover
+    // it: the Hand 2 cards sit hidden in their gaps for a beat BEFORE
+    // their wave launches, with nothing flying, and she would have
+    // started her turn in that beat.
+    if (dealHold) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
     // The Ace explainer is up: NOTHING moves until OKAY. `setAiGo(null)`
@@ -783,7 +830,7 @@ export function GameScreen({ difficulty, onExit }) {
     // yet to repeat.
     if (aceDrawnCard) { setAiGo(null); return; }
     setAiGo(phase);
-  }, [phase, animating, aiCounterNotice, aceDrawnCard]);
+  }, [phase, animating, aiCounterNotice, aceDrawnCard, dealHold]);
 
   useEffect(() => {
     if (!aiGo || aiGo !== phase) return;
@@ -984,21 +1031,53 @@ export function GameScreen({ difficulty, onExit }) {
       playerHandName: pH?.name || '', aiHandName: aH?.name || '',
       winner, pts, endsIt,
       before: { p: playerScore, a: aiScore },
-      onContinue: () => { setStage(null); dispatch(action); },
+      // Hand 1's PLAY HAND 2 commits the score AND the second hand's
+      // cards in one step — see dealSecondHand. Hand 2's continue still
+      // commits the score alone, and `scraps-reveal` takes it from there.
+      onContinue: curPhase === 'reveal-1'
+        ? () => dealSecondHand(action)
+        : () => { setStage(null); dispatch(action); },
     });
   }
 
-  function doReplenish() {
-    setSelected([]);
-    // Work out which cards the REPLENISH action is about to draw
-    // (same deck slice the reducer takes) so only the NEW cards
-    // ripple in — the held-over cards stay put.
+  // PLAY HAND 2. The score and the refill commit together, and the new
+  // cards go into their slots HIDDEN, so the table comes back with the
+  // gaps for them already open and the held-over cards moving straight
+  // to where they belong (Stan, 2026-09-16: "identify what ranks are
+  // about to be dealt, open those gaps in the hand, and fill them
+  // left-to-right").
+  //
+  // It used to take two steps with the table showing in between:
+  // SMALL_HAND_SCORED took the played cards out and the held-over ones
+  // closed up into the middle of the fan, then REPLENISH 220ms later
+  // pushed them back out again to make room — so every Hand 2 opened
+  // with your cards sliding in and then sliding back.
+  //
+  // That split existed to let the refill be worked out AFTER the score
+  // committed, from the hands the score leaves behind. Those hands are
+  // simply the current ones minus the two played sets, which is exactly
+  // and only what SMALL_HAND_SCORED removes — so the same numbers come
+  // out of the snapshot taken here, and REPLENISH, run right behind it,
+  // draws the identical cards off the identical deck.
+  //
+  // The wave waits a beat (HANDOFF.deal) so the gaps are seen opening
+  // first, and dealHold keeps the narrator, the buttons and the opponent
+  // quiet from this press until the last card is down.
+  function dealSecondHand(scored) {
     const s = stateRef.current;
-    const pN = Math.max(0, 5 - s.playerHand.length);
-    const aN = Math.max(0, 5 - s.aiHand.length);
+    const played = new Set([...(s.playerPlayed || []), ...(s.aiPlayed || [])].map(c => c.id));
+    const pN = Math.max(0, 5 - s.playerHand.filter(c => !played.has(c.id)).length);
+    const aN = Math.max(0, 5 - s.aiHand.filter(c => !played.has(c.id)).length);
     const drawn = s.deck.slice(0, pN + aN);
+    setStage(null);
+    setSelected([]);
+    dispatch(scored);
     dispatch({ type: 'REPLENISH' });
-    dealWave(drawn.slice(0, pN), drawn.slice(pN, pN + aN));
+    setPendingDealIds(new Set(drawn.map(c => c.id)));
+    setDealStage('pending');
+    clearTimeout(dealTimer.current);
+    dealTimer.current = setTimeout(
+      () => dealWave(drawn.slice(0, pN), drawn.slice(pN, pN + aN)), HANDOFF.deal);
   }
 
   // The table clearing itself down to the two Scraps piles. Measured
@@ -1089,7 +1168,9 @@ export function GameScreen({ difficulty, onExit }) {
   const tradeDraw = selectedInHand.reduce((n, c) => n + scrapValue(c), 0);
   const tradeNetHand = (playerHand.length - selectedInHand.length) + tradeDraw;
   const tradeOverLimit = selectedInHand.length > 0 && tradeNetHand > 7;
-  const glowHand = (isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked);
+  // Not while a deal is still landing: the lean is the "your turn" cue,
+  // and it arrives with the narrator, not before it (see dealStage).
+  const glowHand = !dealHold && ((isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked));
   // The Play Ace control is rendered by FannedHand, inside the same
   // wrapper as its card, so the two lean together.
   // ATTACK waits for its own card. The tag used to mount the instant
@@ -1099,7 +1180,7 @@ export function GameScreen({ difficulty, onExit }) {
   // land (`!animating`) and for the Ace explainer to be dismissed, and
   // then fades and lifts into place over ~260ms rather than snapping in.
   const canOfferAce = isPlayerTurn && !aceMode && !isScrapsDiscardMode
-    && !pendingAiAce && !animating && !aceDrawnCard;
+    && !pendingAiAce && !animating && !aceDrawnCard && !dealHold;
   const aceSlot = useCallback((card, width) => {
     if (!canOfferAce || card.rank !== 'A') return null;
     return (
@@ -1130,6 +1211,15 @@ export function GameScreen({ difficulty, onExit }) {
     openAiAceReveal(pendingAiAce.ace, pendingAiAce.targets, pendingAiAce.afterCounter);
   }, [pendingAiAce, aiAceReveal, playerHasAce]);
 
+  // The deal has landed: lift the hold and let the narrator in. A skip
+  // (a click anywhere mid-deal drops every ghost) lands here too, the
+  // moment `animating` clears, so skipping a deal also skips the wait.
+  useEffect(() => {
+    if (dealStage !== 'dealing' || animating) return;
+    setDealStage(null);
+    setNarratorEpoch(n => n + 1);
+  }, [dealStage, animating]);
+
   // Retire the full narrator instruction after the player turn that
   // showed it. Effect rather than render-time mutation, so the render
   // that displays the long form stays pure.
@@ -1143,6 +1233,10 @@ export function GameScreen({ difficulty, onExit }) {
   useEffect(() => {
     if (aceHintShownRef.current) return;
     if (showInterstitial || pendingAiAce || aiAceReveal || aceMode) return;
+    // Nor over a deal. An Ace dealt into Hand 2 is IN the hand, hidden in
+    // its gap, for a beat before its card flies — with nothing animating
+    // yet, so the check below alone would open the box over an empty slot.
+    if (dealHold) return;
     // Wait for the cards to finish flying in. The box used to open the
     // moment an Ace entered state, which is BEFORE the draw animation
     // runs — so it covered the table while your own cards were still
@@ -1152,7 +1246,7 @@ export function GameScreen({ difficulty, onExit }) {
       aceHintShownRef.current = true;
       setAceDrawnCard(playerHand.find(c => c.rank === 'A'));
     }
-  }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode, animating]);
+  }, [playerHasAce, showInterstitial, pendingAiAce, aiAceReveal, aceMode, animating, dealHold]);
 
   // ── Skip the animation ─────────────────────────────────────
   // A click anywhere, Enter, or Space lands every in-flight card
@@ -1174,33 +1268,21 @@ export function GameScreen({ difficulty, onExit }) {
     };
   }, [animating, skipAll, clearDrawSfx]);
 
-  // ── The three hand-offs of a round ─────────────────────────
+  // ── The hand-offs of a round ───────────────────────────────
   //
-  // Each results screen's button dismisses itself and commits the
-  // score; the phase it leaves behind is what runs the next step. That
-  // split is deliberate — the score has to be COMMITTED before the next
-  // hand can be worked out (doReplenish draws against hand lengths that
-  // SMALL_HAND_SCORED has just changed), and inside the button's own
-  // handler `stateRef` is still the pre-dispatch snapshot. An effect
+  // Hand 2's no longer lives here: PLAY HAND 2 commits the score and
+  // the refill together and schedules its own deal (dealSecondHand), so
+  // the `replenish` phase is passed through inside one commit and never
+  // rendered. What is left is the Scraps one. Its results screen commits
+  // the score, and the phase it leaves behind runs the sweep — an effect
   // keyed on the phase runs on the other side of the commit, where the
-  // state is real.
-  //
-  // The delays are a beat of table between two full-screen moments, not
-  // a pause for thought: the overlay unmounts instantly, you see the
-  // board it was covering, then the next thing happens.
-  // The third hand-off, the Scraps one, is SCRAPS_HANDOFF at the top of
-  // this file — `sweepHandsAway` reads it and is defined well above
-  // here.
-  const HANDOFF = { deal: 220 };
+  // hands it sweeps are real. Its timings are SCRAPS_HANDOFF at the top
+  // of this file.
 
   // The self-running reveal (the `autoReveal` effect) sat here until
   // 2026-09-14. Every reveal is pressed for now — see SHOW 'EM below.
   useEffect(() => {
     if (revealData || gameOver) return undefined;
-    if (phase === 'replenish') {
-      const t = setTimeout(() => doReplenish(), HANDOFF.deal);
-      return () => clearTimeout(t);
-    }
     if (phase === 'scraps-reveal') {
       const sweep = setTimeout(() => sweepHandsAway(), SCRAPS_HANDOFF.sweep);
       const ask   = setTimeout(() => setScrapsReady(true), SCRAPS_HANDOFF.ready);
@@ -1226,7 +1308,11 @@ export function GameScreen({ difficulty, onExit }) {
   // Settling keeps its own branch with an empty string on purpose:
   // dropping the branch entirely would let the next condition fill the
   // hint line while cards are still mid-flight. Silent, not absent.
-  if (settling) hint = '';
+  // The deal first, the words after (dealStage). The band is not merely
+  // quiet here, it is EMPTY — no panel, no buttons — and the panel
+  // animates in with its first line once the last card lands.
+  if (dealHold) hint = '';
+  else if (settling) hint = '';
   else if (aiAceReveal) hint = aiAceReveal.afterCounter
     ? 'She had another Ace. It discards two cards from your Scraps.'
     : "Opponent's Ace discards two cards from your Scraps.";
@@ -1301,13 +1387,10 @@ export function GameScreen({ difficulty, onExit }) {
   // band stays quiet through the handover — the log line already says
   // what she did, and the alternative is the narrator announcing a
   // thought after the move. See aiMoveDone.
-  else if (isAiThinking && aiMoveDone !== phase) hint = 'Opponent is thinking...';
-  // The three hand-offs. Each of these phases now lasts a few hundred
-  // milliseconds — the button that used to sit in them moved onto the
-  // results screen that precedes them (see the `continueLabel` work in
-  // resolveSmallHand / resolveScrap), so these are narration on the way
-  // past, not a prompt anybody has to answer.
-  else if (phase === 'replenish') hint = 'Dealing the second hand...';
+  else if (isAiThinking && aiMoveDone !== phase) hint = 'She’s thinking...';
+  // The hand-offs. `replenish` has no line: PLAY HAND 2 passes through
+  // it inside one commit (dealSecondHand), and the deal hold keeps the
+  // band empty until that deal lands anyway.
   // Stan's copy, 2026-09-15. Silent while the sweep runs: the table
   // clearing itself is the sentence, and a narrator talking over it
   // would be the third thing moving.
@@ -1435,11 +1518,11 @@ export function GameScreen({ difficulty, onExit }) {
   // The over-7 DISCARD and the Ace's REMOVE sit in this band only when
   // the layout is stacked; in the wide layout they sit on their piles
   // (see pileBtns below), so they do not count as the band's buttons.
-  const hasActionButtons = (stack && isScrapsDiscardMode)
+  const hasActionButtons = !dealHold && ((stack && isScrapsDiscardMode)
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
     || (stack && aceMode) || counterStand
     || (isSignal && !signalLocked) || isReveal || scrapsAsk
-    || (pendingAiAce && !aiAceReveal);
+    || (pendingAiAce && !aiAceReveal));
   // SHOW 'EM owns the whole band: no narrator line above it, the button
   // centred in a box the same height as a normal turn's, so the table
   // does not jump between the signal and the reveal.
@@ -1490,13 +1573,22 @@ export function GameScreen({ difficulty, onExit }) {
       minHeight: NARRATOR_H,
       display:'flex',flexDirection:'column',justifyContent:'center',
     }}>
-    <div style={{
+    {/* THE ENTRANCE (Stan, 2026-09-16). Keyed on the deal it follows,
+        so it runs once per deal — the box rises and fades in, then its
+        first words and buttons a beat behind it — and never on an
+        ordinary turn, when the panel is the same element throughout.
+        Before a deal lands there is nothing in it at all. Under reduced
+        motion `.narrator-in` swaps the travel for a plain fade
+        (index.html). */}
+    <div key={`panel-${narratorEpoch}`} className={narratorEpoch ? 'narrator-in' : undefined}
+      style={{
       width:'100%',
       display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
       // More room under the button than over the narrator (Stan,
       // 2026-09-14: the action button "seems like it's resting on the
       // floor of the box").
       padding:stack?'10px 12px 14px':'14px 20px 20px',
+      animation: narratorEpoch ? 'narratorIn 420ms cubic-bezier(.22,1,.36,1) both' : undefined,
       ...(narratorSilent ? {
         background:'transparent', border:'1px solid transparent',
       } : {
@@ -1510,6 +1602,9 @@ export function GameScreen({ difficulty, onExit }) {
       ...(showEm ? { justifyContent:'center', minHeight: NARRATOR_H } : {}),
       borderRadius:14,
     }}>
+      {!dealHold && (
+      <div style={{width:'100%',display:'flex',flexDirection:'column',alignItems:'center',gap:stack?8:10,
+        animation: narratorEpoch ? 'narratorCopyIn 360ms cubic-bezier(.22,1,.36,1) 140ms both' : undefined}}>
       {/* Hint — the game's narrator owns this band (item 6).
           The over-limit error takes over while active. SHOW 'EM
           renders no narrator at all. */}
@@ -1613,11 +1708,24 @@ export function GameScreen({ difficulty, onExit }) {
               padding:stack?'14px 30px':'18px 44px',fontSize:stack?17:22,
               minHeight:TOUCH_MIN,borderRadius:12,
               background:DS.voltage,color:DS.ink,
-              animation:revealBuilding?'cardShake 0.15s ease-in-out infinite':'popIn 0.45s cubic-bezier(.34,1.6,.64,1)',
-              boxShadow:revealBuilding?`0 0 40px ${DS.voltage}`:`0 0 20px ${DS.voltage}66`,
+              // CHARGING (Stan, 2026-09-16). The label stays SHOW 'EM. It
+              // used to swap to three play arrows, which iOS draws as emoji,
+              // and the button itself winds up instead: one 580ms pass of
+              // `showEmCharge` (index.html) that vibrates faster and harder
+              // as it goes and brightens from voltage toward voltageCharge,
+              // until the reveal takes over. 580 is the revealBuild cue's
+              // length, and the keyframes put a shake peak on each of its
+              // eleven accelerating taps. The colours travel as custom
+              // properties so the hex stays in theme.js. Reduced motion
+              // lands on the charged frame with the `live-cue-busy` collar;
+              // nothing travels.
+              '--charge-0':DS.voltage,'--charge-1':DS.voltageHover,'--charge-2':DS.voltageCharge,
+              '--charge-glow-0':`${DS.voltage}66`,'--charge-glow-1':`${DS.voltage}AA`,
+              animation:revealBuilding?'showEmCharge 580ms linear forwards':'popIn 0.45s cubic-bezier(.34,1.6,.64,1)',
+              boxShadow:`0 0 20px ${DS.voltage}66`,
               transition:'background 60ms, transform 60ms, box-shadow 60ms',
             }}>
-            {revealBuilding?'▶▶▶':'Show \u2019em'}
+            {'Show \u2019em'}
           </button>
         )}
         {/* DEAL SECOND HAND, PLAY SCRAPS HAND and NEXT ROUND used to
@@ -1625,9 +1733,9 @@ export function GameScreen({ difficulty, onExit }) {
             results screen the player had already dismissed with a
             CONTINUE. Two presses for one decision, three times a round.
             Each moved ONTO its results screen as that screen's own
-            continuation button (see continueLabel in resolveSmallHand
-            and resolveScrap), and the phase it lands in now carries
-            itself — see the hand-off effect below. */}
+            continuation (resolveSmallHand / resolveScrap). The first is
+            a named button there again since 2026-09-16: PLAY HAND 2 on
+            the Hand 1 reveal, which also deals the hand (dealSecondHand). */}
         {/* PLAY SCRAPS HAND. This one came BACK on 2026-09-15 (Stan):
             it was one of the three buttons the note above describes
             moving onto the results screen ahead of it, and the half
@@ -1651,6 +1759,8 @@ export function GameScreen({ difficulty, onExit }) {
           </>
         )}
       </div>
+      </div>
+      )}
     </div>
     </div>
   );
@@ -1921,7 +2031,7 @@ export function GameScreen({ difficulty, onExit }) {
         <AceCounterModal
           onCounter={onPlayerCounterAce}
           onAllow={onPlayerAllowAce}
-          playerScraps={playerScraps}
+          targets={pendingAiAce.targets}
           afterCounter={!!pendingAiAce.afterCounter}
         />
       )}
@@ -1937,7 +2047,7 @@ export function GameScreen({ difficulty, onExit }) {
           onOk={()=>setAiCounterNotice(null)}
         />
       )}
-      {mustSkip&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
+      {mustSkip&&!dealHold&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
         <SkipTurnModal onOk={()=>dispatch({type:'PLAYER_SKIP'})}/>
       )}
       {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}

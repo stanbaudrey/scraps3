@@ -5771,6 +5771,37 @@ preview` already serves `/privacy` without any rewrite, via its own
 extensionless fallback, so **local success there does not prove the Vercel
 rewrite works** — that has to be checked on the deployment itself.
 
+### Unplanned session — Thirteen from his list: the counter that ran off the screen, PLAY HAND 2, the narrator after the deal, the Clean Sweep slide ✅ Done, on preview (2026-09-16)
+
+A revision list Stan typed straight into the session, ending "then /preview". It is not in Notion (a sweep of the page found none of it) and every item was his call; the four places it needed reading are named below, and were told to him before the build rather than after.
+
+**Copy.** The narrator says **She’s thinking...**. Storyboard 4 reads "Aces can **attack** from your hand. Discard two cards from opponent’s Scraps." The picker's EASY is "Doesn’t take risks. Rarely attacks. Not too bright." and HARD "Bold. Sacrifices a 1-pt hand to win a 2-pointer." — with `1-pt` and `2-pointer.` held in nowrap spans, because a browser breaks a line AT a hyphen and a 390px phone printed "win a 2-" over "pointer." The ROUND sign's subheader is **YOU GO FIRST.** / **SHE GOES FIRST.**, and its MATCH POINT drops to a line of its own under it, since a sentence with a full stop cannot carry "· MATCH POINT" on after it.
+
+**The two Ace alerts.** With no Ace to counter with, her attack's headline is "She **attacks** you with an Ace, and removes two cards from your Scraps." (Fjalla has no bold, so the word is frost as well as synthesised-bold, which is what carries stress everywhere else). With one, the counter prompt is rebuilt to his order: SHE PLAYS AN ACE. / "She plans to remove these cards from your Scraps:" / **her two targets** / "You can counter with your Ace to cancel her attack, and then both Aces get discarded." / the buttons. **That is a rule change as well as a copy change, and he was told:** the prompt used to show the whole pile and keep her targets hidden until after the decision, so the counter was blind by the original design; "these cards" can only mean the targets. **The overflow was real and not his display settings**: measured at 390×844, the two buttons were 487px of unwrappable row on a 313px card, starting at x = −13 and ending at 403. They are `Btn grow` in a wrapping row now — side by side when they fit, full width and stacked when not, COUNTER breaking after the bolt as a last resort — and measured inside the viewport at 320, 375, 390, 844×390, 1024 and 1280. On desktop they stack too: the pair is exactly 1px wider than the 560px card. The re-counter variants (`afterCounter`) keep their "She had another Ace" wording; only the prompt's headline took his full stop.
+
+**PLAY HAND 2.** The Hand 1 reveal rests on a green button instead of "Tap to continue"; Hand 2's is untouched. At rest only the button or a key moves on, and a wood tap still skips the build — checked on the bench through a new `window.__calls` record: a tap at rest recorded nothing, Enter recorded `continue`, focus was on the button. **Pressing it now deals the hand** (`dealSecondHand`): the score and the refill commit together, the new cards sit hidden in their gaps, the held-over cards move once, and the wave follows 220ms later. It used to show the held-over cards closing up into the middle and then pushing back out. Measured in a real game: held-over cards moved straight to their slots (0–1 direction changes, the one being the fan's own overshoot) and the new cards filled left to right.
+
+**Left to right, everywhere.** The opening deal and the Hand 2 deal already dealt your hand in value order; the draws after a SCRAP did not — they flew in deck order into gaps scattered across the fan. They are sorted the fan's way now (stable, so equal ranks keep the fan's order). Measured: a K+J scrap drew 4, 7, Q, Q, landing at x 516 → 653 → 718 → 784.
+
+**Nothing speaks until the cards are down** (`dealStage`). While a deal is pending or flying the narrator band is empty, the hand does not wiggle, ATTACK, the Ace explainer and the skip modal wait, and the AI gate holds her. When the last card lands the panel rises and fades in (420ms) with its copy a beat behind. Applied to the Hand 2 deal as well as each round start — a reading of his "GLOBAL", told to him. Measured: zero frames of narration during a 14-card deal, the band entering 15ms after the last ghost; under `prefers-reduced-motion` the deal lands at once and the band fades in 22ms later (`.narrator-in`), so the hold cannot strand a reduced-motion player.
+
+**The Clean Sweep slide, and two jumps nobody had reported.** Every reveal is a centred column, so the CLEAN SWEEP title and line replacing the verdict (+68px) jumped the cards 34px each way in one frame. `SlideBox` animates that height over 200ms on an ease-in-out curve, and the title, its sound and the bonus point wait the 200ms out. Measured at 1280×800: the rows travel 34px over ~200ms, never more than 5.1px in a frame, and the first letter's opacity leaves zero at 222ms. Measuring it turned up **two more jumps at the start of EVERY reveal**: each hand row's placeholder was its height plus 60, a leftover from the side labels removed on 2026-09-14, so the loser landing and then the winner landing each moved the whole table 30px (title stepping 104 → 134 → 164). Fixed to the row's exact height; and the verdict box's floor is never shorter than the verdict now, which removed a 4–6px nudge on desktop. The score row and MATCH POINT share a second SlideBox. A welcome side effect: the shorter reveals scale less on a landscape phone, so their buttons render 44px (PLAY HAND 2) and 42px (the Scraps reveal's quiet one) there, up from 30 and 33.
+
+**MATCH POINT is exactly 9** (`WIN_SCORE - 1`, `===`), on the sign and under the reveal. Bench cases `signMP`, `mp9` and `mp8`: shown at 9, absent at 8 (which the old `>= 8` rule showed). **Worth him knowing:** a player on 8 can still win the match on the Scraps hand with no warning; that is the trade the rule makes.
+
+**SHOW 'EM charges instead of showing arrows.** The label stays SHOW 'EM (the old "▶▶▶" is three emoji on iOS). One 580ms pass of `showEmCharge`, the length of the revealBuild cue, with a shake peak on each of its eleven accelerating taps, a 7% swell and voltage brightening to a new `voltageCharge` token (#D6F0AC, ink on it 13.5:1). Seeked frame by frame with the Web Animations API rather than watched: the lateral shake widens from ~1px to ~3.9px as its intervals close, the background passes voltageHover at 55% and lands on the charge colour at 580. Reduced motion lands on the charged frame with the existing `live-cue-busy` collar.
+
+**The picker's BACK is pinned to the storyboard rail's height**, centred. `RAIL_BOTTOM` and `railBtnStyle` are exported from the storyboard so the two cannot drift; the picker reserves the strip so the panels never run under it. Measured: storyboard Back top 744 and picker BACK top 744 at 1280×800, 788 and 788 at 390×844, centred to the pixel; clear of HARD at 320×568 (380 against 512).
+
+**Verified, and how.** 55 tests; build; the `no-undef` scan clean on the tree, and proven to fail (exit 1) on a planted undefined name before being trusted. Everything above measured in real Chrome through Playwright's Node API — the bench for the sign, the reveals and the modals, and a script that played a real game from the splash through a trade, a signal, SHOW 'EM and PLAY HAND 2 at 1280×800 and 390×844, no page errors. `tools/overlay-targets.mjs` ALL CLEAR (one accepted landscape shortfall, 42px). `tools/responsive-qa.mjs` ALL CLEAR at six viewports — **after fixing it a third time** (CLAUDE.md has the detail): its trade step's selector had matched nothing since the card redesign, so `5-after-trade` had been a second photograph of `4-table`. `share:check` current with nothing regenerated.
+
+**Lookbook scan:** the same six banned false positives earlier entries triaged (Inter in *RoundInterstitial*, ✅ headings as emoji, woodgrain "shimmer", the crease gradients, Space Grotesk's removal records) — plus **Fade-in-up**, which is real and now includes this pass's `narratorIn`: one element on one event, which he asked for, so the brief wins. **`/impeccable audit` (advisory) on the changed files**: the detector's six `bounce-easing` are the long-standing deliberate overshoots; one new finding, `layout-transition`, is SlideBox's height transition — kept, because a transform cannot move the FitBox scale, and it measured smooth. All new colour pairings clear AA.
+
+**Traps worth keeping.** Port 5193 was held by a two-day-old Vite server from a parked worktree, serving that worktree's files; the launch config gained a `scraps3-dev-alt` on 5194. A bench page with no `<meta name="viewport">` lays out at 980px under Playwright's `isMobile`, which "measured" the counter's buttons at x 245–735 on a 390px phone — use `hasTouch` without `isMobile` there. The ROUND sign's first tap settles it rather than dismissing it, so a script that taps once and waits sees no deal and reads a stuck game.
+
+**Open.** Stan's eyes on the preview (list below). Narrator and log lines elsewhere still say "Opponent" (her signal count, her Ace in the log); he only asked for the thinking line, so they were left.
+
+
 ---
 
 ## Session tracker
@@ -5812,6 +5843,7 @@ rewrite works** — that has to be checked on the deployment itself.
 | — | *Unplanned:* Six more from his notes — splash period, storyboard type, Click/Tap, seat-by-seat deal, no hand names on reveals (2026-09-14 evening) | Done + **PUBLISHED** at `adebb85`, production serving `index-BjwdH7Uj.js` |
 | — | *Unplanned:* Six from his list — storyboard rail, pile labels, the jumping table, the Scraps beat, the black blink (2026-09-15) | Done + **PUBLISHED** at `7f229ce`, production serving `index-DTQFhWtb.js` — narrator band split into a fixed slot and a floating panel (strip held at y=35 across a whole round while the panel swung 97→153), `scraps-reveal` turned into a real beat with a sweep and a PLAY SCRAPS HAND, OPP/YOUR SCRAPS and YOUR SCRAPS AT STAKE off the table and into accessible names, the tap blink traced to Chromium's default `-webkit-tap-highlight-color`. Tests 53→55. **Found: `responsive-qa.mjs` had been green on nothing for a month**, stuck on the ROUND 1 sign at every viewport since the sign stopped self-advancing; fixed, and ALL CLEAR on 54 rows across six viewports. Ran in a remote container: `/publish` and `/wrap` were unavailable, so the pre-flight was run by hand and the design detector did not run. `dev`'s two unpublished doc commits were merged in rather than skipped |
 | — | *Unplanned:* The privacy notice had stopped shipping (2026-09-14) | Done, on `dev` — the notice was not merely unreachable, `RulesModal` had been **tree-shaken out of every build** since losing its importer on 2026-08-30, while `llms.txt` kept pointing readers at it live. Now a generated `public/privacy.html` in the `share:check` byte-compare, built from `theme.js` tokens, `SITE`, and `index.html`'s own FONT-FACE block. Copy is **Stan’s own and three lines**: he cut a first four-paragraph draft back to what is actually saved plus Vercel’s IP logs, closing on “Nothing else is collected.” **You disclose what you do, not what you don’t** — the cut paragraph listed absences (no analytics, no pixels, no cookies), which is not a disclosure obligation. **No “last updated” date** — not mandatory, and it left with its constant, CSS and guard entry rather than lingering as dead weight; a hand-typed date is the only value on the page not derived from the app, and a build-clock date would claim updates that never happened. `llms.txt` lost its matching SHARE clause so the two cannot disagree. Recorded in the generator header that this is a transparency statement, NOT a GDPR Art.13 notice (no controller, basis, retention or contact — his standing no-name call). `RulesModal` + `PRIVACY` deleted (78 lines) — **required, not tidying**: leaving the array would have made two copies. `Privacy` link rides the storyboard's existing Back/Skip row at exactly 44px for **zero added footer height**, `target="_blank"` so the `?` disc can't drop a running match. `llms.txt`, `sitemap.xml` and a targeted `vercel.json` rewrite (not `cleanUrls`) repointed. Verified: bundle hash **byte-identical** after the deletion, proving the tree-shake; drift guard dispatched both ways with the **real exit code** read (1 tampered / 0 clean); fonts, AAA contrast and no-scroll measured in a real browser; `responsive-qa.mjs` ALL CLEAR at six viewports. Found: `vite preview` serves `/privacy` without any rewrite, so the Vercel rewrite must be checked on the deployment |
+| — | *Unplanned:* Thirteen from his list — Ace counter fits the screen and shows her targets, PLAY HAND 2 deals the hand, narrator after the deal, Clean Sweep slide, MATCH POINT at 9, SHOW 'EM charge, picker BACK on the rail (2026-09-16) | Done, **on preview** (not live) — measured in real Chrome at six viewports plus a scripted real game; two unreported 30px reveal jumps fixed on the way; `responsive-qa.mjs`'s trade step found matching nothing and fixed |
 
 
 ---
@@ -5917,6 +5949,21 @@ unrelated commit was being made there.
 preferences. Anything closed is deleted from here rather than left
 sitting at the top with the work already done.*
 
+**His 2026-09-16 list is ON PREVIEW, NOT LIVE** (`dev` is ahead of `main`;
+the entry above the tracker has every decision). What he should look at,
+in the order it comes up in a game: the storyboard's last beat and the
+picker (BACK does not move, HARD's copy); ROUND 1 (YOU GO FIRST.); the
+deal (the narrator box arriving only after the last card); a scrap that
+draws two or more (left to right); SHOW 'EM (the charge-up); the Hand 1
+reveal (no jump as the rows land, PLAY HAND 2); the Hand 2 deal (cards
+opening gaps once and filling them); ROUND 2 (SHE GOES FIRST.); a Clean
+Sweep (the slide); her Ace with and without one of his own (the two
+alerts, on his phone for the buttons). **Four readings he was told about
+and may overrule, all one-line changes:** the counter now shows her
+targets (it was blind); at rest the Hand 1 reveal only continues from its
+button; the narrator also waits for the Hand 2 deal, not only a round's;
+MATCH POINT sits on its own line on the ROUND sign. Publish when he says so.
+
 **`CAPACITY.md` is live and needs nothing** (2026-09-14): no backend,
 bandwidth only, Vercel Hobby's 100 GB a month is the single ceiling.
 Demoted from the top of this list because it is closed. Its one carry-over
@@ -5991,8 +6038,8 @@ by first principles rather than by a bench.
 the OG card say "Play poker with both hands". One line in `index.html` plus
 `npm run share`; his to decide.
 
-**Nothing is in flight.** `dev` and `main` are level at `55d27a0` and
-production serves it. Before any publish run the `no-undef` scan the
+**In flight: the 2026-09-16 list, on `dev` and the preview, not on
+`main`.** Production still serves the privacy pass. Before any publish run the `no-undef` scan the
 revision entry describes; it is the only check in this repo that catches a
 render crash, and the tests were green over one.
 

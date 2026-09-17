@@ -233,8 +233,16 @@ for (const vp of VIEWPORTS) {
   await dismiss();
   await shot('4-table');
 
-  // Take a real turn: select two hand cards and trade them in.
-  const hand = page.locator('[data-card-id][role="button"]');
+  // Take a real turn: select a hand card and scrap it.
+  //
+  // The card and its button are TWO elements — `data-card-id` is on the
+  // card, `role="button"` on the fan slot wrapping it — so the selector
+  // this used to use, `[data-card-id][role="button"]`, asked for both on
+  // one element and matched nothing. Found 2026-09-16: `5-after-trade`
+  // was the same photograph as `4-table` at every viewport, the SAME
+  // green-on-nothing this harness was already fixed for once. It had
+  // not taken a turn since the card redesign.
+  const hand = page.locator('[role="button"][aria-pressed]:has([data-card-id])');
   const n = await hand.count();
   if (n >= 2) {
     await hand.nth(0).click().catch(() => {});
@@ -243,6 +251,9 @@ for (const vp of VIEWPORTS) {
     // settled; the old name matched nothing, so the walk never took a
     // turn even on the runs that reached a table.
     const trade = page.getByRole('button', { name: /Scrap \d/i });
+    // WAIT for it rather than counting it: since 2026-09-16 the band's
+    // buttons only arrive once the last card of the deal has landed.
+    await trade.first().waitFor({ timeout: 5000 }).catch(() => {});
     if (await trade.count()) {
       await trade.first().click();
       await page.waitForTimeout(2600);

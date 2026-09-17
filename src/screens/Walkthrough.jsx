@@ -352,8 +352,10 @@ const BEATS = [
   },
   {
     // voltage, not gold: the ATTACK tag is green now and the word
-    // should match the control it names.
-    copy: <>Aces can <b style={{color:DS.voltage}}>attack.</b> Discard two cards from opponent’s Scraps.</>,
+    // should match the control it names. "from your hand" is Stan's
+    // (2026-09-16): the tag rides on an Ace in the HAND, and an Ace
+    // sitting in a Scraps pile cannot attack.
+    copy: <>Aces can <b style={{color:DS.voltage}}>attack</b> from your hand. Discard two cards from opponent’s Scraps.</>,
     visual: <BeatAce/>,
     cta: 'Let’s Play',
   },
@@ -363,6 +365,19 @@ const BEATS = [
 // returns to without hard-coding a 3.
 export const BEAT_COUNT = BEATS.length;
 export const LAST_BEAT = BEATS.length - 1;
+
+// The bottom rail's floor, and the look of its Back and Skip buttons.
+// Exported because the difficulty picker's BACK sits at EXACTLY this
+// height, so the button does not jump between the storyboard's last beat
+// and the screen it leads to (Stan, 2026-09-16). The rail's button row
+// is TOUCH_MIN tall and sits RAIL_BOTTOM above the viewport's bottom
+// edge; change either here and both screens move together.
+export const RAIL_BOTTOM = 12;
+export const railBtnStyle = {
+  background:'transparent',border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
+  padding:'9px 20px',minHeight:TOUCH_MIN,
+  fontFamily:F.ui,fontWeight:700,fontSize:14,letterSpacing:'0.14em',textTransform:'uppercase',
+};
 
 // ─────────────────────────────────────────────────────────────
 // Walkthrough
@@ -519,7 +534,7 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
           padding figure that guesses at it. */}
       <div style={{position:'relative',zIndex:2,flexShrink:0,
         background:`linear-gradient(transparent,${DS.dusk} 42%)`,
-        padding:'10px 20px 12px',display:'flex',flexDirection:'column',
+        padding:`10px 20px ${RAIL_BOTTOM}px`,display:'flex',flexDirection:'column',
         alignItems:'center',gap:8,pointerEvents:'none'}}>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           {BEATS.map((_, n) => (
@@ -540,13 +555,9 @@ export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
             leaves beat one. */}
         <div style={{display:'flex',gap:10,alignItems:'center'}}>
           <button onClick={back} disabled={i === 0} aria-label="Previous step"
-            style={{pointerEvents:'auto',background:'transparent',
-              border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
-              padding:'9px 20px',minHeight:TOUCH_MIN,
+            style={{...railBtnStyle,pointerEvents:'auto',
               cursor:i === 0 ? 'default' : 'pointer',
-              visibility:i === 0 ? 'hidden' : 'visible',
-              fontFamily:F.ui,fontWeight:700,fontSize:14,
-              letterSpacing:'0.14em',textTransform:'uppercase'}}>Back</button>
+              visibility:i === 0 ? 'hidden' : 'visible'}}>Back</button>
           <button onClick={skip} style={{pointerEvents:'auto',background:'transparent',
             border:`2px solid ${DS.slate}66`,color:DS.slateLight,borderRadius:8,
             padding:'9px 26px',minHeight:TOUCH_MIN,cursor:'pointer',

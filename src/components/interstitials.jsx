@@ -25,7 +25,10 @@
 // REST continues. One real, visually quiet <button> stays in the
 // DOM so Enter, Space and a screen reader have the same way
 // forward, and the layer is a dialog with the focus trap every
-// modal in overlays.jsx uses. NOTHING ADVANCES ITSELF except a
+// modal in overlays.jsx uses. ONE exception since 2026-09-16: the
+// Hand 1 reveal rests on a green PLAY HAND 2 button instead of the
+// quiet one, and at rest only that button (or a key) moves on — see
+// `handCta` in RevealScene. NOTHING ADVANCES ITSELF except a
 // match-ending reveal running on into the match screen: the ROUND N
 // sign and the Clean Sweep beat both used to, and both wait for a
 // tap since 2026-09-14 (Stan).
@@ -50,7 +53,7 @@ import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 import { TableSurface } from "./backdrop.jsx";
 import { FitBox, useViewport } from "../ui/viewport.jsx";
 import { useDialogFocus, SETTLE } from "./overlays.jsx";
-import { Btn } from "./buttons.jsx";
+import { Btn, MODAL_BTN_MIN } from "./buttons.jsx";
 import {
   playSlap, playHandWon, playHandLost, playRoundWon, playRoundLost,
   playCleanSweep, playGameWon, playGameLost, playDraw, playSelect, playRoundSign,
@@ -89,12 +92,16 @@ const SWEEP_EASE = 'cubic-bezier(.5,0,.9,.6)';
 // the last trace of the neon palette; on wood a hard drop is what the
 // sign already used, and Stan asked for it everywhere (2026-09-14).
 const DROP = '0 3px 0 rgba(0,0,0,.4)';
-// Someone is one scoring event from the game. Two short of WIN_SCORE,
-// because the Scraps hand pays 2 and is the smallest hand that can end
-// a game from here: a player on 8 can be beaten in one reveal, a
-// player on 7 cannot. This used to be the HUD's banner; the stage
-// covers the HUD exactly when it matters, so it lives here now.
-const MATCH_POINT = WIN_SCORE - 2;
+// MATCH POINT is EXACTLY one short of WIN_SCORE (Stan, 2026-09-16:
+// "only when either player, or both, has exactly 9 points"). It used
+// to be two short and `>=`, on the reasoning that the Scraps hand pays
+// 2 and so a player on 8 can already end the match in one reveal. That
+// is still true, and it is the trade this rule makes on purpose: the
+// warning now means "any hand won ends it", which is the one reading a
+// player never has to work out. This used to be the HUD's banner; the
+// stage covers the HUD exactly when it matters, so it lives here now.
+const MATCH_POINT = WIN_SCORE - 1;
+const atMatchPoint = (score) => (score || 0) === MATCH_POINT;
 
 // Tracked timers: every beat is a timeout, and a tap or an unmount
 // has to be able to drop all of them at once.
@@ -108,6 +115,58 @@ function useTimeline(scale = 1) {
   const clear = useCallback(() => { timers.current.forEach(clearTimeout); timers.current = []; }, []);
   useEffect(() => clear, [clear]);
   return { at, clear };
+}
+
+// ─────────────────────────────────────────────────────────────
+// SlideBox — a block whose HEIGHT follows its content over 200ms
+// instead of snapping to it (Stan, 2026-09-16: when CLEAN SWEEP
+// arrives "the cards abruptly jump out of the way ... make that a
+// 200ms gradual slide with gentle acceleration and deceleration").
+//
+// Every scene here is a column CENTRED on the table, so a line that
+// grows by 68px moves everything above it up 34px and everything
+// below it down 34px — measured, in ONE frame, when the CLEAN SWEEP
+// title and its bonus line replaced the verdict. Wrapping the part
+// that grows in this box turns that frame into a slide: the outer box
+// holds an explicit height and transitions it, the inner box is
+// measured, and the content stays centred inside the outer one while
+// it catches up, so the words never drift while the cards part.
+//
+// A ResizeObserver rather than a measure-on-render, because what
+// changes the height is not always a render of THIS component — a
+// ScoreRoll swapping to its Rye size is a child's render. Its callback
+// runs after layout and before paint, so the first painted frame of a
+// change is already the START of the transition, never the end state.
+// Reduced motion collapses the transition to 1ms with every other one
+// (index.html), which is the snap this replaces and the right answer
+// there.
+// ─────────────────────────────────────────────────────────────
+const SLIDE = { dur: 200, ease: 'cubic-bezier(.45,0,.55,1)' };
+function SlideBox({ children, style = {} }) {
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  useLayoutEffect(() => {
+    const outer = outerRef.current, inner = innerRef.current;
+    if (!outer || !inner) return undefined;
+    let h = inner.offsetHeight;
+    outer.style.height = `${h}px`;
+    const ro = new ResizeObserver(() => {
+      const next = inner.offsetHeight;
+      if (next === h) return;
+      h = next;
+      outer.style.height = `${next}px`;
+    });
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={outerRef} style={{display:'flex',flexDirection:'column',justifyContent:'center',
+      transition:`height ${SLIDE.dur}ms ${SLIDE.ease}`,...style}}>
+      <div ref={innerRef} style={{flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center'}}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -127,9 +186,9 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
   // The sign's dealer line rides in the dialog's name: who acts first
   // is real information, and the name is read the moment the layer
   // opens rather than whenever a live region gets round to it.
-  const signMP = stage.kind === 'sign' && ((stage.playerScore || 0) >= MATCH_POINT || (stage.aiScore || 0) >= MATCH_POINT);
+  const signMP = stage.kind === 'sign' && (atMatchPoint(stage.playerScore) || atMatchPoint(stage.aiScore));
   const label = stage.kind === 'sign'
-    ? `Round ${stage.roundNum}. ${stage.roundNum % 2 === 1 ? 'You go first.' : 'Opponent goes first.'}${signMP ? ' Match point.' : ''}`
+    ? `Round ${stage.roundNum}. ${stage.roundNum % 2 === 1 ? 'You go first.' : 'She goes first.'}${signMP ? ' Match point.' : ''}`
     : stage.which === 'scraps' ? 'Scraps result' : `Hand ${stage.which === 'hand1' ? 1 : 2} result`;
 
   // Where the live table's wood is, measured once on mount and again
@@ -273,11 +332,17 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
           </span>
         ))}
       </div>
-      <div className="stage-fade" style={{fontFamily:F.display,fontSize:'clamp(15px,2.6vw,24px)',
-        color:DS.slateLight,letterSpacing:'0.18em',
+      {/* Full stops and SHE (Stan, 2026-09-16). MATCH POINT drops to a
+          line of its own under it, because a sentence that has ended
+          cannot carry "· MATCH POINT" on after its full stop. The pair
+          shares one block so the sign's own gap does not open between
+          them. */}
+      <div className="stage-fade" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,
+        fontFamily:F.display,fontSize:'clamp(15px,2.6vw,24px)',
+        color:DS.slateLight,letterSpacing:'0.18em',textAlign:'center',
         animation: stop ? undefined : `scrapArrive 0.25s ease ${SIGN.lineAt}ms both`}}>
-        {roundNum % 2 === 1 ? 'YOU GO FIRST' : 'OPPONENT GOES FIRST'}
-        {matchPoint && <span style={{color:DS.gold}}> · MATCH POINT</span>}
+        <span>{roundNum % 2 === 1 ? 'YOU GO FIRST.' : 'SHE GOES FIRST.'}</span>
+        {matchPoint && <span style={{color:DS.gold}}>MATCH POINT</span>}
       </div>
       <div style={{position:'absolute',bottom:'clamp(8px,3vh,28px)'}}>
         <QuietButton onClick={tap} style={settled ? {} : {opacity:.55}}>
@@ -306,7 +371,10 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
 // The digit spans are keyed on their values so a SECOND roll (the
 // Clean Sweep bonus point after the Scraps point) replays.
 // ─────────────────────────────────────────────────────────────
-function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, sweepDelay }) {
+// `lead` holds the whole roll back by that many ms. Only the CLEAN
+// SWEEP bonus uses it, so its point lands after the cards have slid
+// apart for the title rather than while they are still moving.
+function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, sweepDelay, lead = 0 }) {
   const color = mine ? DS.voltage : DS.ember;
   // The point itself, said once: a "+1" or "+2" ghost rising off the
   // numeral as it rolls. It is the only place the game states what a
@@ -318,11 +386,12 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
   const glow = mine ? DS.gold : DS.ember;
   const ease = mine ? OVER : SETTLE;
   const dur = instant ? 0 : ROLL;
+  const ld = instant ? 0 : lead;
   const [rolling, setRolling] = useState(false);
   useEffect(() => {
     if (!tick || instant) return undefined;
     setRolling(true);
-    const t = setTimeout(() => setRolling(false), ROLL + 40);
+    const t = setTimeout(() => setRolling(false), ld + ROLL + 40);
     return () => clearTimeout(t);
   }, [tick, to, instant]);
   const size = rye ? 52 : 44;
@@ -340,14 +409,14 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
           overflow: rolling ? 'hidden' : 'visible',
           '--glow': glow,
           animation: !tick ? undefined
-            : rye ? `scoreJump ${instant ? 0 : JUMP}ms ease-out ${dur}ms both`
-            : wave ? `scoreWave 2.2s ease-in-out ${dur + 200}ms infinite` : undefined}}>
+            : rye ? `scoreJump ${instant ? 0 : JUMP}ms ease-out ${ld + dur}ms both`
+            : wave ? `scoreWave 2.2s ease-in-out ${ld + dur + 200}ms infinite` : undefined}}>
         {tick && (
           <span key={`old-${from}`} aria-hidden="true" style={{...numStyle,
-            animation:`scoreRollOut ${dur}ms ${ease} both`}}>{from}</span>
+            animation:`scoreRollOut ${dur}ms ${ease} ${ld}ms both`}}>{from}</span>
         )}
         <span key={`new-${to}-${tick ? 1 : 0}`} style={{...numStyle,
-          animation: tick ? `scoreRollIn ${dur}ms ${ease} both` : undefined,
+          animation: tick ? `scoreRollIn ${dur}ms ${ease} ${ld}ms both` : undefined,
           textShadow: rye ? DROP : undefined}}>
           {tick ? to : from}
         </span>
@@ -356,7 +425,7 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
             [align === 'right' ? 'right' : 'left']: 0, top:-6,
             fontFamily:F.display,fontSize:22,lineHeight:1,color:glow,
             textShadow:'0 2px 0 rgba(0,0,0,.4)',pointerEvents:'none',
-            animation:`scoreGhost ${instant ? 0 : 1100}ms ease-out ${dur}ms both`}}>
+            animation:`scoreGhost ${instant ? 0 : 1100}ms ease-out ${ld + dur}ms both`}}>
             +{delta}
           </span>
         )}
@@ -513,6 +582,17 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const tie = winner === 'tie';
   const mineWon = winner === 'player';
   const sweepBeat = cleanSweep || aiSweep;      // the same event, whoever did it
+  // HAND 1's way on is a real green button, PLAY HAND 2, where every
+  // other reveal says "Tap to continue" (Stan, 2026-09-16; Hand 2's is
+  // left exactly as it was). It mirrors PLAY SCRAPS HAND on the table
+  // after hand 2, so each hand of a round is asked for by name. A tap on
+  // the wood still SKIPS the build, but at rest it no longer continues:
+  // with a named button on screen, a stray second tap that sailed past
+  // the result would be a hidden gesture beating the visible one.
+  const handCta = which === 'hand1' && !endsIt;
+  // The CLEAN SWEEP beat waits this long for the cards to slide apart
+  // (SlideBox) before its title, its sound and its bonus point arrive.
+  const CS_LEAD = SLIDE.dur;
 
   const [step, setStep] = useState(instant ? (endsIt ? 'final' : 'rest') : 'open');
   // Per-beat skip flags — see the header.
@@ -526,9 +606,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // button unmounted, focus fell to the page, and the next Tab found
   // the HUD's buttons under the wood.
   const quietRef = useRef(null);
+  const ctaRef = useRef(null);
   const finalBtnsRef = useRef(null);
   const { at, clear } = useTimeline(R ? 0.3 : 1);
-  const cued = useRef({ outcome: !!instant, end: !!instant, sweep: !!instant });
+  const cued = useRef({ outcome: !!instant, end: !!instant, sweep: !!instant, cs: !!instant });
   const stepRef = useRef(step);
   stepRef.current = step;
 
@@ -602,22 +683,34 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
   useEffect(() => {
     if ((step === 'rest' || step === 'csRest') && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
+    if (step === 'rest' && handCta && ctaRef.current) {
+      const b = ctaRef.current.querySelector('button');
+      if (b) b.focus();
+    }
     if (step === 'final' && finalBtnsRef.current) {
       const b = finalBtnsRef.current.querySelector('button');
       if (b) b.focus();
     }
   }, [step]);
 
+  // Her sweep is a LOSS and sounds like one (Stan, 2026-09-14): the
+  // round-lost run rather than the ten-bar climb, which is yours.
+  const cueSweepBeat = useCallback(() => {
+    if (cued.current.cs) return;
+    cued.current.cs = true;
+    (aiSweep ? playRoundLost : playCleanSweep)();
+  }, [aiSweep]);
   useEffect(() => {
     if (step !== 'cleanSweep') return;
-    // Her sweep is a LOSS and sounds like one (Stan, 2026-09-14): the
-    // round-lost run rather than the ten-bar climb, which is yours.
-    if (!fast.beat) (aiSweep ? playRoundLost : playCleanSweep)();
-    // Title in (letters at 55ms), bonus line, the bonus point rolls
-    // in — then the beat RESTS and waits for a tap; it no longer
-    // sweeps itself. If the match ends here the roll is the Rye jump.
-    if (endsIt) at(fast.beat ? 0 : 1100, cueEnd);
-    at(fast.beat ? 0 : 1500, () => setStep('csRest'));
+    // The cards slide apart first (CS_LEAD), THEN the beat lands: the
+    // title's letters, its sound and the bonus point all start once the
+    // gap they need is open. Title in (letters at 55ms), bonus line, the
+    // bonus point rolls in — then the beat RESTS and waits for a tap; it
+    // no longer sweeps itself. If the match ends here the roll is the
+    // Rye jump.
+    if (!fast.beat) at(CS_LEAD, cueSweepBeat);
+    if (endsIt) at(fast.beat ? 0 : CS_LEAD + 1100, cueEnd);
+    at(fast.beat ? 0 : CS_LEAD + 1500, () => setStep('csRest'));
   }, [step]);
 
   // The sweep measures the REAL position of everything on the
@@ -681,7 +774,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   // ── Skipping and continuing ────────────────────────────────
-  const onTap = useCallback(() => {
+  // `fromKey` is Enter or Space arriving through the window listener
+  // below — focus somewhere other than a button. A key still continues
+  // from Hand 1's resting frame; only a tap on the bare wood does not.
+  const onTap = useCallback((fromKey = false) => {
     const s = stepRef.current;
     const i = idx(s);
     if (i < idx('rest')) {
@@ -693,6 +789,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       return;
     }
     if (s === 'rest') {
+      if (handCta && fromKey !== true) return;
       if (sweepBeat) { setStep('cleanSweep'); return; }
       if (endsIt) {
         // The jump hold before the sweep. A tap here used to be
@@ -707,8 +804,11 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     }
     if (s === 'cleanSweep') {
       // Mid-beat: land on the beat's resting frame, bonus point in.
-      // A second tap sweeps.
+      // A second tap sweeps. The beat's own sound still plays if the
+      // tap beat it — it waits out CS_LEAD, so a quick tap would
+      // otherwise land a CLEAN SWEEP in silence.
       clear();
+      cueSweepBeat();
       setFast(f => ({ ...f, beat: true }));
       if (endsIt) cueEnd();
       setStep('csRest');
@@ -730,7 +830,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       setFast(f => ({ ...f, end: true }));
       setStep('final');
     }
-  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, onSwept, cueEnd]);
+  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, onSwept, cueEnd, handCta, cueSweepBeat]);
 
   // Keys land on the quiet button through the dialog's focus trap;
   // this catches the case where focus has wandered (a screen reader
@@ -738,7 +838,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   useEffect(() => {
     const onKey = (e) => {
       if (e.target && e.target.closest && e.target.closest('button')) return;
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); onTap(); }
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); onTap(true); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -786,7 +886,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const cards = isP ? playerCards : aiCards;
     const isWinner = !tie && ((isP && mineWon) || (!isP && winner === 'ai'));
     const show = isWinner ? showSlap : showLoser;
-    if (!show) return <div style={{height: CARD_DIMS[cardSize].h + 60}}/>;
+    // EXACTLY the row's own height. It was the height plus 60 — the room
+    // the side labels and hand names used to take — and nothing shrank
+    // it when those went on 2026-09-14, so each row that appeared
+    // shortened the centred column by 60px and moved everything on the
+    // table 30px. Twice per reveal: measured 2026-09-16, the title
+    // stepping 104 → 134 → 164 as the loser and then the winner landed.
+    if (!show) return <div style={{height: CARD_DIMS[cardSize].h}}/>;
     // The OPPONENT / YOU labels that sat above her row and below yours
     // went on 2026-09-14 (Stan), and the hand names under each row
     // (Pair, Straight) went the same evening. Top is hers and bottom is
@@ -817,10 +923,17 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const swept = isP ? cleanSweep : aiSweep;
     const b = isP ? before.p : before.a, a = isP ? after.p : after.a, bo = isP ? bonus.p : bonus.a;
     if (!won) return { from: b, to: b, tick: false, wave: false, rye: false };
-    if (swept && beatOn) return { from: a, to: bo, tick: true, wave: !endsIt, rye: endsIt, instant: fast.beat };
+    if (swept && beatOn) return { from: a, to: bo, tick: true, wave: !endsIt, rye: endsIt, instant: fast.beat,
+      lead: CS_LEAD };
     return { from: b, to: a, tick: ticked, wave: !(endsIt && !sweepBeat), rye: endsIt && !sweepBeat, instant: fb };
   };
   const sp = scoreFor(true), sa = scoreFor(false);
+  // MATCH POINT reads off the post-roll totals, so it appears with the
+  // point that created it — and when that point is the CLEAN SWEEP
+  // bonus, it waits for the bonus roll too, which waits for the slide.
+  const mpP = atMatchPoint(sp.to), mpA = atMatchPoint(sa.to);
+  const showMP = ticked && !endsIt && (mpP || mpA);
+  const mpFromBeat = beatOn && !(atMatchPoint(after.p) || atMatchPoint(after.a));
   const scoreRow = (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',
       width:'min(100%, 440px)',padding:'0 6px'}}>
@@ -843,7 +956,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     const btnDelay = won ? 340 : 0;
     const scoreDelay = won ? 120 : 300;
     return (
-      <div ref={rootRef} onClick={onTap}
+      <div ref={rootRef} onClick={() => onTap()}
         style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
           padding:'14px 14px clamp(84px,14vh,120px)',cursor:'default'}}>
         <FitBox modeMinW={300}>
@@ -917,7 +1030,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
   const bandOn = sweeping && !R;
   return (
-    <div ref={rootRef} onClick={onTap}
+    <div ref={rootRef} onClick={() => onTap()}
       style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',padding:14,cursor:'pointer'}}>
       {bandOn && (
         <div aria-hidden="true" style={{position:'absolute',top:'-10%',left:0,width:'22vw',minWidth:120,height:'120%',
@@ -933,9 +1046,17 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
           {side('ai')}
 
-          {/* The verdict, and the CLEAN SWEEP beat that replaces it. */}
-          <div style={{minHeight: beatOn ? undefined : 'clamp(44px,6vh,56px)',display:'flex',flexDirection:'column',
-            alignItems:'center',justifyContent:'center',gap:6}}>
+          {/* The verdict, and the CLEAN SWEEP beat that replaces it. In a
+              SlideBox, so the cards part for the beat over 200ms rather
+              than jumping (Stan, 2026-09-16), and the beat's title waits
+              out that slide before its letters rise.
+              The resting floor is never shorter than the verdict it
+              holds — the larger of the old floor and the verdict's own
+              size — so the verdict landing does not nudge the table
+              either. */}
+          <SlideBox>
+          <div style={{minHeight: beatOn ? undefined : 'max(clamp(44px,6vh,56px), clamp(34px,7vw,56px))',
+            display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6}}>
             {beatOn ? (
               <>
                 <div data-sweep="text" data-sweep-id="cs-title" aria-label="Clean sweep"
@@ -949,7 +1070,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                   {'CLEAN SWEEP'.split('').map((l, k) => (
                     <span key={k} aria-hidden="true" style={{display:'inline-block',
                       animation: sd('cs-title') != null || fast.beat ? undefined
-                        : `letterAppear 0.6s ${cleanSweep ? 'cubic-bezier(.34,1.6,.64,1)' : SETTLE} ${k * 55}ms both`}}>{l}</span>
+                        : `letterAppear 0.6s ${cleanSweep ? 'cubic-bezier(.34,1.6,.64,1)' : SETTLE} ${CS_LEAD + k * 55}ms both`}}>{l}</span>
                   ))}
                 </div>
                 {/* Names the feat as well as the price: a first-timer meets
@@ -957,7 +1078,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                 <div data-sweep="text" data-sweep-id="cs-line" className={fadeCls}
                   style={{fontFamily:F.display,fontSize:'clamp(15px,2.6vw,24px)',letterSpacing:'0.14em',
                     color: cleanSweep ? DS.gold : DS.ember,whiteSpace:'nowrap',
-                    animation: textAnim('cs-line', fadeIn(260, 520, fast.beat))}}>
+                    animation: textAnim('cs-line', fadeIn(260, CS_LEAD + 520, fast.beat))}}>
                   ALL THREE HANDS · +1 BONUS POINT
                 </div>
               </>
@@ -970,39 +1091,62 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               </div>
             )}
           </div>
+          </SlideBox>
 
           {side('player')}
 
-          <div style={{marginTop:'clamp(2px,1vh,8px)',width:'100%',display:'flex',justifyContent:'center'}}>
-            {scoreRow}
-          </div>
-          {/* MATCH POINT, on the stage rather than in the HUD it covers.
-              Reads off the post-roll totals, so it appears with the
-              point that created it. Colour follows ownership: voltage
-              when the threat is yours, ember when hers, frost when both.
-              Never gold — gold is a milestone, this is a warning. */}
-          {ticked && !endsIt && (sp.to >= MATCH_POINT || sa.to >= MATCH_POINT) && (() => {
-            const p = sp.to >= MATCH_POINT, a = sa.to >= MATCH_POINT;
-            const tone = p && a ? DS.frost : p ? DS.voltage : DS.ember;
-            return (
+          {/* The score row and MATCH POINT share one SlideBox for the same
+              reason as the verdict: MATCH POINT arriving, or a winning
+              score swapping to its larger Rye size, grows this block, and
+              it slides rather than shoving the cards above it. MATCH POINT
+              sits inside the box on the column's own gap, so the table is
+              spaced exactly as it was when it was a column child. */}
+          <SlideBox style={{width:'100%'}}>
+            <div style={{marginTop:'clamp(2px,1vh,8px)',width:'100%',display:'flex',justifyContent:'center'}}>
+              {scoreRow}
+            </div>
+            {/* MATCH POINT, on the stage rather than in the HUD it covers.
+                Colour follows ownership: voltage when the threat is yours,
+                ember when hers, frost when both. Never gold — gold is a
+                milestone, this is a warning. */}
+            {showMP && (
               <div data-sweep="text" data-sweep-id="match-point" className={fadeCls}
-                style={{fontFamily:F.display,fontSize:'clamp(14px,2.4vw,20px)',letterSpacing:'0.18em',
-                  color:tone,textShadow:DROP,
-                  animation: textAnim('match-point', fadeIn(260, ROLL + 100, fb))}}>
-                MATCH POINT{p && a ? ' BOTH WAYS' : ''}
+                style={{marginTop:'clamp(8px,1.8vh,16px)',
+                  fontFamily:F.display,fontSize:'clamp(14px,2.4vw,20px)',letterSpacing:'0.18em',
+                  color: mpP && mpA ? DS.frost : mpP ? DS.voltage : DS.ember,textShadow:DROP,
+                  animation: textAnim('match-point', mpFromBeat
+                    ? fadeIn(260, CS_LEAD + ROLL + 100, fast.beat)
+                    : fadeIn(260, ROLL + 100, fb))}}>
+                MATCH POINT{mpP && mpA ? ' BOTH WAYS' : ''}
               </div>
-            );
-          })()}
+            )}
+          </SlideBox>
 
           <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : `opponent wins with ${aiHandName}`}.` : ''}
             {ticked ? ` Score: you ${sp.to}, opponent ${sa.to}.` : ''}
             {beatOn ? ' Clean sweep: all three hands, plus one bonus point.' : ''}
           </div>
-          <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>
-            <QuietButton onClick={onTap} buttonRef={quietRef}
-              show={atRest && !(endsIt && !sweepBeat)}>Tap to continue</QuietButton>
-          </div>
+          {handCta ? (
+            // PLAY HAND 2 — see `handCta`. Laid out from the first frame
+            // and only HIDDEN until the resting frame, so the column is
+            // the same height before and after it arrives. `visibility`
+            // rather than opacity: a hidden button is out of the tab
+            // order and the accessibility tree, the same promise the
+            // quiet button keeps with `disabled`.
+            <div ref={ctaRef} onClick={e => e.stopPropagation()}
+              className={atRest ? 'stage-fade' : undefined}
+              style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',
+                visibility: atRest ? 'visible' : 'hidden',
+                animation: atRest ? `slideUp 340ms ${SETTLE} both` : undefined}}>
+              <Btn onClick={onContinue}>Play Hand 2</Btn>
+            </div>
+          ) : (
+            <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>
+              <QuietButton onClick={onTap} buttonRef={quietRef}
+                show={atRest && !(endsIt && !sweepBeat)}>Tap to continue</QuietButton>
+            </div>
+          )}
         </div>
       </FitBox>
     </div>
