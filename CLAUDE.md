@@ -583,13 +583,21 @@ looks broken locally, it is not a missing-secret problem.
   there.
 - **Nothing on the stage advances itself** except a match-ending reveal
   running on into the match screen. The ROUND N sign and the Clean Sweep
-  beat both used to; since 2026-09-14 both land, say "Tap to continue",
-  and wait. Every reveal is pressed for too — `autoReveal`, which ran the
+  beat both used to; since 2026-09-14 both land, say CLICK ANYWHERE (TAP
+  ANYWHERE on a touch screen; it said "Tap to continue" everywhere until
+  2026-09-16), and wait. Every reveal is pressed for too — `autoReveal`, which ran the
   reveal by itself when you signalled into her signal, is gone, and SHOW
   'EM is the whole narrator band in the reveal phase.
+- **Never write "tap" or "click" as a literal.** Every line that names the
+  gesture reads `usePointerVerb()` (src/ui/viewport.jsx): Click under a
+  mouse or trackpad, Tap on a touch screen. The stage's quiet button
+  (CLICK/TAP ANYWHERE), the storyboard rail and the table's CLICK/TAP FOR
+  HISTORY all do. Until 2026-09-16 only the storyboard did, and Stan's
+  desktop read TAP TO CONTINUE on every sign and reveal. It is a standing
+  rule in his global instructions now, not just this project's.
 - **The Hand 1 reveal is the one stage screen with a named button**
-  (2026-09-16, Stan): a green PLAY HAND 2 where the others say "Tap to
-  continue". A tap on the wood still skips its build, but at REST only
+  (2026-09-16, Stan): a green PLAY HAND 2 where the others say CLICK (or
+  TAP) ANYWHERE. A tap on the wood still skips its build, but at REST only
   the button, or Enter/Space, moves on (`handCta` in `RevealScene`). The
   root's `onClick` calls `onTap()` with no argument on purpose: the key
   path passes `true`, and a click handed straight through would pass its

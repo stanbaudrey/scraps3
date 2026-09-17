@@ -182,8 +182,11 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           discard two cards from her Scraps.
         </p>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
-          If she also has an Ace, she can &ldquo;counter,&rdquo; causing
-          both Aces to be discarded and your turn to end.
+          {/* Stan's copy, 2026-09-16, with the verb set the way
+              "attack" is in the sentence above. */}
+          If she also has an Ace, she can{' '}
+          <strong style={{color:DS.frost}}>counter</strong> to cancel your
+          attack. Both Aces get discarded.
         </p>
           </div>
         </div>

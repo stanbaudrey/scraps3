@@ -51,7 +51,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } fr
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 import { TableSurface } from "./backdrop.jsx";
-import { FitBox, useViewport } from "../ui/viewport.jsx";
+import { FitBox, useViewport, usePointerVerb } from "../ui/viewport.jsx";
 import { useDialogFocus, SETTLE } from "./overlays.jsx";
 import { Btn, MODAL_BTN_MIN } from "./buttons.jsx";
 import {
@@ -297,6 +297,9 @@ function QuietButton({ onClick, children, show = true, style = {}, buttonRef = n
 // ─────────────────────────────────────────────────────────────
 function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const letters = `ROUND ${roundNum}`.split('');
+  // CLICK ANYWHERE on a desktop, TAP ANYWHERE on a phone (Stan,
+  // 2026-09-16). It said "Tap to continue" everywhere until then.
+  const verb = usePointerVerb();
   const { at, clear } = useTimeline(1);
   const doneRef = useRef(false);
   const [settled, setSettled] = useState(!!instant);
@@ -352,7 +355,7 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
       </div>
       <div style={{position:'absolute',bottom:'clamp(8px,3vh,28px)'}}>
         <QuietButton onClick={tap} style={settled ? {} : {opacity:.55}}>
-          {settled ? 'Tap to continue' : 'Skip'}
+          {settled ? `${verb} anywhere` : 'Skip'}
         </QuietButton>
       </div>
     </div>
@@ -584,6 +587,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   endsIt = false, before, onContinue, onSwept, onNewGame, difficulty, winStats, shake, R, instant }) {
 
   const { w } = useViewport();
+  const verb = usePointerVerb();
   const narrow = w < 700;
   const isScraps = which === 'scraps';
   const cardSize = isScraps ? (narrow ? 'tiny' : 'small') : (narrow ? 'small' : 'normal');
@@ -1154,7 +1158,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
           ) : (
             <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>
               <QuietButton onClick={onTap} buttonRef={quietRef}
-                show={atRest && !(endsIt && !sweepBeat)}>Tap to continue</QuietButton>
+                show={atRest && !(endsIt && !sweepBeat)}>{`${verb} anywhere`}</QuietButton>
             </div>
           )}
         </div>

@@ -86,6 +86,21 @@ export function useViewport() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// usePointerVerb — "Tap" under a finger, "Click" under a mouse or a
+// trackpad. EVERY instruction that names the gesture reads it here,
+// never a literal (Stan, 2026-09-16: the ROUND sign still said TAP TO
+// CONTINUE on his desktop, and "web experiences should think carefully
+// about delineating 'tap' on mobile vs. 'click' on desktop"). It rides
+// on `coarse` above, `(hover: none), (pointer: coarse)`, which is in
+// practice the complement of the `(hover: hover) and (pointer: fine)`
+// the hover rules use: a laptop's trackpad is Click, a phone or a
+// tablet is Tap. Title case; callers that set capitals do it in CSS.
+// ─────────────────────────────────────────────────────────────
+export function usePointerVerb() {
+  return useViewport().coarse ? 'Tap' : 'Click';
+}
+
+// ─────────────────────────────────────────────────────────────
 // layoutMode — 'wide' (hand centred, Scraps beside it) or
 // 'stack' (hand above its own Scraps, full width).
 //

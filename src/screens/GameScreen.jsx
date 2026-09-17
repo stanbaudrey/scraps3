@@ -32,7 +32,7 @@ import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
 import { Walkthrough } from "./Walkthrough.jsx";
 import { recordGame } from "../game/stats.js";
-import { useViewport, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
+import { useViewport, usePointerVerb, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
   AceCounterModal, SkipTurnModal, QuitConfirmModal,
   OpponentAceReveal, AiCounterNotice, AceDrawnLightbox,
@@ -238,7 +238,7 @@ export function GameScreen({ difficulty, onExit }) {
   const [scrapsFadeIds, setScrapsFadeIds]   = useState(new Set());
   const [tradeError, setTradeError]             = useState(null); // over-limit trade message
   const [showLogPanel, setShowLogPanel]         = useState(false); // tap-to-open log history
-  const [logEverOpened, setLogEverOpened]       = useState(false); // hides the one-time TAP FOR HISTORY label
+  const [logEverOpened, setLogEverOpened]       = useState(false); // hides the one-time CLICK/TAP FOR HISTORY label
   const tradeErrorTimer = useRef(null);
 
   // First-time-per-game hint: fires once, the first time an Ace
@@ -315,6 +315,8 @@ export function GameScreen({ difficulty, onExit }) {
   // pixel size — card sizes, fan spread, zone widths, bar chrome —
   // is derived from it here rather than guessed at in a media query.
   const vp = useViewport();
+  // Click or Tap, for the one line on the table that names the gesture.
+  const pointerVerb = usePointerVerb();
   const mode = layoutMode(vp);
   // `stack` is about ARRANGEMENT, `tight` about SIZE. They agree on a
   // phone and disagree at both ends of the range: a landscape phone
@@ -1984,7 +1986,7 @@ export function GameScreen({ difficulty, onExit }) {
             {!logEverOpened&&(
               <span style={{flexShrink:0,fontFamily:F.mono,fontSize:11,fontWeight:700,
                 letterSpacing:'0.14em',color:DS.voltage,border:`1px solid ${DS.voltage}66`,
-                borderRadius:5,padding:'2px 7px'}}>TAP FOR HISTORY</span>
+                borderRadius:5,padding:'2px 7px',textTransform:'uppercase'}}>{`${pointerVerb} for history`}</span>
             )}
             <span style={{overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>
               {log[log.length-1]||''}

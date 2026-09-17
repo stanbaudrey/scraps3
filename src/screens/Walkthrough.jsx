@@ -27,7 +27,7 @@ import { PlayingCard } from "../components/cards.jsx";
 import { SceneBackdrop } from "../components/backdrop.jsx";
 import { TOUCH_MIN, AceTag } from "../components/buttons.jsx";
 import { playSelect } from "../audio.js";
-import { FitBox } from "../ui/viewport.jsx";
+import { FitBox, usePointerVerb } from "../ui/viewport.jsx";
 
 // ── Sample cards ─────────────────────────────────────────────
 // The id used to be built from rank + suit, which was unique only
@@ -396,30 +396,25 @@ export const railBtnStyle = {
 // notice stopped shipping at all. The notice is /privacy now, linked
 // from the footer below.
 // "Tap" on a touch screen, "Click" under a mouse (Stan, 2026-09-14
-// evening: "don't say Tap anywhere on desktop"). Read once at mount from
-// the same media query the hover rules use; a laptop with a trackpad is
-// a fine pointer and gets Click.
+// evening: "don't say Tap anywhere on desktop"). The verb comes from
+// usePointerVerb (src/ui/viewport.jsx), the one place every screen reads
+// it since 2026-09-16; a laptop with a trackpad is a fine pointer and
+// gets Click.
 //
-// The same read answers the footer's second clause, because a phone has
-// no Enter to press and the rail was advertising one (Stan, 2026-09-15:
-// "there is no enter on mobile; just say TAP ANYWHERE"). The keydown
-// listener below is NOT gated on this — a hardware keyboard paired with
-// a tablet still works. We only stop promising a key that screen has no
-// way to show.
-const pointerKind = () => {
-  try {
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches
-      ? { verb: 'Click', keys: true }
-      : { verb: 'Tap', keys: false };
-  } catch { return { verb: 'Tap', keys: false }; }
-};
+// The same answer decides the footer's second clause, because a phone
+// has no Enter to press and the rail was advertising one (Stan,
+// 2026-09-15: "there is no enter on mobile; just say TAP ANYWHERE"). The
+// keydown listener below is NOT gated on this — a hardware keyboard
+// paired with a tablet still works. We only stop promising a key that
+// screen has no way to show.
 
 export function Walkthrough({ onDone, asReference = false, startAt = 0 }) {
   // `startAt` is for the difficulty picker's BACK, which returns the
   // reader to the LAST beat rather than the first — they have already
   // read the whole thing and want the page they just left.
   const [i, setI] = useState(startAt);
-  const [{ verb, keys }] = useState(pointerKind);
+  const verb = usePointerVerb();
+  const keys = verb === 'Click';
   const beat = BEATS[i];
   const last = i === BEATS.length - 1;
 
