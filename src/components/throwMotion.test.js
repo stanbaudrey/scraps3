@@ -114,8 +114,10 @@ describe('The Throw — motion math', () => {
     expect(c.hers.at(c.dur - 1).glow).toBeLessThan(0.05);
   });
 
-  const yours = () => counterBackMotions({ hers: { x: 500, y: 120, rot: 3, s: 0.8 },
-    mine: { x: 420, y: 620, rot: -4, s: 1 }, meet: { x: 540, y: 300 }, K: 1, s1: 0.6, ceilY: -150 });
+  // Her face-down cards are as big as your hand's on a desktop, so the two
+  // start the same size; on a phone hers start smaller.
+  const yours = (hs = 0.82, ms = 0.82) => counterBackMotions({ hers: { x: 500, y: 120, rot: 3, s: hs },
+    mine: { x: 420, y: 620, rot: -4, s: ms }, meet: { x: 540, y: 300 }, K: 1, s1: 0.65, ceilY: -150 });
 
   it('your counter: hers is thrown first, yours a beat later, and they meet together', () => {
     const c = yours();
@@ -130,7 +132,12 @@ describe('The Throw — motion math', () => {
     const drawn = c.mine.at(c.myThrowAt - 1);
     expect(c.mine.at(COUNTER.draw + 1)).toMatchObject({ x: drawn.x, y: drawn.y });
     expect(c.hers.at(c.myThrowAt).trail).toBe(true);
-    expect(b.s).toBeGreaterThan(a.s);
+    // Yours is the bigger card at the hit, by a clear tenth, whether they
+    // started the same size (a desktop) or hers smaller (a phone).
+    for (const [hs, ms] of [[0.82, 0.82], [0.69, 0.93], [0.9, 0.7]]) {
+      const k = yours(hs, ms);
+      expect(k.mine.at(k.clashAt).s).toBeGreaterThanOrEqual(k.hers.at(k.clashAt).s * 1.1 - 1e-9);
+    }
   });
 
   it('your counter: YOURS wins, standing lit while hers flies off the top', () => {

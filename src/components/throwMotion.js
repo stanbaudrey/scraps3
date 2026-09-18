@@ -256,18 +256,24 @@ export const COUNTER = { rise: 170, answer: 100, fly: 300, draw: 130, hold: 90, 
 export function counterBackMotions({ hers, mine, meet, K = 1, s1, ceilY = -Infinity }) {
   const tHerGo = COUNTER.rise, tClash = tHerGo + COUNTER.fly;
   const tMyGo = tHerGo + COUNTER.answer, tHold = tClash + COUNTER.hold, tWin = tHold + COUNTER.win;
-  // Hers: up out of her hand, face up, then two turns at your pile.
+  // Hers: up out of her hand, face up, then two turns at your pile,
+  // arriving at the size the Aces meet at (`s1`), as yours does when she
+  // wins. On a desktop her face-down cards are as big as your hand's, and
+  // arriving no smaller than she rose made hers the BIGGER card at the
+  // hit, 0.886 to 0.774 at 1024x662 (review, 2026-09-18).
   const herUp = { x: hers.x, y: hers.y + 26 * K, rot: 0, s: hers.s * 1.08 };
-  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: 696, s: Math.max(s1, herUp.s) };
+  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: 696, s: s1 };
   // Yours: drawn back from your hand, then one turn, arriving almost
-  // upright and bigger than hers, and never smaller than it started.
+  // upright, a clear tenth bigger than hers, and never smaller than it
+  // was drawn back.
   const back = { x: mine.x, y: mine.y + 16 * K, rot: mine.rot - 36, s: mine.s * 0.96 };
-  const myTo = { x: meet.x - 8 * K, y: meet.y + 10 * K, rot: -352, s: Math.max(s1 * 1.12, back.s * 0.98) };
+  const myTo = { x: meet.x - 8 * K, y: meet.y + 10 * K, rot: -352,
+    s: Math.max(s1 * 1.12, back.s * 1.02, herTo.s * 1.1) };
   // Your line of travel is the way the hit goes.
   const ml = Math.hypot(myTo.x - back.x, myTo.y - back.y) || 1;
   const ux = (myTo.x - back.x) / ml, uy = (myTo.y - back.y) / ml;
   const myWin = { x: myTo.x + ux * 16 * K, y: myTo.y + uy * 16 * K, rot: -360,
-    s: Math.max(s1 * 1.26, back.s * 1.08) };
+    s: Math.max(s1 * 1.26, myTo.s * 1.1) };
   // Hers goes back the way it came and along your line, pulled UP, until
   // it has flown off the top. Solved in a mirrored frame: `fallTime`
   // answers "how long until it passes a line below", so flip y.

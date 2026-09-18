@@ -211,6 +211,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // The ATTACK tag's press, played on a copy of the tag (impact.jsx).
   const [tagEcho, setTagEcho] = useState(null);
   const armTimers = useRef([]);
+  // Her second Ace after your counter (onPlayerCounterAce), cleared if the
+  // table goes away first, so it cannot play its sound after QUIT.
+  const recounterTimer = useRef(0);
   // Bumped when her pile is hit, so its remaining cards hop.
   const [joltKey, setJoltKey] = useState(0);
   // Where the pool of light sits in the dim: her pile, in the dim
@@ -924,6 +927,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   finishStrikeRef.current = finishStrike;
   useEffect(() => () => {
     armTimers.current.forEach(clearTimeout);
+    clearTimeout(recounterTimer.current);
     if (strikeRef.current) strikeRef.current.timers.forEach(clearTimeout);
   }, []);
 
@@ -991,7 +995,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // effect on `pendingAiAce` below is the same rule stated as an
     // invariant, so no future entry path can reintroduce this.
     const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== herAce.id);
-    const recounter = nextAce && s.playerScraps.length >= 2 ? () => setTimeout(() => {
+    const recounter = nextAce && s.playerScraps.length >= 2 ? () => { recounterTimer.current = setTimeout(() => {
       const cur = stateRef.current;
       if (cur.gameOver || cur.pendingAiAce) return;
       if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
@@ -1000,7 +1004,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       if (!targets || targets.length < 2) return;
       playAceStrike();
       handleAiAce(nextAce, targets, true);
-    }, RECOUNTER_BEAT) : null;
+    }, RECOUNTER_BEAT); } : null;
 
     // YOUR COUNTER, played out (Stan, 2026-09-17: "we should see the
     // animation where the user's Ace flies at and intercepts the opp's
@@ -1164,10 +1168,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // Your Ace attack is still playing out, or its lights are still down.
     // Held rather than merely waited on, because a counter's notice opens
     // at the END of the attack, in the same render that clears `strike`.
-    // Not YOUR counter of her Ace, though: that one plays out in HER
-    // turn, whose runner still owes its ADVANCE_FROM, and clearing aiGo
-    // there would cancel it and restart her turn from the top, giving her
-    // a second move.
+    // Not YOUR counter of her Ace, though. Her runner's ADVANCE_FROM fires
+    // 2.9s into her turn whatever the counter prompt is doing, so a quick
+    // answer plays the counter out while her turn still owes it (a slow
+    // one, after 1.8s or so, lands in yours), and clearing aiGo in the
+    // first case would cancel it and restart her turn from the top,
+    // giving her a second move.
     if (strike && !strike.reverse) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
@@ -1348,6 +1354,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
 
   // ── Reveals + scoring ──────────────────────────────────────
   function resolveSmallHand() {
+    // Runs at the END of the drumroll, so it reads the state as it is
+    // then (stateRef), never the render the press happened in.
+    const { playerPlayed, aiPlayed, phase, playerScore, aiScore, roundNum } = stateRef.current;
     if (!playerPlayed || !aiPlayed) return;
     const pH = evaluateBestHand(playerPlayed);
     const aH = evaluateBestHand(aiPlayed);
@@ -1457,6 +1466,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   }
 
   function resolveScrap() {
+    // Runs after the drumroll and the held beat (review, 2026-09-18), so
+    // it reads the state as it is then, never the render of the press.
+    const { playerScraps, aiScraps, roundWins, playerScore, aiScore, roundNum } = stateRef.current;
     // Leaving the beat: the next round enters it fresh.
     setScrapsReady(false);
     // Always resolves now, including when a pile is empty: an empty
@@ -1939,7 +1951,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           joltKey={joltKey}
           size={SZ.pile} width={stack?railW:340} fill={stack}/>
         {/* REMOVE, under her pile, in the wide layout — see pileBtns. */}
-        {!stack&&(aceMode||strike)&&pileBtnRow(removePair, !!strike)}
+        {/* Kept laid out (hidden) through your own attack so the table
+            cannot rescale under the Ace; never mounted for your counter of
+            HER Ace, where it would rescale the table as both Aces rise
+            (review, 2026-09-18: 4.7% at 1024x662, your pile jumping 27px). */}
+        {!stack&&(aceMode||(strike&&!strike.reverse))&&pileBtnRow(removePair, !!strike)}
       </div>
     </div>
   );
@@ -1969,7 +1985,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // the layout is stacked; in the wide layout they sit on their piles
   // (see pileBtns below), so they do not count as the band's buttons.
   const hasActionButtons = !dealHold && ((stack && isScrapsDiscardMode)
-    || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
+    || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand && !strike)
     || (stack && aceMode && !strike) || (counterStand && !strike)
     || (isSignal && !signalLocked) || isReveal || scrapsAsk
     || (pendingAiAce && !aiAceReveal && !strike));
@@ -2161,7 +2177,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
             End Turn
           </BigBtn>
         )}
-        {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand&&(
+        {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand&&!strike&&(
           <>
             {!forcedAce&&(
               <ScrapBtn onClick={doScrap} disabled={selectedInHand.length===0} compact={tight}

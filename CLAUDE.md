@@ -646,7 +646,13 @@ looks broken locally, it is not a missing-secret problem.
   the others say CLICK (or TAP) ANYWHERE. Each is laid out from the first
   frame and shown when the build lands; a tap on the wood mid-build jumps
   to that resting frame, button and all, but at REST only the button, or
-  Enter/Space, moves on (`handCta` in `RevealScene`). The
+  Enter/Space, moves on (`handCta` in `RevealScene`). The button's row
+  keeps 12px under it: it is the column's last row, and a table scaled to
+  fit puts the column's bottom on the frame's clipped edge, which cut its
+  glow and its focus ring off at 1024x662. And on every reveal, a tap
+  within `LAND_GRACE` (400ms) of one that landed a resting frame is
+  ignored, because it is the second half of a double-click: that second
+  press used to skip the Scraps reveal's two-point result unseen. The
   root's `onClick` calls `onTap()` with no argument on purpose: the key
   path passes `true`, and a click handed straight through would pass its
   event object, which is truthy, and read as a key.
@@ -828,10 +834,22 @@ looks broken locally, it is not a missing-secret problem.
   of a removed animation, so removal snapped a mid-ripple card face on
   and restarted the wave with a jump. The ripple runs on under the fan.
 - **A reveal's title is an SVG textPath, and its name is on the
-  container.** `ArchedTitle` sets the word on one even circular arc
-  (radius 8.2em, Stan's "less strewn ... 15% taller"), drawn in an
-  aria-hidden SVG; the wrapper carries `role="heading"` and the label,
-  because an aria-label on a plain div is not read at all.
+  container.** `ArchedTitle` sets the word on one circular arc, drawn in
+  an aria-hidden SVG; the wrapper carries `role="heading"` and the label,
+  because an aria-label on a plain div is not read at all. The circle is
+  chosen by the END LETTERS' LEAN (`ARCH.lean`, 15deg), with the radius
+  worked out from Rye's real advances in a layout effect (and again once
+  the fonts are in), so every title is the same arc whatever its length.
+  **"Taller" has no single measure here, so say which one you used.** The
+  old fan leaned its end letters 16deg but kept them almost in a line
+  (0.098em of rise on the baselines); the first arc (a fixed 8.2em radius)
+  rose 0.15 to 0.19em but leaned only 12 to 13deg. By position the first
+  arc was nearly twice as tall, by lean it was flatter, and side by side
+  on the real reveal the two read the same, because a lean reads as arc
+  as much as a rise does. That is how the first version shipped claiming
+  "15% taller" and a review measured it as not taller at all
+  (2026-09-18). Judge an arc change by a screenshot beside the old one,
+  not by one number.
 - **A reveal's thump sits ON its card's stop, and the next card waits.**
   The slap is an ease-in fall to a dead stop (`SLAP` in interstitials.jsx,
   `slapDown` in index.html), `SLAP.land` equals `SLAP.dur`, and cards are
@@ -843,19 +861,28 @@ looks broken locally, it is not a missing-secret problem.
   screen at that instant, not just its own. `window.__cueLog` (set it to
   `[]` from a harness) records each cue's name and time on the page clock;
   nothing in the game sets it.
-- **YOUR counter of her Ace plays out too, and it runs inside HER turn**
-  (2026-09-17, Stan: "we should see the animation where the user's Ace
+- **YOUR counter of her Ace plays out too, and it can run inside HER
+  turn** (2026-09-17, Stan: "we should see the animation where the user's Ace
   flies at and intercepts the opp's ace"). `onPlayerCounterAce` flies
   `counterBackMotions` through the attack's own strike machinery, flagged
   `reverse`: her Ace comes up face up and is thrown at your pile first
   (her higher whoosh), yours 100ms later, they meet short of your pile,
   and yours wins: hers is knocked back up off the top, yours stands lit in
-  voltage (a scripted flight's `glowColor`) and leaves right. Three things
-  differ because it is her turn. The AI gate does NOT clear `aiGo` for a
-  reverse strike: her runner still owes its ADVANCE_FROM, and clearing it
-  cancelled that and restarted her turn from the top, a second move. The
-  dim stays off (her attack never dimmed the table, and its spotlight sits
-  on HER pile). And her second Ace, if she has one, waits in `strike.after`
+  voltage (a scripted flight's `glowColor`) and leaves right. The loser
+  arrives at the meeting size and the winner at least a tenth bigger,
+  in both counters: on a desktop her face-down cards are as big as your
+  hand's, and arriving "no smaller than she rose" made HER Ace the bigger
+  card at your win (0.886 to 0.774), the tie Stan had already fixed once. Her runner's
+  ADVANCE_FROM fires 2.9s into her turn whatever the prompt is doing, so a
+  counter answered within about 1.8s plays out while her turn still owes
+  it, and a slower one lands in yours (measured both, 2026-09-18). Three
+  things follow. The AI gate does NOT clear `aiGo` for a reverse strike:
+  in the quick case that cancelled her ADVANCE_FROM and restarted her turn
+  from the top, a second move. The dim stays off (her attack never dimmed
+  the table, and its spotlight sits on HER pile), the hidden REMOVE row
+  that holds the wide table's height through YOUR attack is not mounted
+  (it rescaled the table 4.7% as both Aces rose), and nothing in the band
+  shows until it is over, SCRAP included. And her second Ace, if she has one, waits in `strike.after`
   until both Aces have left, plus `RECOUNTER_BEAT`. PLAYER_COUNTER_ACE
   commits at the end of the hit-stop and spends the first Ace in your
   hand, which is the card the animation throws.

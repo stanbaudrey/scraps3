@@ -78,6 +78,9 @@ const prefersReducedMotion = () => {
 // an ease-in; see slapDown in index.html), the thump and the sawdust are
 // ON the stop (`land` = `dur`), and the next card starts 70ms after it.
 const SLAP = { dur: 170, stagger: 240, land: 170, ease: 'cubic-bezier(.5,0,.85,.5)' };
+// A tap this soon after one that landed a resting frame is the second
+// half of a double-click, not a request to move on (see onTap).
+const LAND_GRACE = 400;
 const ROLL = 380;                       // the score's old digit out, new digit in
 const JUMP = 500;                       // the match-winning score's jump and vibrate
 // The sweep: a shadow band crosses first, then each element leaves
@@ -658,31 +661,65 @@ const T = {
 };
 // The arch, rebuilt 2026-09-17 (Stan: "faint and fanned, but less strewn.
 // an even and designed arc, 15% taller"). It was each letter turned about
-// a pivot under it, the wordmark's hover fan, which kept the letters'
-// feet on a straight line and splayed their heads apart: it read as
-// strewn. Now the word is SET ON A CURVE, an SVG textPath along a circle,
-// so every letter sits on one even arc at its own advance and turns to
-// the tangent. The radius is 8.2em, which lifts the middle of a
-// six-letter title ~0.33em over its ends: 15% over the ~0.28em the old
-// fan's end letters read as. Faint as before (frost at 46%).
-const ARCH = { radius: 8.2 };
+// a pivot under it, the wordmark's hover fan: the end letters leaned 16deg
+// as if on an arc, but the letters themselves stayed almost in a straight
+// line (their baselines rose 0.098em from the ends to the middle), and a
+// lean with nothing under it read as strewn. Now the word is SET ON A
+// CURVE, an SVG textPath along a circle, so every letter sits on one arc
+// at its own advance and turns to the tangent.
+//
+// The circle is chosen by the END LETTERS' LEAN, not a fixed radius, so
+// every title has the same arc whatever its length: the radius is the end
+// letters' distance from the middle, measured off Rye's real advances,
+// over the lean. The first version used a fixed radius (8.2em): SCRAPS
+// curved a quarter again as much as HAND 1, and its end letters leaned
+// only 12 to 13 degrees, so beside the old fan it read no taller at all
+// (review, 2026-09-18). Measured the same way, on each letter's baseline,
+// the old fan rose 0.098em with a 16deg lean and that version 0.15 to
+// 0.19em with 12 to 13; side by side on the real reveal the two read as
+// the same height, because a lean reads as arc as much as a rise does.
+// 15deg, on the circle, reads about 15% taller than both. Faint as
+// before (frost at 46%).
+const ARCH = { lean: 15 };
 function ArchedTitle({ text }) {
   const { w } = useViewport();
   const fs = Math.max(40, Math.min(62, 0.072 * w));
   const id = `arch-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const R = ARCH.radius * fs;
+  const textRef = useRef(null);
+  // How far the end letters' centres sit from the middle along the arc,
+  // in ems. Estimated until measured, and measured again once the fonts
+  // are in: a measurement taken in the fallback face is wrong.
+  const [reach, setReach] = useState(null);
+  useLayoutEffect(() => {
+    let live = true;
+    const measure = () => {
+      const t = textRef.current;
+      if (!live || !t || !t.getNumberOfChars) return;
+      try {
+        const n = t.getNumberOfChars();
+        if (n < 2) return;
+        const L = t.getComputedTextLength();
+        const a = (L - (t.getSubStringLength(0, 1) + t.getSubStringLength(n - 1, 1)) / 2) / 2;
+        if (a > 0) setReach(a / fs);
+      } catch (e) { /* keep the estimate */ }
+    };
+    measure();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    return () => { live = false; };
+  }, [text, fs]);
+  const lean = ARCH.lean * Math.PI / 180;
+  const R = (reach ?? 0.3 * text.length) * fs / lean;
   const W = 6.6 * fs, top = 0.86 * fs;           // the middle baseline sits `top` down
-  const theta = Math.asin(Math.min(0.95, (W / 2) / R));
+  const half = Math.min(1.4, (W / 2) / R + 0.3);  // the path runs well past the word
   const cx = W / 2, cy = top + R;                 // the circle's centre, under the word
-  const x0 = cx - R * Math.sin(theta), x1 = cx + R * Math.sin(theta), y0 = cy - R * Math.cos(theta);
-  // Deep enough for the ends of the word, which sit lower on the curve.
-  const reach = Math.min(theta, (0.42 * text.length * fs) / R);
-  const H = top + R * (1 - Math.cos(reach)) + 0.16 * fs;
+  const x0 = cx - R * Math.sin(half), x1 = cx + R * Math.sin(half), y0 = cy - R * Math.cos(half);
+  // Deep enough for the end letters, which sit lower and lean outwards.
+  const H = top + R * (1 - Math.cos(lean)) + 0.24 * fs;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W.toFixed(1)} ${H.toFixed(1)}`} aria-hidden="true"
       style={{display:'block',overflow:'visible',filter:'drop-shadow(0 2px 0 rgba(0,0,0,.28))'}}>
       <path id={id} d={`M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y0.toFixed(1)}`} fill="none"/>
-      <text fontFamily={F.title} fontSize={fs.toFixed(1)} letterSpacing={(0.04 * fs).toFixed(1)}
+      <text ref={textRef} fontFamily={F.title} fontSize={fs.toFixed(1)} letterSpacing={(0.04 * fs).toFixed(1)}
         fill={DS.frost} fillOpacity={0.46} textAnchor="middle">
         <textPath href={`#${id}`} startOffset="50%">{text.toUpperCase()}</textPath>
       </text>
@@ -758,6 +795,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // the HUD's buttons under the wood.
   const quietRef = useRef(null);
   const ctaRef = useRef(null);
+  // When a tap last landed a resting frame (see onTap).
+  const landedAt = useRef(-1e9);
   const finalBtnsRef = useRef(null);
   const { at, clear } = useTimeline(R ? 0.3 : 1);
   const cued = useRef({ outcome: !!instant, end: !!instant, sweep: !!instant, cs: !!instant });
@@ -938,16 +977,23 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const onTap = useCallback((fromKey = false) => {
     const s = stepRef.current;
     const i = idx(s);
+    // A double-click whose first press landed a resting frame must not
+    // go on to leave it: the second press of a double-click on the Scraps
+    // reveal skipped the round's two-point result before it had been seen
+    // (review, 2026-09-18). A deliberate second tap still moves on.
+    const justLanded = performance.now() - landedAt.current < LAND_GRACE;
     if (i < idx('rest')) {
       // Mid-build: land on the resting frame with the score in.
       clear();
       cueOutcome();
       setFast(f => ({ ...f, build: true }));
+      landedAt.current = performance.now();
       setStep('rest');
       return;
     }
     if (s === 'rest') {
       if (handCta && fromKey !== true) return;
+      if (justLanded) return;
       if (sweepBeat) { setStep('cleanSweep'); return; }
       if (endsIt) {
         // The jump hold before the sweep. A tap here used to be
@@ -969,10 +1015,11 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       cueSweepBeat();
       setFast(f => ({ ...f, beat: true }));
       if (endsIt) cueEnd();
+      landedAt.current = performance.now();
       setStep('csRest');
       return;
     }
-    if (s === 'csRest') { runSweep(); return; }
+    if (s === 'csRest') { if (justLanded) return; runSweep(); return; }
     if (s === 'sweep' && !endsIt) {
       // The round's sweep hands off at once. Safe by construction —
       // the layer stays mounted and the ROUND sign lands on the same
@@ -1299,9 +1346,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             // rather than opacity: a hidden button is out of the tab
             // order and the accessibility tree, the same promise the
             // quiet button keeps with `disabled`.
+            // Room under it for its glow and its keyboard focus ring: it
+            // is the column's last row, and a table scaled to fit puts
+            // the column's bottom on the frame's clipped edge, which cut
+            // both off at 1024x662 (review, 2026-09-18).
             <div ref={ctaRef} onClick={e => e.stopPropagation()}
               className={atRest ? 'stage-fade' : undefined}
-              style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',
+              style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',paddingBottom:12,
                 visibility: atRest ? 'visible' : 'hidden',
                 animation: atRest ? `slideUp 340ms ${SETTLE} both` : undefined}}>
               <Btn onClick={onContinue}>{which === 'hand1' ? 'Play Hand 2' : 'Back to the table'}</Btn>
