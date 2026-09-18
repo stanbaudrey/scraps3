@@ -44,12 +44,12 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **74 tests** cover the engine, the reducer, the Ace
+- Vitest for tests. **75 tests** cover the engine, the reducer, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
   two for yours) and the ROUND sign against its beats
-  (`src/components/signCycle.test.js`, four: the loop's frames, the
-  number's flip shape, the notes). (It was 37
+  (`src/components/signCycle.test.js`, five: the loop's frames, the
+  number's flip and its pop, the notes). (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
@@ -153,7 +153,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 74 tests, runs in under a second
+npm test          # vitest, 75 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -863,7 +863,13 @@ looks broken locally, it is not a missing-secret problem.
   from one 4ms step to the next: 4.87 on that curve, 0.09 now, against
   0.12 for a ROUND card. A snappy or overshooting curve on a multi-frame
   flip will always do this; give a flip's shape to its keyframes and
-  keep its easing symmetric. The sign cycles only
+  keep its easing symmetric. The number now flips on `ribbonFlip` itself,
+  and its POP is a layer of its own around the whole 3D card (Stan, the
+  same day: "keep the pop"): `signNumberPop` on entry and `signCyclePop`
+  in the loop swell it to 1.22 at `popAt` (55%) of the flip, tilted past
+  its landing, then settle it to rotate(8deg) scale(1.12). The swell's
+  curve leaves and arrives at rest and the settle eases in and out, so
+  its speed never jumps. The sign cycles only
   after it settles and only with motion allowed; under reduced motion it
   is settled from its first frame. The voice never replays, and a tap
   that lands the entrance HUSHES it: `cue()` returns a handle whose

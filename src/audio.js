@@ -541,6 +541,10 @@ export const SIGN_BEATS = (() => {
   // `cycleDownDur`, and ROUND turns back up from `cycleUp`, a card per
   // `stagger` again; then the same pause, and the number.
   b.cycle = 6200; b.cycleDown = 0.484; b.cycleDownDur = 360; b.cycleUp = 0.645;
+  // The number's POP (Stan, 2026-09-18: "keep the pop"): on a layer of its
+  // own around the flip, it swells to 1.22 at `popAt` of the flip, then
+  // settles to its askew 1.12. signNumberPop and signCyclePop.
+  b.popAt = 0.55;
   return b;
 })();
 

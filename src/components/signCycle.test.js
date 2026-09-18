@@ -39,25 +39,45 @@ describe('the ROUND sign loop matches SIGN_BEATS', () => {
     // starts `pause` after that, less its own delay of five staggers.
     const n0 = up0 + pct(4 * B.stagger + B.flipDur + B.pause - 5 * B.stagger);
     const want = [[n0, 'rotateY(0deg)'], [n0 + pct(0.6 * B.numberDur), 'rotateY(108deg)'],
-      [n0 + pct(B.numberDur), 'rotateY(180deg) scale(1.12)']];
+      [n0 + pct(B.numberDur), 'rotateY(180deg)']];
     for (const [at, has] of want) {
       const fr = near(f, at);
       expect(fr, `a signCycleNumber frame at ${at.toFixed(2)}%`).toBeTruthy();
       expect(fr.body).toContain(has);
     }
-    // No frame carries a curve of its own: the loop's ease-in-out applies,
-    // the same as the entrance's and every ROUND flip's. A snappier curve
-    // on the number's frames is the jerk Stan saw as a glitch.
+    // The flip carries no curve of its own and no pop: the loop's
+    // ease-in-out applies, as on every ROUND letter, and the pop is
+    // signCyclePop's.
     expect(f.some(fr => fr.body.includes('animation-timing-function'))).toBe(false);
+    expect(f.some(fr => fr.body.includes('scale('))).toBe(false);
     expect(near(f, down0) && near(f, down1)).toBeTruthy();
   });
 
-  it('the number turns on the same two-frame shape as a ROUND card', () => {
-    const f = frames('signNumberIn');
-    expect(f.map(fr => fr.at)).toEqual([0, 60, 100]);
-    expect(near(f, 60).body).toContain('rotateY(108deg)');
-    expect(near(f, 100).body).toContain('rotate(8deg) rotateY(180deg) scale(1.12)');
+  it('the number pops on its own layer, in the loop and on entry, and never jumps speed', () => {
+    const n0 = up0 + pct(4 * B.stagger + B.flipDur + B.pause - 5 * B.stagger);
+    const loop = frames('signCyclePop');
+    const peak = near(loop, n0 + pct(B.popAt * B.numberDur));
+    expect(peak, 'the loop pop peaks at popAt of the flip').toBeTruthy();
+    expect(peak.body).toContain('scale(1.22)');
+    expect(near(loop, n0 + pct(B.numberDur)).body).toContain('rotate(8deg) scale(1.12)');
+    expect(near(loop, down1).body).toContain('scale(1)');
+    // The swell's curve starts and ends at rest (y1 = 0, y2 = 1); the
+    // settle takes the loop's ease-in-out. So speed is zero at the peak.
+    expect(near(loop, n0).body).toContain('animation-timing-function:cubic-bezier(.3,0,.2,1)');
+    expect(peak.body).not.toContain('animation-timing-function');
+    const entry = frames('signNumberPop');
+    expect(entry.map(fr => fr.at)).toEqual([0, 55, 100]);
+    expect(near(entry, 55).body).toContain('scale(1.22)');
+    expect(near(entry, 100).body).toContain('rotate(8deg) scale(1.12)');
+    expect(near(entry, 0).body).toContain('animation-timing-function:cubic-bezier(.3,0,.2,1)');
+    expect(B.popAt * 100).toBeCloseTo(55, 6);
+  });
+
+  it('the number flips on the ROUND letters\' own keyframes', () => {
+    // No keyframes of its own to drift: the entrance uses ribbonFlip.
+    expect(css).not.toMatch(/@keyframes signNumberIn\b/);
     expect(frames('ribbonFlip').map(fr => fr.at)).toEqual([0, 60, 100]);
+    expect(near(frames('ribbonFlip'), 60).body).toContain('rotateY(108deg)');
   });
 
   it('the notes sit on the faces, and the gap Stan hears is the one he asked for', () => {

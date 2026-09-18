@@ -364,7 +364,9 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const k = Math.max(0.34, Math.min(1, (Math.min(w, 860) - 48) / rowW, (0.24 * h) / d.h));
   const numScale = num.length > 1 && num !== '10' ? 0.52 : 0.78;
   const REST_WORD = 'rotateY(180deg) translateY(0)';
-  const REST_NUM = 'translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)';
+  // The number's askew, bigger landing lives on its POP layer (see the
+  // markup below), so its flip is exactly a ROUND letter's.
+  const REST_POP = 'translateY(0) rotate(8deg) scale(1.12)';
   const card = (i, ch, isNum) => {
     const x = isNum ? numberX : i * (d.w + GAP);
     const t = i / 4;
@@ -374,27 +376,39 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
       ? (isNum ? `signCycleNumber ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
                : `signCycleWord ${B.cycle}ms ease-in-out ${i * B.stagger}ms infinite`)
       : stop ? undefined
-      : isNum ? `signNumberIn ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`
+      : isNum ? `ribbonFlip ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`
       : `ribbonFlip ${B.flipDur}ms ease-in-out ${B.flipAt + i * B.stagger}ms both`;
+    const popAnim = !isNum ? undefined
+      : cycling ? `signCyclePop ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
+      : stop ? undefined
+      : `signNumberPop ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`;
+    const flipBox = (
+      <div style={{width:d.w,height:d.h,perspective:900}}>
+        <div className={cycling ? 'sign-cycle' : 'stage-flip'}
+          style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
+            transform: REST_WORD, animation: flipAnim}}>
+          <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden'}}>
+            <PlayingCard card={null} faceDown size="normal" liftTransform={false}/>
+          </div>
+          <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
+            <PlayingCard card={{ id:`sign-${i}`, rank:ch }} rankScale={isNum ? numScale : 0.78}
+              rankAlign="center" size="normal" liftTransform={false}/>
+          </div>
+        </div>
+      </div>
+    );
     return (
       <div key={i} style={{position:'absolute',left:x * k,top:y * k,width:d.w * k,height:d.h * k,zIndex:isNum ? 9 : i,
         '--dx': `${Math.round((rowW / 2 - x - d.w / 2) * k)}px`, '--rot': `${rot.toFixed(1)}deg`,
         transform:`rotate(${rot.toFixed(1)}deg)`,
         animation: stop ? undefined : `dealOn ${B.dealDur}ms cubic-bezier(.2,.9,.3,1.05) ${i * B.deal}ms both`}}>
         <div style={{width:d.w,height:d.h,transform:`scale(${k})`,transformOrigin:'0 0'}}>
-          <div style={{width:d.w,height:d.h,perspective:900}}>
-            <div className={cycling ? 'sign-cycle' : 'stage-flip'}
-              style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
-                transform: isNum ? REST_NUM : REST_WORD, animation: flipAnim}}>
-              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden'}}>
-                <PlayingCard card={null} faceDown size="normal" liftTransform={false}/>
-              </div>
-              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
-                <PlayingCard card={{ id:`sign-${i}`, rank:ch }} rankScale={isNum ? numScale : 0.78}
-                  rankAlign="center" size="normal" liftTransform={false}/>
-              </div>
-            </div>
-          </div>
+          {/* The number's POP wraps the whole 3D card as one flat layer,
+              so its swell and tilt never touch the flip inside it. */}
+          {isNum ? (
+            <div className={cycling ? 'sign-cycle' : undefined}
+              style={{width:d.w,height:d.h,transform:REST_POP,animation:popAnim}}>{flipBox}</div>
+          ) : flipBox}
         </div>
       </div>
     );
