@@ -246,7 +246,7 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
 
   return (
     <div ref={(el) => { rootRef.current = el; dialogRef.current = el; }}
-      role="dialog" aria-modal="true" aria-label={label} tabIndex={-1}
+      role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} className="fit-frame"
       style={{position:'fixed',inset:0,zIndex:500,background:DS.timber,overflow:'hidden',
         outline:'none',userSelect:'none'}}>
       <div aria-hidden="true" style={{position:'absolute',left:0,right:0,top:wood.top,height:wood.height}}>
@@ -886,14 +886,18 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   useEffect(() => {
-    if ((step === 'rest' || step === 'csRest') && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
+    // preventScroll, every one: the stage is overflow-clipped with wood
+    // hanging past its edges, and a plain focus() scrolled it to reach a
+    // button still sliding up, shifting the wood off the table's seams
+    // (3px at 1024x662, 11px on a landscape phone; review, 2026-09-18).
+    if ((step === 'rest' || step === 'csRest') && quietRef.current && !quietRef.current.disabled) quietRef.current.focus({ preventScroll: true });
     if ((step === 'rest' || step === 'csRest') && namedCta && ctaRef.current) {
       const b = ctaRef.current.querySelector('button');
-      if (b) b.focus();
+      if (b) b.focus({ preventScroll: true });
     }
     if (step === 'final' && finalBtnsRef.current) {
       const b = finalBtnsRef.current.querySelector('button');
-      if (b) b.focus();
+      if (b) b.focus({ preventScroll: true });
     }
   }, [step]);
 
@@ -1005,9 +1009,14 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       setStep('rest');
       return;
     }
-    // The named button passes 'button': it is always deliberate, so it
-    // is never held back as half of a double-click.
-    const pressed = fromKey === true || fromKey === 'button';
+    // The named button passes 'pointer' for a click or tap and 'button' for
+    // a key. A pointer press is held by the grace like any tap: the first
+    // press of a double-click (or a double TAP, which a phone never marks
+    // as one) landed the resting frame and put the button under the
+    // finger, and the second then swept the Scraps result away unseen
+    // (review, 2026-09-18). A key press is never half of a double-click,
+    // and a held key's repeats are cancelled at the button.
+    const pressed = fromKey === true || fromKey === 'button' || fromKey === 'pointer';
     if (s === 'rest') {
       if (namedCta && !pressed) return;
       if (justLanded && fromKey !== 'button') return;
@@ -1064,6 +1073,9 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // moving through the cards) so Enter still moves things on.
   useEffect(() => {
     const onKey = (e) => {
+      // A HELD key is one press: its repeats ran straight through the
+      // Scraps result, the Clean Sweep beat and the sweep in 150ms.
+      if (e.repeat) return;
       if (e.target && e.target.closest && e.target.closest('button')) return;
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); onTap(true); }
     };
@@ -1375,12 +1387,15 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             // is the column's last row, and a table scaled to fit puts
             // the column's bottom on the frame's clipped edge, which cut
             // both off at 1024x662 (review, 2026-09-18).
+            // A held Enter on the button itself repeats its click too;
+            // cancelling the repeats' keydown cancels those clicks.
             <div ref={ctaRef} onClick={e => e.stopPropagation()}
+              onKeyDownCapture={e => { if (e.repeat && (e.key === 'Enter' || e.key === ' ')) e.preventDefault(); }}
               className={atRest ? 'stage-fade' : undefined}
               style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',paddingBottom:12,
                 visibility: atRest ? 'visible' : 'hidden',
                 animation: atRest ? `slideUp 340ms ${SETTLE} both` : undefined}}>
-              <Btn onClick={() => onTap('button')}>{ctaLabel}</Btn>
+              <Btn onClick={(e) => onTap(e && e.detail === 0 ? 'button' : 'pointer')}>{ctaLabel}</Btn>
             </div>
           ) : (
             <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>

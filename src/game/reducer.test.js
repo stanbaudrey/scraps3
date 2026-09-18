@@ -416,6 +416,43 @@ describe('AI_COUNTER_ACE cancels both Aces', () => {
     expect(out.playerHand.filter(x => x.rank === 'A')).toHaveLength(1);
   });
 
+  // Stan, 2026-09-18: after she counters, a held Ace makes the turn
+  // ATTACK or END TURN, and nothing may be scrapped. The rule lives here,
+  // not only in which buttons the table happens to show.
+  it('holding another Ace, the turn is ATTACK or END TURN: no scrapping', () => {
+    const s = armed(2);
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out.counterStand).toBe(true);
+    const seven = out.playerHand.find(x => x.rank === '7');
+    expect(gameReducer(out, { type: 'PLAYER_TRADE_TAKE', cards: [seven] })).toBe(out);
+    expect(gameReducer(out, { type: 'PLAYER_TRADE_OVERFLOW_START', cards: [seven], drawCount: 1, excess: 1 })).toBe(out);
+    // Ending the turn clears it, and so does an attack that lands.
+    const ended = gameReducer(out, { type: 'PLAYER_END_TURN' });
+    expect(ended.counterStand).toBe(false);
+    expect(ended.phase).toBe(nextPhaseAfterTrade(s.phase, s.roundNum));
+    const ace = out.playerHand.find(x => x.rank === 'A');
+    const landed = gameReducer(out, { type: 'PLAYER_ACE_APPLY', aceId: ace.id,
+      targetIds: out.aiScraps.slice(0, 2).map(x => x.id) });
+    expect(landed.counterStand).toBe(false);
+    expect(landed.phase).toBe(nextPhaseAfterTrade(s.phase, s.roundNum));
+    // A new round never starts inside a stand.
+    expect(gameReducer(out, { type: 'START_ROUND', deal: buildRoundDeal(), alternate: true }).counterStand).toBe(false);
+  });
+
+  it('with no Ace left the turn is simply over, and no stand is set', () => {
+    const s = armed(1);
+    const out = gameReducer(s, {
+      type: 'AI_COUNTER_ACE',
+      playerAceId: s.playerHand[0].id,
+      aiAceId: s.aiHand[0].id,
+    });
+    expect(out.counterStand).toBe(false);
+  });
+
   it('is a real case, not a fall-through to default', () => {
     const s = armed(1);
     const out = gameReducer(s, {

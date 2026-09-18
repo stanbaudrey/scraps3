@@ -44,7 +44,7 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **72 tests** cover the engine, the reducer, the Ace
+- Vitest for tests. **74 tests** cover the engine, the reducer, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
   two for yours) and the ROUND sign against its beats
@@ -153,7 +153,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 72 tests, runs in under a second
+npm test          # vitest, 74 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -650,15 +650,24 @@ looks broken locally, it is not a missing-secret problem.
   from the first frame and shown when the build lands; a tap on the wood
   mid-build jumps to that resting frame, button and all, but at REST only
   the button, or Enter/Space, moves on (`namedCta` in `RevealScene`; the
-  button calls `onTap('button')`, which the double-click grace below never
-  holds back). The ROUND sign and the match screen still say CLICK (or
-  TAP) ANYWHERE. The button's row
+  button calls `onTap('pointer')` for a click or tap and `onTap('button')`
+  for a key, `e.detail === 0`). The ROUND sign and the match screen still
+  say CLICK (or TAP) ANYWHERE. The button's row
   keeps 12px under it: it is the column's last row, and a table scaled to
   fit puts the column's bottom on the frame's clipped edge, which cut its
-  glow and its focus ring off at 1024x662. And on every reveal, a tap
-  within `LAND_GRACE` (400ms) of one that landed a resting frame is
-  ignored, because it is the second half of a double-click: that second
-  press used to skip the Scraps reveal's two-point result unseen. The
+  glow and its focus ring off at 1024x662. And on every reveal, a pointer
+  press within `LAND_GRACE` (400ms) of one that landed a resting frame is
+  ignored, the named button's included, because it is the second half of
+  a double-click: its first press lands the frame and puts the button
+  under the pointer, and the second used to sweep the Scraps result away
+  unseen. `e.detail` cannot tell those apart, because a phone never marks
+  a double TAP as one. A key is never held back, and a HELD key never
+  repeats: the window listener drops `e.repeat`, and the button's row
+  cancels a repeated Enter's keydown, which is what fires the click (it
+  ran through the result, the beat and the sweep in 150ms). Every focus()
+  on the stage passes `preventScroll`, and the stage root is `fit-frame`
+  (overflow clip): it has wood hanging past its edges, and a plain focus
+  scrolled it, shifting the wood off the table's seams by 3 to 40px. The
   root's `onClick` calls `onTap()` with no argument on purpose: the key
   path passes `true`, and a click handed straight through would pass its
   event object, which is truthy, and read as a key.
@@ -729,7 +738,8 @@ looks broken locally, it is not a missing-secret problem.
   than carrying two dashed "empty" slots, and their boxes keep their height
   so nothing else moves.
 - **The narrator band is a fixed SLOT with a floating PANEL, and the two are
-  not the same box.** FitBox scales the table by its natural height, so every
+  not the same box.** (`NARRATOR_H` counts the panel's 1px border too since
+  2026-09-18; phones ran 2px over whenever the band was full.) FitBox scales the table by its natural height, so every
   pixel the band gains or loses resizes the opponent's hand; on a phone the
   copy changing length was visibly resizing the whole table between turns.
   The slot is `NARRATOR_H` — derived in `GameScreen.jsx` from the band's own
@@ -798,17 +808,21 @@ looks broken locally, it is not a missing-secret problem.
 - **After she counters your Ace, the turn is ATTACK or END TURN**
   (2026-09-18, Stan). Her notice says "She countered your Ace." and, under
   the two crossed Aces, "Both Aces discarded. No Scraps removed.", with
-  OKAY, whether or not you hold another Ace. Holding one, the reducer
-  keeps the turn (`AI_COUNTER_ACE`), `counterStand` puts END TURN in the
-  band and the narrator says "Attack with another Ace, or end your
-  turn.", ATTACK sits on the Aces left, every other card dims
-  (FannedHand `dimIds`) while the Aces lean (`wiggleIds`), and nothing in
-  the hand can be picked, so there is no scrapping after a counter. It
-  repeats for every Ace; a landed attack ends the turn as it always has,
-  and a counter with no Ace left ends it too. Her side already had the
-  same shape: after YOUR counter she comes straight back with another Ace
-  if she has one (the re-counter), and otherwise her turn ends; she never
-  scraps after being countered.
+  OKAY, whether or not you hold another Ace. Holding one, the REDUCER
+  keeps the turn and sets `state.counterStand` (`AI_COUNTER_ACE`), and
+  refuses every scrap while it is set (`PLAYER_TRADE_TAKE`,
+  `PLAYER_TRADE_OVERFLOW_START`, `PLAYER_SCRAP_WITH_DISCARD`); END TURN, a
+  landed attack, a skip and a new round clear it, and reducer.test.js
+  holds all of that. The table reads the same flag: END TURN in the band,
+  the narrator saying "Attack with another Ace, or end your turn.", ATTACK
+  on the Aces left, every other card dimmed (FannedHand `dimIds`) while
+  the Aces lean (`wiggleIds`), nothing in the hand pickable, and focus on
+  END TURN after OKAY. It repeats for every Ace; a landed attack ends the
+  turn as it always has, and a counter with no Ace left ends it too. Her
+  side has the same shape, and her turn now HOLDS it (`aiAceTurn`): after
+  your counter she comes straight back with another Ace if she has one
+  (the re-counter), and otherwise her turn ends; she never scraps after
+  being countered.
 - **Her counter is HER win, on purpose** (2026-09-17, Stan: it read as a
   tie). `clashMotions` throws your Ace first, exactly as a landed throw
   is drawn and thrown, and hers `CLASH.answer` (100ms) later and quicker,
@@ -916,13 +930,19 @@ looks broken locally, it is not a missing-secret problem.
   arrives at the meeting size and the winner at least a tenth bigger,
   in both counters: on a desktop her face-down cards are as big as your
   hand's, and arriving "no smaller than she rose" made HER Ace the bigger
-  card at your win (0.886 to 0.774), the tie Stan had already fixed once. Her runner's
-  ADVANCE_FROM fires 2.9s into her turn whatever the prompt is doing, so a
-  counter answered within about 1.8s plays out while her turn still owes
-  it, and a slower one lands in yours (measured both, 2026-09-18). Three
-  things follow. The AI gate does NOT clear `aiGo` for a reverse strike:
-  in the quick case that cancelled her ADVANCE_FROM and restarted her turn
-  from the top, a second move. The dim stays off (her attack never dimmed
+  card at your win (0.886 to 0.774), the tie Stan had already fixed once.
+  **Her turn holds until her whole Ace exchange is over** (`aiAceTurn`,
+  2026-09-18). It used to hand over on the runner's flat 2.9s timer
+  whatever the Ace was doing, so after a counter her second Ace always
+  arrived with "Your turn. Scrap cards." already showing. When her
+  action is an Ace the runner skips that timer and marks the phase; an
+  effect hands the turn over `AI_EXCHANGE_BEAT` (600ms) after nothing is
+  left: no prompt, no reveal, no strike, no second Ace on its way
+  (`recounterPending`), no cards in flight. Measured: her second Ace now
+  follows "She's thinking...", and your turn starts 600ms after her
+  discards land. The AI gate does NOT clear `aiGo` for a reverse strike:
+  clearing it would cancel her runner and restart her turn from the top,
+  a second move. The dim stays off (her attack never dimmed
   the table, and its spotlight sits on HER pile), the hidden REMOVE row
   that holds the wide table's height through YOUR attack is not mounted
   (it rescaled the table 4.7% as both Aces rose), and nothing in the band

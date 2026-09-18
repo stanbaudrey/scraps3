@@ -148,6 +148,8 @@ const SCRAPS_LABEL = 'Play Scraps Hand';
 // Aces have left the table (it was a flat 900ms from the button when the
 // counter did not play out).
 const RECOUNTER_BEAT = 380;
+// After her whole Ace exchange is over, before her turn hands over.
+const AI_EXCHANGE_BEAT = 600;
 
 const poseOf = (r, size) => ({
   x: r.left + r.width / 2, y: r.top + r.height / 2, rot: r.rot || 0,
@@ -182,6 +184,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     playerScore, aiScore, roundWins, phase, roundNum,
     playerSignal, aiSignal, playerPlayed, aiPlayed, signalLocked,
     pendingTrade, scrapsOverflow, pendingAiAce, gameOver, log, currentTurn,
+    // After she counters your Ace while you hold another: ATTACK or END
+    // TURN only. The reducer owns it and refuses any scrap while it is set.
+    counterStand,
   } = state;
 
   // Timers read the freshest state through this ref, so a timeout
@@ -217,6 +222,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // Her second Ace after your counter (onPlayerCounterAce), cleared if the
   // table goes away first, so it cannot play its sound after QUIT.
   const recounterTimer = useRef(0);
+  // After OKAY on her counter notice, focus goes to END TURN, the one
+  // control the stand always has: it used to drop to the page, and a
+  // keyboard player had to Tab to find the turn again (review, 2026-09-18).
+  const endTurnRef = useRef(null);
+  const focusStandRef = useRef(false);
   // Bumped when her pile is hit, so its remaining cards hop.
   const [joltKey, setJoltKey] = useState(0);
   // Where the pool of light sits in the dim: her pile, in the dim
@@ -242,7 +252,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // turn stays live but it is not a normal turn: the only way to carry
   // on is to spend another Ace. Trading is off the table until you
   // either attack again or end the turn.
-  const [counterStand, setCounterStand]     = useState(false);
   // The interstitial layer (interstitials.jsx). ONE piece of state
   // for every full-screen moment between hands: null while the table
   // is live, `{kind:'sign'}` for ROUND N, `{kind:'reveal', ...}` for a
@@ -756,7 +765,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const s = stateRef.current;
     const aiAce = shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)
       ? (s.aiHand.find(c => c.rank === 'A') || null) : null;
-    const stillArmed = !!aiAce && s.playerHand.some(c => c.rank === 'A' && c.id !== ace.id);
     const targets = [...aceTargets];
     const sz = szRef.current;
     const k = tableScale();
@@ -768,15 +776,15 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
 
     const st = {
       countered: !!aiAce, committed: false, impacted: false, timers: [], t0: performance.now(),
-      notice: aiAce ? { playerAce: ace, aiAce, stillArmed } : null,
+      notice: aiAce ? { playerAce: ace, aiAce } : null,
       // THE COMMIT, in one place, so the timeline and a skip both land
       // here and it can only ever happen once.
       commit() {
         if (st.committed) return;
         st.committed = true;
         if (aiAce) {
+          // The reducer sets counterStand itself when you still hold an Ace.
           dispatch({ type: 'AI_COUNTER_ACE', playerAceId: ace.id, aiAceId: aiAce.id });
-          setCounterStand(stillArmed);
         } else {
           dispatch({ type: 'PLAYER_ACE_APPLY', aceId: ace.id, targetIds: targets.map(c => c.id) });
         }
@@ -786,7 +794,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     strikeRef.current = st;
     const later = (fn, ms) => { st.timers.push(setTimeout(fn, ms)); };
     const rm = prefersReducedMotion();
-    setCounterStand(false);
     setStrike({ countered: !!aiAce });
 
     const measured = aceRect && targetRects.every(Boolean) && (!aiAce || herRect);
@@ -1004,7 +1011,8 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // effect on `pendingAiAce` below is the same rule stated as an
     // invariant, so no future entry path can reintroduce this.
     const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== herAce.id);
-    const recounter = nextAce && s.playerScraps.length >= 2 ? () => { recounterTimer.current = setTimeout(() => {
+    const recounter = nextAce && s.playerScraps.length >= 2 ? () => { setRecounterPending(true); recounterTimer.current = setTimeout(() => {
+      setRecounterPending(false);
       const cur = stateRef.current;
       if (cur.gameOver || cur.pendingAiAce) return;
       if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
@@ -1160,6 +1168,17 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // the phase alone, because phase names repeat across rounds and a
   // stale 'ai-turn-1a' would silence a genuine think in round three.
   const [aiMoveDone, setAiMoveDone] = useState(null);
+  // HER ACE EXCHANGE, held inside her turn (review, 2026-09-18). Her turn
+  // used to hand over on a flat 2.9s timer whatever the Ace was doing, so
+  // after a counter her SECOND Ace always arrived with "Your turn. Scrap
+  // cards." already on the table. Stan's rule is that after a counter she
+  // plays another Ace or ends her turn, which only reads if she is still
+  // in it. `aiAceTurn` is the phase her Ace came out in; the turn hands
+  // over once nothing of the exchange is left: no counter prompt, no
+  // reveal, no counter in the air, no second Ace on its way, no cards in
+  // flight. `recounterPending` covers the beat before her second Ace.
+  const [aiAceTurn, setAiAceTurn] = useState(null);
+  const [recounterPending, setRecounterPending] = useState(false);
   // The explainer, mirrored into a ref so the RUNNER can check it too.
   // Effects flush in declaration order and this gate is declared above
   // the effect that opens the explainer, so on the tick where an Ace
@@ -1239,6 +1258,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       if (aceDrawnRef.current) return;
 
       const action = aiDecide(s.aiHand, s.aiScraps, s.playerScraps, s.deck, difficulty, phase, s.aiScore, s.playerScore);
+      let aceTurn = false;
 
       if (action.type === 'trade' && action.cards.length > 0) {
         // Animate AI selection: lift cards, then fly to scraps
@@ -1299,7 +1319,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       } else if (action.type === 'ace') {
         const ace = s.aiHand.find(c => c.rank === 'A');
         if (ace && action.targetCards.length >= 2) {
-          T(() => handleAiAce(ace, action.targetCards.slice(0, 2)), 300);
+          // Her turn stays open until the whole Ace exchange is over (see
+          // `aiAceTurn`), rather than handing over on the timer below.
+          aceTurn = true;
+          T(() => { setAiAceTurn(phase); handleAiAce(ace, action.targetCards.slice(0, 2)); }, 300);
         }
       } else if (action.type === 'skip') {
         // No legal move — the AI's trade is skipped (same rule the
@@ -1308,13 +1331,34 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         dispatch({ type: 'AI_SKIP' });
       }
 
-      T(() => {
+      if (!aceTurn) T(() => {
         dispatch({ type: 'ADVANCE_FROM', phase });
       }, 2100);
     }, 800);
 
     return () => timers.forEach(clearTimeout);
   }, [aiGo]);
+
+  useEffect(() => {
+    if (!focusStandRef.current || aiCounterNotice) return;
+    focusStandRef.current = false;
+    const b = endTurnRef.current && endTurnRef.current.querySelector('button');
+    if (b) b.focus({ preventScroll: true });
+  });
+
+  // Her Ace exchange is over: a beat, then her turn hands over. See
+  // `aiAceTurn`.
+  useEffect(() => {
+    if (!aiAceTurn) return undefined;
+    if (phase !== aiAceTurn || gameOver) { setAiAceTurn(null); return undefined; }
+    if (pendingAiAce || aiAceReveal || strike || recounterPending || animating) return undefined;
+    setAiMoveDone(aiAceTurn);
+    const t = setTimeout(() => {
+      setAiAceTurn(null);
+      dispatch({ type: 'ADVANCE_FROM', phase: aiAceTurn });
+    }, AI_EXCHANGE_BEAT);
+    return () => clearTimeout(t);
+  }, [aiAceTurn, phase, gameOver, pendingAiAce, aiAceReveal, strike, recounterPending, animating]);
 
   // ── AI signals first (even rounds) ─────────────────────────
   // The player sees "Opponent signals N cards" before selecting.
@@ -1917,7 +1961,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       <BigBtn compact={pileBtnCompact} onClick={confirmAce} disabled={aceTargets.length!==2}>
         Remove ({aceTargets.length}/2)
       </BigBtn>
-      <BigBtn variant="ghost" compact={pileBtnCompact} onClick={()=>{setAceMode(null);setAceTargets([]);}}>Cancel</BigBtn>
+      <BigBtn variant="ghost" compact={pileBtnCompact} onClick={()=>{setAceMode(null);setAceTargets([]);
+        // The log's last line otherwise still read "Select 2 cards..."
+        // under a narrator saying something else (review, 2026-09-18).
+        dispatch({ type: 'LOG', msg: 'Attack cancelled.' });}}>Cancel</BigBtn>
     </>
   );
   const removeBtns = aceMode && !strike ? removePair : null;
@@ -2018,7 +2065,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   //   wide, tight  34 + 66.3 + 10 + 62 = 172
   //   wide, roomy  34 + 97.5 + 10 + 62 = 204
   const NARRATOR_H = Math.round(
-      (stack ? 24 : 34)           // padding, top + bottom
+      2                           // the panel's 1px border, top + bottom (it
+                                  // was left out, and phones ran 2px over)
+    + (stack ? 24 : 34)           // padding, top + bottom
     + (tight ? 17 : 25) * 3.9     // the narrator's three-line slot
     + (stack ? 8 : 10)            // the gap above the buttons
     + (stack ? 54 : 62));         // the tallest button row it can hold
@@ -2055,7 +2104,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const col = el.closest('[data-narrator]');
     const w = col && col.parentElement ? col.parentElement.clientWidth : 0;
     if (w && Math.abs(w - bandW) > 0.5) setBandW(w);
-  }, [hint, hintNode, tight, stack, vp.w, vp.h, hintLines, bandW]);
+  }, [hint, tight, stack, vp.w, vp.h, hintLines, bandW]);
   const narratorSilent = !hint && !tradeError && !hasActionButtons;
 
   // A button that CHARGES when pressed (Stan, 2026-09-16, for SHOW 'EM):
@@ -2225,10 +2274,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
             another Ace. It sits in the middle of the action row; the
             ATTACK tags stay above the Aces still in hand. */}
         {counterStand&&isPlayerTurn&&!aceMode&&!strike&&(
+          <span ref={endTurnRef} style={{display:'contents'}}>
           <BigBtn variant="ghost" compact={tight}
-            onClick={()=>{ setCounterStand(false); setSelected([]); dispatch({ type:'PLAYER_END_TURN' }); }}>
+            onClick={()=>{ setSelected([]); dispatch({ type:'PLAYER_END_TURN' }); }}>
             End Turn
           </BigBtn>
+          </span>
         )}
         {isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand&&!strike&&(
           <>
@@ -2625,7 +2676,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         <AiCounterNotice
           playerAce={aiCounterNotice.playerAce}
           aiAce={aiCounterNotice.aiAce}
-          onOk={()=>setAiCounterNotice(null)}
+          onOk={()=>{ setAiCounterNotice(null); focusStandRef.current = true; }}
         />
       )}
       {mustSkip&&!dealHold&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(

@@ -342,8 +342,10 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
+        {/* Balanced lines: on a 390 phone both lines broke to leave one
+            word alone on the last ("Ace.", "removed."). */}
         <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
-          letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
+          letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2,textWrap:'balance'}}>
           {/* Stan's copy, 2026-09-18. What happens next is the table's
               to say: with another Ace in hand the narrator offers it or
               END TURN; without one the turn has already ended. */}
@@ -362,7 +364,7 @@ export function AiCounterNotice({ playerAce, aiAce, onOk }) {
             </div>
           ))}
         </div>
-        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24,textWrap:'balance'}}>
           Both Aces discarded. No Scraps removed.
         </p>
         <Btn onClick={onOk}>Okay</Btn>

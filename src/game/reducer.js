@@ -177,6 +177,10 @@ export function createInitialState() {
     signalLocked: false,
     pendingTrade: null, scrapsOverflow: 0,
     pendingAiAce: null,
+    // She countered your Ace and you still hold one: the turn is ATTACK
+    // or END TURN, and nothing may be scrapped (Stan, 2026-09-18). Set by
+    // AI_COUNTER_ACE, cleared by the turn ending or an attack landing.
+    counterStand: false,
     // Cards in transit: removed from hand/deck but not yet landed
     // in scraps/hand, so animations can play before they appear.
     arrivals: { player: { toScraps: [], toHand: [] } },
@@ -213,7 +217,7 @@ export function gameReducer(state, action) {
         playerPlayed: null, aiPlayed: null,
         signalLocked: false,
         pendingTrade: null, scrapsOverflow: 0,
-        pendingAiAce: null,
+        pendingAiAce: null, counterStand: false,
         arrivals: { player: { toScraps: [], toHand: [] } },
         currentTurn: 1,
         phase: 'dealing',
@@ -239,6 +243,7 @@ export function gameReducer(state, action) {
     // `arrivals` until the flight animation lands, then the
     // ARRIVE actions below move them into scraps/hand.
     case 'PLAYER_TRADE_TAKE': {
+      if (state.counterStand) return state;   // no scrapping after a counter
       const cards = action.cards;
       if (!cards || cards.length === 0) return state;
       const ids = new Set(cards.map(c => c.id));
@@ -288,6 +293,7 @@ export function gameReducer(state, action) {
     // The scrap would push Scraps past 7, so the player must pick
     // cards to discard first. Older scraps become eligible.
     case 'PLAYER_TRADE_OVERFLOW_START': {
+      if (state.counterStand) return state;
       return {
         ...state,
         pendingTrade: { cards: action.cards, drawCount: action.drawCount },
@@ -298,7 +304,7 @@ export function gameReducer(state, action) {
     }
 
     case 'PLAYER_SCRAP_WITH_DISCARD': {
-      if (!state.pendingTrade) return state;
+      if (!state.pendingTrade || state.counterStand) return state;
       const { cards, drawCount } = state.pendingTrade;
       const discardIds = new Set(action.discardCards.map(c => c.id));
       const tradeIds = new Set(cards.map(c => c.id));
@@ -330,6 +336,7 @@ export function gameReducer(state, action) {
       if (!PLAYER_TURN_PHASES.includes(state.phase)) return state;
       return {
         ...state,
+        counterStand: false,
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         log: addLog(state, 'You end your turn.'),
@@ -340,6 +347,7 @@ export function gameReducer(state, action) {
       if (!PLAYER_TURN_PHASES.includes(state.phase)) return state;
       return {
         ...state,
+        counterStand: false,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         log: addLog(state, 'You have no legal trades available. Your trade is skipped.'),
       };
@@ -403,6 +411,7 @@ export function gameReducer(state, action) {
       const targets = state.aiScraps.filter(c => targetIds.has(c.id));
       return {
         ...state,
+        counterStand: false,
         playerHand: state.playerHand.filter(c => c.id !== ace.id),
         aiScraps: state.aiScraps.filter(c => !targetIds.has(c.id)),
         discard: [...state.discard, ace, ...targets],
@@ -442,6 +451,7 @@ export function gameReducer(state, action) {
         playerHand,
         aiHand: state.aiHand.filter(c => c.id !== aiAce.id),
         discard: [...state.discard, playerAce, aiAce],
+        counterStand: stillArmed,
         ...(stillArmed ? {} : {
           currentTurn: state.currentTurn + 1,
           phase: nextPhaseAfterTrade(state.phase, state.roundNum),
