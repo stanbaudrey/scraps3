@@ -34,7 +34,7 @@ const TARGET = {
   handLost: .34, roundSign: .40, roundLost: .46, roundWon: .50, aceStrike: .56,
   gameLost: .66, gameWon: .72, aceCounter: .80, cleanSweep: .94, revealBuild: .297,
   // The Throw, 2026-09-16.
-  lock: .12, whoosh: .18, chips: .26, armDraw: .30, clash: .56,
+  lock: .12, whoosh: .18, whooshHer: .18, chips: .26, armDraw: .30, clash: .56,
 };
 const only = process.argv.slice(2);
 

@@ -115,7 +115,7 @@ export function OpponentBar({ aiScore, difficultyLabel, compact=false }) {
   return (
     <div style={{...BAR, padding:compact?'3px 12px':'6px 22px', gap:compact?8:16,
       borderBottom:`1px solid ${DS.slate}22`}}>
-      <Score label="OPP" value={aiScore} color={DS.ember} align="left" compact={compact}/>
+      <Score label="HER" value={aiScore} color={DS.ember} align="left" compact={compact}/>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
         {/* The match condition is reference, not action. Stacked, it
             is the first thing to go: the rules panel still carries

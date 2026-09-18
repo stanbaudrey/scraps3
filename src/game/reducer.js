@@ -447,8 +447,8 @@ export function gameReducer(state, action) {
           phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         }),
         log: addLog(state, stillArmed
-          ? 'They had an Ace too. Both gone. You still hold one — attack again or scrap.'
-          : 'They had an Ace too. Both gone. Turn over.'),
+          ? 'She had an Ace too. Both gone. You still hold one — attack again or scrap.'
+          : 'She had an Ace too. Both gone. Turn over.'),
       };
     }
 

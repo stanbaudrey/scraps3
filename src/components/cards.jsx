@@ -947,25 +947,14 @@ export function HandUpgradeBadge({ cards, fontSize=15 }) {
 // bands, and a pile is capped at 7 cards, so 7 is the honest maximum.
 const SHADOW_BASE = (cardW) => cardW * 7 + 16;
 
-// A sight on a target: a ring, a centre pip and four ticks, in her
-// ember because it marks her card. It settles in from a larger, turned
-// ring (`reticleIn`), which under reduced motion lands on its frame.
-function Reticle({ size }) {
-  return (
-    <svg className="reticle" width={size} height={size} viewBox="0 0 48 48" style={{overflow:'visible',
-      filter:'drop-shadow(0 1px 1px rgba(0,0,0,.5))',
-      animation:'reticleIn 240ms cubic-bezier(.2,.9,.3,1.2) both'}}>
-      <circle cx="24" cy="24" r="17" fill="none" stroke={DS.ember} strokeWidth="2.8"/>
-      <circle cx="24" cy="24" r="2.8" fill={DS.ember}/>
-      <path d="M24 1v9M24 38v9M1 24h9M38 24h9" stroke={DS.ember} strokeWidth="2.8" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
+// There are no sights on an attack's targets any more (Stan,
+// 2026-09-17: "omit the shooter's crosshair"). A target is marked the
+// way every picked card is, lifted and lit, and it stays that way until
+// the Ace knocks it off.
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
   onCardClick, discardMode=false, isOpponent=false, glowZone=false, glowStrong=false,
   registerEl=null, hiddenIds=new Set(),
-  size='small', width=340, fill=false, markIds=null, joltKey=0 }) {
+  size='small', width=340, fill=false, joltKey=0 }) {
 
   const sorted = sortByValue(cards);
   const glowColor = isOpponent ? DS.ember : DS.voltage;
@@ -1164,26 +1153,6 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
             })}
           </div>
         </GlowPulse>
-        {/* THE SIGHTS (The Throw, 2026-09-16): each card picked as a
-            target of your Ace gets a sight settled over it. A SIBLING of
-            GlowPulse and never a child of it, for the reason in its
-            header — the glow traces the alpha of everything inside it,
-            and a sight in there would be ringed in ember too. Laid out
-            with the same arithmetic as the cards, lift included. */}
-        {markIds && markIds.size > 0 && (
-          <div aria-hidden="true" style={{position:'absolute',inset:0,zIndex:2,pointerEvents:'none'}}>
-            {sorted.map((card, i) => markIds.has(card.id) && (
-              <div key={card.id} style={{position:'absolute',
-                left: Math.round((innerW + 20 - pileW) / 2) + i * step, top: padTop,
-                width: cardW, height: cardH,
-                transform: `translateY(${selectedIds.has(card.id) ? -lift : 0}px)`,
-                transition: 'transform 0.22s cubic-bezier(.34,1.2,.64,1)',
-                display:'flex', alignItems:'center', justifyContent:'center'}}>
-                <Reticle size={Math.round(cardW * 0.9)}/>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
       {/* The caption is the best hand in the pile and nothing else now.
           The OPP SCRAPS / YOUR SCRAPS line that used to lead it is gone

@@ -44,9 +44,9 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **64 tests** cover the engine, the reducer and the Ace
-  attack's motion math (`src/components/throwMotion.test.js`, seven, added
-  with The Throw on 2026-09-16). (It was 37
+- Vitest for tests. **66 tests** cover the engine, the reducer and the Ace
+  attack's motion math (`src/components/throwMotion.test.js`, seven added
+  with The Throw on 2026-09-16 and two on 2026-09-17 for her counter). (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
@@ -96,7 +96,7 @@ evaluator to make that true: it always read rank and value only.
   resonators acting as the body of an object.
   **The rule is now: a physical event is an untuned object, a score outcome
   is a tuned bar.** That is a real change from the old rule, which was the
-  flat "no oscillator ever plays a note" — six of the **twenty-one** cues are
+  flat "no oscillator ever plays a note" — six of the **twenty-two** cues are
   now xylophone or marimba bars in G major pentatonic, built by `bar()` from a
   real bar's partials (1 : 3.01 : 6.03 for a xylophone, 1 : 3.99 : 9.18 for a
   marimba — the ratios a genuine undercut arch produces). A xylophone bar is
@@ -110,10 +110,12 @@ evaluator to make that true: it always read rank and value only.
   plus block, untuned) and `roundSign` (the ROUND N sign: the splash's old
   square-up phrase, retimed to the sign's letters and routed through TRIM at
   last). The Ace attack added five on 2026-09-16, all untuned: `armDraw`
-  (ATTACK pressed), `lock` (a sight on a target), `whoosh` (the throw),
+  (ATTACK pressed), `lock` (a target picked), `whoosh` (the throw),
   `chips` (under the hit) and `clash` (her counter meeting your Ace), plus
   a `swish()` helper — swept noise, no pitch. Four measured identical to
-  their bench trims. **There is no brass anywhere** — the bench offered four brass
+  their bench trims. `whooshHer` followed on 2026-09-17: her Ace thrown
+  back at yours when she counters, the same air with its band raised and
+  a little shorter, 100ms after yours (Stan's call), trimmed at 48 kHz. **There is no brass anywhere** — the bench offered four brass
   options on every messaging cue and Stan took none. See the file's own header
   and the Gotchas below.
 - Asset files in the repo, and there are only two kinds: the **14
@@ -148,7 +150,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 64 tests, runs in under a second
+npm test          # vitest, 66 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -742,6 +744,29 @@ looks broken locally, it is not a missing-secret problem.
   the slot's handler used to catch the tag's Enter as it bubbled, cancel it
   and select the Ace for scrapping, so no keyboard user could attack. Found
   2026-09-16; it predated The Throw.
+- **Her counter is HER win, on purpose** (2026-09-17, Stan: it read as a
+  tie). `clashMotions` throws your Ace first, exactly as a landed throw
+  is drawn and thrown, and hers `CLASH.answer` (100ms) later and quicker,
+  so they still meet together; hers is drawn bigger and on top, yours is
+  smashed back down off the bottom, and hers stands upright, lit
+  (`glow`, a pose field MotionGhost paints as an ember drop-shadow), holds
+  the table, then leaves right like any discard. The two whooshes are
+  timed to `myThrowAt` and `herThrowAt` from the same motion, so the sound
+  order cannot drift from the picture. The attack's dim stays down under
+  her notice (`dimOn` includes `aiCounterNotice`, which only a clash
+  opens): lifting it as the notice's backdrop arrived flipped the table
+  from warm dark to green in one beat.
+- **A reveal's thump sits ON its card's stop, and the next card waits.**
+  The slap is an ease-in fall to a dead stop (`SLAP` in interstitials.jsx,
+  `slapDown` in index.html), `SLAP.land` equals `SLAP.dur`, and cards are
+  `SLAP.stagger` apart with 70ms between one landing and the next card
+  starting. Before 2026-09-17 each thump was measured within 25ms of its
+  own card's end and still sounded early to Stan: the drops overlapped and
+  glided in, so every thump coincided with the NEXT card appearing. When a
+  sound reads as early or late, measure it against every moving thing on
+  screen at that instant, not just its own. `window.__cueLog` (set it to
+  `[]` from a harness) records each cue's name and time on the page clock;
+  nothing in the game sets it.
 - **An effect keyed on a counter fires on a CHANGE, never on mount.** Her
   pile's hop reads `joltKey` against a ref, because the two layouts put the
   pile under different parents and a rotation remounts it holding the last

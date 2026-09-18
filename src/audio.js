@@ -316,8 +316,14 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 //   scrap .30 · roundSign .40 · roundLost .46 · roundWon .50
 //   aceStrike .56 · gameLost .66 · gameWon .72 · aceCounter .80
 //   cleanSweep .94 · revealBuild .297
-//   the attack's own: lock .12 · whoosh .18 · chips .26 · armDraw .30
-//   · clash .56
+//   the attack's own: lock .12 · whoosh .18 · whooshHer .18 · chips .26
+//   · armDraw .30 · clash .56
+//
+// `whooshHer` is NEW on 2026-09-17: her Ace thrown when she counters,
+// the same air as `whoosh` with its band raised and a little shorter,
+// played 100ms after yours (Stan: "a similar but higher pitched sound
+// for her throw than the player's, slightly after"). Same target as
+// `whoosh`, because it is the same kind of thing.
 //
 // The five attack cues are NEW on 2026-09-16 (The Throw). Their
 // targets are the ones The Chopping Block bench auditioned them at:
@@ -407,6 +413,8 @@ const TRIM = {
   whoosh:      1.5310,
   chips:       17.8972,
   clash:       1.9616,
+  // Her whoosh, 2026-09-17, tools/trim-measure.mjs at 48 kHz.
+  whooshHer:   1.1410,
 };
 
 // Every cue routes through here, so a cue is written at its
@@ -427,6 +435,12 @@ const burstN = { select: 0, draw: 0 };
 // timer, for the few that must land a fixed hair after another: the
 // wood chips 15ms under the Ace's hit, a sight's lock after its select.
 function cue(name, delay = 0) {
+  // QA only: a harness that sets `window.__cueLog = []` can read which
+  // cues played and when, on the page's clock, to check a sound against
+  // the frame it belongs to. Nothing in the game sets it.
+  if (typeof window !== 'undefined' && window.__cueLog) {
+    window.__cueLog.push({ name, at: performance.now() + 20 + delay * 1000 });
+  }
   const c = getAudioCtx();
   if (!c) return;
   const out = c.createGain();
@@ -728,7 +742,7 @@ const VOICES = {
     tap(c, o, t + .18, MAT.woodHi, { gain: .55, exc: .004, curve: 5, seed: 14 });
   },
 
-  /** A sight settles on a target. One small, hard, high dowel tick,
+  /** A target picked for your Ace. One small, hard, high dowel tick,
    *  answering the select that picked the card. */
   lock: (c, o, t) => {
     tap(c, o, t, scaleMat(MAT.dowel, 1.2), { gain: .7, exc: .002, curve: 7, seed: 111 });
@@ -736,6 +750,11 @@ const VOICES = {
 
   /** The Ace thrown: air, rising as it comes. */
   whoosh: (c, o, t) => swish(c, o, t, { dur: .36, f0: 420, f1: 2300, q: .8, gain: .22, seed: 51 }),
+
+  /** Her Ace thrown back at yours when she counters: the same air, the
+   *  band raised by about two thirds and a little shorter, because hers
+   *  is the quicker throw. Still no note: the band sweeps. */
+  whooshHer: (c, o, t) => swish(c, o, t, { dur: .3, f0: 700, f1: 3800, q: .8, gain: .22, seed: 53 }),
 
   /** Wood chips off the table under the hit: seven little dowel and
    *  block ticks thinning out. The jitter is a fixed table, not a
@@ -768,7 +787,7 @@ export const CUE_DUR = {
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
   gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
   slap: .30, roundSign: 1.10,
-  armDraw: .36, lock: .08, whoosh: .36, chips: .28, clash: .36,
+  armDraw: .36, lock: .08, whoosh: .36, whooshHer: .30, chips: .28, clash: .36,
 };
 
 /** Schedule a cue into any context — the live one or an offline
@@ -810,6 +829,7 @@ export function playRoundSign()  { cue('roundSign'); }
 export function playArmDraw()    { cue('armDraw'); }
 export function playLock()       { cue('lock', 0.06); }
 export function playWhoosh()     { cue('whoosh'); }
+export function playHerWhoosh()  { cue('whooshHer'); }
 export function playChips()      { cue('chips', 0.015); }
 export function playClash()      { cue('clash'); cue('aceCounter', 0.02); }
 

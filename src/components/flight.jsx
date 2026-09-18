@@ -37,6 +37,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 import { TRAIL } from "./throwMotion.js";
+import { DS } from "../styles/theme.js";
 
 const DURATION = 620;
 export const prefersReducedMotion = () => {
@@ -251,6 +252,13 @@ function Ghost({ flight, onDone }) {
 // ─────────────────────────────────────────────────────────────
 const poseTransform = (p) =>
   `translate3d(${p.x}px,${p.y}px,0) rotate(${p.rot}deg) scale(${p.s * (p.sx ?? 1)},${p.s})`;
+const GHOST_SHADOW = 'drop-shadow(0 12px 26px rgba(0,0,0,.6))';
+// A pose may carry `glow`, 0 to 1: her Ace lit in ember while it holds
+// the table after winning a counter. Hex alpha, never color-mix: see the
+// drop-shadow note in CLAUDE.md's Gotchas.
+const ghostFilter = (g) => (g > 0.01
+  ? `${GHOST_SHADOW} drop-shadow(0 0 ${(4 + 14 * g).toFixed(1)}px ${DS.ember}${Math.round(Math.min(1, g) * 230).toString(16).padStart(2, '0')})`
+  : GHOST_SHADOW);
 
 function MotionGhost({ flight, onDone }) {
   const { motion, card, faceDown, fromScrap, kraft, fromSize, trails, rmSafe, born } = flight;
@@ -271,6 +279,9 @@ function MotionGhost({ flight, onDone }) {
         const show = i === 0 || (p.trail && ti > 0);
         el.style.opacity = show ? String((p.o ?? 1) * (TRAIL.alpha[i] ?? 0.1)) : '0';
         if (show) el.style.transform = poseTransform(p);
+        if (i === 0 && p.glow !== undefined && el.firstElementChild) {
+          el.firstElementChild.style.filter = ghostFilter(p.glow);
+        }
       }
     };
     const step = (now) => {
@@ -295,7 +306,7 @@ function MotionGhost({ flight, onDone }) {
         opacity: i === 0 ? (p0.o ?? 1) : 0,
       }}>
         <div style={{position:'relative', transform:'translate(-50%,-50%)',
-          filter: i === 0 ? 'drop-shadow(0 12px 26px rgba(0,0,0,.6))' : undefined}}>
+          filter: i === 0 ? GHOST_SHADOW : undefined}}>
           <PlayingCard card={card} faceDown={faceDown} isScrap={fromScrap} kraft={kraft}
             size={fromSize} liftTransform={false}/>
         </div>

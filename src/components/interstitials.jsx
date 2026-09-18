@@ -70,7 +70,14 @@ const prefersReducedMotion = () => {
 // Timing, as the bench measured it. Every number in play below is
 // one of these, so a retune is a one-line edit and not a hunt.
 // ─────────────────────────────────────────────────────────────
-const SLAP = { dur: 280, stagger: 230, land: 250, ease: 'cubic-bezier(.3,1.1,.5,1)' };
+// The slap, retimed 2026-09-17 (Stan: the thump played "when the card
+// appears and BEGINS its descent"). Measured before: every thump was
+// within 25ms of its own card's end, but the drops overlapped (230ms
+// apart, 280 long) and glided in, so each thump coincided with the NEXT
+// card appearing. Now each card falls faster into a dead stop (`ease` is
+// an ease-in; see slapDown in index.html), the thump and the sawdust are
+// ON the stop (`land` = `dur`), and the next card starts 70ms after it.
+const SLAP = { dur: 170, stagger: 240, land: 170, ease: 'cubic-bezier(.5,0,.85,.5)' };
 const ROLL = 380;                       // the score's old digit out, new digit in
 const JUMP = 500;                       // the match-winning score's jump and vibrate
 // The sweep: a shadow band crosses first, then each element leaves
@@ -758,7 +765,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   // ── The match screen ───────────────────────────────────────
-  const word = mineWon ? ['YOU WIN'] : ['OPPONENT', 'WINS.'];
+  // SHE WINS. on one row, mirroring YOU WIN (Stan, 2026-09-17). It was
+  // OPPONENT / WINS. over two rows, which is why the rows machinery is
+  // here: it still lays out any word list.
+  const word = mineWon ? ['YOU WIN'] : ['SHE WINS.'];
   const pace = mineWon ? 1 : LOSS_PACE;
   const longest = Math.max(...word.map(r => r.length)) - 1;
   const rowsExtra = (word.length - 1) * ROW_OFFSET;
@@ -891,7 +901,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // `stage-fade` is the reduced-motion fade-on; it comes OFF while
   // sweeping, or the substitute would fade a leaving line back in.
   const fadeCls = sweeping ? undefined : 'stage-fade';
-  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : 'OPPONENT WINS';
+  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : 'SHE WINS';
   const verdictColor = tie ? DS.slate : mineWon ? DS.voltage : DS.ember;
   const title = which === 'hand1' ? 'Hand 1' : which === 'hand2' ? 'Hand 2' : 'Scraps';
 
@@ -951,7 +961,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const scoreRow = (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',
       width:'min(100%, 440px)',padding:'0 6px'}}>
-      <ScoreRoll label="OPP" {...sa} mine={false} align="left" sweepDelay={sd('score-a')}/>
+      <ScoreRoll label="HER" {...sa} mine={false} align="left" sweepDelay={sd('score-a')}/>
       <ScoreRoll label="YOU" {...sp} mine align="right" sweepDelay={sd('score-p')}/>
     </div>
   );
@@ -986,10 +996,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               <div className="stage-fade" style={{fontFamily:F.display,fontSize:'clamp(22px,4vw,34px)',
                 color:DS.ember,letterSpacing:'0.04em',lineHeight:1,
                 animation: showFinal ? fadeIn(300, 0, fe) : undefined, opacity: showFinal ? 1 : 0}}>
-                Opponent wins.
+                She wins.
               </div>
             )}
-            {/* The final score keeps the reveal's geometry — OPP on the
+            {/* The final score keeps the reveal's geometry — HER on the
                 left, YOU on the right, each labelled — rather than a
                 winner-first pair the player had to decode. The winner's
                 numeral carries the colour. */}
@@ -998,7 +1008,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               opacity: showFinal ? 1 : 0}}>
               <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:14,letterSpacing:'0.28em',marginBottom:6}}>FINAL SCORE</div>
               <div style={{display:'flex',alignItems:'baseline',gap:'clamp(18px,4vw,40px)'}}>
-                {[['OPP', bonus.a, !won], ['YOU', bonus.p, won]].map(([lbl, n, isWinner]) => (
+                {[['HER', bonus.a, !won], ['YOU', bonus.p, won]].map(([lbl, n, isWinner]) => (
                   <div key={lbl} style={{display:'flex',alignItems:'baseline',gap:10,
                     flexDirection: lbl === 'YOU' ? 'row-reverse' : 'row'}}>
                     <span style={{fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>{lbl}</span>
@@ -1034,7 +1044,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
           </Btn>
         </div>
         <div className="sr-only" role="status" aria-live="polite">
-          {showFinal ? `${won ? 'You win' : 'Opponent wins'}. Final score: you ${bonus.p}, opponent ${bonus.a}.` : ''}
+          {showFinal ? `${won ? 'You win' : 'She wins'}. Final score: you ${bonus.p}, her ${bonus.a}.` : ''}
           {shareState === 'copied' ? ' Copied to the clipboard.' : ''}
           {shareState === 'failed' ? " Couldn't share from here." : ''}
         </div>
@@ -1137,8 +1147,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
           </SlideBox>
 
           <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : `opponent wins with ${aiHandName}`}.` : ''}
-            {ticked ? ` Score: you ${sp.to}, opponent ${sa.to}.` : ''}
+            {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : `she wins with ${aiHandName}`}.` : ''}
+            {ticked ? ` Score: you ${sp.to}, her ${sa.to}.` : ''}
             {beatOn ? ' Clean sweep: all three hands, plus one bonus point.' : ''}
           </div>
           {handCta ? (

@@ -24,7 +24,7 @@ import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
   playInvalid, playRevealBuild,
-  playArmDraw, playLock, playWhoosh, playChips, playClash } from "../audio.js";
+  playArmDraw, playLock, playWhoosh, playHerWhoosh, playChips, playClash } from "../audio.js";
 import { useCardMotion, prefersReducedMotion, screenPose } from "../components/flight.jsx";
 import { useImpactFx, AttackTagEcho, shakeElement } from "../components/impact.jsx";
 import { THROW, CLASH, RM_FADE, throwMotion, knockOffPair, clashMotions, fadeMotion }
@@ -650,11 +650,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // ── Player Ace ─────────────────────────────────────────────
   // THE THROW, in three presses. ATTACK arms it (doPlayAce): the tag is
   // struck, the Ace comes up out of your fan and hovers, and the table
-  // goes dark around her pile. Each card you pick gets a sight
-  // (toggleAceTarget). REMOVE throws it (confirmAce): drawn back, thrown
-  // spinning into the gap between the two targets, a hit-stop, and both
-  // cards knocked off the table while the Ace spins away. If she
-  // counters, her Ace comes up out of her hand and the two meet in the air.
+  // goes dark around her pile. Each card you pick lifts and lights, the
+  // way any picked card does (toggleAceTarget). REMOVE throws it
+  // (confirmAce): drawn back, thrown spinning into the gap between the
+  // two targets, a hit-stop, and both cards knocked off the table while
+  // the Ace spins away. If she counters, her Ace comes up out of her hand
+  // and is thrown back at yours a beat later, and SHE wins the collision.
 
   // The table's scale on screen, read off a real element.
   const tableScale = () => {
@@ -697,9 +698,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   }
   function toggleAceTarget(card) {
     if (strikeRef.current) return;
-    playSelect();
-    // A sight settles on a card as it is picked (HorizontalScrapsZone
-    // draws it), with its own small lock under the select.
+    // The pile has already played the select for this click (its own
+    // onClick and onKeyDown do); this used to play a second one on top.
+    // A target being added gets its own small lock under the select.
     if (!aceTargets.some(c => c.id === card.id) && aceTargets.length < 2) playLock();
     setAceTargets(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : prev.length < 2 ? [...prev, card] : prev);
   }
@@ -826,32 +827,40 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       return;
     }
 
-    // ── She counters ──
-    // Her Ace comes up out of her hand, turning face up; both fly; they
-    // meet in the air a little past the middle of the table.
+    // ── She counters, and wins ──
+    // Yours is drawn back and thrown as ever; hers comes up out of her
+    // hand and is thrown a beat later, quicker, and meets yours short of
+    // her pile: halfway across, and lower than halfway, so hers has come
+    // further in less time. Yours is smashed back down past your hand;
+    // hers stands up, lit, holds the table, then leaves for the discard
+    // pile. Her notice opens once both are gone (endStrike).
     const mine = poseOf(aceRect, sz.hand);
-    const meet = { x: mine.x + (P.x - mine.x) * 0.55, y: mine.y + (P.y - mine.y) * 0.5 };
-    const cm = clashMotions({ mine, hers: poseOf(herRect, sz.hand), meet, K, s1: pileW * 1.1 / handW });
+    const meet = { x: mine.x + (P.x - mine.x) * 0.5, y: mine.y + (P.y - mine.y) * 0.45 };
+    const cm = clashMotions({ mine, hers: poseOf(herRect, sz.hand), meet, K,
+      s1: pileW * 1.1 / handW, floorY: window.innerHeight + CARD_DIMS[sz.pile].h * k + 40 });
     const t0 = performance.now();
+    // Hers is second in the list, so it is drawn over yours at the hit.
     fly([
       { card: ace, fromSize: sz.hand, motion: cm.mine, trails: 3, hideIds: [ace.id], born: t0 },
       { card: aiAce, fromSize: sz.hand, motion: cm.hers, trails: 2, hideIds: [aiAce.id], born: t0 },
     ]);
-    playLock();
-    later(playWhoosh, CLASH.rise);
+    // Your throw, then hers a beat after it, higher (Stan, 2026-09-17).
+    later(playWhoosh, cm.myThrowAt);
+    later(playHerWhoosh, cm.herThrowAt);
     later(() => {
       st.impacted = true;
       playClash();
-      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 100 * K, dur: 0.3, color: DS.ember, lw: 5 * K,
+      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 110 * K, dur: 0.32, color: DS.ember, lw: 6 * K,
         wait: CLASH.hold / 1000 });
       setStrike(v => v && { ...v, impacted: true });
     }, cm.clashAt);
     later(() => {
       st.commit();
-      shakeRef.current = shakeElement(frameRef.current, 8 * K, 260);
-      fx.burst(meet.x, meet.y, { n: 18, kind: 'ember', spread: Math.PI * 2, sp: [160, 520], g: 900,
-        life: [0.35, 0.7], K });
-      later(endStrike, CLASH.away);
+      shakeRef.current = shakeElement(frameRef.current, 9 * K, 280);
+      // Her embers spray the way her hit went: down her line, at you.
+      fx.burst(meet.x, meet.y, { n: 20, kind: 'ember', ang: cm.hitAng, spread: Math.PI * 1.1,
+        sp: [180, 560], g: 900, life: [0.35, 0.7], K });
+      later(endStrike, cm.dur - cm.commitAt);
     }, cm.commitAt);
   }
 
@@ -1422,8 +1431,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   const glowOppScraps = !!aceMode && !strike;
   // The attack's dim, from ATTACK until the lights come back. Three
   // things stay lit above it: her pile (with its buttons), the narrator
-  // band, and the armed Ace itself.
-  const dimOn = !!aceMode || !!strike;
+  // band, and the armed Ace itself. When she counters it stays down
+  // under her notice until you close it (her notice only ever opens at
+  // the end of a clash): lifting it as the notice's own backdrop came in
+  // flipped the table from warm dark to green in one beat.
+  const dimOn = !!aceMode || !!strike || !!aiCounterNotice;
   const rmNow = prefersReducedMotion();
 
   // No-legal-trade handling: if no trade can keep the hand at 7 or
@@ -1796,8 +1808,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
           registerEl={registerCard} hiddenIds={allHiddenIds}
           isOpponent={true} glowZone={glowOppScraps}
-          // The sights stay on until the Ace arrives.
-          markIds={aceMode&&!(strike&&strike.impacted)?aceTargetIds:null}
           joltKey={joltKey}
           size={SZ.pile} width={stack?railW:340} fill={stack}/>
         {/* REMOVE, under her pile, in the wide layout — see pileBtns. */}

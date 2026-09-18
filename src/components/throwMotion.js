@@ -33,14 +33,25 @@
 // gap and the table holds its breath for a few frames before anything
 // reacts. It is the single cheapest thing that makes a hit feel heavy.
 export const THROW = { draw: 130, fly: 380, hold: 85, rebound: 900 };
-// Her counter: her Ace comes up out of her hand, both fly, they meet.
-export const CLASH = { rise: 200, fly: 320, hold: 75, away: 900 };
+// Her counter, reworked 2026-09-17 (Stan: "make her counter look more
+// like a win for her"). It read as a tie: both Aces flew at once, met
+// and bounced apart evenly. Now yours is drawn back and thrown exactly
+// as in the landed throw (`draw`); hers comes up out of her hand and
+// turns face up meanwhile (`rise`), and is thrown `answer` ms AFTER
+// yours, which is also when her higher whoosh plays. Hers is the quicker
+// throw, so both still arrive together (`fly` is yours). After the
+// hit-stop (`hold`) yours is smashed back down past your own hand, and
+// hers follows through, turns upright, grows, glows and holds (`win`)
+// before it leaves for the discard pile off the right edge (`away`).
+export const CLASH = { draw: THROW.draw, rise: 170, answer: 100, fly: 300, hold: 90, win: 440, away: 700 };
 // Motion trails: copies of the card a few frames behind it, fading.
 export const TRAIL = { lag: 26, alpha: [1, 0.26, 0.18, 0.10] };
 // Reduced motion: nothing travels, the cards that leave fade in place.
 export const RM_FADE = 280;
 
 export const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+// Past the mark and back: her Ace standing up to its full size.
+const backOut = (t) => { const c = 1.70158; const u = t - 1; return 1 + (c + 1) * u * u * u + c * u * u; };
 // A throw leaves fast and keeps accelerating into the target.
 export const throwEase = (t) => 0.35 * t + 0.65 * t * t;
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
@@ -140,46 +151,78 @@ export function knockOffPair(poses, K, floorY) {
   ].map((m, i) => ({ motion: m, pose: i === 0 ? a : b }));
 }
 
-// Her counter. Both Aces meet in the air a little past the middle of
-// the table and are knocked apart. `mine` is your hovering Ace's pose,
-// `hers` her face-down card's, `meet` the point they collide at.
-export function clashMotions({ mine, hers, meet, K = 1, s1 }) {
-  const tRise = CLASH.rise, tFly = tRise + CLASH.fly, tHold = tFly + CLASH.hold;
-  const dur = tHold + CLASH.away;
-  const myTo = { x: meet.x - 10 * K, y: meet.y + 14 * K, rot: mine.rot + 540, s: s1 };
-  const herUp = { x: hers.x, y: hers.y + 26 * K, rot: 0, s: hers.s * 1.08 };
-  const herTo = { x: meet.x + 10 * K, y: meet.y - 14 * K, rot: -540, s: s1 };
-  const away = (p, vx, vy, spin) => ({ x0: p.x, y0: p.y, vx: vx * K, vy: vy * K, g: 2200 * K,
-    spin, rot0: p.rot, s0: s1, sPeak: 1.06, dur: CLASH.away / 1000 });
-  const myAway = away(myTo, 300, -520, -900);
-  const herAway = away(herTo, 650, -760, 960);
-  const leg = (from, to, arc, t) => {
-    const e = throwEase((t - tRise) / CLASH.fly);
+// Her counter, and her win. `mine` is your hovering Ace's pose, `hers`
+// her face-down card's, `meet` the point they collide at, `floorY` the
+// line your Ace has fallen past when it is gone. `glow` (0 to 1) in her
+// poses is the ember light around her Ace while it holds the table.
+export function clashMotions({ mine, hers, meet, K = 1, s1, floorY }) {
+  const tDraw = CLASH.draw, tClash = tDraw + CLASH.fly;
+  const tGo = tDraw + CLASH.answer, tHold = tClash + CLASH.hold, tWin = tHold + CLASH.win;
+  const fly = (from, to, arc, t0, t) => {
+    const e = throwEase(clamp01((t - t0) / (tClash - t0)));
     return { ...bowAt(from, to, arc, e), rot: lerp(from.rot, to.rot, e), s: lerp(from.s, to.s, e), trail: true };
   };
-  const spinAway = (b, t) => {
-    const tr = Math.min(t - tHold, CLASH.away);
-    return { ...ballisticAt(b, tr / 1000), o: tailFade(tr / CLASH.away), trail: false };
-  };
+  // Yours, drawn back as in the landed throw and thrown two turns.
+  const back = { x: mine.x, y: mine.y + 16 * K, rot: -42, s: mine.s * (1.05 / 1.12) };
+  const myTo = { x: meet.x - 8 * K, y: meet.y + 10 * K, rot: back.rot + 720, s: s1 };
+  // Hers: up out of her hand, then thrown a turn and a half, arriving
+  // bigger than yours and on top of it.
+  const herUp = { x: hers.x, y: hers.y + 26 * K, rot: 0, s: hers.s * 1.08 };
+  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: -540, s: s1 * 1.12 };
+  // Her line of travel is the way the hit goes.
+  const hl = Math.hypot(herTo.x - herUp.x, herTo.y - herUp.y) || 1;
+  const ux = (herTo.x - herUp.x) / hl, uy = (herTo.y - herUp.y) / hl;
+  // She follows through a little and stands up: upright, bigger.
+  const herWin = { x: herTo.x + ux * 16 * K, y: herTo.y + uy * 16 * K, rot: -720, s: s1 * 1.26 };
+  // Yours goes back the way it came and along her line, shrinking as
+  // it drops, spinning hard, until it has fallen off the screen.
+  const bl = Math.hypot(back.x - myTo.x, back.y - myTo.y) || 1;
+  const kvx = ((back.x - myTo.x) / bl) * 620 * K + ux * 320 * K;
+  const kvy = ((back.y - myTo.y) / bl) * 620 * K + uy * 320 * K;
+  const knockT = fallTime(myTo.y, kvy, 2600 * K, floorY, 0.45, 1.2);
+  const knock = { x0: myTo.x, y0: myTo.y, vx: kvx, vy: kvy, g: 2600 * K, spin: -1500,
+    rot0: myTo.rot, s0: s1, sPeak: 0.78, dur: knockT };
+  // Hers, when it is done, spins off the right edge like any discard.
+  const exit = { x0: herWin.x, y0: herWin.y, vx: 1150 * K, vy: -420 * K, g: 1700 * K, spin: 760,
+    rot0: herWin.rot, s0: herWin.s, sPeak: 1.04, dur: CLASH.away / 1000 };
+  const knockMs = knockT * 1000;
+  const dur = Math.max(tHold + knockMs, tWin + CLASH.away);
   return {
-    dur, clashAt: tFly, commitAt: tHold,
+    dur, myThrowAt: tDraw, herThrowAt: tGo, clashAt: tClash, commitAt: tHold,
+    // The angle her hit travels at, for the debris.
+    hitAng: Math.atan2(uy, ux),
     mine: { dur, at(t) {
-      if (t < tRise) return { ...mine, trail: false };
-      if (t < tFly) return leg(mine, myTo, 0.15, t);
+      if (t < tDraw) {
+        const e = easeOut(clamp01(t / tDraw));
+        return { x: lerp(mine.x, back.x, e), y: lerp(mine.y, back.y, e),
+          rot: lerp(mine.rot, back.rot, e), s: lerp(mine.s, back.s, e), trail: false };
+      }
+      if (t < tClash) return fly(back, myTo, 0.15, tDraw, t);
       if (t < tHold) return { ...myTo, trail: false };
-      return spinAway(myAway, t);
+      const tr = Math.min(t - tHold, knockMs);
+      return { ...ballisticAt(knock, tr / 1000), o: tailFade(tr / knockMs), trail: false };
     } },
     hers: { dur, at(t) {
-      if (t < tRise) {
+      if (t < CLASH.rise) {
         // Up out of her hand and face up: a sliver that widens, which
         // reads as the card flipping over as it comes.
-        const e = easeOut(clamp01(t / tRise));
+        const e = easeOut(clamp01(t / CLASH.rise));
         return { x: hers.x, y: lerp(hers.y, herUp.y, e), rot: lerp(hers.rot, 0, e),
-          s: lerp(hers.s, herUp.s, e), sx: lerp(0.2, 1, e), o: e, trail: false };
+          s: lerp(hers.s, herUp.s, e), sx: lerp(0.2, 1, e), o: e, trail: false, glow: 0 };
       }
-      if (t < tFly) return leg(herUp, herTo, -0.15, t);
-      if (t < tHold) return { ...herTo, trail: false };
-      return spinAway(herAway, t);
+      if (t < tGo) return { ...herUp, trail: false, glow: 0 };
+      if (t < tClash) return { ...fly(herUp, herTo, -0.15, tGo, t), glow: 0 };
+      if (t < tHold) return { ...herTo, trail: false, glow: clamp01((t - tClash) / CLASH.hold) };
+      if (t < tWin) {
+        const e = clamp01((t - tHold) / 240);
+        const m = easeOut(e);
+        return { x: lerp(herTo.x, herWin.x, m), y: lerp(herTo.y, herWin.y, m),
+          rot: lerp(herTo.rot, herWin.rot, m), s: lerp(herTo.s, herWin.s, backOut(e)),
+          trail: false, glow: 1 };
+      }
+      const tr = Math.min(t - tWin, CLASH.away);
+      return { ...ballisticAt(exit, tr / 1000), o: tailFade(tr / CLASH.away),
+        trail: false, glow: 1 - clamp01(tr / (CLASH.away * 0.35)) };
     } },
   };
 }

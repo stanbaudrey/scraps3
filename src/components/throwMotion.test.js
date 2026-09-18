@@ -67,10 +67,12 @@ describe('The Throw — motion math', () => {
     expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(0.1);
   });
 
+  const counter = () => clashMotions({ mine: { x: 300, y: 650, rot: -8, s: 1.12 },
+    hers: { x: 380, y: 40, rot: 3, s: 0.7 }, meet: { x: 400, y: 300 }, K: 1, s1: 0.66, floorY: 900 });
+
   it('in a counter both Aces reach the meeting point together', () => {
-    const meet = { x: 400, y: 300 };
-    const c = clashMotions({ mine: { x: 300, y: 650, rot: -8, s: 1.12 }, hers: { x: 380, y: 40, rot: 3, s: 0.7 }, meet, K: 1, s1: 0.66 });
-    expect(c.clashAt).toBe(CLASH.rise + CLASH.fly);
+    const c = counter();
+    expect(c.clashAt).toBe(CLASH.draw + CLASH.fly);
     const a = c.mine.at(c.clashAt), b = c.hers.at(c.clashAt);
     expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(40);
     // Hers starts as an invisible sliver on her own card, face-down size.
@@ -78,6 +80,38 @@ describe('The Throw — motion math', () => {
     expect(c.hers.at(0).sx).toBeCloseTo(0.2, 5);
     expect(c.mine.at(c.dur).o).toBe(0);
     expect(c.hers.at(c.dur).o).toBe(0);
+  });
+
+  it('her Ace is thrown after yours, which is what her later whoosh is timed to', () => {
+    const c = counter();
+    expect(c.myThrowAt).toBe(CLASH.draw);
+    expect(c.herThrowAt).toBe(CLASH.draw + CLASH.answer);
+    // Hers is still hovering where it came up just before her throw, and
+    // has moved just after; yours is already in the air by then.
+    const hover = c.hers.at(c.herThrowAt - 1);
+    expect(c.hers.at(CLASH.rise + 1)).toMatchObject({ x: hover.x, y: hover.y });
+    expect(Math.hypot(c.hers.at(c.herThrowAt + 40).y - hover.y, c.hers.at(c.herThrowAt + 40).x - hover.x)).toBeGreaterThan(1);
+    expect(c.mine.at(c.herThrowAt).trail).toBe(true);
+    // Hers arrives bigger than yours.
+    expect(c.hers.at(c.clashAt).s).toBeGreaterThan(c.mine.at(c.clashAt).s);
+  });
+
+  it('she wins the collision: hers holds the table upright and lit, yours is knocked away', () => {
+    const c = counter();
+    const hit = c.hers.at(c.clashAt);
+    const standing = c.hers.at(c.commitAt + CLASH.win - 1);
+    // Hers stays close to where it struck, stands upright, grows, glows.
+    expect(Math.hypot(standing.x - hit.x, standing.y - hit.y)).toBeLessThan(30);
+    expect(((standing.rot % 360) + 360) % 360).toBeCloseTo(0, 5);
+    expect(standing.s).toBeGreaterThan(hit.s);
+    expect(standing.glow).toBe(1);
+    // Yours is well away by the time hers is standing, and falling.
+    const mineThen = c.mine.at(c.commitAt + 300);
+    expect(Math.hypot(mineThen.x - c.mine.at(c.clashAt).x, mineThen.y - c.mine.at(c.clashAt).y)).toBeGreaterThan(150);
+    expect(mineThen.y).toBeGreaterThan(c.mine.at(c.clashAt).y);
+    // Hers then leaves to the right, the discard side, and fades.
+    expect(c.hers.at(c.dur).x).toBeGreaterThan(standing.x + 200);
+    expect(c.hers.at(c.dur - 1).glow).toBeLessThan(0.05);
   });
 
   it('small pieces: a bow ends where it should, a fade fades, the lift settles', () => {
