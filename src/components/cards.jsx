@@ -587,7 +587,11 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
           left:d.gx-(isScrap?0:FACE_BORDER),
           top:d.gy-(isScrap?0:FACE_BORDER)-d.rank*RYE_CAP_LEAD,
           lineHeight:1,zIndex:1,pointerEvents:'none'}}>
-          <span style={{display:'inline-block',transformOrigin:'left center',
+          {/* The 10 condenses from the left so every rank on a card
+              shares a starting line; a CENTRED rank condenses about its
+              middle instead, or ROUND 10's number sat 13px left of the
+              card's centre (review, 2026-09-17). */}
+          <span style={{display:'inline-block',transformOrigin:rankAlign==='center'?'center':'left center',
             fontFamily:F.card,fontWeight:400,fontSize:d.rank*rankScale,color:ink,
             lineHeight:1,whiteSpace:'nowrap',...glyphStyle}}>{card.rank}</span>
         </div>

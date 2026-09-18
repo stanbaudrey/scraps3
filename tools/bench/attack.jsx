@@ -16,6 +16,11 @@
 //   lands     your Ace, her Scraps 4 · 9 · K (high card, so she never counters)
 //   counter   her Ace too, and her Scraps two pair (K K 9 9): she counters
 //   counter2  as counter, with a second Ace in your hand (the turn stays live)
+//   her       SHE attacks: your Scraps a full house (K K K 9 9), an Ace in
+//             her hand and one in yours, so on hard she goes for your pile
+//             on her first turn and you can counter it (2026-09-17)
+//   her2      as her, with a second Ace in her hand: after your counter she
+//             comes straight back with it, and you have none left
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createDeck } from '../../src/game/engine.js';
@@ -31,6 +36,13 @@ function rigFor(name) {
     return pool.splice(i, 1)[0];
   };
   const scraps = (cards) => cards.map(c => ({ ...c, turnAdded: 0, eligibleForDiscard: true }));
+  if (name === 'her' || name === 'her2') {
+    const playerHand = [take('A'), take('4'), take('7'), take('10'), take('Q')];
+    const aiHand = [take('A'), name === 'her2' ? take('A') : take('3'), take('6'), take('8'), take('J')];
+    const aiScraps = scraps([take('2'), take('5')]);
+    const playerScraps = scraps([take('K'), take('K'), take('K'), take('9'), take('9')]);
+    return { deal: () => ({ deck: pool.slice(), playerHand, aiHand, playerScraps, aiScraps }) };
+  }
   const counter = name !== 'lands';
   const playerHand = [take('A'), take('4'), take('7'), take('10'), name === 'counter2' ? take('A') : take('Q')];
   const aiHand = [counter ? take('A') : take('3'), take('6'), take('8'), take('J'), take('5')];

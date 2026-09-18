@@ -47,7 +47,7 @@
 // reduced-motion reveal still BUILDS — loser, winner, verdict,
 // score — it just does not travel.
 // ============================================================
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId } from "react";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { PlayingCard, CARD_DIMS } from "./cards.jsx";
 import { TableSurface } from "./backdrop.jsx";
@@ -87,11 +87,10 @@ const JUMP = 500;                       // the match-winning score's jump and vi
 const SWEEP = { band: 1000, bandDelay: 250, first: 300, spread: 700, dur: 620, done: 1700 };
 const DEAL = { dur: 380, stagger: 70 };
 const FLIP = { dur: 520, stagger: 85 };
-// ROUND N: six glyphs at the wordmark's 90ms stagger overrun 1.5s
-// once a riffle follows, so the sign uses 55ms. Entrance done by
-// ~0.88s, one riffle pass to ~1.26s, at rest by 1.35s — and then it
-// WAITS. It advanced itself at 1.35s until 2026-09-14 (Stan: "don't
-// automatically progress past the Round X screen").
+// ROUND N's own beats are SIGN_BEATS (src/audio.js), shared with its
+// voice. Once at rest it WAITS for a tap. It advanced itself until
+// 2026-09-14 (Stan: "don't automatically progress past the Round X
+// screen").
 const SWEEP_EASE = 'cubic-bezier(.5,0,.9,.6)';
 // Hard drop, no glow. The verdict, the Clean Sweep title, the winning
 // score and the final score all carried a coloured glow text-shadow,
@@ -301,13 +300,13 @@ function QuietButton({ onClick, children, show = true, style = {}, buttonRef = n
 // face comes round, the top note on the number; both read SIGN_BEATS
 // (src/audio.js), so they cannot drift. While the sign waits for a tap
 // it CYCLES, silently: the row turns face down and the reveal plays
-// again, every 6.2s (signCycleWord / signCycleNumber in index.html).
+// again, every 6.2s (signCycleWord / signCycleNumber in index.html,
+// held to SIGN_BEATS by signCycle.test.js).
 // The dealer line sits small under it in Fjalla, because who acts
 // first is real information and the log is the only other place it
 // lives. A tap mid-entrance lands the resting frame; a tap at rest
 // deals, the same contract as every reveal.
 // ─────────────────────────────────────────────────────────────
-const SIGN_CYCLE = 6200;
 function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const B = SIGN_BEATS;
   const letters = 'ROUND'.split('');
@@ -318,21 +317,31 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const { w, h } = useViewport();
   const { at, clear } = useTimeline(1);
   const doneRef = useRef(false);
-  const [settled, setSettled] = useState(!!instant);
+  // Under reduced motion the cards are at rest from the first frame, so
+  // the sign is too: it used to wait out the whole entrance it was not
+  // playing, and the first tap only woke it (review, 2026-09-17).
+  const [settled, setSettled] = useState(!!instant || !!R);
+  // The voice runs 1.7s under the entrance. A tap that lands the resting
+  // frame hushes whatever has not played yet, and so does leaving.
+  const voice = useRef(null);
+  const hush = () => { if (voice.current) { voice.current.stop(); voice.current = null; } };
   const finish = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
     clear();
+    hush();
     onDone();
   }, [clear, onDone]);
   const tap = useCallback(() => {
     if (settled) { finish(); return; }
     clear();
+    hush();
     setSettled(true);
   }, [settled, finish, clear]);
   useEffect(() => {
-    if (!instant) playRoundSign();
-    if (!instant) at(B.settle, () => setSettled(true));
+    if (!instant) voice.current = playRoundSign();
+    if (!instant && !R) at(B.settle, () => setSettled(true));
+    return hush;
   }, []);
   // Once settled the entrances come off and every card sits on its
   // resting pose, which is the inline transform below and the first
@@ -358,8 +367,8 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
     const y = isNum ? lift * 0.5 : lift - Math.sin(t * Math.PI) * lift;
     const rot = isNum ? 0 : -4 + t * 8;
     const flipAnim = cycling
-      ? (isNum ? `signCycleNumber ${SIGN_CYCLE}ms ease-in-out ${5 * B.stagger}ms infinite`
-               : `signCycleWord ${SIGN_CYCLE}ms ease-in-out ${i * B.stagger}ms infinite`)
+      ? (isNum ? `signCycleNumber ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
+               : `signCycleWord ${B.cycle}ms ease-in-out ${i * B.stagger}ms infinite`)
       : stop ? undefined
       : isNum ? `signNumberIn ${B.numberDur}ms cubic-bezier(.3,.9,.4,1) ${B.numberAt}ms both`
       : `ribbonFlip ${B.flipDur}ms ease-in-out ${B.flipAt + i * B.stagger}ms both`;
@@ -583,7 +592,13 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, 
   const d = CARD_DIMS[size] || CARD_DIMS.small;
   const slots = word.split('');
   const n = slots.length;
-  const step = n > 1 ? Math.min(d.w + 10, (availW - d.w) / (n - 1)) : 0;
+  // The end cards lean 9deg and the wobble adds 1.3 more, and a leaning
+  // card's box is wider than the card: the row's ends reached past
+  // `availW` by that much, and the frame sheared 7px off YOU WIN at 390
+  // (review, 2026-09-17). So the lean's overhang comes off first.
+  const lean = (9 + 1.3) * Math.PI / 180;
+  const over = (d.w * Math.cos(lean) + d.h * Math.sin(lean) - d.w) / 2;
+  const step = n > 1 ? Math.min(d.w + 10, (availW - 2 * over - d.w) / (n - 1)) : 0;
   const width = d.w + (n - 1) * step;
   const lift = Math.min(18, d.h * 0.16);
   return (
@@ -641,22 +656,38 @@ const T = {
     textShadow:'0 2px 0 rgba(0,0,0,.28)',display:'flex',justifyContent:'center',
     marginTop:'clamp(4px,1.2vh,12px)',marginBottom:'clamp(10px,3vh,28px)'},
 };
-// The arch: the splash wordmark's own hover fan (a pivot just under the
-// letters, index.html .scraps-kinetic) with the angles opened from 13 to
-// 16 degrees and the ends dropped further, for a taller arch.
-const ARCH = { deg: 16, drop: 0.09, pivot: '50% 128%' };
+// The arch, rebuilt 2026-09-17 (Stan: "faint and fanned, but less strewn.
+// an even and designed arc, 15% taller"). It was each letter turned about
+// a pivot under it, the wordmark's hover fan, which kept the letters'
+// feet on a straight line and splayed their heads apart: it read as
+// strewn. Now the word is SET ON A CURVE, an SVG textPath along a circle,
+// so every letter sits on one even arc at its own advance and turns to
+// the tangent. The radius is 8.2em, which lifts the middle of a
+// six-letter title ~0.33em over its ends: 15% over the ~0.28em the old
+// fan's end letters read as. Faint as before (frost at 46%).
+const ARCH = { radius: 8.2 };
 function ArchedTitle({ text }) {
-  const chars = [...text.toUpperCase()];
-  const n = chars.length;
-  return chars.map((ch, i) => {
-    const u = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;
-    return (
-      <span key={i} aria-hidden="true" style={{display:'inline-block',transformOrigin:ARCH.pivot,
-        transform:`rotate(${(ARCH.deg * u).toFixed(1)}deg) translateY(${(ARCH.drop * u * u).toFixed(3)}em)`}}>
-        {ch === ' ' ? '\u00a0' : ch}
-      </span>
-    );
-  });
+  const { w } = useViewport();
+  const fs = Math.max(40, Math.min(62, 0.072 * w));
+  const id = `arch-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const R = ARCH.radius * fs;
+  const W = 6.6 * fs, top = 0.86 * fs;           // the middle baseline sits `top` down
+  const theta = Math.asin(Math.min(0.95, (W / 2) / R));
+  const cx = W / 2, cy = top + R;                 // the circle's centre, under the word
+  const x0 = cx - R * Math.sin(theta), x1 = cx + R * Math.sin(theta), y0 = cy - R * Math.cos(theta);
+  // Deep enough for the ends of the word, which sit lower on the curve.
+  const reach = Math.min(theta, (0.42 * text.length * fs) / R);
+  const H = top + R * (1 - Math.cos(reach)) + 0.16 * fs;
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W.toFixed(1)} ${H.toFixed(1)}`} aria-hidden="true"
+      style={{display:'block',overflow:'visible',filter:'drop-shadow(0 2px 0 rgba(0,0,0,.28))'}}>
+      <path id={id} d={`M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y0.toFixed(1)}`} fill="none"/>
+      <text fontFamily={F.title} fontSize={fs.toFixed(1)} letterSpacing={(0.04 * fs).toFixed(1)}
+        fill={DS.frost} fillOpacity={0.46} textAnchor="middle">
+        <textPath href={`#${id}`} startOffset="50%">{text.toUpperCase()}</textPath>
+      </text>
+    </svg>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -703,7 +734,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // the wood still SKIPS the build, but at rest it no longer continues:
   // with a named button on screen, a stray second tap that sailed past
   // the result would be a hidden gesture beating the visible one.
-  const handCta = which === 'hand1' && !endsIt;
+  // Hand 2 has one too since 2026-09-17 (Stan: "the button to go back to
+  // gameplay should appear without a preliminary click, after a timed
+  // animation. tapping during animation jumps to ... done"): BACK TO THE
+  // TABLE, where the hands are swept and PLAY SCRAPS HAND waits. It used
+  // to rest on the quiet CLICK ANYWHERE, which read as a screen waiting
+  // for a click before it would offer a way back.
+  const handCta = (which === 'hand1' || which === 'hand2') && !endsIt;
   // The CLEAN SWEEP beat waits this long for the cards to slide apart
   // (SlideBox) before its title, its sound and its bonus point arrive.
   const CS_LEAD = SLIDE.dur;
@@ -1117,7 +1154,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                       style={{fontFamily:F.display,lineHeight:1,fontSize:'clamp(56px,12vw,116px)',letterSpacing:'0.03em',
                       color: isWinner ? (won ? DS.gold : DS.ember) : DS.frost,
                       textShadow: DROP, display:'inline-block', transformOrigin:'50% 70%',
-                      '--glow': `${won ? DS.gold : DS.ember}8C`,
+                      '--glow': `${won ? DS.gold : DS.ember}8C`, '--drop': DROP,
                       animation: isWinner && showFinal ? `scorePulse 2200ms ease-in-out ${fe ? 0 : scoreDelay + 500}ms infinite` : undefined}}>{n}</span>
                   </div>
                 ))}
@@ -1165,7 +1202,11 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       <FitBox modeMinW={300}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',alignItems:'center',
           justifyContent:'center',gap:'clamp(8px,1.8vh,16px)',position:'relative'}}>
-          <div data-sweep="text" data-sweep-id="title" className={fadeCls} aria-label={title}
+          {/* A heading, by role: the arched letters are drawn in an SVG
+              that screen readers are told to skip, and an aria-label on
+              a plain div is not read at all (review, 2026-09-17). */}
+          <div data-sweep="text" data-sweep-id="title" className={fadeCls}
+            role="heading" aria-level={2} aria-label={title}
             style={{...T.title, animation: textAnim('title', fadeIn(200))}}><ArchedTitle text={title}/></div>
 
           {side('ai')}
@@ -1263,7 +1304,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',
                 visibility: atRest ? 'visible' : 'hidden',
                 animation: atRest ? `slideUp 340ms ${SETTLE} both` : undefined}}>
-              <Btn onClick={onContinue}>Play Hand 2</Btn>
+              <Btn onClick={onContinue}>{which === 'hand1' ? 'Play Hand 2' : 'Back to the table'}</Btn>
             </div>
           ) : (
             <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>

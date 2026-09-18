@@ -408,8 +408,10 @@ const TRIM = {
   // Whoever measures next should say which rate they used.
   slap:        0.5368,
   // Re-measured 2026-09-17 at 48 kHz after the landing went and the six
-  // notes moved onto the sign's card flips; the target came down to .265.
-  roundSign:   5.3055,
+  // notes moved onto the sign's card flips (then again when the flips
+  // started sooner and the number's note came 40% closer); the target
+  // came down to .265.
+  roundSign:   5.3008,
   // The Throw's cues, 2026-09-16, tools/trim-measure.mjs at 48 kHz.
   // armDraw, lock, whoosh and clash measured identical to their bench
   // trims, which is the check that the port is the voice Stan heard.
@@ -450,14 +452,34 @@ function cue(name, delay = 0) {
     window.__cueLog.push({ name, at: performance.now() + 20 + delay * 1000 });
   }
   const c = getAudioCtx();
-  if (!c) return;
+  if (!c) return SILENT;
   const out = c.createGain();
   out.gain.value = TRIM[name] || 1;
   out.connect(bus);
   const i = BURSTY[name] ? (burstN[name]++ % BURSTY[name]) : 0;
   // A sound must never take the game down with it.
   try { renderCue(name, c, out, c.currentTime + 0.02 + delay, i); } catch (e) {}
+  // Everything a cue schedules runs through `out`, so one ramp on it
+  // silences whatever has not played yet (and cuts what is ringing)
+  // without a handle on each note. Only the ROUND sign keeps this: its
+  // voice runs 1.7s under an entrance a tap can skip (review,
+  // 2026-09-17: skip at 0.5s and the notes played on over a still sign).
+  return {
+    stop() {
+      try {
+        const now = c.currentTime;
+        out.gain.cancelScheduledValues(now);
+        out.gain.setValueAtTime(out.gain.value, now);
+        out.gain.linearRampToValueAtTime(0, now + 0.05);
+        setTimeout(() => { try { out.disconnect(); } catch (e) { /* gone */ } }, 120);
+      } catch (e) { /* a sound never takes the game down */ }
+      if (typeof window !== 'undefined' && window.__cueLog) {
+        window.__cueLog.push({ name, stop: performance.now() });
+      }
+    },
+  };
 }
+const SILENT = { stop() {} };
 
 // ─────────────────────────────────────────────────────────────
 // The ROUND N sign's beats, in ms (2026-09-17). Declared HERE because
@@ -466,14 +488,50 @@ function cue(name, delay = 0) {
 // numbers, so a note can never drift off the card it belongs to.
 //   deal / dealDur   the six cards dealt face down, a card per `deal`
 //   flipAt, stagger  ROUND turning face up, a card per `stagger`
-//   pause            the held breath before the number turns
+//   wordFace         derived: how far into a ROUND card's flip its face
+//                    comes round (rotateY passing 90deg)
+//   numberFace       the same for the number, whose flip is snappier
+//   pause            derived: the held breath before the number turns
 //   numberAt         derived: the number's flip starts
 //   settle           derived: the sign at rest, ready for a click
+//   cycle...         the idle loop's layout; signCycleWord and
+//                    signCycleNumber in index.html are these numbers as
+//                    keyframe percentages, and a test holds them to it
 // ─────────────────────────────────────────────────────────────
+// A flip's face comes round when rotateY passes 90deg. Both flips reach
+// 108deg at 60% of their run (ribbonFlip and signNumberIn, index.html),
+// and an animation's timing function applies to each keyframe segment on
+// its own, so the answer is where that first segment's curve reaches
+// 90/108: solve the bezier's y for it, then read its x.
+function faceTurn([x1, y1, x2, y2], at = 0.6, deg = 108) {
+  const X = (u) => 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
+  const Y = (u) => 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (Y(m) < 90 / deg) lo = m; else hi = m; }
+  return at * X((lo + hi) / 2);
+}
+export const SIGN_EASE = { word: [0.42, 0, 0.58, 1], number: [0.3, 0.9, 0.4, 1] };
 export const SIGN_BEATS = (() => {
-  const b = { deal: 70, dealDur: 380, flipAt: 820, stagger: 85, flipDur: 520, pause: 480, numberDur: 620 };
+  // Retimed 2026-09-17 (Stan): the first flip starts the moment the last
+  // card starts dealing in (`flipAt` = five deals), and the gap he HEARS
+  // between ROUND's last note and the number's came down 40%, 1050ms to
+  // 630ms. Every note now sits on the frame its card's face comes round,
+  // not the flip's midpoint (review, 2026-09-17: the number's snappy
+  // curve turns its face 143ms in, and its note waited until 310ms). So
+  // the pause is what is left of the 630 once the rest of ROUND's last
+  // flip and the start of the number's are taken out: 191ms.
+  const b = { deal: 70, dealDur: 380, stagger: 85, flipDur: 520, numberDur: 620, noteGap: 630 };
+  b.flipAt = 5 * b.deal;
+  b.wordFace = faceTurn(SIGN_EASE.word);
+  b.numberFace = faceTurn(SIGN_EASE.number);
+  b.pause = b.noteGap - (1 - b.wordFace) * b.flipDur - b.numberFace * b.numberDur;
   b.numberAt = b.flipAt + 4 * b.stagger + b.flipDur + b.pause;
   b.settle = b.numberAt + b.numberDur + 120;
+  // The idle loop, every `cycle` ms once the sign is at rest: each card
+  // turns face down from `cycleDown` (as a fraction of the loop) over
+  // `cycleDownDur`, and ROUND turns back up from `cycleUp`, a card per
+  // `stagger` again; then the same pause, and the number.
+  b.cycle = 6200; b.cycleDown = 0.484; b.cycleDownDur = 360; b.cycleUp = 0.645;
   return b;
 })();
 
@@ -741,8 +799,8 @@ const VOICES = {
     // after the sign's dramatic pause. The times are the sign's own
     // (SIGN_BEATS), taken at the moment each card's face comes round.
     const B = SIGN_BEATS;
-    const noteAt = (i) => (i < 5 ? B.flipAt + i * B.stagger + B.flipDur * 0.5
-      : B.numberAt + B.numberDur * 0.5) / 1000;
+    const noteAt = (i) => (i < 5 ? B.flipAt + i * B.stagger + B.flipDur * B.wordFace
+      : B.numberAt + B.numberDur * B.numberFace) / 1000;
     [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5].forEach((fq, i) => {
       const at = t + noteAt(i);
       const osc = c.createOscillator(); osc.type = 'triangle';
@@ -818,7 +876,7 @@ export const CUE_DUR = {
   select: .14, scrap: .58, draw: .22, aceStrike: .44, aceCounter: .72,
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
   gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
-  slap: .30, roundSign: 2.65,
+  slap: .30, roundSign: 1.75,
   armDraw: .36, lock: .08, whoosh: .36, whooshHer: .30, chips: .28, clash: .36,
 };
 
@@ -856,7 +914,8 @@ export function playGameWon()    { cue('gameWon'); }
 export function playGameLost()   { cue('gameLost'); }
 export function playCleanSweep() { cue('cleanSweep'); }
 export function playSlap()       { cue('slap'); }
-export function playRoundSign()  { cue('roundSign'); }
+// Returns the cue's handle: the sign stops it when a tap lands the entrance.
+export function playRoundSign()  { return cue('roundSign'); }
 // The Throw (2026-09-16).
 export function playArmDraw()    { cue('armDraw'); }
 export function playLock()       { cue('lock', 0.06); }

@@ -278,6 +278,7 @@ export function TableSurface({ cardH = 146, anchorRef = null }) {
 // because all four want `transform` (see the .scraps-* and .wm-* block
 // in index.html):
 //   1. .scraps-letter  the entrance (letterAppear)
+//   .wm-arc            the resting fan on its curve (fanArc), static
 //   2. .scraps-kinetic pointer devices: the row fans open under the
 //      cursor like a hand of cards, pure CSS. .scraps-title keeps
 //      `cursor: default`: hovering does something, clicking does not.
@@ -293,6 +294,25 @@ export function TableSurface({ cardH = 146, anchorRef = null }) {
 // cue, playSquareUp, became the ROUND N sign's voice.
 const LETTERS = 'SCRAPS'.split('');
 const WM = { size: 'normal', rankScale: 0.78, gap: 10, wave: 3000, cycle: 2600, start: 1100, stagger: 90 };
+// The FAN (Stan, 2026-09-17: "fan the cards out on a curve. 20% arc"),
+// read the way an Arc warp reads its bend: the middle of the row rises
+// over its ends by 20% of the row's half-width, on a circle, and each
+// card turns to the circle's tangent where it sits. At his 1024x662 the
+// middle stands ~40px over the ends and the end cards lean ~19 degrees.
+const BEND = 0.20;
+function fanArc(n, cw, gap) {
+  const half = (n * cw + (n - 1) * gap) / 2;
+  const sag = BEND * half;
+  const R = (half * half + sag * sag) / (2 * sag);
+  const at = (i) => {
+    const x = (i - (n - 1) / 2) * (cw + gap);
+    return { rot: Math.asin(x / R) * 180 / Math.PI, drop: R - Math.sqrt(R * R - x * x) };
+  };
+  const edge = at(0).drop;
+  // Rise from the ends rather than drop from the middle, so the curve
+  // grows into the space above the row, which the row reserves.
+  return { rise: edge, card: (i) => { const a = at(i); return { rot: a.rot, y: a.drop - edge }; } };
+}
 
 export function AnimatedTitle() {
   const { w, h } = useViewport();
@@ -310,12 +330,16 @@ export function AnimatedTitle() {
       </span>
     </span>
   );
+  const fan = fanArc(LETTERS.length, cw, Math.round(WM.gap * k));
   return (
     <h1 className="scraps-title" aria-label="SCRAPS"
-      style={{marginBottom:'clamp(26px,6vw,36px)',gap:Math.round(WM.gap * k),fontSize:ch}}>
+      style={{marginBottom:'clamp(26px,6vw,36px)',gap:Math.round(WM.gap * k),fontSize:ch,
+        paddingTop:Math.round(fan.rise)}}>
       {LETTERS.map((l, i) => (
         <span key={i} className="scraps-letter" aria-hidden="true"
           style={{width:cw,height:ch,animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i * .09}s both`}}>
+          <span className="wm-arc" style={{transform:
+            `translateY(${fan.card(i).y.toFixed(1)}px) rotate(${fan.card(i).rot.toFixed(2)}deg)`}}>
           <span className="scraps-kinetic" style={{width:cw,height:ch}}>
             <span className="wm-wave" style={{animation:`wmWave ${WM.wave}ms ease-in-out ${-i * 340}ms infinite`}}>
               <span className="wm-cycle"
@@ -324,6 +348,7 @@ export function AnimatedTitle() {
                 {face(i, l, true)}
               </span>
             </span>
+          </span>
           </span>
         </span>
       ))}

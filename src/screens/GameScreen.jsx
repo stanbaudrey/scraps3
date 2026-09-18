@@ -27,11 +27,12 @@ import { setAudioMuted, isAudioMuted,
   playArmDraw, playLock, playWhoosh, playHerWhoosh, playChips, playClash } from "../audio.js";
 import { useCardMotion, prefersReducedMotion, screenPose } from "../components/flight.jsx";
 import { useImpactFx, AttackTagEcho, shakeElement } from "../components/impact.jsx";
-import { THROW, CLASH, RM_FADE, throwMotion, knockOffPair, clashMotions, fadeMotion }
+import { THROW, CLASH, COUNTER, RM_FADE, throwMotion, knockOffPair, clashMotions,
+  counterBackMotions, fadeMotion }
   from "../components/throwMotion.js";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS, sortByValue } from "../components/cards.jsx";
 import { OpponentBar, PlayerBar, RoundProgressIndicator, GameLog, GameAnnouncer } from "../components/hud.jsx";
-import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, pressStyles } from "../components/buttons.jsx";
+import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, TOUCH_MIN_COMPACT, pressStyles } from "../components/buttons.jsx";
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
 import { Walkthrough } from "./Walkthrough.jsx";
@@ -137,6 +138,14 @@ const HANDOFF = { deal: 220 };
 // A card's pose on screen, as the scripted flights take it (throwMotion.js):
 // its centre, its signed angle, and its scale against the natural box of
 // `size`. `r` is a rect from the motion hook's rectOf.
+// PLAY SCRAPS HAND's held beat: after its drumroll, the table holds
+// still this long before the Scraps hand is turned over.
+const SCRAPS_HOLD = 220;
+// Her second Ace, after you counter her first: this long after the two
+// Aces have left the table (it was a flat 900ms from the button when the
+// counter did not play out).
+const RECOUNTER_BEAT = 380;
+
 const poseOf = (r, size) => ({
   x: r.left + r.width / 2, y: r.top + r.height / 2, rot: r.rot || 0,
   s: (r.trueW || r.width) / CARD_DIMS[size].w,
@@ -239,6 +248,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   const showInterstitial = !!stage && stage.kind === 'sign';
   const tableWoodRef = useRef(null);
   const [revealBuilding, setRevealBuilding] = useState(false);
+  // PLAY SCRAPS HAND's tension (2026-09-17): the press charges like SHOW
+  // 'EM while both piles tremble harder, then a held beat, then the reveal.
+  const [scrapsBuilding, setScrapsBuilding] = useState(false);
+  const scrapsHoldRef = useRef(0);
+  useEffect(() => () => clearTimeout(scrapsHoldRef.current), []);
   // The beat between hand 2 and the Scraps hand (2026-09-15, Stan).
   // False for the moment the table comes back and sweeps both private
   // hands off it; true once the wood is down to the two Scraps piles
@@ -884,6 +898,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     strikeRef.current = null;
     setStrike(null);
     if (st.notice) setAiCounterNotice(st.notice);
+    if (st.after) st.after();
   }
 
   // A click or Enter while the attack is in the air lands all of it:
@@ -896,7 +911,8 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     st.timers = [];
     if (!st.impacted) {
       st.impacted = true;
-      if (st.countered) playAceCounter(); else playAceStrike();
+      if (st.hitSound) st.hitSound();
+      else if (st.countered) playAceCounter(); else playAceStrike();
     }
     st.commit();
     fx.stop();
@@ -949,18 +965,21 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   }
 
   function onPlayerCounterAce() {
-    if (!pendingAiAce) return;
-    playAceCounter();
-    dispatch({ type: 'PLAYER_COUNTER_ACE' });
+    if (!pendingAiAce || strikeRef.current) return;
+    const s = stateRef.current;
+    const herAce = pendingAiAce.ace;
+    // The Ace PLAYER_COUNTER_ACE spends: the first one in your hand.
+    const myAce = s.playerHand.find(c => c.rank === 'A');
+    if (!myAce) return;
     // Player's turn is NOT consumed — they still need to trade or act.
     //
     // RE-COUNTER, the mirror of the rule on the player's side: being
     // countered does not end an attacker's option if they are still
     // holding an Ace. If the opponent has another and your Scraps is
     // still a legal target, it comes straight back with it, and you may
-    // counter that one too — IF you still hold an Ace. Scheduled rather
-    // than dispatched inline so the cancelled Aces are visibly gone
-    // before the next one lands.
+    // counter that one too — IF you still hold an Ace. It waits for the
+    // two Aces to be gone from the table (endStrike runs `after`), then
+    // a beat more, so the next one never lands on top of this one.
     //
     // THE PHANTOM COUNTER (Stan, 2026-09-14: "I counter her first Ace,
     // she plays a second, and I am asked whether I'd like to counter
@@ -971,21 +990,103 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // now, and the prompt cannot open on a hand with no Ace in it — the
     // effect on `pendingAiAce` below is the same rule stated as an
     // invariant, so no future entry path can reintroduce this.
-    const s = stateRef.current;
-    const spent = pendingAiAce.ace.id;
-    const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== spent);
-    if (nextAce && s.playerScraps.length >= 2) {
-      setTimeout(() => {
-        const cur = stateRef.current;
-        if (cur.gameOver || cur.pendingAiAce) return;
-        if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
-        if (cur.playerScraps.length < 2) return;
-        const targets = chooseAceTargets(cur.playerScraps);
-        if (!targets || targets.length < 2) return;
-        playAceStrike();
-        handleAiAce(nextAce, targets, true);
-      }, 900);
+    const nextAce = s.aiHand.find(c => c.rank === 'A' && c.id !== herAce.id);
+    const recounter = nextAce && s.playerScraps.length >= 2 ? () => setTimeout(() => {
+      const cur = stateRef.current;
+      if (cur.gameOver || cur.pendingAiAce) return;
+      if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
+      if (cur.playerScraps.length < 2) return;
+      const targets = chooseAceTargets(cur.playerScraps);
+      if (!targets || targets.length < 2) return;
+      playAceStrike();
+      handleAiAce(nextAce, targets, true);
+    }, RECOUNTER_BEAT) : null;
+
+    // YOUR COUNTER, played out (Stan, 2026-09-17: "we should see the
+    // animation where the user's Ace flies at and intercepts the opp's
+    // ace"). Her counter turned the other way round: hers comes up out of
+    // her hand and is thrown at your pile, yours is thrown a beat later
+    // and meets it short of the pile, and YOURS wins: hers is knocked back
+    // up off the top of the screen, yours stands lit in green, then leaves
+    // for the discard pile. The same strike machinery as your attack, so
+    // a click at any frame lands all of it (finishStrike).
+    const sz = szRef.current;
+    const k = tableScale();
+    const K = motionScale(k);
+    const herRect = rectOf(herAce.id);
+    const myRect = rectOf(myAce.id);
+    const targetRects = pendingAiAce.targets.map(c => rectOf(c.id));
+    const st = {
+      countered: true, reverse: true, committed: false, impacted: false, timers: [],
+      t0: performance.now(), notice: null, hitSound: playClash, after: recounter,
+      commit() {
+        if (st.committed) return;
+        st.committed = true;
+        dispatch({ type: 'PLAYER_COUNTER_ACE' });
+      },
+    };
+    strikeRef.current = st;
+    const later = (fn, ms) => { st.timers.push(setTimeout(fn, ms)); };
+    setStrike({ countered: true, reverse: true });
+
+    const measured = herRect && myRect && targetRects.every(Boolean);
+    // REDUCED MOTION, or a table that could not be measured: nothing
+    // travels. Both Aces turn up where they sit, yours lit, and hers
+    // fades first; yours holds a beat longer, then fades too. The
+    // sounds still play — a motion preference is not a sound preference.
+    if (prefersReducedMotion() || !measured) {
+      st.impacted = true;
+      playClash();
+      const RM_MINE = RM_FADE + 420;
+      const moves = [];
+      if (herRect) moves.push({ card: herAce, fromSize: sz.hand, rmSafe: true,
+        motion: fadeMotion({ ...poseOf(herRect, sz.hand), rot: 0 }) });
+      if (myRect) {
+        const pose = { ...poseOf(myRect, sz.hand), rot: 0 };
+        moves.push({ card: myAce, fromSize: sz.hand, rmSafe: true, glowColor: DS.voltage,
+          motion: { dur: RM_MINE, at: (tm) => ({ ...pose, glow: 1, trail: false,
+            o: tm < RM_MINE - RM_FADE ? 1 : Math.max(0, (RM_MINE - tm) / RM_FADE) }) } });
+      }
+      st.commit();
+      fly(moves);
+      later(endStrike, RM_MINE);
+      return;
     }
+
+    const centers = targetRects.map(r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+    const P = { x: (centers[0].x + centers[1].x) / 2, y: (centers[0].y + centers[1].y) / 2 };
+    const hers = poseOf(herRect, sz.hand);
+    // Short of your pile, on her line: far enough out that yours is seen
+    // to go and GET it, not to stand guard over the pile.
+    const meet = { x: hers.x + (P.x - hers.x) * 0.5, y: hers.y + (P.y - hers.y) * (stack ? 0.5 : 0.45) };
+    const pileW = CARD_DIMS[sz.pile].w * k, handW = CARD_DIMS[sz.hand].w;
+    const cm = counterBackMotions({ hers, mine: poseOf(myRect, sz.hand), meet, K,
+      s1: pileW * 1.1 / handW, ceilY: -(CARD_DIMS[sz.hand].h * hers.s) - 40 });
+    const t0 = performance.now();
+    // Yours is second in the list, so it is drawn over hers at the hit.
+    fly([
+      { card: herAce, fromSize: sz.hand, motion: cm.hers, trails: 2, hideIds: [herAce.id], born: t0 },
+      { card: myAce, fromSize: sz.hand, motion: cm.mine, trails: 3, hideIds: [myAce.id], born: t0,
+        glowColor: DS.voltage },
+    ]);
+    // Her throw first this time, so her higher whoosh leads and yours
+    // answers it.
+    later(playHerWhoosh, cm.herThrowAt);
+    later(playWhoosh, cm.myThrowAt);
+    later(() => {
+      st.impacted = true;
+      playClash();
+      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 110 * K, dur: 0.32, color: DS.voltage, lw: 6 * K,
+        wait: COUNTER.hold / 1000 });
+    }, cm.clashAt);
+    later(() => {
+      st.commit();
+      shakeRef.current = shakeElement(frameRef.current, 9 * K, 280);
+      // Your sparks spray the way your hit went: up your line, at her.
+      fx.burst(meet.x, meet.y, { n: 20, kind: 'sparks', ang: cm.hitAng, spread: Math.PI * 1.1,
+        sp: [180, 560], g: 900, life: [0.35, 0.7], K });
+      later(endStrike, cm.dur - cm.commitAt);
+    }, cm.commitAt);
   }
 
   function onPlayerAllowAce() {
@@ -1063,7 +1164,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // Your Ace attack is still playing out, or its lights are still down.
     // Held rather than merely waited on, because a counter's notice opens
     // at the END of the attack, in the same render that clears `strike`.
-    if (strike) { setAiGo(null); return; }
+    // Not YOUR counter of her Ace, though: that one plays out in HER
+    // turn, whose runner still owes its ADVANCE_FROM, and clearing aiGo
+    // there would cancel it and restart her turn from the top, giving her
+    // a second move.
+    if (strike && !strike.reverse) { setAiGo(null); return; }
     if (animating) return;            // your cards are still landing
     if (aiCounterNotice) return;      // you are still reading the counter
     // The Ace explainer is up: NOTHING moves until OKAY. `setAiGo(null)`
@@ -1447,7 +1552,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // under her notice until you close it (her notice only ever opens at
   // the end of a clash): lifting it as the notice's own backdrop came in
   // flipped the table from warm dark to green in one beat.
-  const dimOn = !!aceMode || !!strike || !!aiCounterNotice;
+  // Your counter of HER Ace is the exception: her attack never dims the
+  // table either, and the spotlight sits on her pile, which is not what
+  // her Ace was aimed at.
+  const dimOn = !!aceMode || (!!strike && !strike.reverse) || !!aiCounterNotice;
   const rmNow = prefersReducedMotion();
 
   // No-legal-trade handling: if no trade can keep the hand at 7 or
@@ -1633,6 +1741,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // animates in with its first line once the last card lands.
   if (dealHold) hint = '';
   else if (settling) hint = '';
+  // Your counter playing out: quiet, like the throw. Ahead of the
+  // pending line, which is still set until the counter commits.
+  else if (strike && strike.reverse) hint = '';
   else if (aiAceReveal) hint = aiAceReveal.afterCounter
     ? 'She had another Ace. It discards two cards from your Scraps.'
     : "Opponent's Ace discards two cards from your Scraps.";
@@ -1812,13 +1923,14 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // Fully opaque through the whole attack, never 0.75: an opacity
       // below 1 is a stacking context, and it would pull the pile back
       // down under the attack's dim.
-      opacity:dimOn?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
+      opacity:dimOn||scrapsBuilding?1:isAiThinking?1:0.75,transition:'opacity 0.4s'}}>
       {!stack&&<RoundProgressIndicator phase={phase} compact={tight}/>}
       {/* Her pile and its REMOVE row, lifted above the attack's dim
           while it is down (z 31 over the dim's 30). */}
       <div style={{display:'flex',flexDirection:'column',gap:8,
         alignItems:stack?'stretch':'flex-start',
-        position:'relative',zIndex:dimOn?31:undefined}}>
+        position:'relative',zIndex:dimOn?31:undefined,
+        animation: scrapsBuilding ? 'scrapTension 580ms linear forwards' : undefined}}>
         <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
           label="Opponent's Scraps" selectable={!!aceMode&&!strike}
           selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
@@ -1860,7 +1972,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     || (isPlayerTurn && !aceMode && !isScrapsDiscardMode && !pendingAiAce && !forcedAce && !counterStand)
     || (stack && aceMode && !strike) || (counterStand && !strike)
     || (isSignal && !signalLocked) || isReveal || scrapsAsk
-    || (pendingAiAce && !aiAceReveal));
+    || (pendingAiAce && !aiAceReveal && !strike));
   // SHOW 'EM owns the whole band: no narrator line above it, the button
   // centred in a box the same height as a normal turn's, so the table
   // does not jump between the signal and the reveal.
@@ -1878,6 +1990,53 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     + (stack ? 8 : 10)            // the gap above the buttons
     + (stack ? 54 : 62));         // the tallest button row it can hold
   const narratorSilent = !hint && !tradeError && !hasActionButtons;
+
+  // A button that CHARGES when pressed (Stan, 2026-09-16, for SHOW 'EM):
+  // the label stays, and one 580ms pass of `showEmCharge` (index.html)
+  // vibrates it faster and harder and brightens it from voltage toward
+  // voltageCharge while the revealBuild drumroll runs, until the reveal
+  // takes over. Busy, not disabled: disabling would drop keyboard focus
+  // mid-press, and aria-busy says to assistive tech what the shake says to
+  // everyone else. Reduced motion lands on the charged frame with the
+  // `live-cue-busy` collar. The colours travel as custom properties so the
+  // hex stays in theme.js.
+  //
+  // `big` is SHOW 'EM (Stan, 2026-09-17: "50% larger than standard, when
+  // responsive design allows"): 1.5x the standard BigBtn for the layout,
+  // 30px type and 27/54 padding (24px and 22/30 when tight). It is the
+  // whole narrator band when it shows, and the slot holds it everywhere:
+  // ~90px at most against a slot of 152px or more. The check below keeps
+  // that true if either number ever moves.
+  const chargeButton = ({ label, big, building, onPress }) => {
+    const std = tight ? { pad: [15, 20], fs: 16 } : { pad: [18, 36], fs: 20 };
+    const k = big && (std.fs * 1.5 * 1.2 + std.pad[0] * 3) <= NARRATOR_H - (stack ? 24 : 34) ? 1.5 : 1;
+    return (
+      <button
+        type="button"
+        aria-busy={building}
+        className={building ? 'live-cue-busy' : undefined}
+        {...pressStyles(
+          el=>{if(!building){el.style.background=DS.voltageHover;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.voltage}`;}},
+          el=>{el.style.background=DS.voltage;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.voltage}66`;}
+        )}
+        onClick={()=>{ if(building) return; onPress(); }}
+        style={{
+          border:'none',cursor:building?'wait':'pointer',
+          fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
+          padding:`${Math.round(std.pad[0] * k)}px ${Math.round(std.pad[1] * k)}px`,
+          fontSize:Math.round(std.fs * k),
+          minHeight:tight?TOUCH_MIN_COMPACT:TOUCH_MIN,borderRadius:Math.round(12 * (k > 1 ? 1.3 : 1)),
+          background:DS.voltage,color:DS.ink,
+          '--charge-0':DS.voltage,'--charge-1':DS.voltageHover,'--charge-2':DS.voltageCharge,
+          '--charge-glow-0':`${DS.voltage}66`,'--charge-glow-1':`${DS.voltage}AA`,
+          animation:building?'showEmCharge 580ms linear forwards':'popIn 0.45s cubic-bezier(.34,1.6,.64,1)',
+          boxShadow:`0 0 20px ${DS.voltage}66`,
+          transition:'background 60ms, transform 60ms, box-shadow 60ms',
+        }}>
+        {label}
+      </button>
+    );
+  };
 
   // THE SLOT AND THE PANEL ARE TWO DIFFERENT THINGS, and that is the
   // whole fix for the table jumping between turns (Stan, 2026-09-15:
@@ -2020,55 +2179,15 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           <SignalBtn onClick={doSignal} disabled={!selValid} compact={tight}
             handLabel={selValid?signalHandLabel(selectedInHand):null}/>
         )}
-        {showEm&&(
-          <button
-            type="button"
-            // Busy, not disabled: the build is 580ms and disabling would
-            // drop keyboard focus mid-press. aria-busy says the same thing
-            // to assistive tech that the shake says to everyone else.
-            aria-busy={revealBuilding}
-            className={revealBuilding ? 'live-cue-busy' : undefined}
-            // Voltage, like every filled button (Stan, 2026-09-14). It
-            // was slate, the one filled control on the table that was
-            // not green, on the press that matters most.
-            {...pressStyles(
-              el=>{if(!revealBuilding){el.style.background=DS.voltageHover;el.style.transform='scale(1.05)';el.style.boxShadow=`0 0 40px ${DS.voltage}`;}},
-              el=>{el.style.background=DS.voltage;el.style.transform='scale(1)';el.style.boxShadow=`0 0 20px ${DS.voltage}66`;}
-            )}
-            onClick={()=>{
-              if(revealBuilding) return;
-              setRevealBuilding(true);
-              playRevealBuild(()=>{
-                setRevealBuilding(false);
-                resolveSmallHand();
-              });
-            }}
-            style={{
-              border:'none',cursor:revealBuilding?'wait':'pointer',
-              fontFamily:F.ui,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',
-              padding:stack?'14px 30px':'18px 44px',fontSize:stack?17:22,
-              minHeight:TOUCH_MIN,borderRadius:12,
-              background:DS.voltage,color:DS.ink,
-              // CHARGING (Stan, 2026-09-16). The label stays SHOW 'EM. It
-              // used to swap to three play arrows, which iOS draws as emoji,
-              // and the button itself winds up instead: one 580ms pass of
-              // `showEmCharge` (index.html) that vibrates faster and harder
-              // as it goes and brightens from voltage toward voltageCharge,
-              // until the reveal takes over. 580 is the revealBuild cue's
-              // length, and the keyframes put a shake peak on each of its
-              // eleven accelerating taps. The colours travel as custom
-              // properties so the hex stays in theme.js. Reduced motion
-              // lands on the charged frame with the `live-cue-busy` collar;
-              // nothing travels.
-              '--charge-0':DS.voltage,'--charge-1':DS.voltageHover,'--charge-2':DS.voltageCharge,
-              '--charge-glow-0':`${DS.voltage}66`,'--charge-glow-1':`${DS.voltage}AA`,
-              animation:revealBuilding?'showEmCharge 580ms linear forwards':'popIn 0.45s cubic-bezier(.34,1.6,.64,1)',
-              boxShadow:`0 0 20px ${DS.voltage}66`,
-              transition:'background 60ms, transform 60ms, box-shadow 60ms',
-            }}>
-            {'Show \u2019em'}
-          </button>
-        )}
+        {showEm&&chargeButton({
+          label:'Show \u2019em', big:true, building:revealBuilding,
+          onPress:()=>{
+            setRevealBuilding(true);
+            playRevealBuild(()=>{
+              setRevealBuilding(false);
+              resolveSmallHand();
+            });
+          }})}
         {/* DEAL SECOND HAND, PLAY SCRAPS HAND and NEXT ROUND used to
             be three buttons in this row, each one sitting behind a
             results screen the player had already dismissed with a
@@ -2084,12 +2203,24 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
             that wanted a beat of its own. It is not a second press for
             a decision already made — the hand 2 reveal it follows is
             about hand 2, and this asks for the Scraps hand. */}
-        {scrapsAsk&&(
-          <BigBtn compact={tight} onClick={()=>{ playSelect(); resolveScrap(); }}>
-            Play Scraps Hand
-          </BigBtn>
-        )}
-        {pendingAiAce&&!aiAceReveal&&(
+        {/* The press builds tension (Stan, 2026-09-17: "add tension-
+            building moment when clicking or tapping PLAY SCRAPS HAND"):
+            the button charges exactly as SHOW 'EM does, over the same
+            580ms drumroll, both piles tremble harder and brighten
+            (`scrapTension`), and the table holds its breath for a beat
+            before the Scraps hand, worth two, is turned over. */}
+        {scrapsAsk&&chargeButton({
+          label:'Play Scraps Hand', big:false, building:scrapsBuilding,
+          onPress:()=>{
+            setScrapsBuilding(true);
+            playRevealBuild(()=>{
+              scrapsHoldRef.current = setTimeout(()=>{
+                setScrapsBuilding(false);
+                resolveScrap();
+              }, SCRAPS_HOLD);
+            });
+          }})}
+        {pendingAiAce&&!aiAceReveal&&!strike&&(
           <>
             <BigBtn compact={tight} onClick={onPlayerCounterAce}>
               <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
@@ -2147,9 +2278,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   const playerScrapsEl = (
     <div ref={playerScrapsRef} style={{flexShrink:0,display:'flex',flexDirection:'column',
       alignItems:'center',gap:10,
-      opacity:isScrapsDiscardMode||isPlayerTurn||settling?1:0.75,transition:'opacity 0.4s'}}>
+      opacity:isScrapsDiscardMode||isPlayerTurn||settling||scrapsBuilding?1:0.75,transition:'opacity 0.4s'}}>
       {/* DISCARD, over your pile, in the wide layout — see pileBtns. */}
       {!stack&&pileBtnRow(discardBtns)}
+      {/* Its own wrapper for PLAY SCRAPS HAND's tremble, so the tremble
+          never competes with the zone's own transforms. */}
+      <div style={{animation: scrapsBuilding ? 'scrapTension 580ms linear forwards' : undefined}}>
       <HorizontalScrapsZone
         cards={playerScraps.map(c=>({...c,eligibleForDiscard:isScrapsDiscardMode&&c.eligibleForDiscard}))}
         label="Your Scraps"
@@ -2161,6 +2295,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         // The over-7 prompt's cue is the bolder one (GlowPulse `strong`).
         glowZone={glowPlayerScraps} glowStrong
         size={SZ.pile} width={stack?railW:340} fill={stack}/>
+      </div>
     </div>
   );
 
@@ -2404,7 +2539,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       {/* The interstitial layer: ROUND N, every reveal, the Clean Sweep
           beat, the sweep, the match screen. Opaque wood over the whole
           viewport, aligned to the table's own boards. */}
-      {pendingAiAce&&!aiAceReveal&&(
+      {pendingAiAce&&!aiAceReveal&&!strike&&(
         <AceCounterModal
           onCounter={onPlayerCounterAce}
           onAllow={onPlayerAllowAce}

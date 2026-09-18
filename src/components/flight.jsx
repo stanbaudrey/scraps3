@@ -253,15 +253,16 @@ function Ghost({ flight, onDone }) {
 const poseTransform = (p) =>
   `translate3d(${p.x}px,${p.y}px,0) rotate(${p.rot}deg) scale(${p.s * (p.sx ?? 1)},${p.s})`;
 const GHOST_SHADOW = 'drop-shadow(0 12px 26px rgba(0,0,0,.6))';
-// A pose may carry `glow`, 0 to 1: her Ace lit in ember while it holds
-// the table after winning a counter. Hex alpha, never color-mix: see the
-// drop-shadow note in CLAUDE.md's Gotchas.
-const ghostFilter = (g) => (g > 0.01
-  ? `${GHOST_SHADOW} drop-shadow(0 0 ${(4 + 14 * g).toFixed(1)}px ${DS.ember}${Math.round(Math.min(1, g) * 230).toString(16).padStart(2, '0')})`
+// A pose may carry `glow`, 0 to 1: the winning Ace of a counter lit
+// while it holds the table, in ember when it is hers and in the flight's
+// `glowColor` (voltage) when it is yours. Hex alpha, never color-mix:
+// see the drop-shadow note in CLAUDE.md's Gotchas.
+const ghostFilter = (g, color = DS.ember) => (g > 0.01
+  ? `${GHOST_SHADOW} drop-shadow(0 0 ${(4 + 14 * g).toFixed(1)}px ${color}${Math.round(Math.min(1, g) * 230).toString(16).padStart(2, '0')})`
   : GHOST_SHADOW);
 
 function MotionGhost({ flight, onDone }) {
-  const { motion, card, faceDown, fromScrap, kraft, fromSize, trails, rmSafe, born } = flight;
+  const { motion, card, faceDown, fromScrap, kraft, fromSize, trails, rmSafe, born, glowColor } = flight;
   const els = useRef([]);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
@@ -280,7 +281,7 @@ function MotionGhost({ flight, onDone }) {
         el.style.opacity = show ? String((p.o ?? 1) * (TRAIL.alpha[i] ?? 0.1)) : '0';
         if (show) el.style.transform = poseTransform(p);
         if (i === 0 && p.glow !== undefined && el.firstElementChild) {
-          el.firstElementChild.style.filter = ghostFilter(p.glow);
+          el.firstElementChild.style.filter = ghostFilter(p.glow, glowColor || undefined);
         }
       }
     };
@@ -402,6 +403,7 @@ export function useCardMotion() {
           card: m.card ?? null, faceDown: !!m.faceDown, fromScrap: !!m.fromScrap,
           kraft: !!m.kraft, fromSize: m.fromSize || 'small', trails: m.trails || 0,
           rmSafe: !!m.rmSafe, hideIds: m.hideIds || null, hideId: null,
+          glowColor: m.glowColor || null,
         });
         continue;
       }

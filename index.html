@@ -584,26 +584,38 @@
            straight back every 2.6s, the way the splash wordmark riffles;
            most of the cycle is stillness, and it is silent.
          scorePulse — the winner's numeral swells a touch and glows in
-           its own colour (--glow), slowly. */
+           its own colour (--glow), slowly, over its hard drop (--drop,
+           which is DROP in interstitials.jsx, so the two cannot differ). */
       /* The ROUND N sign as letter cards (2026-09-17, Stan's pick off The
          Turnover). ROUND turns face up on ribbonFlip; the NUMBER turns on
          its own signNumberIn after a held pause, bigger, and lands askew.
          While the sign waits for a click both cycle every 6.2s: the row
          turns face down in a wave, ROUND comes back up, the pause, the
          number again. The percentages come from SIGN_BEATS in
-         src/audio.js over a 6200ms period, per card from its own delay
-         (ROUND i*85ms, the number 425ms): hold 0-3000 (48.4%), down in
-         360 (54.2%), ROUND back up at 4000 over 520 (64.5-72.9%), the
-         number back up at 4915 over 620 (79.3-89.3%). Change a beat and
-         these move with it. Every transform list within a set names the
-         same functions in the same order, so it interpolates part by
-         part rather than as a matrix. */
+         src/audio.js over its 6200ms `cycle`, per card from its own delay
+         (ROUND i*85ms, the number 425ms): hold to `cycleDown` (48.4%),
+         down in 360ms (54.2%), ROUND back up at `cycleUp` over 520ms
+         (64.5 to 72.9%), the number back up `pause` (191ms) after ROUND's
+         last card lands, over 620ms (74.6 to 84.6%, its 60% and 85%
+         frames at 80.6% and 83.1%). The number's flip carries its
+         entrance curve on each of its frames, because an animation's
+         timing function applies per segment, and the loop's ease-in-out
+         turned its face 126ms later than the entrance did (review,
+         2026-09-17). src/components/signCycle.test.js recomputes every
+         one of these from SIGN_BEATS: change a beat and it names the
+         frame to move. Every transform list within a set names the same
+         functions in the same order, so it interpolates part by part
+         rather than as a matrix. */
       @keyframes signNumberIn{0%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}60%{transform:translateY(-18px) rotate(-6deg) rotateY(108deg) scale(1.22)}85%{transform:translateY(2px) rotate(10deg) rotateY(180deg) scale(1.1)}100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
       @keyframes signCycleWord{0%,48.4%{transform:rotateY(180deg) translateY(0)}54.2%,64.5%{transform:rotateY(0deg) translateY(0)}69.5%{transform:rotateY(108deg) translateY(-10px)}72.9%,100%{transform:rotateY(180deg) translateY(0)}}
-      @keyframes signCycleNumber{0%,48.4%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}54.2%,79.3%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}85.3%{transform:translateY(-18px) rotate(-6deg) rotateY(108deg) scale(1.22)}87.8%{transform:translateY(2px) rotate(10deg) rotateY(180deg) scale(1.1)}89.3%,100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
+      @keyframes signCycleNumber{0%,48.4%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}54.2%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}74.6%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1);animation-timing-function:cubic-bezier(.3,.9,.4,1)}80.6%{transform:translateY(-18px) rotate(-6deg) rotateY(108deg) scale(1.22);animation-timing-function:cubic-bezier(.3,.9,.4,1)}83.1%{transform:translateY(2px) rotate(10deg) rotateY(180deg) scale(1.1);animation-timing-function:cubic-bezier(.3,.9,.4,1)}84.6%,100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
+      /* PLAY SCRAPS HAND's tension (2026-09-17): both piles tremble harder
+         and harder over the drumroll's 580ms, brightening, and end still
+         and lit (`forwards`) for the held beat before the reveal. */
+      @keyframes scrapTension{0%{transform:translate(0,0);filter:brightness(1)}15%{transform:translate(-.4px,.3px)}30%{transform:translate(.7px,-.5px)}45%{transform:translate(-1px,.7px)}60%{transform:translate(1.4px,-.9px)}72%{transform:translate(-1.8px,1.1px)}84%{transform:translate(2.2px,-1.3px)}92%{transform:translate(-2.4px,1.4px)}100%{transform:translate(0,0);filter:brightness(1.18)}}
       @keyframes letterWobble{0%{transform:rotate(-1.3deg) translateY(0)}100%{transform:rotate(1.3deg) translateY(-2px)}}
       @keyframes letterCycle{0%,70%,100%{transform:rotateY(0deg) translateY(0)}80%{transform:rotateY(180deg) translateY(-10px)}90%{transform:rotateY(0deg) translateY(0)}}
-      @keyframes scorePulse{0%,100%{transform:scale(1);text-shadow:0 3px 0 rgba(0,0,0,.4),0 0 0 var(--glow)}50%{transform:scale(1.05);text-shadow:0 3px 0 rgba(0,0,0,.4),0 0 22px var(--glow)}}
+      @keyframes scorePulse{0%,100%{transform:scale(1);text-shadow:var(--drop),0 0 0 var(--glow)}50%{transform:scale(1.05);text-shadow:var(--drop),0 0 22px var(--glow)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
       /* One card's share of the opponent's ruffle. Small on purpose:
          at 22px of lift, staggered across five cards, this read as the
@@ -751,13 +763,10 @@
         transform-origin: 50% 128%;
         transition: transform 420ms cubic-bezier(.2,.8,.3,1);
       }
+      .wm-arc { display: block; width: 100%; height: 100%; }
       .wm-wave, .wm-cycle { display: block; position: relative; width: 100%; height: 100%; }
-      .wm-wave { perspective: 800px; transition: transform 300ms ease; }
-      /* A transition as well as the animation: dropping the ripple on
-         hover mid-flip carries the card home rather than snapping it,
-         because the before-change style includes the running
-         animation's effect. */
-      .wm-cycle { transform-style: preserve-3d; transition: transform 260ms cubic-bezier(.2,.8,.3,1); }
+      .wm-wave { perspective: 800px; }
+      .wm-cycle { transform-style: preserve-3d; }
       .wm-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
       .wm-back { transform: rotateY(180deg); }
       @keyframes wmWave{0%,100%{transform:translateY(0)}50%{transform:translateY(-4%)}}
@@ -770,15 +779,25 @@
            outranks a stylesheet rule. Without this the riffle keeps
            running underneath the fan, which is the exact thing the
            rule exists to stop. */
-        /* Under the pointer the wave and the ripple stop, so the fan
-           reads; their transitions carry each card home. */
-        .scraps-title:hover .wm-wave, .scraps-title:hover .wm-cycle { animation-name: none !important; }
-        .scraps-title:hover .scraps-letter:nth-child(1) .scraps-kinetic { transform: rotate(-13deg) translateY(.03em); }
-        .scraps-title:hover .scraps-letter:nth-child(2) .scraps-kinetic { transform: rotate(-8deg)  translateY(.012em); }
-        .scraps-title:hover .scraps-letter:nth-child(3) .scraps-kinetic { transform: rotate(-3deg); }
-        .scraps-title:hover .scraps-letter:nth-child(4) .scraps-kinetic { transform: rotate(3deg); }
-        .scraps-title:hover .scraps-letter:nth-child(5) .scraps-kinetic { transform: rotate(8deg)  translateY(.012em); }
-        .scraps-title:hover .scraps-letter:nth-child(6) .scraps-kinetic { transform: rotate(13deg) translateY(.03em); }
+        /* Under the pointer the wave HOLDS where it is, so the fan
+           reads, and picks up from the same place when the pointer
+           leaves. It used to be removed (`animation-name: none`), which
+           Chrome does not transition out of: a card mid-ripple snapped
+           face on in one frame as the pointer arrived, and on the way
+           out the wave restarted at its per-card delays and jumped cards
+           up to 5px (review, 2026-09-17). Pausing the ripple instead
+           could freeze a card showing its back, so the ripple runs on
+           under the fan, a card turning in the open hand. */
+        .scraps-title:hover .wm-wave { animation-play-state: paused !important; }
+        /* Half the old angles since 2026-09-17: the cards already rest
+           on a fanned curve (.wm-arc), so the hover opens the hand a
+           little further rather than doubling its lean. */
+        .scraps-title:hover .scraps-letter:nth-child(1) .scraps-kinetic { transform: rotate(-6.5deg) translateY(.015em); }
+        .scraps-title:hover .scraps-letter:nth-child(2) .scraps-kinetic { transform: rotate(-4deg)  translateY(.006em); }
+        .scraps-title:hover .scraps-letter:nth-child(3) .scraps-kinetic { transform: rotate(-1.5deg); }
+        .scraps-title:hover .scraps-letter:nth-child(4) .scraps-kinetic { transform: rotate(1.5deg); }
+        .scraps-title:hover .scraps-letter:nth-child(5) .scraps-kinetic { transform: rotate(4deg)  translateY(.006em); }
+        .scraps-title:hover .scraps-letter:nth-child(6) .scraps-kinetic { transform: rotate(6.5deg) translateY(.015em); }
         .scraps-letter:hover .scraps-kinetic {
           transform: rotate(0deg) translateY(-.09em) scale(1.1) !important;
         }

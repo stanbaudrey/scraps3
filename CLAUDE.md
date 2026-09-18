@@ -44,9 +44,11 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **66 tests** cover the engine, the reducer and the Ace
-  attack's motion math (`src/components/throwMotion.test.js`, seven added
-  with The Throw on 2026-09-16 and two on 2026-09-17 for her counter). (It was 37
+- Vitest for tests. **71 tests** cover the engine, the reducer, the Ace
+  attack's motion math (`src/components/throwMotion.test.js`: seven added
+  with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
+  two for yours) and the ROUND sign's idle loop against its beats
+  (`src/components/signCycle.test.js`, three, 2026-09-17). (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
@@ -150,7 +152,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 66 tests, runs in under a second
+npm test          # vitest, 71 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -297,8 +299,13 @@ viewport, and render their full 54 everywhere.
 never passes. `?case=lands` (your Ace, a pile of hers she will not defend),
 `?case=counter` (she holds an Ace and a two-pair pile, so she counters),
 `?case=counter2` (as counter, with a second Ace in your hand, so the turn
-stays live). It exists because a shuffle does not produce an attack on
-demand, and one that does not reach the state cannot test it.
+stays live), and since 2026-09-17 the other way round: `?case=her` (your
+Scraps a full house and an Ace in each hand, so on hard she attacks your
+pile on her first turn and you can counter) and `?case=her2` (as her, with
+a second Ace in her hand, so she comes straight back after your counter).
+Take a turn first: she attacks on HER turn. It exists because a shuffle
+does not produce an attack on demand, and one that does not reach the
+state cannot test it.
 
 **No environment variables are needed** — not for local dev, not for the
 build, not at runtime. Nothing in `src/` reads `import.meta.env` or
@@ -632,10 +639,14 @@ looks broken locally, it is not a missing-secret problem.
   HISTORY all do. Until 2026-09-16 only the storyboard did, and Stan's
   desktop read TAP TO CONTINUE on every sign and reveal. It is a standing
   rule in his global instructions now, not just this project's.
-- **The Hand 1 reveal is the one stage screen with a named button**
-  (2026-09-16, Stan): a green PLAY HAND 2 where the others say CLICK (or
-  TAP) ANYWHERE. A tap on the wood still skips its build, but at REST only
-  the button, or Enter/Space, moves on (`handCta` in `RevealScene`). The
+- **The two hand reveals are the stage screens with a named button**:
+  a green PLAY HAND 2 on Hand 1 (2026-09-16, Stan) and BACK TO THE TABLE
+  on Hand 2 (2026-09-17, Stan: "the button to go back to gameplay should
+  appear without a preliminary click, after a timed animation"), where
+  the others say CLICK (or TAP) ANYWHERE. Each is laid out from the first
+  frame and shown when the build lands; a tap on the wood mid-build jumps
+  to that resting frame, button and all, but at REST only the button, or
+  Enter/Space, moves on (`handCta` in `RevealScene`). The
   root's `onClick` calls `onTap()` with no argument on purpose: the key
   path passes `true`, and a click handed straight through would pass its
   event object, which is truthy, and read as a key.
@@ -693,7 +704,10 @@ looks broken locally, it is not a missing-secret problem.
   hands, and the Scraps reveal opened on top. Now the table comes back,
   `sweepHandsAway` throws whatever is left in both hands off the right edge
   (`HANDS_DISCARDED` — the only reducer action that moves no phase), and
-  PLAY SCRAPS HAND asks for the last hand of the round. Both fans render
+  PLAY SCRAPS HAND asks for the last hand of the round (its press builds
+  tension since 2026-09-17: the button charges as SHOW 'EM does, both
+  piles tremble harder over the same 580ms drumroll, `scrapTension`, and
+  the table holds `SCRAPS_HOLD` before the reveal). Both fans render
   with `showEmpty={false}` for the length of it, so the wood is bare rather
   than carrying two dashed "empty" slots, and their boxes keep their height
   so nothing else moves.
@@ -780,14 +794,23 @@ looks broken locally, it is not a missing-secret problem.
   traces the tear. The per-card contact shadow on the card itself is
   still clipped the same way; see Known issues.
 - **The ROUND sign's cards and its notes read ONE table.** `SIGN_BEATS`
-  in src/audio.js holds the sign's deal, flip, pause and number timings;
-  `RoundSign` schedules its cards from it and the `roundSign` voice
-  places a note on each card as its face comes round, the top note on
-  the number. Its idle cycle's keyframe percentages (signCycleWord /
-  signCycleNumber in index.html) are worked out from the same beats over
-  a 6200ms period, and the comment above them shows the arithmetic:
-  change a beat and redo it. The sign cycles only after it settles and
-  only with motion allowed, and the voice never replays.
+  in src/audio.js holds the sign's deal, flip, pause, number and loop
+  timings; `RoundSign` schedules its cards from it and the `roundSign`
+  voice places a note on each card on the frame its face comes round,
+  which is NOT the flip's midpoint: `faceTurn()` solves each flip's
+  easing for rotateY passing 90deg (0.43 of a ROUND flip, 0.23 of the
+  number's snappier one; the number's note sat 166ms late on the
+  midpoint). The gap Stan hears between ROUND and the number is
+  `noteGap` (630ms, his 40% cut from 1050) and the pause is derived from
+  it. The idle loop's keyframes (signCycleWord / signCycleNumber in
+  index.html) are percentages of `cycle`, and `signCycle.test.js`
+  recomputes every frame from the beats and fails naming the one to
+  move. The number's loop frames carry its entrance curve per keyframe,
+  because a timing function applies per segment. The sign cycles only
+  after it settles and only with motion allowed; under reduced motion it
+  is settled from its first frame. The voice never replays, and a tap
+  that lands the entrance HUSHES it: `cue()` returns a handle whose
+  `stop()` ramps the cue's own gain out, and the sign is its one user.
 - **The wordmark and the match screen are letter cards, one layer per
   motion.** The SCRAPS wordmark (backdrop.jsx `AnimatedTitle`) and the
   match screen's letters (`LetterRow`) are the game's own cards, and
@@ -798,7 +821,17 @@ looks broken locally, it is not a missing-secret problem.
   loops (wave, ripple, wobble, cycle, the ROUND sign's cycle, the
   winner's score pulse) all stop under reduced motion by name in
   index.html's reduced-motion block, because the blanket 1ms rule would
-  otherwise run an infinite loop as a flicker.
+  otherwise run an infinite loop as a flicker. The wordmark's cards sit
+  on a curve (`fanArc`, `BEND = 0.20`: Stan's "20% arc", the rise 20% of
+  the half-width, as Illustrator's Arc bend), and under the pointer the
+  wave PAUSES rather than being removed: Chrome does not transition out
+  of a removed animation, so removal snapped a mid-ripple card face on
+  and restarted the wave with a jump. The ripple runs on under the fan.
+- **A reveal's title is an SVG textPath, and its name is on the
+  container.** `ArchedTitle` sets the word on one even circular arc
+  (radius 8.2em, Stan's "less strewn ... 15% taller"), drawn in an
+  aria-hidden SVG; the wrapper carries `role="heading"` and the label,
+  because an aria-label on a plain div is not read at all.
 - **A reveal's thump sits ON its card's stop, and the next card waits.**
   The slap is an ease-in fall to a dead stop (`SLAP` in interstitials.jsx,
   `slapDown` in index.html), `SLAP.land` equals `SLAP.dur`, and cards are
@@ -810,6 +843,22 @@ looks broken locally, it is not a missing-secret problem.
   screen at that instant, not just its own. `window.__cueLog` (set it to
   `[]` from a harness) records each cue's name and time on the page clock;
   nothing in the game sets it.
+- **YOUR counter of her Ace plays out too, and it runs inside HER turn**
+  (2026-09-17, Stan: "we should see the animation where the user's Ace
+  flies at and intercepts the opp's ace"). `onPlayerCounterAce` flies
+  `counterBackMotions` through the attack's own strike machinery, flagged
+  `reverse`: her Ace comes up face up and is thrown at your pile first
+  (her higher whoosh), yours 100ms later, they meet short of your pile,
+  and yours wins: hers is knocked back up off the top, yours stands lit in
+  voltage (a scripted flight's `glowColor`) and leaves right. Three things
+  differ because it is her turn. The AI gate does NOT clear `aiGo` for a
+  reverse strike: her runner still owes its ADVANCE_FROM, and clearing it
+  cancelled that and restarted her turn from the top, a second move. The
+  dim stays off (her attack never dimmed the table, and its spotlight sits
+  on HER pile). And her second Ace, if she has one, waits in `strike.after`
+  until both Aces have left, plus `RECOUNTER_BEAT`. PLAYER_COUNTER_ACE
+  commits at the end of the hit-stop and spends the first Ace in your
+  hand, which is the card the animation throws.
 - **An effect keyed on a counter fires on a CHANGE, never on mount.** Her
   pile's hop reads `joltKey` against a ref, because the two layouts put the
   pile under different parents and a rotation remounts it holding the last
@@ -855,6 +904,14 @@ versions and should not be deployed to.
 
 ## Known issues
 
+- **Two of Stan's own calls meet on the reveals and the match screen, and
+  he has not chosen between them yet** (found by the 2026-09-17 design
+  review). The reveal titles are "fainter" at his request and measure
+  about 2.45:1 against the wood, under the 3:1 WCAG AA floor for large
+  text (raising the fill from 46% to about 52-55% would pass and still
+  read faint). And the winner's score pulse animates a glow, while his
+  2026-09-14 rule was a hard drop and no glow on the winning and final
+  scores. Both are his to settle; neither was changed.
 - **The torn Scraps cards' own contact shadow does not render.** Their
   `filter` (the leftward contact shadow that is meant to draw the seam
   between cards) sits on the same element as the `clip-path`, and the

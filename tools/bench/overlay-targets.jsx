@@ -56,6 +56,8 @@ const stage = (s) => (
 
 const CASES = {
   reveal:     stage(reveal()),
+  // Hand 2, which rests on BACK TO THE TABLE since 2026-09-17.
+  hand2:      stage(reveal({ which: 'hand2' })),
   scraps:     stage(reveal({ which: 'scraps', playerCards: d.slice(10, 17), aiCards: d.slice(20, 27),
                 winner: 'player', pts: 2, cleanSweep: true })),
   matchWin:   stage(reveal({ which: 'hand2', winner: 'player', before: { p: 9, a: 6 }, endsIt: true })),

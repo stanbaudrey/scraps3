@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  THROW, CLASH, fallTime, ballisticAt, bowAt, throwMotion, knockOffMotion,
-  knockOffPair, clashMotions, fadeMotion,
+  THROW, CLASH, COUNTER, fallTime, ballisticAt, bowAt, throwMotion, knockOffMotion,
+  knockOffPair, clashMotions, counterBackMotions, fadeMotion,
 } from './throwMotion.js';
 
 const yAt = (y0, vy, g, t) => y0 + vy * t + 0.5 * g * t * t;
@@ -112,6 +112,41 @@ describe('The Throw — motion math', () => {
     // Hers then leaves to the right, the discard side, and fades.
     expect(c.hers.at(c.dur).x).toBeGreaterThan(standing.x + 200);
     expect(c.hers.at(c.dur - 1).glow).toBeLessThan(0.05);
+  });
+
+  const yours = () => counterBackMotions({ hers: { x: 500, y: 120, rot: 3, s: 0.8 },
+    mine: { x: 420, y: 620, rot: -4, s: 1 }, meet: { x: 540, y: 300 }, K: 1, s1: 0.6, ceilY: -150 });
+
+  it('your counter: hers is thrown first, yours a beat later, and they meet together', () => {
+    const c = yours();
+    expect(c.herThrowAt).toBe(COUNTER.rise);
+    expect(c.myThrowAt).toBe(COUNTER.rise + COUNTER.answer);
+    expect(c.clashAt).toBe(COUNTER.rise + COUNTER.fly);
+    const a = c.hers.at(c.clashAt), b = c.mine.at(c.clashAt);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(40);
+    // Hers starts as an invisible sliver on her own face-down card.
+    expect(c.hers.at(0)).toMatchObject({ x: 500, y: 120, o: 0 });
+    // Yours is still drawn back, not yet thrown, when hers is in the air.
+    const drawn = c.mine.at(c.myThrowAt - 1);
+    expect(c.mine.at(COUNTER.draw + 1)).toMatchObject({ x: drawn.x, y: drawn.y });
+    expect(c.hers.at(c.myThrowAt).trail).toBe(true);
+    expect(b.s).toBeGreaterThan(a.s);
+  });
+
+  it('your counter: YOURS wins, standing lit while hers flies off the top', () => {
+    const c = yours();
+    const hit = c.mine.at(c.clashAt);
+    const standing = c.mine.at(c.commitAt + COUNTER.win - 1);
+    expect(Math.hypot(standing.x - hit.x, standing.y - hit.y)).toBeLessThan(30);
+    expect(((standing.rot % 360) + 360) % 360).toBeCloseTo(0, 5);
+    expect(standing.s).toBeGreaterThan(hit.s);
+    expect(standing.glow).toBe(1);
+    // Hers is knocked UP, back toward her side, and is gone by the end.
+    expect(c.hers.at(c.commitAt + 300).y).toBeLessThan(c.hers.at(c.clashAt).y - 150);
+    expect(c.hers.at(c.dur).o).toBe(0);
+    // Yours leaves right, the discard side, and fades.
+    expect(c.mine.at(c.dur).x).toBeGreaterThan(standing.x + 200);
+    expect(c.mine.at(c.dur).o).toBe(0);
   });
 
   it('small pieces: a bow ends where it should, a fade fades, the lift settles', () => {

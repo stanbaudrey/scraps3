@@ -232,3 +232,88 @@ export function clashMotions({ mine, hers, meet, K = 1, s1, floorY = Infinity })
     } },
   };
 }
+
+// One leg of a throw: from `from` to `to`, bowed sideways by `arc`,
+// accelerating, between t0 and t1.
+function legAt(from, to, arc, t0, t1, t) {
+  const e = throwEase(clamp01((t - t0) / (t1 - t0)));
+  return { ...bowAt(from, to, arc, e), rot: lerp(from.rot, to.rot, e), s: lerp(from.s, to.s, e), trail: true };
+}
+
+// YOUR counter, 2026-09-17 (Stan: "When the user counters the opponent's
+// Ace, we should see the animation where the user's Ace flies at and
+// intercepts the opp's ace"). Her counter turned the other way round.
+// Her Ace comes up out of her hand and turns face up, and is thrown at
+// your pile first (her higher whoosh); yours is drawn back from your
+// hand and thrown `answer` ms later (yours), quicker, and meets hers
+// short of your pile. YOURS wins: hers is smashed back up past her own
+// hand and off the top edge, spinning and shrinking; yours follows
+// through, stands upright, grows, lights up in green (`glow`), holds the
+// table, then leaves for the discard pile off the right edge.
+// `ceilY` is the line hers has flown past when it is gone (above the
+// screen, so negative).
+export const COUNTER = { rise: 170, answer: 100, fly: 300, draw: 130, hold: 90, win: 440, away: 520 };
+export function counterBackMotions({ hers, mine, meet, K = 1, s1, ceilY = -Infinity }) {
+  const tHerGo = COUNTER.rise, tClash = tHerGo + COUNTER.fly;
+  const tMyGo = tHerGo + COUNTER.answer, tHold = tClash + COUNTER.hold, tWin = tHold + COUNTER.win;
+  // Hers: up out of her hand, face up, then two turns at your pile.
+  const herUp = { x: hers.x, y: hers.y + 26 * K, rot: 0, s: hers.s * 1.08 };
+  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: 696, s: Math.max(s1, herUp.s) };
+  // Yours: drawn back from your hand, then one turn, arriving almost
+  // upright and bigger than hers, and never smaller than it started.
+  const back = { x: mine.x, y: mine.y + 16 * K, rot: mine.rot - 36, s: mine.s * 0.96 };
+  const myTo = { x: meet.x - 8 * K, y: meet.y + 10 * K, rot: -352, s: Math.max(s1 * 1.12, back.s * 0.98) };
+  // Your line of travel is the way the hit goes.
+  const ml = Math.hypot(myTo.x - back.x, myTo.y - back.y) || 1;
+  const ux = (myTo.x - back.x) / ml, uy = (myTo.y - back.y) / ml;
+  const myWin = { x: myTo.x + ux * 16 * K, y: myTo.y + uy * 16 * K, rot: -360,
+    s: Math.max(s1 * 1.26, back.s * 1.08) };
+  // Hers goes back the way it came and along your line, pulled UP, until
+  // it has flown off the top. Solved in a mirrored frame: `fallTime`
+  // answers "how long until it passes a line below", so flip y.
+  const bl = Math.hypot(herUp.x - herTo.x, herUp.y - herTo.y) || 1;
+  const kvx = ((herUp.x - herTo.x) / bl) * 620 * K + ux * 320 * K;
+  const kvy = ((herUp.y - herTo.y) / bl) * 620 * K + uy * 320 * K;
+  const g = -2600 * K;
+  const knockT = fallTime(-herTo.y, -kvy, -g, -ceilY, 0.45, 1.2);
+  const knock = { x0: herTo.x, y0: herTo.y, vx: kvx, vy: kvy, g, spin: 1500,
+    rot0: herTo.rot, s0: herTo.s, sPeak: 0.78, dur: knockT };
+  const exit = { x0: myWin.x, y0: myWin.y, vx: 1500 * K, vy: -380 * K, g: 1700 * K, spin: 760,
+    rot0: myWin.rot, s0: myWin.s, sPeak: 1.04, dur: COUNTER.away / 1000 };
+  const knockMs = knockT * 1000;
+  const dur = Math.max(tHold + knockMs, tWin + COUNTER.away);
+  return {
+    dur, herThrowAt: tHerGo, myThrowAt: tMyGo, clashAt: tClash, commitAt: tHold,
+    hitAng: Math.atan2(uy, ux),
+    hers: { dur, at(t) {
+      if (t < COUNTER.rise) {
+        const e = easeOut(clamp01(t / COUNTER.rise));
+        return { x: hers.x, y: lerp(hers.y, herUp.y, e), rot: lerp(hers.rot, 0, e),
+          s: lerp(hers.s, herUp.s, e), sx: lerp(0.2, 1, e), o: e, trail: false };
+      }
+      if (t < tClash) return legAt(herUp, herTo, 0.15, tHerGo, tClash, t);
+      if (t < tHold) return { ...herTo, trail: false };
+      const tr = Math.min(t - tHold, knockMs);
+      return { ...ballisticAt(knock, tr / 1000), o: tailFade(tr / knockMs), trail: false };
+    } },
+    mine: { dur, at(t) {
+      if (t < COUNTER.draw) {
+        const e = easeOut(clamp01(t / COUNTER.draw));
+        return { x: lerp(mine.x, back.x, e), y: lerp(mine.y, back.y, e), rot: lerp(mine.rot, back.rot, e),
+          s: lerp(mine.s, back.s, e), trail: false, glow: 0 };
+      }
+      if (t < tMyGo) return { ...back, trail: false, glow: 0 };
+      if (t < tClash) return { ...legAt(back, myTo, -0.15, tMyGo, tClash, t), glow: 0 };
+      if (t < tHold) return { ...myTo, trail: false, glow: clamp01((t - tClash) / COUNTER.hold) };
+      if (t < tWin) {
+        const e = clamp01((t - tHold) / 240);
+        const m = easeOut(e);
+        return { x: lerp(myTo.x, myWin.x, m), y: lerp(myTo.y, myWin.y, m),
+          rot: lerp(myTo.rot, myWin.rot, m), s: lerp(myTo.s, myWin.s, backOut(e)), trail: false, glow: 1 };
+      }
+      const tr = Math.min(t - tWin, COUNTER.away);
+      return { ...ballisticAt(exit, tr / 1000), o: tailFade(tr / COUNTER.away),
+        trail: false, glow: 1 - clamp01(tr / (COUNTER.away * 0.35)) };
+    } },
+  };
+}
