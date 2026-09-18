@@ -33,51 +33,58 @@ describe('the ROUND sign loop matches SIGN_BEATS', () => {
     expect(near(f, up0 + pct(0.6 * B.flipDur)).body).toContain('rotateY(108deg)');
   });
 
-  it('the number: the same pause after ROUND lands, over its own flip, easing like the rest', () => {
+  it('the number: the same pause after ROUND lands, then ONE stroke with nothing between', () => {
     const f = frames('signCycleNumber');
     // Card 4 of ROUND lands at up0 + its own delay + a flip; the number
     // starts `pause` after that, less its own delay of five staggers.
     const n0 = up0 + pct(4 * B.stagger + B.flipDur + B.pause - 5 * B.stagger);
-    const want = [[n0, 'rotateY(0deg)'], [n0 + pct(0.6 * B.numberDur), 'rotateY(108deg)'],
-      [n0 + pct(B.numberDur), 'rotateY(180deg)']];
-    for (const [at, has] of want) {
+    const n1 = n0 + pct(B.numberDur);
+    for (const [at, has] of [[n0, 'rotateY(0deg)'], [n1, 'rotateY(180deg)']]) {
       const fr = near(f, at);
       expect(fr, `a signCycleNumber frame at ${at.toFixed(2)}%`).toBeTruthy();
       expect(fr.body).toContain(has);
     }
+    // No frame inside the turn: a curve that arrives at rest arrives at
+    // rest on EVERY frame, so a frame in the middle is a place to stop
+    // (ribbonFlip's 60% held the number ~100ms, 2026-09-18).
+    expect(f.filter(fr => fr.at > n0 + 0.06 && fr.at < n1 - 0.06), 'a frame inside the turn').toEqual([]);
     // The flip carries no curve of its own and no pop: the loop's
-    // ease-in-out applies, as on every ROUND letter, and the pop is
-    // signCyclePop's.
+    // ease-in-out applies, and the pop is signCyclePop's.
     expect(f.some(fr => fr.body.includes('animation-timing-function'))).toBe(false);
-    expect(f.some(fr => fr.body.includes('scale('))).toBe(false);
+    expect(f.some(fr => fr.body.includes('scale(') || fr.body.includes('translate'))).toBe(false);
     expect(near(f, down0) && near(f, down1)).toBeTruthy();
   });
 
-  it('the number pops on its own layer, in the loop and on entry, and never jumps speed', () => {
+  it('the number pops on its own layer, in the loop and on entry, easing in and out', () => {
     const n0 = up0 + pct(4 * B.stagger + B.flipDur + B.pause - 5 * B.stagger);
     const loop = frames('signCyclePop');
     const peak = near(loop, n0 + pct(B.popAt * B.numberDur));
     expect(peak, 'the loop pop peaks at popAt of the flip').toBeTruthy();
     expect(peak.body).toContain('scale(1.22)');
+    expect(near(loop, n0).body).toContain('rotate(0deg) scale(1)');
     expect(near(loop, n0 + pct(B.numberDur)).body).toContain('rotate(8deg) scale(1.12)');
     expect(near(loop, down1).body).toContain('scale(1)');
-    // The swell's curve starts and ends at rest (y1 = 0, y2 = 1); the
-    // settle takes the loop's ease-in-out. So speed is zero at the peak.
-    expect(near(loop, n0).body).toContain('animation-timing-function:cubic-bezier(.3,0,.2,1)');
-    expect(peak.body).not.toContain('animation-timing-function');
+    // Every segment takes the animation's ease-in-out, so the swell leaves
+    // and arrives at rest; its peak lands while the turn is at speed.
+    expect(loop.some(fr => fr.body.includes('animation-timing-function'))).toBe(false);
     const entry = frames('signNumberPop');
-    expect(entry.map(fr => fr.at)).toEqual([0, 55, 100]);
-    expect(near(entry, 55).body).toContain('scale(1.22)');
+    expect(entry.map(fr => fr.at)).toEqual([0, B.popAt * 100, 100]);
+    expect(near(entry, B.popAt * 100).body).toContain('scale(1.22)');
     expect(near(entry, 100).body).toContain('rotate(8deg) scale(1.12)');
-    expect(near(entry, 0).body).toContain('animation-timing-function:cubic-bezier(.3,0,.2,1)');
-    expect(B.popAt * 100).toBeCloseTo(55, 6);
+    expect(entry.some(fr => fr.body.includes('animation-timing-function'))).toBe(false);
+    expect(B.popAt).toBe(0.6);
   });
 
-  it('the number flips on the ROUND letters\' own keyframes', () => {
-    // No keyframes of its own to drift: the entrance uses ribbonFlip.
+  it('the number turns in one stroke on entry; ROUND keeps ribbonFlip', () => {
     expect(css).not.toMatch(/@keyframes signNumberIn\b/);
+    const n = frames('signNumberFlip');
+    expect(n.map(fr => fr.at)).toEqual([0, 100]);
+    expect(n[0].body).toContain('rotateY(0deg)');
+    expect(n[1].body).toContain('rotateY(180deg)');
     expect(frames('ribbonFlip').map(fr => fr.at)).toEqual([0, 60, 100]);
     expect(near(frames('ribbonFlip'), 60).body).toContain('rotateY(108deg)');
+    // Over a ROUND letter's own time, so it turns at a letter's speed.
+    expect(B.numberDur).toBe(B.flipDur);
   });
 
   it('the notes sit on the faces, and the gap Stan hears is the one he asked for', () => {
@@ -85,8 +92,11 @@ describe('the ROUND sign loop matches SIGN_BEATS', () => {
     const number = B.numberAt + B.numberDur * B.numberFace;
     expect(number - lastRound).toBeCloseTo(B.noteGap, 6);
     expect(B.pause).toBeGreaterThan(0);
-    // Both flips ease in and out, solved for 90 of 108deg.
+    // ROUND eases in and out to 108deg at 60%, solved for 90 of 108; the
+    // number's one symmetric stroke passes 90deg at exactly half way.
     expect(B.wordFace).toBeCloseTo(0.43, 2);
-    expect(B.numberFace).toBeCloseTo(0.43, 2);
+    expect(B.numberFace).toBeCloseTo(0.5, 6);
+    // The number's note has not moved since Stan approved it.
+    expect(number).toBeCloseTo(1543.64, 1);
   });
 });

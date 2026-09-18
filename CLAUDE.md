@@ -848,28 +848,40 @@ looks broken locally, it is not a missing-secret problem.
   timings; `RoundSign` schedules its cards from it and the `roundSign`
   voice places a note on each card on the frame its face comes round,
   which is NOT the flip's midpoint: `faceTurn()` solves each flip's
-  easing for rotateY passing 90deg (0.43 of a flip; the number's note sat
+  easing for rotateY passing 90deg (0.43 of a ROUND card's flip, exactly
+  half of the number's one-stroke turn; the number's note once sat
   166ms late on the midpoint). The gap Stan hears between ROUND and the
   number is `noteGap` (630ms, his 40% cut from 1050) and the pause is
-  derived from it. The idle loop's keyframes (signCycleWord /
-  signCycleNumber in index.html) are percentages of `cycle`, and
-  `signCycle.test.js` recomputes every frame from the beats and fails
-  naming the one to move. **Every flip on the sign eases in and out of
-  each keyframe.** The number had a snappier curve until 2026-09-18,
-  and a timing function applies per SEGMENT: that curve leaves each
-  frame at three times its average speed and arrives at the next dead
-  still, so at its 60% frame the card stopped and lurched on, which
-  Stan saw as the "1" glitching. Measured as the largest change in speed
-  from one 4ms step to the next: 4.87 on that curve, 0.09 now, against
-  0.12 for a ROUND card. A snappy or overshooting curve on a multi-frame
-  flip will always do this; give a flip's shape to its keyframes and
-  keep its easing symmetric. The number now flips on `ribbonFlip` itself,
-  and its POP is a layer of its own around the whole 3D card (Stan, the
-  same day: "keep the pop"): `signNumberPop` on entry and `signCyclePop`
-  in the loop swell it to 1.22 at `popAt` (55%) of the flip, tilted past
-  its landing, then settle it to rotate(8deg) scale(1.12). The swell's
-  curve leaves and arrives at rest and the settle eases in and out, so
-  its speed never jumps. The sign cycles only
+  derived from it, which pins the number's face and note to ROUND's last
+  face plus 630 whatever the number's flip is. The idle loop's keyframes
+  (signCycleWord / signCycleNumber / signCyclePop in index.html) are
+  percentages of `cycle`, and `signCycle.test.js` recomputes every frame
+  from the beats and fails naming the one to move. **The number turns in
+  ONE stroke, 0 to 180deg with no keyframe between** (`signNumberFlip`,
+  over a ROUND card's own 520ms). A timing function applies per keyframe
+  SEGMENT, so a flip with a frame in the middle comes to REST on that
+  frame under any curve that arrives at rest, ease-in-out included.
+  Stan saw the "1" glitch twice on 2026-09-18. The first fix blamed its
+  snappy curve (stop at the 60% frame, then a lurch at three times its
+  average speed), swapped in ease-in-out, and measured success as "the
+  largest change in speed from one 4ms step to the next" (4.87 down to
+  0.09), a measure that cannot see a SMOOTH stop at all. The card still
+  sat on a thin sliver of its face for seven near-identical frames at 60fps
+  (~100ms, live screencast), the pop's swell peaking at rest beside it.
+  **Judge a flip by its speed over time, not by the change in speed: the
+  defect is a dip to zero mid-turn.** A ROUND letter dips there too, on
+  ribbonFlip's 60% frame, for half as long, inside the wave, and is left
+  as Stan approved it. The number's POP is a layer of its own around the
+  whole 3D card (Stan, the same day: "keep the pop"): `signNumberPop` on
+  entry and `signCyclePop` in the loop swell it to 1.22 at `popAt` (60%)
+  of the turn, tilted past its landing, then settle it to rotate(8deg)
+  scale(1.12), easing in and out of every frame; the turn is near its
+  fastest at that peak, so the card never rests until it lands (traced
+  every 4ms in Chrome: one rise and fall, peaking on the note's frame).
+  Playwright's WebKit cannot check any of this: headless or headed, its
+  screenshots flatten 3D and ignore `backface-visibility`, so every card
+  shows its face mirrored where Safari shows the back (a textbook
+  two-face flip does the same there). The sign cycles only
   after it settles and only with motion allowed; under reduced motion it
   is settled from its first frame. The voice never replays, and a tap
   that lands the entrance HUSHES it: `cue()` returns a handle whose

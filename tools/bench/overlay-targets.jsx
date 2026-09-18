@@ -74,7 +74,8 @@ const CASES = {
   // tap (2026-09-14). `&live=1` to watch it hold.
   sweepLoss:  stage(reveal({ which: 'scraps', winner: 'ai', pts: 2, before: { p: 2, a: 4 },
                 aiSweep: true, playerCards: d.slice(10, 17), aiCards: d.slice(20, 27) })),
-  sign:       stage({ kind: 'sign', roundNum: 2 }),
+  // `&round=N` picks the number (a "10" is drawn condensed).
+  sign:       stage({ kind: 'sign', roundNum: Number(params.get('round')) || 2 }),
   // MATCH POINT is exactly 9 since 2026-09-16. `signMP` has her on 9 and
   // must say it; `mp9` rolls you onto 9 and must say it; `mp8` rolls you
   // onto 8 and must NOT (the old rule, 8 or more, did).

@@ -490,19 +490,21 @@ const SILENT = { stop() {} };
 //   flipAt, stagger  ROUND turning face up, a card per `stagger`
 //   wordFace         derived: how far into a ROUND card's flip its face
 //                    comes round (rotateY passing 90deg)
-//   numberFace       the same for the number, whose flip is snappier
+//   numberFace       the same for the number, which turns in one stroke
 //   pause            derived: the held breath before the number turns
 //   numberAt         derived: the number's flip starts
 //   settle           derived: the sign at rest, ready for a click
-//   cycle...         the idle loop's layout; signCycleWord and
-//                    signCycleNumber in index.html are these numbers as
+//   cycle...         the idle loop's layout; signCycleWord, signCycleNumber
+//                    and signCyclePop in index.html are these numbers as
 //                    keyframe percentages, and a test holds them to it
 // ─────────────────────────────────────────────────────────────
-// A flip's face comes round when rotateY passes 90deg. Both flips reach
-// 108deg at 60% of their run (ribbonFlip and signNumberIn, index.html),
-// and an animation's timing function applies to each keyframe segment on
-// its own, so the answer is where that first segment's curve reaches
-// 90/108: solve the bezier's y for it, then read its x.
+// A flip's face comes round when rotateY passes 90deg. A ROUND card
+// reaches 108deg at 60% of its run (ribbonFlip, index.html), and an
+// animation's timing function applies to each keyframe segment on its
+// own, so the answer is where that first segment's curve reaches 90/108:
+// solve the bezier's y for it, then read its x. The number turns 0 to
+// 180deg in ONE segment (signNumberFlip), so for it `at` is 1 and `deg`
+// 180, which on a symmetric curve is exactly half way.
 function faceTurn([x1, y1, x2, y2], at = 0.6, deg = 108) {
   const X = (u) => 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
   const Y = (u) => 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
@@ -510,13 +512,19 @@ function faceTurn([x1, y1, x2, y2], at = 0.6, deg = 108) {
   for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (Y(m) < 90 / deg) lo = m; else hi = m; }
   return at * X((lo + hi) / 2);
 }
-// Both flips ease in and out now. The number had a snappier curve until
-// 2026-09-18 (Stan: the "1" card "seems to glitch a little while
-// flipping. make it as smooth as the other flips"), and that curve starts
-// each keyframe segment fast and ends it at a dead stop, so at its 60%
-// frame the card stopped and then lurched on at three times its average
-// speed. ease-in-out leaves and arrives at every frame gently, which is
-// why the ROUND letters never showed it.
+// Both flips ease in and out, and the number's is ONE stroke. Stan saw
+// the "1" glitch twice on 2026-09-18 ("seems to glitch a little while
+// flipping", then "still glitches"), and both times the cause was the
+// frame in the middle of the flip: a timing function runs per keyframe
+// SEGMENT, so a curve that arrives at rest arrives at rest on every
+// frame. On the old snappy curve the number stopped at its 60% frame
+// (108deg) and lurched on; on ease-in-out it stopped there and eased on,
+// and measured live it sat on a thin sliver of its face for seven
+// near-identical frames at 60fps, about 100ms, with the pop's swell peaking
+// at rest beside it. A ROUND letter pauses on the same frame for about
+// half as long, inside the wave. The number now turns 0 to 180deg with
+// no frame between (signNumberFlip), so the only place it stops is
+// where it lands.
 export const SIGN_EASE = { word: [0.42, 0, 0.58, 1], number: [0.42, 0, 0.58, 1] };
 export const SIGN_BEATS = (() => {
   // Retimed 2026-09-17 (Stan): the first flip starts the moment the last
@@ -525,14 +533,16 @@ export const SIGN_BEATS = (() => {
   // 630ms. Every note sits on the frame its card's face comes round, not
   // the flip's midpoint (review, 2026-09-17). So the pause is what is
   // left of the 630 once the rest of ROUND's last flip and the start of
-  // the number's are taken out. With the number on ease-in-out
-  // (2026-09-18) its face comes round later in its flip, so its flip
-  // starts earlier to keep the face, the note and the 630 exactly where
-  // Stan approved them: the pause went 191ms to 67ms.
-  const b = { deal: 70, dealDur: 380, stagger: 85, flipDur: 520, numberDur: 620, noteGap: 630 };
+  // the number's are taken out, which pins the number's face (and its
+  // note) to ROUND's last face plus 630, whatever the number's flip is.
+  // Retimed twice on 2026-09-18 around that: on ease-in-out the pause
+  // went 191ms to 67ms, and turning in one stroke over a ROUND card's
+  // own 520ms (it was 620), the number's face comes round at half way
+  // and the pause is 74ms. The note did not move.
+  const b = { deal: 70, dealDur: 380, stagger: 85, flipDur: 520, numberDur: 520, noteGap: 630 };
   b.flipAt = 5 * b.deal;
   b.wordFace = faceTurn(SIGN_EASE.word);
-  b.numberFace = faceTurn(SIGN_EASE.number);
+  b.numberFace = faceTurn(SIGN_EASE.number, 1, 180);
   b.pause = b.noteGap - (1 - b.wordFace) * b.flipDur - b.numberFace * b.numberDur;
   b.numberAt = b.flipAt + 4 * b.stagger + b.flipDur + b.pause;
   b.settle = b.numberAt + b.numberDur + 120;
@@ -543,8 +553,11 @@ export const SIGN_BEATS = (() => {
   b.cycle = 6200; b.cycleDown = 0.484; b.cycleDownDur = 360; b.cycleUp = 0.645;
   // The number's POP (Stan, 2026-09-18: "keep the pop"): on a layer of its
   // own around the flip, it swells to 1.22 at `popAt` of the flip, then
-  // settles to its askew 1.12. signNumberPop and signCyclePop.
-  b.popAt = 0.55;
+  // settles to its askew 1.12. signNumberPop and signCyclePop. At 60% the
+  // face has just come round and the card is still turning near its
+  // fastest, so the swell's peak (at rest, as a peak is) never lines up
+  // with a pause in the turn.
+  b.popAt = 0.6;
   return b;
 })();
 

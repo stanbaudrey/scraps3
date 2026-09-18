@@ -588,34 +588,39 @@
            keeps its own hard drop: no glow (Stan, 2026-09-18). */
       /* The ROUND N sign as letter cards (2026-09-17, Stan's pick off The
          Turnover). ROUND turns face up on ribbonFlip; the NUMBER turns on
-         its own signNumberIn after a held pause, bigger, and lands askew.
-         While the sign waits for a click both cycle every 6.2s: the row
-         turns face down in a wave, ROUND comes back up, the pause, the
-         number again. The percentages come from SIGN_BEATS in
-         src/audio.js over its 6200ms `cycle`, per card from its own delay
-         (ROUND i*85ms, the number 425ms): hold to `cycleDown` (48.4%),
-         down in 360ms (54.2%), ROUND back up at `cycleUp` over 520ms
-         (64.5 to 72.9%), the number back up `pause` (67ms) after ROUND's
-         last card lands, over 620ms (72.6 to 82.6%, its 60% frame at
-         78.6%). Every flip here, the number's included, eases in and out
-         of each frame: the number flips on ribbonFlip itself, the ROUND
-         letters' own keyframes. It had a snappier curve until 2026-09-18,
-         which stops dead at each frame and leaves the next one fast, and
-         Stan saw the jerk at its 60% frame as a glitch. Its POP lives on a
-         layer of its own around the flip (Stan, the same day: "keep the
-         pop"): signNumberPop and signCyclePop swell it to 1.22 at 55% of
-         the flip (78.1% of the loop), tilt it past its landing, and settle
-         it to rotate(8deg) scale(1.12). The swell's curve starts and ends
-         at rest and the settle eases in and out, so its speed never jumps
-         either. src/components/signCycle.test.js recomputes every one of
-         these from SIGN_BEATS: change a beat and it names the frame to
-         move. Every transform list within a set names the same functions
-         in the same order, so it interpolates part by part rather than as
-         a matrix. */
-      @keyframes signNumberPop{0%{transform:translateY(0) rotate(0deg) scale(1);animation-timing-function:cubic-bezier(.3,0,.2,1)}55%{transform:translateY(-6px) rotate(10.5deg) scale(1.22)}100%{transform:translateY(0) rotate(8deg) scale(1.12)}}
+         its own after a held breath, bigger, and lands askew. While the
+         sign waits for a click both cycle every 6.2s: the row turns face
+         down in a wave, ROUND comes back up, the breath, the number again.
+         The percentages come from SIGN_BEATS in src/audio.js over its
+         6200ms `cycle`, per card from its own delay (ROUND i*85ms, the
+         number 425ms): hold to `cycleDown` (48.4%), down in 360ms (54.2%),
+         ROUND back up at `cycleUp` over 520ms (64.5 to 72.9%), the number
+         back up `pause` (74ms) after ROUND's last card lands, over 520ms
+         (72.7 to 81.09%).
+         The number turns in ONE stroke, 0 to 180deg with no frame between
+         (signNumberFlip, and the loop's number has none either). A timing
+         function runs per keyframe SEGMENT, so a flip with a frame in the
+         middle comes to rest on it under any curve that arrives at rest:
+         ribbonFlip's 60% frame (108deg) held the number on a thin sliver
+         of its face for ~100ms, and Stan saw it glitch twice on 2026-09-18,
+         first on a snappy curve and then on ease-in-out. A ROUND letter
+         pauses there too, for half as long, inside the wave; its
+         keyframes are unchanged. The number's POP is a layer of its own
+         around the flip (Stan, the same day: "keep the pop"):
+         signNumberPop and signCyclePop swell it to 1.22 at 60% of its turn
+         (77.74% of the loop), tilt it past its landing, and settle it to
+         rotate(8deg) scale(1.12), easing in and out of each frame; the
+         turn is near its fastest at that peak, so the card never rests
+         until it lands. src/components/signCycle.test.js recomputes every
+         one of these from SIGN_BEATS: change a beat and it names the frame
+         to move. Every transform list within a set names the same
+         functions in the same order, so it interpolates part by part
+         rather than as a matrix. */
+      @keyframes signNumberFlip{0%{transform:rotateY(0deg)}100%{transform:rotateY(180deg)}}
+      @keyframes signNumberPop{0%{transform:translateY(0) rotate(0deg) scale(1)}60%{transform:translateY(-6px) rotate(10.5deg) scale(1.22)}100%{transform:translateY(0) rotate(8deg) scale(1.12)}}
       @keyframes signCycleWord{0%,48.4%{transform:rotateY(180deg) translateY(0)}54.2%,64.5%{transform:rotateY(0deg) translateY(0)}69.5%{transform:rotateY(108deg) translateY(-10px)}72.9%,100%{transform:rotateY(180deg) translateY(0)}}
-      @keyframes signCycleNumber{0%,48.4%{transform:rotateY(180deg) translateY(0)}54.2%,72.6%{transform:rotateY(0deg) translateY(0)}78.6%{transform:rotateY(108deg) translateY(-10px)}82.6%,100%{transform:rotateY(180deg) translateY(0)}}
-      @keyframes signCyclePop{0%,48.4%{transform:translateY(0) rotate(8deg) scale(1.12)}54.2%{transform:translateY(0) rotate(0deg) scale(1)}72.6%{transform:translateY(0) rotate(0deg) scale(1);animation-timing-function:cubic-bezier(.3,0,.2,1)}78.1%{transform:translateY(-6px) rotate(10.5deg) scale(1.22)}82.6%,100%{transform:translateY(0) rotate(8deg) scale(1.12)}}
+      @keyframes signCycleNumber{0%,48.4%{transform:rotateY(180deg)}54.2%,72.7%{transform:rotateY(0deg)}81.09%,100%{transform:rotateY(180deg)}}
+      @keyframes signCyclePop{0%,48.4%{transform:translateY(0) rotate(8deg) scale(1.12)}54.2%,72.7%{transform:translateY(0) rotate(0deg) scale(1)}77.74%{transform:translateY(-6px) rotate(10.5deg) scale(1.22)}81.09%,100%{transform:translateY(0) rotate(8deg) scale(1.12)}}
       /* PLAY SCRAPS HAND's tension (2026-09-17): both piles tremble harder
          and harder over the drumroll's 580ms, brightening, and end still
          and lit (`forwards`) for the held beat before the reveal. Stronger

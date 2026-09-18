@@ -365,7 +365,9 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   const numScale = num.length > 1 && num !== '10' ? 0.52 : 0.78;
   const REST_WORD = 'rotateY(180deg) translateY(0)';
   // The number's askew, bigger landing lives on its POP layer (see the
-  // markup below), so its flip is exactly a ROUND letter's.
+  // markup below), so its flip is a plain turn: one stroke, 0 to 180deg
+  // over a ROUND letter's own 520ms, with no frame in the middle to stop
+  // on (signNumberFlip; ribbonFlip's 60% frame held it still ~100ms).
   const REST_POP = 'translateY(0) rotate(8deg) scale(1.12)';
   const card = (i, ch, isNum) => {
     const x = isNum ? numberX : i * (d.w + GAP);
@@ -376,7 +378,7 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
       ? (isNum ? `signCycleNumber ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
                : `signCycleWord ${B.cycle}ms ease-in-out ${i * B.stagger}ms infinite`)
       : stop ? undefined
-      : isNum ? `ribbonFlip ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`
+      : isNum ? `signNumberFlip ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`
       : `ribbonFlip ${B.flipDur}ms ease-in-out ${B.flipAt + i * B.stagger}ms both`;
     const popAnim = !isNum ? undefined
       : cycling ? `signCyclePop ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
