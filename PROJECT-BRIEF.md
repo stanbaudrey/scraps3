@@ -5921,6 +5921,11 @@ A revision list Stan typed straight into the session, ending "then /preview". It
 
 **Checked, and how.** Tests 75 (the pop's frames on entry and in the loop, and the flip on ribbonFlip). Sampled every 4ms in Chrome at 1024 and 390: the pop peaks at 1.22 at 340ms (55% of 620) and ends at 1.12; the flip's largest change in speed 0.083 against 0.118 for a ROUND letter; pop and flip both start at 1,277ms; the loop's pop peaks at 1.22 at 77.8% of the cycle. Freeze-frames looked at. `no-undef`, build, `share:check`; `roundSign` unchanged at .2650. impeccable's detector on the changed files: the same four older findings as before the change, none on the pop.
 
+
+#### 2026-09-18, wrap: the record corrected, nothing in the game changed (unplanned)
+
+A /preview and /wrap after the pop. The preview needed nothing new: `dev` matched GitHub at `c5e1fa8`, the tree was clean, and the preview on the dev branch alias served `index-CdTQBI6L.js`, the bundle hash of a fresh local build of that commit (75 tests passing). `dev` is 13 commits ahead of `main` and waits on his word to publish. **What the wrap found stale, and fixed:** CLAUDE.md's Known issues still said the privacy notice was unreachable inside a dead `RulesModal`, three days after the notice went live at `/privacy` and the modal was deleted (rewritten to describe the generated page and its Vercel-only rewrite); CLAUDE.md counted 14 font files where there are 12; the Notion page's summary still said "small hands", "strip", "they counter", "win by two" and 37 tests, and its Designing row named Bungee Shade and Baloo 2 as current; its Decisions table stopped at 2026-09-13 (eight rows added for this run); and this brief's "Where the next session should start" had grown to some thirty paragraphs, a third of them about work shipped weeks ago, including a pointer to a Notion notes block that no longer exists. It is rewritten to the project as it stands, with the one real defect left at the top: the history bar still says "Traded".
+
 ---
 
 ## Session tracker
@@ -5972,6 +5977,7 @@ A revision list Stan typed straight into the session, ending "then /preview". It
 | — | *Unplanned:* His answers and the rule after a counter (2026-09-18, later) | Done, **on preview** (not live) — titles at 3:1, no glow on winning scores, the "1" flips like the letters, a bigger PLAY SCRAPS HAND where it fits, NEXT ROUND on the Scraps reveal, no rings at any hit, her counter's new notice and the attack-or-end-turn stand, no repeated SHE WINS. Tests 71→72 |
 | — | *Unplanned:* The review of his answers (2026-09-18, evening) | Done, **on preview** (not live) — a double-click or a held Enter can no longer skip a result; the no-scrap rule is the reducer's, tested; her turn holds until her whole Ace exchange is over, so her second Ace never arrives in his turn; the stage no longer scrolls on focus; the band holds its height on phones. Tests 72→74 |
 | — | *Unplanned:* The pop back, two rules confirmed (2026-09-18, night) | Done, **on preview** (not live) — the "1" pops again on its own layer without the jerk; a landed attack ends the turn and her second Ace always comes, both confirmed by him as rules. Tests 74→75 |
+| — | *Unplanned:* Wrap: the record corrected (2026-09-18) | Done — no game change; stale privacy, font, summary and next-session text fixed in CLAUDE.md, this brief and Notion; eight decisions added to Notion; `dev` verified on the preview, 13 commits waiting to publish |
 
 
 ---
@@ -6075,288 +6081,33 @@ unrelated commit was being made there.
 
 *Rewritten at the end of every pass. Priority order, defects above
 preferences. Anything closed is deleted from here rather than left
-sitting at the top with the work already done.*
+sitting at the top with the work already done. Last rewritten at the
+2026-09-18 wrap, after the pop; the old version had grown to thirty
+paragraphs, a third of them about work that shipped weeks ago.*
 
-**The Throw and all three 2026-09-17 batches are ON PREVIEW, NOT LIVE** (The Throw was his pick off The Chopping Block, https://claude.ai/artifact/Um9vpaX37XCkz1sfPSeQXc; the letter cards and titles were his picks off The Turnover, https://claude.ai/artifact/Wsvu8hK8oGYHY6VVfBWJsg, whose phone title shots were a zoomed-out desktop layout, see the entry above). What he should look at: the splash (SCRAPS as letter cards on a 20% curve, the wave, the ripple, the hover fan on desktop); the ROUND sign (the flips starting as the last card deals in, the shorter pause, the askew number, the repeat, a note on each face); a reveal (the title on one even arc, the thumps on each card; on Hand 2, BACK TO THE TABLE arriving by itself); PLAY SCRAPS HAND (the tension); SHOW 'EM (bigger); an attack (targets lifted AND lit) and, if she counters, her win; HER attack when he holds an Ace, and his counter played out; the win and loss screens (YOU WIN cycling, the wobble, the pulsing score, bigger FINAL SCORE, SHE / WINS. on a phone); SHARE (scraps.games). **His answers of 2026-09-18 are all built** (titles at 3:1, no glow, the "1" card's flip, PLAY SCRAPS HAND, the Scraps button, no rings, the counter rule, the loss screen). **Settled by him on 2026-09-18:** a landed attack ends the turn even with another Ace in hand; after his counter she always comes back with a second Ace if she has one; the "1" keeps its pop; the titles stay at 3.1 to 3.4:1; the ATTACK press spark stays. **Waiting on him, older:** his cut-off note ("the 'picnic table' background is great, but it reads"); a one-sided counter notice and a she/her sweep of the remaining "Opponent" copy (notice, narrator, logs), both copy calls; the share image's OPPONENT WINS; the small "She wins." line that now repeats the loss screen's cards; whether the torn cards' contact shadow should finally render (it would change every pile's look). **Readings he may overrule:** his counter does not dim the table, and the narrator is quiet while the two Aces fly; under the pointer the wordmark's ripple keeps running (only the wave holds); the score bars dim with the table; the narrator is silent while the Ace flies; the lock click stays on each pick; her Ace leaves right as a discard; the slap is faster and harder so its landing can be seen; SHE WINS without a stop on hand reveals; only the winner's number pulses; the wordmark's A is ink like every card face (the green A belonged to the type wordmark). **Still open from the 2026-09-16 critique, none built:** the Ace aims at the midpoint of the two targets, so non-adjacent targets get hit through the card that stays; on a desktop a knocked-off card falls over his own cards. **Open audit items, not fixed:** keyboard focus drops to the top of the page after ATTACK, REMOVE and her notice; the dimmed score bars still take clicks; REMOVE and CANCEL render 42.3px at 1024×662 (pre-existing); arming shrinks the table 5.2% at 1024×662 (pre-existing); under reduced motion nothing marks which two cards left.
+**In flight: `dev` is 13 commits ahead of `main`, all on the preview, none of it live.** Everything from his 2026-09-16 list to the 2026-09-18 pop (`13b7ef1` to `c5e1fa8`, 32 files): The Throw and her counter as her win, the letter-card wordmark and ROUND sign, the match screen, scraps.games in shares, his counter played out, the three reveals' named buttons, PLAY SCRAPS HAND's tension, the titles at 3:1, the attack-or-end-turn stand after her counter, her turn held through her Ace, the "1" with its pop. Verified at the wrap: the preview on the dev branch alias serves `index-CdTQBI6L.js`, the bundle hash of the tested local build of `c5e1fa8`, and 75 tests pass. **Publish when he says so.** Before the merge: the `no-undef` scan (see Known issues in CLAUDE.md), `npm test`, `npm run build`, `share:check` and `fonts:check`; after it, the same hash comparison against scraps.games. What he should look at, in the order a game reaches it: the splash; a ROUND sign (the number's pop); his attack, her counter and its notice, and the stand if he holds another Ace; her attack while he holds an Ace, and his counter; the three reveals and their buttons; PLAY SCRAPS HAND; the win and loss screens; SHARE.
 
-**His 2026-09-16 list is ON PREVIEW, NOT LIVE** (`dev` is ahead of `main`;
-the entry above the tracker has every decision). What he should look at,
-in the order it comes up in a game: the storyboard's last beat and the
-picker (BACK does not move, HARD's copy); ROUND 1 (YOU GO FIRST.); the
-deal (the narrator box arriving only after the last card); a scrap that
-draws two or more (left to right); SHOW 'EM (the charge-up); the Hand 1
-reveal (no jump as the rows land, PLAY HAND 2); the Hand 2 deal (cards
-opening gaps once and filling them); ROUND 2 (SHE GOES FIRST.); a Clean
-Sweep (the slide); her Ace with and without one of his own (the two
-alerts, on his phone for the buttons). **Four readings he was told about
-and may overrule, all one-line changes:** the counter now shows her
-targets (it was blind); at rest the Hand 1 reveal only continues from its
-button; the narrator also waits for the Hand 2 deal, not only a round's;
-MATCH POINT sits on its own line on the ROUND sign. Publish when he says so.
+**The top defect: the history bar still breaks the settled vocabulary.** Every scrap logs "Traded N card(s) to Scraps. Drew N." (`PLAYER_TRADE_TAKE` in reducer.js, and the AI's own line), which is player-facing, uses a retired word and punts on plurals. Changing "Traded" to "Scrapped" and fixing the plurals is mechanical and needs no call from him. Those lines also carry the last "Opponent" wording, which is his call (next item).
 
-**`CAPACITY.md` is live and needs nothing** (2026-09-14): no backend,
-bandwidth only, Vercel Hobby's 100 GB a month is the single ceiling.
-Demoted from the top of this list because it is closed. Its one carry-over
-lesson: **in a brief this long, frequency measures history, not currency** —
-its draft picked the most common URL here and got the live domain wrong.
+**Waiting on him, copy and taste.** A she/her sweep of the remaining "Opponent" copy: the narrator's "Opponent played an Ace. Counter or let it happen?", "Opponent is choosing her signal..." and "Opponent signals N.", and the log's "Opponent's Ace removed K, K from your Scraps.". The share card's canvas verdict, still OPPONENT WINS (`share.js`). The `<title>`, `og:title` and `twitter:title` against the tagline "Play poker with both hands" (one line in `index.html`, then `npm run share`). Whether the torn cards' contact shadow should finally render, which would change every pile's look (Known issues in CLAUDE.md). His note of 2026-09-17 that arrived cut off: "the 'picnic table' background is great, but it reads". Four small calls from 2026-09-14 he never confirmed: QUIT TO MENU as a ghost button, "2 PTS", `roundLost` as the sound of her Clean Sweep, and "Play to 10." in bold on the storyboard. And two card-redesign calls: whether a card's numeral should sit lower, and whether the Scraps piles now read too small.
 
-**Both of his 2026-09-14 revision lists are LIVE (`adebb85`).** The
-interstitials pass (`a7455b5`) plus twenty-eight revisions on top of it:
-the three bugs (the black screen was a `ReferenceError` in the counter
-notice; the phantom counter a timer that skipped the Ace check; the
-flights now scale), every filled button green, the storyboard and reveal
-copy calls, the seat-by-seat deal, Click/Tap on the rail. The two entries
-above the tracker have every decision.
+**Only he can check these.** SHARE on his iPhone: the sheet should carry the drawn card, the sentence and scraps.games, and no automated browser can open it. The sounds in play: `handWon` may sit hotter than its peak target suggests; if he says so, lower its TARGET in `audio.js` and re-measure, never scale the trim. And before the launch posts, the cold smoke test on cellular, off wifi.
 
-**The privacy notice is live at [scraps.games/privacy](https://scraps.games/privacy)
-(2026-09-15), and the page is GENERATED — never hand-edit
-`public/privacy.html`.** Its copy, template and tokens live in
-`tools/make-share-assets.mjs`; `npm run share` rewrites it and
-`npm run share:check` byte-compares it. It carries **no "last updated"
-date**, on purpose (see the generator header before adding one back). The
-notice had not merely been unreachable, it had stopped shipping at all:
-`RulesModal` lost its importer on 2026-08-30 and Vite tree-shook it out,
-while `llms.txt` kept pointing readers at it. `RulesModal` and its
-`PRIVACY` array are now deleted.
+**Then the launch (Session 7 part two).** Everything it needs is built. What is left is his cellular test and the posts in Section 8, pointing at scraps.games. Decide analytics before the posts, on purpose, including deciding on none: the privacy notice describes a site with no analytics, and adding some afterwards makes it wrong on the day it lands.
 
-**Two things that pass opened, both small.** `/privacy` is a **Vercel
-rewrite**, and `vite preview` serves it locally even with no rewrite at
-all, so a local pass proves nothing — the monthly workflow now fetches it
-as a tenth path, which is the only guard on that rewrite. And the notice is
-reachable from the table's `?` and from `llms.txt`/`sitemap.xml`, but from
-**nowhere on the splash or the difficulty picker**, which follows from
-Stan's 2026-09-13 call that the wordmark and one button carry the splash.
-Not a defect; raise it only if he does.
+**His DO NOT START block in Notion waits for a conversation:** a harder HARD; a REALLY HARD that skews the deck and unlocks after beating HARD; the picker's record set larger, without BEST; memory across sessions (the privacy notice's generator, `tools/make-share-assets.mjs`, is where a new stored thing would be declared); and dropping the signal from Hand 2. Do not begin any of it without him. Teaching her to sometimes decline a second Ace belongs with it: on 2026-09-18 he confirmed she always comes back with one.
 
-**The DO NOT START item about memory across sessions now has a real page to
-amend.** That item asks what the privacy notice would have to say if the
-game remembered you between sessions. The answer is now concrete: edit the
-`PRIVACY` array in `tools/make-share-assets.mjs` and run `npm run share`.
-It is three lines and names exactly two stored things, so a third would be
-a visible, deliberate addition rather than an edit to prose nobody reads.
+**Settled on 2026-09-18, not to reopen.** A landed attack ends the turn even with another Ace in hand; only a countered one gives another go. After his counter she always comes back with a second Ace if she has one. After her counter he may only attack again or end the turn (the reducer's `counterStand`). No crosshairs and no ring at any hit; the ATTACK press spark stays. The reveal titles stay at 3.1 to 3.4:1. The winning scores pulse without a glow. The "1" pops on a layer of its own.
 
-**Four judgment calls from the first list are live and unconfirmed by
-him:** QUIT TO MENU as a ghost so the quit screen has one green thing;
-"2 PTS" for his "2 PT"; `roundLost` as the sound of her Clean Sweep (a
-first placement); and "Play to 10." kept bold inside the body-copy line.
-Cheap to change, so raise them before anything else if he has not.
-
-**One path is verified by reading, not by play:** counter her Ace, then
-watch her play a second. Reaching it needs a deal where you hold one Ace
-and she holds two and chooses to attack twice. The fix is one routing
-change plus an invariant effect; a rigged deal on the overlay bench would
-close it properly.
-
-**His DO NOT START block in Notion is the next real work, and it waits
-for a conversation:** a harder HARD, a REALLY HARD mode that skews the
-deck and unlocks after beating HARD (with a CTA on the picker and a
-button on the win screen), the picker's record set larger without BEST,
-whether the game keeps memory across sessions and what the privacy notice
-then has to say, and dropping the signal from Hand 2. Do not begin any of
-it without him.
-
-**Two things only Stan can check on the live game.** SHARE on his iPhone:
-the sheet should carry the drawn result card, the sentence and the address
-(Messages, Mail and AirDrop all take the picture); no automated browser can
-open that sheet, so it has been verified up to the call and not past it.
-And the sounds in play: `handWon` sits hotter than its target suggests (the
-standing note), and the two new cues, `slap` and `roundSign`, were placed
-by first principles rather than by a bench.
-
-**Copy call open:** the `<title>`, `og:title` and `twitter:title` still say
-"Poker with two hands at once." while the splash, the share sentence and
-the OG card say "Play poker with both hands". One line in `index.html` plus
-`npm run share`; his to decide.
-
-**In flight: the 2026-09-16 list, on `dev` and the preview, not on
-`main`.** Production still serves the privacy pass. Before any publish run the `no-undef` scan the
-revision entry describes; it is the only check in this repo that catches a
-render crash, and the tests were green over one.
-
-**The responsive gate is trustworthy again, and it was not before
-(2026-09-14).** It had been failing intermittently on a 54px button it was
-measuring at `scale(.5)` mid-`popIn`, which is the failure mode that
-teaches you to ignore the alert. It now settles on
-`document.getAnimations()`, says whether the page was actually still, and
-names what was moving if it was not. **Before trusting any touch-target
-number from it, check the `quiet` field.** The companion
-`tools/overlay-targets.mjs` measures all six modals at rest without
-needing the deal to produce them; run it whenever a modal's layout is
-touched, because the gate reaches a modal only by luck. And **do not run
-two browser harnesses against this project at once** — the walk is paced
-by real timers and CPU contention makes clicks time out in ways that look
-like defects.
-
-**The vocabulary is now settled and it binds.** The game says hand, scrap,
-attack, discard and CLEAN SWEEP. Nothing player-facing says small hand,
-transfer, trade in, strip, strike, FULL SCRAP — or **burn**, which Stan
-rejected outright when the spec proposed it as the Ace verb and as the tag
-over the card. The tag is **ATTACK**. The spec file that proposed BURN is
-deleted from the repo and from `~/Downloads` it came from; if a copy ever
-resurfaces it is wrong in four places and CLAUDE.md's vocabulary block
-outranks it.
-
-**Two things nobody has actually watched land, both copy, neither a
-defect.** The **CLEAN SWEEP lightbox** is measured to fit at 375px
-(255.7px of ink against 343px available) and was screenshotted by forcing
-its state, but nobody has seen it arrive at the end of a real round. And
-the **Ace exchange lines** ("They had an Ace too. Both gone. Turn over.")
-only fire on a counter, so they need provoking rather than waiting for.
-
-**The finishing job the terminology pass left, and it earns its own
-slot.** `PLAYER_SCRAP_WITH_DISCARD` now sits beside
-`PLAYER_TRADE_OVERFLOW_START`; `SMALL_HAND_SCORED`, `hasLegalTrade`,
-`legalTradeFallback`, `nextPhaseAfterTrade` and `pendingTrade` still carry
-the retired words. That was the spec's explicit line and following it was
-deliberate. Finishing it is a contained internal rename reaching into the
-engine's AI scoring and the phase machinery, with **no user-visible
-payoff**, so it should not ride along on a visual or copy pass.
-
-**Open from the card redesign, and these are taste calls only Stan can
-make.** The **vertical composition of a card**: the numeral is anchored to
-the top and the bottom third is deliberately empty, and whether it wants
-to sit lower has never been decided. And whether the **Scraps piles now
-read as too small**: they dropped a whole size to fix a real legibility
-failure at seven cards, which also answers his "too much shit onscreen"
-note, but it moved the table's balance more than the spec anticipated.
-
-**Three "Stan" mentions ship in `index.html` and he has not decided about
-them.** They are CSS comments inside the `<style>` block — design
-commentary, first name only, no surname or contact details — and they ship
-verbatim because only JS comments get minified away. Pre-existing and live
-for weeks; surfaced at the 2026-09-13 publish. **Do not remove them
-unilaterally**, and do not re-flag them as a new finding: they are his
-call and he has been told.
-
-**One thing to watch on the new kit, and it is the only open question from
-that pass.** `handWon` fires twice a round, more than any other outcome
-cue, and it is now a ringing bar rather than a knock. The declared targets
-are PEAK, which under-states a bar by about 2x in RMS, so it may sit hotter
-in play than its .34 suggests. If Stan raises it, lower the TARGET in
-`audio.js` and RE-MEASURE — never scale the trim. Same for `revealBuild`
-in the other direction: it plays at .297, which is what it always shipped
-at, but the Woodshed bench played it at .42, so he heard it louder there
-than the game plays it. He was told and did not ask for it changed.
-
-**Before anything else, read the notes block on the Notion page.** The wrap
-on 2026-09-13 found a long, largely unactioned set of Stan's own notes
-there under a heading reading *"BIG PICTURE: SOLVE THESE FIRST BEFORE
-FINE-TUNING EVERYTHING ELSE"*, and none of it is mirrored here by design.
-**Three of its items are now closed:** the card redesign (**built**
-2026-09-13, on `dev`), **FIX SOUND EFFECTS** (built 2026-09-13, awaiting
-his listen), and the **`▸` on the best-hand badge** (removed 2026-09-13).
-A fourth, *"maybe the scraps are smaller"*, is answered as a side effect of
-the redesign's legibility fix rather than deliberately — worth confirming
-with him that it went far enough. The rest
-of the list still stands.
-It contains the original complaint this redesign answers, in his words
-("STYLE OF SCRAPS CARDS UNDERCUTS CONCEPT OF THEM BEING THE MESSY
-DISCARD"), and it is the real backlog: off-brand interstitials, the
-opponent becoming female throughout, ~~"small hand" becoming "hand"~~
-(**done** 2026-09-13, with the rest of the vocabulary), dropping the
-win-by-2 rule, removing the deck and discard piles in favour of cards
-dealing in from off-viewport, and ~~a set of Ace copy changes~~ (**done**
-2026-09-13 — the Ace is now attacked WITH and its victims are discarded).
-**One item in it blocks part of the redesign:** he asks whether Rye should
-replace Bungee Shade *everywhere*, not just Baloo 2 on the cards, which
-would change the wordmark and the family count. Spec section 6b has the
-detail.
-
-**~~Then: build the card and Scraps redesign from
-`CARD-REDESIGN-SPEC.md`.~~ SHIPPED 2026-09-13** — the paragraph below is
-kept for the reasoning it records, not as an instruction. The spec file is
-deleted.
-
-**Then: build the card and Scraps redesign from
-`CARD-REDESIGN-SPEC.md`.** Ten decisions, all Stan's, all confirmed, with
-a file-by-file change list carrying verified line numbers and twelve
-acceptance criteria. Nothing in it is open and nothing needs asking. Read
-section 4.1 before touching `FannedHand`: the fan's `MIN_EXPOSED.up` of
-0.34 makes a centred numeral geometrically impossible, and that is the
-part most likely to eat a session. Delete the spec file once the work has
-shipped and been logged, so it cannot rot into a second source of truth.
-
-**This outranks the launch, and the ordering matters.** The redesign
-changes every card in the game, the walkthrough's sample hands, and the
-splash. It also forces `npm run share` to regenerate `og.png`, because
-the share card renders a five-card hand with suits in it. So launching
-first would advertise a look that is about to change and a share card
-that is about to be replaced. **Redesign, then launch.**
-
-**When it ships, `CLAUDE.md` needs four corrections** that this pass
-already identified: the test count changes again (six flush tests go, a
-deck-shape test replaces them), the font family list loses Baloo 2 and
-gains Rye, the Gotchas entry describing the two-red-ink system stops
-being true, and the Stack section's claim that suits exist at all needs
-revisiting.
-
-**Then: Session 7 part two, the launch itself.** Everything the launch
-needs is built, published and verified. What is left is not code: the
-**cold smoke test on CELLULAR, which only Stan can run**, on his phone,
-off wifi — every walk so far went over a fast connection and proves the
-layout and the game, not the load on a slow radio. Then the posts in
-Section 8 go out — **pointing at `scraps.games`.** The drafts contain no
-URL so there is nothing to correct in them. Do not re-verify the
-metadata; `npm run share:check` re-derives it on demand and was
-broken-on-purpose twice at the last publish to confirm it still fails by
-name.
-
-**Decide analytics before the posts, not after.** The privacy notice Stan
-approved describes a site with no analytics, which is true today. Adding
-any afterwards makes a shipped legal document wrong on the day it lands,
-so this is a decision to make on purpose, including deciding on none.
-
-**The game's address is `https://scraps.games`.** Registered 2026-09-08,
-certificate valid, and `scraps3.vercel.app` 308-redirects to it. Every
-canonical, Open Graph, sitemap and `llms.txt` reference is generated from
-one `SITE` constant in `tools/make-share-assets.mjs` and cross-checked
-against `index.html` by `npm run share:check`. Do not hand-edit any of
-those; change `SITE` and regenerate.
-
-**The product carries exactly TWO backgrounds, and that is a decision
-rather than a state.** Stan's supplied scene holds the title screen and
-the rules storyboard; `TableSurface` holds the difficulty pick, the game
-and the lose screen. `RidgeBackdrop` was deleted when that rule left
-nothing pointing at it — do not reintroduce a third without his say-so.
-
-**Do not hand-place beziers or use `objectBoundingBox` gradients if the
-foothills are ever restored** from `ef34063`; the 2026-08-31 entry
-records why both cost a pass.
-
-**Post-launch backlog, agreed 2026-08-30:**
-- An **About page** carrying the origin story — the weekend in **Sisters,
-  Oregon**, written out in full in Section 1 above. A fourth screen
-  reached from the splash and the game-over screen, NOT a route (this
-  project has no router by deliberate choice).
-- **STRIKE vs ATTACK on the Ace button.** Stan's note asked for STRIKE and
-  the build shipped ATTACK. One word, one line, needs his call. Worth
-  folding into the redesign pass since that flow is being touched anyway.
-- **Email capture pointed at Stan's existing Neon email list project**,
-  not anything new built here. It conflicts with the signed privacy
-  notice and the no-backend rule, so link out rather than collecting.
-- The **`GameScreen.jsx` three-way split**, still deliberately deferred.
-- Two remaining `minigame` skill lessons: fake-`disabled` buttons as an
-  accessibility trap, and computing contrast against the CURRENT palette.
-
-**Open questions nobody has answered:**
-- The **second-Ace rule is the player's only** in one direction: the AI
-  re-counters when the player counters it, but if the player counters and
-  the AI has no Ace, nothing further happens — which is correct. What is
-  untested is a long re-counter chain on both sides.
-- The **log still reads "Opponent traded 1 card(s) to Scraps"** — the one
-  place in the game that punts on pluralisation.
-- The AI's replacement draws fly from the deck. If that ever looks busy on
-  a big trade, the fix is sequencing, not hiding them.
+**Post-launch backlog, agreed 2026-08-30.** An About page carrying the Sisters, Oregon origin story (Section 1): a fourth screen reached from the splash and the match screen, not a route. Email capture as a link out to his existing Neon list; a form here would break the privacy notice and the no-backend rule. The `GameScreen.jsx` split, in a session of its own. And the unfinished identifier rename (`hasLegalTrade`, `pendingTrade`, `nextPhaseAfterTrade`, `SMALL_HAND_SCORED` and the rest): no user-visible payoff, so never as a rider on a visual or copy pass.
 
 ### Do not do these next, and why
 
 **Do not re-litigate removing `GlowPulse`.** It was specced for removal
 on 2026-09-13 on the grounds that the border it ringed was going, then
 reinstated the same day once the cost was named: it is the only cue
-telling you which pile the Ace strike is acting on. It stays. The real
-work is making it stop painting a rectangle — see spec section 1.10,
-which has the two options and the reason the reduced-motion substitute
-has to change with it.
+telling you which pile the Ace attack is acting on. It stays, and it
+traces the torn cards' real outlines now (CLAUDE.md's Gotchas).
 
 **Do not re-open the table's composition.** It was examined on
 2026-08-28 and deliberately left half-changed: the narrator panel and
@@ -6374,13 +6125,22 @@ table is already scaled to 0.55 on that screen. This is the same trade
 CLAUDE.md's known-issues entry records for every control in landscape,
 and portrait is the intended orientation.
 
+**Do not add a third background.** Stan's scene holds the title screen
+and the storyboard; `TableSurface` holds the picker, the game and the
+stage. That is a decision rather than a state, and `RidgeBackdrop` was
+deleted when it left nothing pointing at it.
+
+**Do not remove the three "Stan" mentions in `index.html`, and do not
+re-flag them.** They are CSS comments (first name only, design notes)
+that ship verbatim; he has been told, and they are his call.
+
 **Do not refactor `GameScreen.jsx` as part of something else.** The
 2026-08-24 decision still holds — real code-health issue, no
 user-visible payoff, real risk. It earns its own session, after launch,
 and the Session 3 split into named pieces (`oppHandEl`, `actionEl`,
 `playerHandEl`) has already made the lift easier than it was.
 
-### Two things about how to work in this repo
+### How to work in this repo
 
 **Measure the browser, do not read the CSS.** Both defects fixed on
 2026-08-28 were invisible in the source and obvious in a measurement,
@@ -6398,3 +6158,8 @@ browser where timers fire, and `tools/responsive-qa.mjs` runs through
 the same shim by rewriting its one `from 'playwright'` import. The
 "Playwright is not a dependency" note in this repo is about `npm`, not
 about whether a browser can be driven here.
+
+**Do not run two browser harnesses against this project at once.** The
+responsive walk is paced by real timers, and CPU contention makes its
+clicks time out in ways that look like defects. And before trusting a
+touch-target number from it, check that it measured a still page.

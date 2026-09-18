@@ -121,7 +121,7 @@ evaluator to make that true: it always read rank and value only.
   a little shorter, 100ms after yours (Stan's call), trimmed at 48 kHz. **There is no brass anywhere** — the bench offered four brass
   options on every messaging cue and Stan took none. See the file's own header
   and the Gotchas below.
-- Asset files in the repo, and there are only two kinds: the **14
+- Asset files in the repo, and there are only two kinds: the **12
   self-hosted `.woff2` fonts** in `public/fonts` (Session 6), and the
   **three share/favicon PNGs plus `favicon.svg`** in `public/`
   (Session 7). Nothing inside the *game* is a file — every graphic it
@@ -1018,14 +1018,19 @@ versions and should not be deployed to.
   a desktop layout shrunk to fit. Fixed the same day; the other bench,
   `attack.html`, always had the meta.
 
-- **The privacy notice is unreachable in the shipped game.** It lives in
-  `RulesModal` (`overlays.jsx`), and `RulesModal` has had no importer
-  since the storyboard took over as the in-game rules on 2026-08-30 —
-  so the `?` button opens the storyboard, which has no privacy text.
-  `public/llms.txt` still tells readers to "see the Privacy notice
-  inside the game's rules panel". Found 2026-09-13, not fixed: the
-  wording and the placement are Stan's call, and deleting the dead
-  component would take the only copy of that text with it.
+- **The privacy notice is a GENERATED page at `/privacy`, and the rewrite
+  that serves it can only be tested on Vercel.** `public/privacy.html` is
+  written by `tools/make-share-assets.mjs` (its copy lives there, in the
+  `PRIVACY` array) and byte-checked by `npm run share:check`; never
+  hand-edit it. `vercel.json` rewrites `/privacy` to it, and `vite preview`
+  serves the page with or without that rule, so a local check proves
+  nothing about the rewrite; the monthly workflow fetches it on
+  production. It is reachable from the storyboard's footer (PRIVACY beside
+  SKIP, which the table's `?` opens) and from `llms.txt` and the sitemap,
+  and from nowhere on the splash or the picker, by Stan's rule that the
+  wordmark and one button carry the splash. This entry said until
+  2026-09-18 that the notice was unreachable inside a dead `RulesModal`;
+  that stopped being true on 2026-09-15 and the modal was deleted.
 - **There is no README, and never was one.** Nothing in git history has ever
   added a `.md` file. So there are no stale README claims to correct.
   The "rules are written down nowhere" half of this gap closed in Session 7:
