@@ -1,8 +1,8 @@
 {
   "note": "Written by tools/make-share-assets.mjs. Do not hand-edit — run `npm run share` to regenerate, `npm run share:check` to verify.",
-  "generated": "2026-09-15T11:41:59.229Z",
+  "generated": "2026-09-18T22:40:24.270Z",
   "sources": {
-    "title": "SCRAPS - Poker with two hands at once.",
+    "title": "SCRAPS - Play poker with both hands.",
     "description": "This turn's discards are next turn's hand.",
     "wordmark": "SCRAPS",
     "strapline": "Play poker with both hands",

@@ -229,8 +229,8 @@ export function gameReducer(state, action) {
     case 'INTERSTITIAL_DONE': {
       const first = firstActorForRound(state.roundNum);
       const msg = first === 'player'
-        ? `Round ${state.roundNum} - Opponent dealt. You go first.`
-        : `Round ${state.roundNum} - You dealt. Opponent goes first.`;
+        ? `Round ${state.roundNum} - She dealt. You go first.`
+        : `Round ${state.roundNum} - You dealt. She goes first.`;
       return {
         ...state,
         phase: `${first}-turn-1a`,
@@ -251,7 +251,7 @@ export function gameReducer(state, action) {
       const drawCount = cards.reduce((s, c) => s + scrapValue(c), 0);
       const net = (state.playerHand.length - cards.length) + drawCount;
       if (net > HAND_LIMIT) {
-        return { ...state, log: addLog(state, `That trade would give you ${net} cards — over the 7-card limit.`) };
+        return { ...state, log: addLog(state, `That would give you ${net} cards, over the 7-card limit.`) };
       }
       const drawn = state.deck.slice(0, drawCount);
       const tagged = cards.map(c => ({ ...c, turnAdded: state.currentTurn, eligibleForDiscard: false }));
@@ -262,7 +262,7 @@ export function gameReducer(state, action) {
         arrivals: { player: { toScraps: tagged, toHand: drawn } },
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
-        log: addLog(state, `Traded ${cards.length} card(s) to Scraps. Drew ${drawCount}.`),
+        log: addLog(state, `Scrapped ${cards.length} card${cards.length > 1 ? 's' : ''}. Drew ${drawCount}.`),
       };
     }
 
@@ -321,12 +321,12 @@ export function gameReducer(state, action) {
         pendingTrade: null, scrapsOverflow: 0,
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
-        log: addLog(state, `Discarded ${action.discardCards.length} from Scraps. Traded ${cards.length} card(s). Drew ${drawCount}.`),
+        log: addLog(state, `Discarded ${action.discardCards.length} from Scraps. Scrapped ${cards.length} card${cards.length > 1 ? 's' : ''}. Drew ${drawCount}.`),
       };
     }
 
     case 'PLAYER_TRADE_CANCEL':
-      return { ...state, pendingTrade: null, scrapsOverflow: 0, log: addLog(state, 'Trade cancelled.') };
+      return { ...state, pendingTrade: null, scrapsOverflow: 0, log: addLog(state, 'Scrap cancelled.') };
 
     // ── No legal trade: the turn is skipped ──────────────────
     // Ending your turn by choice, after the opponent countered your Ace
@@ -349,7 +349,7 @@ export function gameReducer(state, action) {
         ...state,
         counterStand: false,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
-        log: addLog(state, 'You have no legal trades available. Your trade is skipped.'),
+        log: addLog(state, 'You have nothing legal to scrap. Your turn is skipped.'),
       };
     }
 
@@ -357,7 +357,7 @@ export function gameReducer(state, action) {
       if (!AI_TURN_PHASES.includes(state.phase)) return state;
       return {
         ...state,
-        log: addLog(state, 'Opponent has no legal trades. Her trade is skipped.'),
+        log: addLog(state, 'She has nothing legal to scrap. Her turn is skipped.'),
       };
       // Phase advances via the usual ADVANCE_FROM timer.
     }
@@ -391,7 +391,7 @@ export function gameReducer(state, action) {
         aiHand: [...state.aiHand.filter(c => !ids.has(c.id)), ...drawn],
         deck: state.deck.slice(drawN),
         aiScraps, discard,
-        log: addLog(state, action.logMsg || `Opponent traded ${cards.length} card(s) to Scraps.`),
+        log: addLog(state, action.logMsg || `She scrapped ${cards.length} card${cards.length > 1 ? 's' : ''}.`),
       };
     }
 
@@ -417,7 +417,7 @@ export function gameReducer(state, action) {
         discard: [...state.discard, ace, ...targets],
         currentTurn: state.currentTurn + 1,
         phase: nextPhaseAfterTrade(state.phase, state.roundNum),
-        log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank).join(', ')} from opponent's Scraps.`),
+        log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank).join(', ')} from her Scraps.`),
       };
     }
 
@@ -523,7 +523,7 @@ export function gameReducer(state, action) {
         aiSignal: action.signal,
         aiPlayed: [...action.cards],
         phase: state.phase === 'signal-ai' ? 'signal-player' : 'signal-player-2',
-        log: addLog(state, `Opponent signals ${action.signal} card${action.signal > 1 ? 's' : ''}.`),
+        log: addLog(state, `She signals ${action.signal} card${action.signal > 1 ? 's' : ''}.`),
       };
     }
 
@@ -534,7 +534,7 @@ export function gameReducer(state, action) {
         aiSignal: action.signal,
         aiPlayed: [...action.cards],
         phase: state.phase === 'signal-player' ? 'reveal-1' : 'reveal-2',
-        log: addLog(state, `You signal ${action.playerSig}. Opponent signals ${action.signal}.`),
+        log: addLog(state, `You signal ${action.playerSig}. She signals ${action.signal}.`),
       };
     }
 
@@ -561,7 +561,7 @@ export function gameReducer(state, action) {
         ...(state.aiPlayed || []).map(c => c.id),
       ]);
       const msg = winner === 'player' ? `You win! ${pName}. +1 pt`
-        : winner === 'ai' ? `Opponent wins. ${aName}. +1 pt` : 'Tie.';
+        : winner === 'ai' ? `She wins. ${aName}. +1 pt` : 'Tie.';
       const gameOver = checkWin(nP, nA);
       return {
         ...state,
@@ -626,8 +626,8 @@ export function gameReducer(state, action) {
       let log = state.log;
       if (cleanSweep) log = [...log, `CLEAN SWEEP! ${pName}. +${pPts} pts`];
       else log = [...log, winner === 'player' ? `You win Scraps! ${pName}. +${pPts} pts`
-        : winner === 'ai' ? `Opponent wins Scraps. +${aPts} pts` : 'Scraps tied.'];
-      if (aiSweep) log = [...log, 'Opponent sweeps the round! +1 bonus pt.'];
+        : winner === 'ai' ? `She wins Scraps. +${aPts} pts` : 'Scraps tied.'];
+      if (aiSweep) log = [...log, 'CLEAN SWEEP for her. +1 bonus pt.'];
       const gameOver = checkWin(nP, nA);
       return {
         ...state,

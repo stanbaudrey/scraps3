@@ -171,9 +171,10 @@ a rename or a repaint that forgets to regenerate fails the check by name
 rather than shipping a share card for a game that no longer exists. The
 card's strapline is read from `TAGLINE` in `src/share.js` — the same
 string the splash subtitle and the SHARE sentence use — so the three
-cannot drift. (The `<title>` still says "Poker with two hands at once."
-rather than the tagline; that is a copy call left for Stan, see Known
-issues.)
+cannot drift. (The `<title>` is a literal in `index.html`, not read from
+`TAGLINE`; since 2026-09-18 it says "SCRAPS - Play poker with both
+hands." to match, by Stan's call, and a future tagline change has to
+move both by hand.)
 
 `tools/trim-measure.mjs` renders every cue in `src/audio.js` offline and
 prints the trim each one needs to hit its declared target. It is the method
@@ -1074,12 +1075,21 @@ versions and should not be deployed to.
   and match-end choreography OUT of it, into `interstitials.jsx`, without
   making it shorter: the comments explaining what moved and why are what
   the removed code weighed.)
-- **The page title and the share tagline disagree, on purpose for now.**
-  The splash, the SHARE sentence and the OG card's strapline all say
-  "Play poker with both hands" (Stan, 2026-09-14). The `<title>`, `og:title`
-  and `twitter:title` still say "SCRAPS - Poker with two hands at once."
-  Aligning them is a one-line edit to `index.html` plus `npm run share`,
-  and it is Stan's copy call rather than a session's.
+- **The page title matches the tagline since 2026-09-18, but only by
+  hand.** `<title>`, `og:title`, `twitter:title`, the structured data's
+  description and the `<noscript>` lead all say "Play poker with both
+  hands", as the splash, the SHARE sentence and the OG card's strapline
+  do. Those five are literals in `index.html`; only the strapline is read
+  from `TAGLINE`. Change the tagline and they need the same edit, then
+  `npm run share`.
+- **She is "She" and "Her" everywhere she is NAMED; "opponent" survives
+  only as a common noun** (Stan, 2026-09-18). The narrator, the history
+  and the share card's SHE WINS never call her Opponent. The storyboard
+  ("visible to opponent", "Opponent's Scraps"), the Ace explainer, the
+  picker's screen-reader heading, `llms.txt`, the `<noscript>` rules and
+  the structured data keep the word on purpose: they are what tells
+  someone who has not played who "she" is. Her pile's screen-reader name
+  is "Her Scraps", beside "Your Scraps".
 - **The share sheet with an image is untested on a real iPhone.** `share.js`
   attaches a canvas-drawn PNG through `navigator.canShare({files})`, which
   iOS 15+ Safari supports; the clipboard fallback was verified in headless

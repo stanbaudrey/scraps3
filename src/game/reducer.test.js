@@ -160,7 +160,7 @@ describe('signal order follows the dealer', () => {
     s = gameReducer(s, { type: 'AI_FIRST_SIGNAL', signal: 1, cards: aiCards });
     expect(s.phase).toBe('signal-player');
     expect(s.aiSignal).toBe(1);
-    expect(s.log[s.log.length - 1]).toBe('Opponent signals 1 card.');
+    expect(s.log[s.log.length - 1]).toBe('She signals 1 card.');
     // Player signals; both are in → reveal
     s = gameReducer(s, { type: 'PLAYER_SIGNAL', cards: [s.playerHand[0]] });
     s = gameReducer(s, { type: 'GO_REVEAL' });
@@ -190,7 +190,7 @@ describe('no-legal-trade skip', () => {
   it('AI_SKIP logs the skip; the turn advances on the usual timer action', () => {
     let s = freshRound(2); // AI first
     s = gameReducer(s, { type: 'AI_SKIP' });
-    expect(s.log[s.log.length - 1]).toMatch(/Opponent has no legal trades/);
+    expect(s.log[s.log.length - 1]).toMatch(/She has nothing legal to scrap/);
     s = gameReducer(s, { type: 'ADVANCE_FROM', phase: 'ai-turn-1a' });
     expect(s.phase).toBe('player-turn-1a');
   });

@@ -175,7 +175,9 @@ export async function renderShareCard({ won, p, a, difficulty }) {
   tornPath(g, cx + 1.5, cy + 1.5, cw - 3, ch - 3, 7); g.stroke();
   g.restore();
 
-  const verdict = won ? 'YOU WIN' : 'OPPONENT WINS';
+  // The match screen's own words (Stan, 2026-09-18). It said OPPONENT
+  // WINS, the last place the game used that as her name.
+  const verdict = won ? 'YOU WIN' : 'SHE WINS';
   g.fillStyle = DS.ink;
   g.font = "400 58px 'Rye', serif";
   g.fillText(verdict, W / 2, cy + 96);

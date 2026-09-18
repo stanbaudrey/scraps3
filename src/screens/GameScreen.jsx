@@ -712,7 +712,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     Math.min(1.3, Math.max(0.5, Math.min(k, window.innerWidth / 630)));
 
   function doPlayAce(ace, e) {
-    if (aiScraps.length < 2) { dispatch({ type: 'LOG', msg: 'Opponent needs at least 2 Scraps cards to target.' }); return; }
+    if (aiScraps.length < 2) { dispatch({ type: 'LOG', msg: 'Her Scraps needs at least 2 cards to attack.' }); return; }
     if (strikeRef.current) return;
     playArmDraw();
     const tag = e && e.currentTarget;
@@ -732,7 +732,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       ];
     }
     setAceMode(ace); setAceTargets([]); setSelected([]);
-    dispatch({ type: 'LOG', msg: "Select 2 cards from opponent's Scraps to discard." });
+    dispatch({ type: 'LOG', msg: "Select 2 cards from her Scraps to discard." });
   }
   function toggleAceTarget(card) {
     if (strikeRef.current) return;
@@ -951,7 +951,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // Step 1 (only if the player holds an Ace): the counter modal
   //   appears FIRST. The targeted cards are NOT shown — the
   //   counter decision is blind.
-  // Step 2 (player allows, or holds no Ace): the copy "OPPONENT
+  // Step 2 (player allows, or holds no Ace): the copy "She
   //   plays an Ace and removes two cards from your Scraps" is
   //   shown with the two targeted cards in the center of the
   //   table. The player clicks OK.
@@ -981,7 +981,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     setAiAceReveal({ ace: aiAce, targets, afterCounter });
     dispatch({ type: 'LOG', msg: afterCounter
       ? 'She had another Ace. It removes two cards from your Scraps.'
-      : 'Opponent plays an Ace and removes two cards from your Scraps.' });
+      : 'She plays an Ace and removes two cards from your Scraps.' });
   }
 
   function onPlayerCounterAce() {
@@ -1132,7 +1132,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     setScrapsFadeIds(new Set());
     playAceStrike();
     dispatch({ type: 'AI_ACE_APPLY', aceId: aiAce.id, targetIds: targets.map(c => c.id),
-      logMsg: `Opponent's Ace removed ${targets.map(c => c.rank).join(', ')} from your Scraps.` });
+      logMsg: `Her Ace removed ${targets.map(c => c.rank).join(', ')} from your Scraps.` });
     if (discardRect) {
       fly(first.filter(f => f.rect).map((f, i) => ({
         card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
@@ -1361,7 +1361,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   }, [aiAceTurn, phase, gameOver, pendingAiAce, aiAceReveal, strike, recounterPending, animating]);
 
   // ── AI signals first (even rounds) ─────────────────────────
-  // The player sees "Opponent signals N cards" before selecting.
+  // The player sees "She signals N" before selecting.
   useEffect(() => {
     if (!AI_SIGNAL_PHASES.includes(phase)) return;
     const timers = [];
@@ -1816,10 +1816,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   else if (strike && strike.reverse) hint = '';
   else if (aiAceReveal) hint = aiAceReveal.afterCounter
     ? 'She had another Ace. It discards two cards from your Scraps.'
-    : "Opponent's Ace discards two cards from your Scraps.";
+    : 'Her Ace discards two cards from your Scraps.';
   else if (pendingAiAce) hint = pendingAiAce.afterCounter
     ? 'She had another Ace. Counter again, or let it happen?'
-    : 'Opponent played an Ace. Counter or let it happen?';
+    : 'She played an Ace. Counter or let it happen?';
   else if (isScrapsDiscardMode) {
     const moving = pendingTrade ? pendingTrade.cards.length : 0;
     const lockedInScraps = playerScraps.some(c => !c.eligibleForDiscard);
@@ -1833,7 +1833,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // every tap and read as a progress bar rather than a sentence.
   // Quiet while the Ace is in the air: the throw is the sentence.
   else if (strike) hint = '';
-  else if (aceMode) hint = "Select 2 cards from opponent's Scraps to discard.";
+  else if (aceMode) hint = "Select 2 cards from her Scraps to discard.";
   // After she counters, while you still hold an Ace (Stan, 2026-09-18):
   // attack again or end the turn. No scrapping; the hand says so too.
   else if (counterStand && isPlayerTurn) hint = 'Attack with another Ace, or end your turn.';
@@ -1863,23 +1863,23 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       else hint = 'Your turn. Scrap cards.';
     }
   }
-  else if (isAiSignaling) hint = 'Opponent is choosing her signal...';
+  else if (isAiSignaling) hint = "She's choosing her signal...";
   // Stan's copy, 2026-09-14: the count and nothing else. The line used
   // to append "Select any legal poker hand of your own", which is what
   // the button beneath it already says, and the instruction crowded out
   // the one number the beat is about.
   else if (isSignal && !signalLocked && aiSignal != null) {
-    hint = `Opponent signals ${aiSignal}.`;
+    hint = `She signals ${aiSignal}.`;
   }
   else if (isSignal && !signalLocked) {
-    hint = 'Select any legal poker hand. Opponent sees how many cards you select before she makes her play.';
+    hint = 'Select any legal poker hand. She sees how many cards you select before she makes her play.';
     // The same sentence with the one load-bearing word emphasised. It
     // is the whole point of a signal — she learns the COUNT and nothing
     // else — and it was the word a reader skated over. Kept as a second
     // value rather than turned into markup in `hint` itself, because
     // `hint` is also what GameAnnouncer reads to a screen reader and a
     // React element is not a string.
-    hintNode = (<>Select any legal poker hand. Opponent sees how <b style={{color:DS.frost}}>many</b> cards
+    hintNode = (<>Select any legal poker hand. She sees how <b style={{color:DS.frost}}>many</b> cards
       you select before she makes her play.</>);
   }
   // There is nobody to wait for when she signalled first: her count is
@@ -2008,7 +2008,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         position:'relative',zIndex:dimOn?31:undefined,
         animation: scrapsBuilding ? 'scrapTension 580ms linear forwards' : undefined}}>
         <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
-          label="Opponent's Scraps" selectable={!!aceMode&&!strike}
+          label="Her Scraps" selectable={!!aceMode&&!strike}
           selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
           registerEl={registerCard} hiddenIds={allHiddenIds}
           isOpponent={true} glowZone={glowOppScraps}
