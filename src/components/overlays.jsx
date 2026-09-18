@@ -322,7 +322,7 @@ export function OpponentAceReveal({ targets, onOk, afterCounter = false }) {
 // AiCounterNotice — the AI countered the player's Ace.
 // Both Aces are shown cancelled; nothing was removed.
 // ─────────────────────────────────────────────────────────────
-export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) {
+export function AiCounterNotice({ playerAce, aiAce, onOk }) {
   // THE BLACK SCREEN (Stan, 2026-09-14: "sometimes, when I hit DISCARD
   // to attack my opponent's two cards, the screen goes black and I have
   // to reload"). This modal read `cardSize` on the line below and no
@@ -337,16 +337,17 @@ export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) 
     // The backdrop fades in over 220ms (review, 2026-09-17): the attack's
     // warm dim now stays down under this notice, and a 92% green backdrop
     // arriving in one frame still flipped the table from warm to green.
-    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace"
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="She countered your Ace."
       style={{animation:'scrapArrive 0.22s ease both'}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>
         <div style={{fontFamily:F.display,fontSize:32,color:DS.ember,
           letterSpacing:'0.06em',marginBottom:16,lineHeight:1.2}}>
-          {stillArmed
-            ? 'Opponent countered your Ace. Play another Ace or end your turn.'
-            : 'Opponent countered your Ace, ending your turn.'}
+          {/* Stan's copy, 2026-09-18. What happens next is the table's
+              to say: with another Ace in hand the narrator offers it or
+              END TURN; without one the turn has already ended. */}
+          She countered your Ace.
         </div>
         <div style={{display:'flex',gap:14,justifyContent:'center',marginBottom:18}}>
           {[playerAce,aiAce].filter(Boolean).map((c,i)=>(
@@ -362,15 +363,9 @@ export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) 
           ))}
         </div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.6,marginBottom:24}}>
-          {/* The two outcomes are genuinely different moves, so they get
-              genuinely different sentences. Holding another Ace does NOT
-              return you to a normal turn — the only way to carry on is to
-              spend another Ace, which the opponent may counter again. */}
-          {stillArmed
-            ? 'Both Aces discarded. Nothing removed. Play another Ace or end your turn.'
-            : 'Both Aces discarded. Nothing removed. Your turn ends.'}
+          Both Aces discarded. No Scraps removed.
         </p>
-        <Btn onClick={onOk}>{stillArmed ? 'Okay' : 'End Turn'}</Btn>
+        <Btn onClick={onOk}>Okay</Btn>
       </div>
     </Shell>
   );

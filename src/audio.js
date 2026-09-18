@@ -510,16 +510,25 @@ function faceTurn([x1, y1, x2, y2], at = 0.6, deg = 108) {
   for (let k = 0; k < 50; k++) { const m = (lo + hi) / 2; if (Y(m) < 90 / deg) lo = m; else hi = m; }
   return at * X((lo + hi) / 2);
 }
-export const SIGN_EASE = { word: [0.42, 0, 0.58, 1], number: [0.3, 0.9, 0.4, 1] };
+// Both flips ease in and out now. The number had a snappier curve until
+// 2026-09-18 (Stan: the "1" card "seems to glitch a little while
+// flipping. make it as smooth as the other flips"), and that curve starts
+// each keyframe segment fast and ends it at a dead stop, so at its 60%
+// frame the card stopped and then lurched on at three times its average
+// speed. ease-in-out leaves and arrives at every frame gently, which is
+// why the ROUND letters never showed it.
+export const SIGN_EASE = { word: [0.42, 0, 0.58, 1], number: [0.42, 0, 0.58, 1] };
 export const SIGN_BEATS = (() => {
   // Retimed 2026-09-17 (Stan): the first flip starts the moment the last
   // card starts dealing in (`flipAt` = five deals), and the gap he HEARS
   // between ROUND's last note and the number's came down 40%, 1050ms to
-  // 630ms. Every note now sits on the frame its card's face comes round,
-  // not the flip's midpoint (review, 2026-09-17: the number's snappy
-  // curve turns its face 143ms in, and its note waited until 310ms). So
-  // the pause is what is left of the 630 once the rest of ROUND's last
-  // flip and the start of the number's are taken out: 191ms.
+  // 630ms. Every note sits on the frame its card's face comes round, not
+  // the flip's midpoint (review, 2026-09-17). So the pause is what is
+  // left of the 630 once the rest of ROUND's last flip and the start of
+  // the number's are taken out. With the number on ease-in-out
+  // (2026-09-18) its face comes round later in its flip, so its flip
+  // starts earlier to keep the face, the note and the 630 exactly where
+  // Stan approved them: the pause went 191ms to 67ms.
   const b = { deal: 70, dealDur: 380, stagger: 85, flipDur: 520, numberDur: 620, noteGap: 630 };
   b.flipAt = 5 * b.deal;
   b.wordFace = faceTurn(SIGN_EASE.word);

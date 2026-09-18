@@ -25,10 +25,11 @@
 // REST continues. One real, visually quiet <button> stays in the
 // DOM so Enter, Space and a screen reader have the same way
 // forward, and the layer is a dialog with the focus trap every
-// modal in overlays.jsx uses. ONE exception since 2026-09-16: the
-// Hand 1 reveal rests on a green PLAY HAND 2 button instead of the
-// quiet one, and at rest only that button (or a key) moves on — see
-// `handCta` in RevealScene. NOTHING ADVANCES ITSELF except a
+// modal in overlays.jsx uses. The REVEALS are the exception: since
+// 2026-09-16 (Hand 1), 2026-09-17 (Hand 2) and 2026-09-18 (the Scraps)
+// each rests on a green named button instead of the quiet one, and at
+// rest only that button (or a key) moves on — see `namedCta` in
+// RevealScene. NOTHING ADVANCES ITSELF except a
 // match-ending reveal running on into the match screen: the ROUND N
 // sign and the Clean Sweep beat both used to, and both wait for a
 // tap since 2026-09-14 (Stan).
@@ -373,7 +374,7 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
       ? (isNum ? `signCycleNumber ${B.cycle}ms ease-in-out ${5 * B.stagger}ms infinite`
                : `signCycleWord ${B.cycle}ms ease-in-out ${i * B.stagger}ms infinite`)
       : stop ? undefined
-      : isNum ? `signNumberIn ${B.numberDur}ms cubic-bezier(.3,.9,.4,1) ${B.numberAt}ms both`
+      : isNum ? `signNumberIn ${B.numberDur}ms ease-in-out ${B.numberAt}ms both`
       : `ribbonFlip ${B.flipDur}ms ease-in-out ${B.flipAt + i * B.stagger}ms both`;
     return (
       <div key={i} style={{position:'absolute',left:x * k,top:y * k,width:d.w * k,height:d.h * k,zIndex:isNum ? 9 : i,
@@ -487,7 +488,6 @@ function ScoreRoll({ label, from, to, mine, tick, wave, rye, align, instant, swe
           // without setting another, so the clip would otherwise stick and
           // cut the top off the wave for the rest of the scene.
           overflow: rolling && !instant ? 'hidden' : 'visible',
-          '--glow': glow,
           animation: !tick ? undefined
             : rye ? `scoreJump ${instant ? 0 : JUMP}ms ease-out ${ld + dur}ms both`
             : wave ? `scoreWave 2.2s ease-in-out ${ld + dur + 200}ms infinite` : undefined}}>
@@ -653,10 +653,10 @@ const T = {
   // pick off The Turnover: "arched bigger fainter", in capitals, a
   // slightly taller arch than the bench showed). At 30px, pale, and
   // exactly as close to her cards as the verdict was, it read as her
-  // row's label. Now: twice the size at under half strength, arched,
-  // with room under it (`marginBottom`) so it heads the whole column.
-  title: {fontFamily:F.title,color:`${DS.frost}75`,fontSize:'clamp(40px,7.2vw,62px)',lineHeight:1,
-    textShadow:'0 2px 0 rgba(0,0,0,.28)',display:'flex',justifyContent:'center',
+  // row's label. Now: twice the size, faint, arched, with room under it
+  // (`marginBottom`) so it heads the whole column. The lettering, its
+  // size, fade and drop are all ArchedTitle's; this is only its box.
+  title: {display:'flex',justifyContent:'center',
     marginTop:'clamp(4px,1.2vh,12px)',marginBottom:'clamp(10px,3vh,28px)'},
 };
 // The arch, rebuilt 2026-09-17 (Stan: "faint and fanned, but less strewn.
@@ -678,9 +678,18 @@ const T = {
 // the old fan rose 0.098em with a 16deg lean and that version 0.15 to
 // 0.19em with 12 to 13; side by side on the real reveal the two read as
 // the same height, because a lean reads as arc as much as a rise does.
-// 15deg, on the circle, reads about 15% taller than both. Faint as
-// before (frost at 46%).
-const ARCH = { lean: 15 };
+// 15deg, on the circle, reads about 15% taller than both.
+//
+// FAINT, BUT 3:1 (Stan, 2026-09-18: "adjust the faint titles to meet the
+// 3:1 minimum"). The letters were frost at 46% fill over their own hard
+// drop, so each letter was drawn over its shadow and came out darker
+// still: 2.4 to 2.7:1 against the wood, under WCAG's 3:1 for large text.
+// Now the whole title, letters and drop together, is ONE layer at
+// `fade` (opacity applies after the filter), so a letter is frost over
+// wood and nothing else. 0.55 clears 3:1 against the lightest pixel of
+// wood behind any title at 1024, 1280, 390 and 375 wide (3.1:1 at the
+// worst, 3.4:1 on the typical board).
+const ARCH = { lean: 15, fade: 0.55 };
 function ArchedTitle({ text }) {
   const { w } = useViewport();
   const fs = Math.max(40, Math.min(62, 0.072 * w));
@@ -717,10 +726,10 @@ function ArchedTitle({ text }) {
   const H = top + R * (1 - Math.cos(lean)) + 0.24 * fs;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W.toFixed(1)} ${H.toFixed(1)}`} aria-hidden="true"
-      style={{display:'block',overflow:'visible',filter:'drop-shadow(0 2px 0 rgba(0,0,0,.28))'}}>
+      style={{display:'block',overflow:'visible',filter:'drop-shadow(0 2px 0 rgba(0,0,0,.28))',opacity:ARCH.fade}}>
       <path id={id} d={`M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y0.toFixed(1)}`} fill="none"/>
       <text ref={textRef} fontFamily={F.title} fontSize={fs.toFixed(1)} letterSpacing={(0.04 * fs).toFixed(1)}
-        fill={DS.frost} fillOpacity={0.46} textAnchor="middle">
+        fill={DS.frost} textAnchor="middle">
         <textPath href={`#${id}`} startOffset="50%">{text.toUpperCase()}</textPath>
       </text>
     </svg>
@@ -777,7 +786,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // TABLE, where the hands are swept and PLAY SCRAPS HAND waits. It used
   // to rest on the quiet CLICK ANYWHERE, which read as a screen waiting
   // for a click before it would offer a way back.
-  const handCta = (which === 'hand1' || which === 'hand2') && !endsIt;
+  // And the Scraps since 2026-09-18 (Stan: "sure", to a named button, which
+  // also stops a double-click from sailing past the round's two-point
+  // result): NEXT ROUND, or CONTINUE when a CLEAN SWEEP beat or the match
+  // screen comes first. Only a result that ends the match with no beat to
+  // show runs on by itself, and needs no button.
+  const namedCta = isScraps ? !(endsIt && !sweepBeat) : (which === 'hand1' || which === 'hand2') && !endsIt;
   // The CLEAN SWEEP beat waits this long for the cards to slide apart
   // (SlideBox) before its title, its sound and its bonus point arrive.
   const CS_LEAD = SLIDE.dur;
@@ -873,7 +887,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
 
   useEffect(() => {
     if ((step === 'rest' || step === 'csRest') && quietRef.current && !quietRef.current.disabled) quietRef.current.focus();
-    if (step === 'rest' && handCta && ctaRef.current) {
+    if ((step === 'rest' || step === 'csRest') && namedCta && ctaRef.current) {
       const b = ctaRef.current.querySelector('button');
       if (b) b.focus();
     }
@@ -991,9 +1005,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       setStep('rest');
       return;
     }
+    // The named button passes 'button': it is always deliberate, so it
+    // is never held back as half of a double-click.
+    const pressed = fromKey === true || fromKey === 'button';
     if (s === 'rest') {
-      if (handCta && fromKey !== true) return;
-      if (justLanded) return;
+      if (namedCta && !pressed) return;
+      if (justLanded && fromKey !== 'button') return;
       if (sweepBeat) { setStep('cleanSweep'); return; }
       if (endsIt) {
         // The jump hold before the sweep. A tap here used to be
@@ -1019,7 +1036,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       setStep('csRest');
       return;
     }
-    if (s === 'csRest') { if (justLanded) return; runSweep(); return; }
+    if (s === 'csRest') {
+      if (namedCta && !pressed) return;
+      if (justLanded && fromKey !== 'button') return;
+      runSweep();
+      return;
+    }
     if (s === 'sweep' && !endsIt) {
       // The round's sweep hands off at once. Safe by construction —
       // the layer stays mounted and the ROUND sign lands on the same
@@ -1035,7 +1057,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       setFast(f => ({ ...f, end: true }));
       setStep('final');
     }
-  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, onSwept, cueEnd, handCta, cueSweepBeat]);
+  }, [clear, cueOutcome, sweepBeat, endsIt, isScraps, runSweep, onContinue, onSwept, cueEnd, namedCta, cueSweepBeat]);
 
   // Keys land on the quiet button through the dialog's focus trap;
   // this catches the case where focus has wandered (a screen reader
@@ -1071,6 +1093,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const showVerdict = i >= idx('verdict');
   const ticked      = i >= idx('tick') && !tie;
   const atRest      = step === 'rest' || step === 'csRest';
+  // The named button's words (see `namedCta`): on the Scraps they say
+  // what the press leads to, the CLEAN SWEEP beat and the match screen
+  // being part of this result rather than the next round.
+  const ctaLabel = which === 'hand1' ? 'Play Hand 2'
+    : which === 'hand2' ? 'Back to the table'
+    : (step === 'rest' && sweepBeat) || endsIt ? 'Continue' : 'Next round';
   const sweeping    = step === 'sweep';
   const matchScreen = i >= idx('deal');
   const beatOn      = sweepBeat && i >= idx('cleanSweep');
@@ -1174,13 +1202,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                   cycle={won} cycleAt={cycleAt}/>
               ))}
             </div>
-            {!won && (
-              <div className="stage-fade" style={{fontFamily:F.display,fontSize:'clamp(22px,4vw,34px)',
-                color:DS.ember,letterSpacing:'0.04em',lineHeight:1,
-                animation: showFinal ? fadeIn(300, 0, fe) : undefined, opacity: showFinal ? 1 : 0}}>
-                She wins.
-              </div>
-            )}
+            {/* No plain line under the cards (Stan, 2026-09-18): the loss
+                read SHE WINS. on the cards and "She wins." again under
+                them. The cards are the verdict; the status line below
+                says it for screen readers. */}
             {/* The final score keeps the reveal's geometry — HER on the
                 left, YOU on the right, each labelled — rather than a
                 winner-first pair the player had to decode. The winner's
@@ -1196,12 +1221,12 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                     flexDirection: lbl === 'YOU' ? 'row-reverse' : 'row'}}>
                     <span style={{fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>{lbl}</span>
                     {/* The winner's number pulses, slowly, in its own
-                        colour (Stan, 2026-09-17), once it has landed. */}
+                        colour (Stan, 2026-09-17), once it has landed. By
+                        size alone: no glow (Stan, 2026-09-18). */}
                     <span className={isWinner ? 'score-pulse' : undefined}
                       style={{fontFamily:F.display,lineHeight:1,fontSize:'clamp(56px,12vw,116px)',letterSpacing:'0.03em',
                       color: isWinner ? (won ? DS.gold : DS.ember) : DS.frost,
                       textShadow: DROP, display:'inline-block', transformOrigin:'50% 70%',
-                      '--glow': `${won ? DS.gold : DS.ember}8C`, '--drop': DROP,
                       animation: isWinner && showFinal ? `scorePulse 2200ms ease-in-out ${fe ? 0 : scoreDelay + 500}ms infinite` : undefined}}>{n}</span>
                   </div>
                 ))}
@@ -1339,8 +1364,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             {ticked ? ` Score: you ${sp.to}, her ${sa.to}.` : ''}
             {beatOn ? ' Clean sweep: all three hands, plus one bonus point.' : ''}
           </div>
-          {handCta ? (
-            // PLAY HAND 2 — see `handCta`. Laid out from the first frame
+          {namedCta ? (
+            // PLAY HAND 2 and the rest — see `namedCta`. Laid out from the first frame
             // and only HIDDEN until the resting frame, so the column is
             // the same height before and after it arrives. `visibility`
             // rather than opacity: a hidden button is out of the tab
@@ -1355,7 +1380,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               style={{minHeight:MODAL_BTN_MIN,display:'flex',alignItems:'center',paddingBottom:12,
                 visibility: atRest ? 'visible' : 'hidden',
                 animation: atRest ? `slideUp 340ms ${SETTLE} both` : undefined}}>
-              <Btn onClick={onContinue}>{which === 'hand1' ? 'Play Hand 2' : 'Back to the table'}</Btn>
+              <Btn onClick={() => onTap('button')}>{ctaLabel}</Btn>
             </div>
           ) : (
             <div onClick={e => e.stopPropagation()} style={{minHeight:44,display:'flex',alignItems:'center'}}>

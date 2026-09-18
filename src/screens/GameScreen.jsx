@@ -27,7 +27,7 @@ import { setAudioMuted, isAudioMuted,
   playArmDraw, playLock, playWhoosh, playHerWhoosh, playChips, playClash } from "../audio.js";
 import { useCardMotion, prefersReducedMotion, screenPose } from "../components/flight.jsx";
 import { useImpactFx, AttackTagEcho, shakeElement } from "../components/impact.jsx";
-import { THROW, CLASH, COUNTER, RM_FADE, throwMotion, knockOffPair, clashMotions,
+import { THROW, RM_FADE, throwMotion, knockOffPair, clashMotions,
   counterBackMotions, fadeMotion }
   from "../components/throwMotion.js";
 import { FannedHand, HorizontalScrapsZone, HandUpgradeBadge, CARD_DIMS, sortByValue } from "../components/cards.jsx";
@@ -141,6 +141,9 @@ const HANDOFF = { deal: 220 };
 // PLAY SCRAPS HAND's held beat: after its drumroll, the table holds
 // still this long before the Scraps hand is turned over.
 const SCRAPS_HOLD = 220;
+// A shared empty set, so props that take one do not change identity every render.
+const EMPTY_IDS = new Set();
+const SCRAPS_LABEL = 'Play Scraps Hand';
 // Her second Ace, after you counter her first: this long after the two
 // Aces have left the table (it was a flat 900ms from the button when the
 // counter did not play out).
@@ -254,6 +257,14 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // PLAY SCRAPS HAND's tension (2026-09-17): the press charges like SHOW
   // 'EM while both piles tremble harder, then a held beat, then the reveal.
   const [scrapsBuilding, setScrapsBuilding] = useState(false);
+  // How many lines the narrator's copy takes, and how wide the band's
+  // column is, both measured, for bigFits.
+  const hintRef = useRef(null);
+  const [hintLines, setHintLines] = useState(1);
+  const [bandW, setBandW] = useState(0);
+  const measureCtx = useMemo(() => {
+    try { return document.createElement('canvas').getContext('2d'); } catch (e) { return null; }
+  }, []);
   const scrapsHoldRef = useRef(0);
   useEffect(() => () => clearTimeout(scrapsHoldRef.current), []);
   // The beat between hand 2 and the Scraps hand (2026-09-15, Stan).
@@ -825,12 +836,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       fly([{ card: ace, fromSize: sz.hand, motion: m, trails: 3, hideIds: [ace.id],
         born: performance.now() }]);
       later(playWhoosh, THROW.draw);
-      // Contact. The ring goes out and holds still for the hit-stop.
+      // Contact. No ring (Stan, 2026-09-18: "No crosshairs"): held small
+      // through the hit-stop, it sat over the Ace like a sight.
       later(() => {
         st.impacted = true;
         playAceStrike(); playChips();
-        fx.ring(P.x, P.y, { r0: 10 * K, r1: 120 * K, dur: 0.36, color: DS.frost, lw: 6 * K,
-          wait: THROW.hold / 1000 });
       }, m.impactAt);
       // The hit-stop ends: the table jumps, chips fly, the two targets
       // are knocked up and off and the rest of her pile hops. Measured
@@ -876,11 +886,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // Your throw, then hers a beat after it, higher (Stan, 2026-09-17).
     later(playWhoosh, cm.myThrowAt);
     later(playHerWhoosh, cm.herThrowAt);
+    // No ring at the clash, for the same reason as the throw's.
     later(() => {
       st.impacted = true;
       playClash();
-      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 110 * K, dur: 0.32, color: DS.ember, lw: 6 * K,
-        wait: CLASH.hold / 1000 });
     }, cm.clashAt);
     later(() => {
       st.commit();
@@ -1077,11 +1086,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // answers it.
     later(playHerWhoosh, cm.herThrowAt);
     later(playWhoosh, cm.myThrowAt);
+    // No ring over your Ace at the hit (Stan, 2026-09-18: "Drop it. No
+    // crosshairs.").
     later(() => {
       st.impacted = true;
       playClash();
-      fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 110 * K, dur: 0.32, color: DS.voltage, lw: 6 * K,
-        wait: COUNTER.hold / 1000 });
     }, cm.clashAt);
     later(() => {
       st.commit();
@@ -1534,7 +1543,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   const tradeOverLimit = selectedInHand.length > 0 && tradeNetHand > 7;
   // Not while a deal is still landing: the lean is the "your turn" cue,
   // and it arrives with the narrator, not before it (see dealStage).
-  const glowHand = !dealHold && ((isPlayerTurn && !aceMode && !isScrapsDiscardMode) || (isSignal && !signalLocked));
+  const glowHand = !dealHold && ((isPlayerTurn && !aceMode && !isScrapsDiscardMode && !counterStand) || (isSignal && !signalLocked));
+  // After she counters (counterStand), the Aces are the only cards you can
+  // act on: they lean, the rest dim, and nothing can be picked to scrap.
+  const standAces = counterStand && isPlayerTurn && !aceMode && !strike;
+  const aceIds = standAces ? new Set(playerHand.filter(c => c.rank === 'A').map(c => c.id)) : EMPTY_IDS;
+  const nonAceIds = standAces ? new Set(playerHand.filter(c => c.rank !== 'A').map(c => c.id)) : EMPTY_IDS;
   // The Play Ace control is rendered by FannedHand, inside the same
   // wrapper as its card, so the two lean together.
   // ATTACK waits for its own card. The tag used to mount the instant
@@ -1776,6 +1790,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // Quiet while the Ace is in the air: the throw is the sentence.
   else if (strike) hint = '';
   else if (aceMode) hint = "Select 2 cards from opponent's Scraps to discard.";
+  // After she counters, while you still hold an Ace (Stan, 2026-09-18):
+  // attack again or end the turn. No scrapping; the hand says so too.
+  else if (counterStand && isPlayerTurn) hint = 'Attack with another Ace, or end your turn.';
   else if (forcedAce) hint = 'Every card in your hand draws more than you have room for. Your only legal move is to attack with an Ace.';
   else if (isPlayerTurn) {
     // The instruction runs in FULL on the first player turn of a round
@@ -2005,6 +2022,40 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     + (tight ? 17 : 25) * 3.9     // the narrator's three-line slot
     + (stack ? 8 : 10)            // the gap above the buttons
     + (stack ? 54 : 62));         // the tallest button row it can hold
+  // Does a button 1.5 times the standard fit in the band without growing
+  // it past NARRATOR_H (which would rescale the whole table)? SHOW 'EM is
+  // the band's only content; PLAY SCRAPS HAND sits under a line of copy,
+  // so it counts that line's MEASURED height (`hintLines`: one line on
+  // most screens, two on the narrowest) and the gap under it. The copy's
+  // usual three-line reservation gives way to it when it fits.
+  // The label has to stay on ONE line too: at 320 wide PLAY SCRAPS HAND
+  // at 24px wrapped to two and grew the band 6px, so its width is measured
+  // (canvas, in the button's own face) against the band's column.
+  const CHARGE_STD = () => (tight ? { pad: [15, 20], fs: 16 } : { pad: [18, 36], fs: 20 });
+  const bigFits = (underHint, label) => {
+    const std = CHARGE_STD();
+    const fs = Math.round(std.fs * 1.5), padY = Math.round(std.pad[0] * 1.5), padX = Math.round(std.pad[1] * 1.5);
+    const bigH = padY * 2 + fs * 1.2;
+    const lineH = (tight ? 17 : 25) * 1.3;
+    const room = NARRATOR_H - (stack ? 24 : 34) - (underHint ? hintLines * lineH + (stack ? 8 : 10) : 0);
+    if (bigH > room) return false;
+    if (!label || !measureCtx || !bandW) return true;
+    measureCtx.font = `700 ${fs}px ${F.ui}`;
+    const w = measureCtx.measureText(label.toUpperCase()).width + label.length * fs * 0.08 + padX * 2;
+    return w <= bandW;
+  };
+  const scrapsBig = scrapsAsk && bigFits(true, SCRAPS_LABEL);
+  // Measured in layout px (offsetHeight ignores FitBox's scale), before
+  // paint, so a big button that would not fit never shows for a frame.
+  useLayoutEffect(() => {
+    const el = hintRef.current;
+    if (!el) return;
+    const n = Math.max(1, Math.round(el.offsetHeight / ((tight ? 17 : 25) * 1.3)));
+    if (n !== hintLines) setHintLines(n);
+    const col = el.closest('[data-narrator]');
+    const w = col && col.parentElement ? col.parentElement.clientWidth : 0;
+    if (w && Math.abs(w - bandW) > 0.5) setBandW(w);
+  }, [hint, hintNode, tight, stack, vp.w, vp.h, hintLines, bandW]);
   const narratorSilent = !hint && !tradeError && !hasActionButtons;
 
   // A button that CHARGES when pressed (Stan, 2026-09-16, for SHOW 'EM):
@@ -2018,14 +2069,14 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // hex stays in theme.js.
   //
   // `big` is SHOW 'EM (Stan, 2026-09-17: "50% larger than standard, when
-  // responsive design allows"): 1.5x the standard BigBtn for the layout,
-  // 30px type and 27/54 padding (24px and 22/30 when tight). It is the
-  // whole narrator band when it shows, and the slot holds it everywhere:
-  // ~90px at most against a slot of 152px or more. The check below keeps
-  // that true if either number ever moves.
-  const chargeButton = ({ label, big, building, onPress }) => {
-    const std = tight ? { pad: [15, 20], fs: 16 } : { pad: [18, 36], fs: 20 };
-    const k = big && (std.fs * 1.5 * 1.2 + std.pad[0] * 3) <= NARRATOR_H - (stack ? 24 : 34) ? 1.5 : 1;
+  // responsive design allows") and PLAY SCRAPS HAND (2026-09-18: "can
+  // enlarge depending on the space allowed"): 1.5x the standard BigBtn for
+  // the layout, 30px type and 27/54 padding (24px and 23/30 when tight),
+  // wherever `bigFits` says the band still holds it at NARRATOR_H. SHOW
+  // 'EM is the whole band; PLAY SCRAPS HAND sits under its line of copy.
+  const chargeButton = ({ label, big, building, onPress, underHint = false }) => {
+    const std = CHARGE_STD();
+    const k = big && bigFits(underHint, label) ? 1.5 : 1;
     return (
       <button
         type="button"
@@ -2142,7 +2193,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           // followed by a three-line one resized the WHOLE table —
           // opponent's hand included — between turns. Reserving the
           // tall case means the common turns cost no relayout at all.
-          minHeight:'3.9em',display:'flex',alignItems:'center',
+          // Except under a big PLAY SCRAPS HAND, which takes the room
+          // the two empty lines were holding (bigFits).
+          minHeight:scrapsBig?'auto':'3.9em',display:'flex',alignItems:'center',
           justifyContent:'center',
           color:isScrapsDiscardMode?DS.voltage:pendingAiAce?DS.ember:forcedAce?DS.ember:isAiThinking?DS.voltage:DS.frost,
           fontWeight:isSignal&&!signalLocked&&aiSignal==null?500:700,textAlign:'center',lineHeight:1.3,
@@ -2155,7 +2208,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
               three items and laid the sentence out in three columns
               with the emphasised word stranded in the middle. The span
               keeps it one item and lets the text wrap normally. */}
-          <span>{hintNode || hint}</span>
+          <span ref={hintRef}>{hintNode || hint}</span>
         </div>
       )}
       {/* The PLAYABLE strip used to sit here: five mono pills naming
@@ -2226,7 +2279,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
             (`scrapTension`), and the table holds its breath for a beat
             before the Scraps hand, worth two, is turned over. */}
         {scrapsAsk&&chargeButton({
-          label:'Play Scraps Hand', big:false, building:scrapsBuilding,
+          label:SCRAPS_LABEL, big:true, underHint:true, building:scrapsBuilding,
           onPress:()=>{
             setScrapsBuilding(true);
             playRevealBuild(()=>{
@@ -2270,11 +2323,12 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         waveIds={waveIds}
         tradeSelectedIds={isScrapsDiscardMode?selIds:new Set()}
         onCardClick={card=>{
-          if(isScrapsDiscardMode||pendingAiAce) return;
+          if(isScrapsDiscardMode||pendingAiAce||counterStand) return;
           if((isPlayerTurn&&!aceMode)||(isSignal&&!signalLocked)) toggleHandCard(card);
         }}
-        selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce)||(isSignal&&!signalLocked)}
+        selectable={(isPlayerTurn&&!aceMode&&!isScrapsDiscardMode&&!pendingAiAce&&!counterStand)||(isSignal&&!signalLocked)}
         activeWiggle={glowHand&&!pendingAiAce}
+        wiggleIds={aceIds} dimIds={nonAceIds}
         cardSlot={aceSlot}
         showEmpty={!isScrapsHandoff}
         // The armed Ace, up out of the fan and over the dim.
@@ -2571,7 +2625,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         <AiCounterNotice
           playerAce={aiCounterNotice.playerAce}
           aiAce={aiCounterNotice.aiAce}
-          stillArmed={aiCounterNotice.stillArmed}
           onOk={()=>setAiCounterNotice(null)}
         />
       )}

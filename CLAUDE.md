@@ -44,11 +44,12 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **71 tests** cover the engine, the reducer, the Ace
+- Vitest for tests. **72 tests** cover the engine, the reducer, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
-  two for yours) and the ROUND sign's idle loop against its beats
-  (`src/components/signCycle.test.js`, three, 2026-09-17). (It was 37
+  two for yours) and the ROUND sign against its beats
+  (`src/components/signCycle.test.js`, four: the loop's frames, the
+  number's flip shape, the notes). (It was 37
   until the 2026-08-30 audit-fix pass took it to 53, and later passes to 56;
   the card redesign then removed EIGHT flush tests — the spec estimated six —
   and added five that guard the deck's shape instead, which is the invariant
@@ -152,7 +153,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 71 tests, runs in under a second
+npm test          # vitest, 72 tests, runs in under a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -639,14 +640,19 @@ looks broken locally, it is not a missing-secret problem.
   HISTORY all do. Until 2026-09-16 only the storyboard did, and Stan's
   desktop read TAP TO CONTINUE on every sign and reveal. It is a standing
   rule in his global instructions now, not just this project's.
-- **The two hand reveals are the stage screens with a named button**:
-  a green PLAY HAND 2 on Hand 1 (2026-09-16, Stan) and BACK TO THE TABLE
-  on Hand 2 (2026-09-17, Stan: "the button to go back to gameplay should
-  appear without a preliminary click, after a timed animation"), where
-  the others say CLICK (or TAP) ANYWHERE. Each is laid out from the first
-  frame and shown when the build lands; a tap on the wood mid-build jumps
-  to that resting frame, button and all, but at REST only the button, or
-  Enter/Space, moves on (`handCta` in `RevealScene`). The button's row
+- **Every reveal rests on a named button**: a green PLAY HAND 2 on Hand 1
+  (2026-09-16, Stan), BACK TO THE TABLE on Hand 2 (2026-09-17, Stan: "the
+  button to go back to gameplay should appear without a preliminary
+  click, after a timed animation"), and on the Scraps (2026-09-18) NEXT
+  ROUND, or CONTINUE when a CLEAN SWEEP beat or the match screen comes
+  first; the beat's own rest then offers NEXT ROUND. Only a result that
+  ends the match with no beat to show runs on by itself. Each is laid out
+  from the first frame and shown when the build lands; a tap on the wood
+  mid-build jumps to that resting frame, button and all, but at REST only
+  the button, or Enter/Space, moves on (`namedCta` in `RevealScene`; the
+  button calls `onTap('button')`, which the double-click grace below never
+  holds back). The ROUND sign and the match screen still say CLICK (or
+  TAP) ANYWHERE. The button's row
   keeps 12px under it: it is the column's last row, and a table scaled to
   fit puts the column's bottom on the frame's clipped edge, which cut its
   glow and its focus ring off at 1024x662. And on every reveal, a tap
@@ -713,7 +719,12 @@ looks broken locally, it is not a missing-secret problem.
   PLAY SCRAPS HAND asks for the last hand of the round (its press builds
   tension since 2026-09-17: the button charges as SHOW 'EM does, both
   piles tremble harder over the same 580ms drumroll, `scrapTension`, and
-  the table holds `SCRAPS_HOLD` before the reveal). Both fans render
+  the table holds `SCRAPS_HOLD` before the reveal). Since 2026-09-18 it
+  is 1.5x the standard, like SHOW 'EM, wherever `bigFits` says the band
+  still holds at NARRATOR_H with it under its line of copy: the copy's
+  three-line reservation gives way, its MEASURED line count and the
+  label's measured width (canvas, in the button's face) both count, and
+  at 320 wide, where the label would wrap, it stays standard. Both fans render
   with `showEmpty={false}` for the length of it, so the wood is bare rather
   than carrying two dashed "empty" slots, and their boxes keep their height
   so nothing else moves.
@@ -779,6 +790,25 @@ looks broken locally, it is not a missing-secret problem.
   the slot's handler used to catch the tag's Enter as it bubbled, cancel it
   and select the Ace for scrapping, so no keyboard user could attack. Found
   2026-09-16; it predated The Throw.
+- **No ring at any hit** (2026-09-18, Stan: "Drop it. No crosshairs.").
+  The throw, her counter and yours each sent out a ring held small
+  through the hit-stop, which sat over the Ace like a sight. The chips,
+  sparks, embers and shake carry the hit now; the one ring left is the
+  ATTACK tag's press spark, which expands at once and marks no card.
+- **After she counters your Ace, the turn is ATTACK or END TURN**
+  (2026-09-18, Stan). Her notice says "She countered your Ace." and, under
+  the two crossed Aces, "Both Aces discarded. No Scraps removed.", with
+  OKAY, whether or not you hold another Ace. Holding one, the reducer
+  keeps the turn (`AI_COUNTER_ACE`), `counterStand` puts END TURN in the
+  band and the narrator says "Attack with another Ace, or end your
+  turn.", ATTACK sits on the Aces left, every other card dims
+  (FannedHand `dimIds`) while the Aces lean (`wiggleIds`), and nothing in
+  the hand can be picked, so there is no scrapping after a counter. It
+  repeats for every Ace; a landed attack ends the turn as it always has,
+  and a counter with no Ace left ends it too. Her side already had the
+  same shape: after YOUR counter she comes straight back with another Ace
+  if she has one (the re-counter), and otherwise her turn ends; she never
+  scraps after being countered.
 - **Her counter is HER win, on purpose** (2026-09-17, Stan: it read as a
   tie). `clashMotions` throws your Ace first, exactly as a landed throw
   is drawn and thrown, and hers `CLASH.answer` (100ms) later and quicker,
@@ -804,15 +834,22 @@ looks broken locally, it is not a missing-secret problem.
   timings; `RoundSign` schedules its cards from it and the `roundSign`
   voice places a note on each card on the frame its face comes round,
   which is NOT the flip's midpoint: `faceTurn()` solves each flip's
-  easing for rotateY passing 90deg (0.43 of a ROUND flip, 0.23 of the
-  number's snappier one; the number's note sat 166ms late on the
-  midpoint). The gap Stan hears between ROUND and the number is
-  `noteGap` (630ms, his 40% cut from 1050) and the pause is derived from
-  it. The idle loop's keyframes (signCycleWord / signCycleNumber in
-  index.html) are percentages of `cycle`, and `signCycle.test.js`
-  recomputes every frame from the beats and fails naming the one to
-  move. The number's loop frames carry its entrance curve per keyframe,
-  because a timing function applies per segment. The sign cycles only
+  easing for rotateY passing 90deg (0.43 of a flip; the number's note sat
+  166ms late on the midpoint). The gap Stan hears between ROUND and the
+  number is `noteGap` (630ms, his 40% cut from 1050) and the pause is
+  derived from it. The idle loop's keyframes (signCycleWord /
+  signCycleNumber in index.html) are percentages of `cycle`, and
+  `signCycle.test.js` recomputes every frame from the beats and fails
+  naming the one to move. **Every flip on the sign eases in and out of
+  each keyframe.** The number had a snappier curve until 2026-09-18,
+  and a timing function applies per SEGMENT: that curve leaves each
+  frame at three times its average speed and arrives at the next dead
+  still, so at its 60% frame the card stopped and lurched on, which
+  Stan saw as the "1" glitching. Measured as the largest change in speed
+  from one 4ms step to the next: 4.87 on that curve, 0.09 now, against
+  0.12 for a ROUND card. A snappy or overshooting curve on a multi-frame
+  flip will always do this; give a flip's shape to its keyframes and
+  keep its easing symmetric. The sign cycles only
   after it settles and only with motion allowed; under reduced motion it
   is settled from its first frame. The voice never replays, and a tap
   that lands the entrance HUSHES it: `cue()` returns a handle whose
@@ -825,7 +862,8 @@ looks broken locally, it is not a missing-secret problem.
   screen. Two animations on one element's `transform` do not add, the
   later one replaces the other, so a new motion gets a new wrapper. The
   loops (wave, ripple, wobble, cycle, the ROUND sign's cycle, the
-  winner's score pulse) all stop under reduced motion by name in
+  winner's score pulse, which is size alone, no glow, as is the reveal's
+  winning-score wave, since 2026-09-18) all stop under reduced motion by name in
   index.html's reduced-motion block, because the blanket 1ms rule would
   otherwise run an infinite loop as a flicker. The wordmark's cards sit
   on a curve (`fanArc`, `BEND = 0.20`: Stan's "20% arc", the rise 20% of
@@ -836,7 +874,13 @@ looks broken locally, it is not a missing-secret problem.
 - **A reveal's title is an SVG textPath, and its name is on the
   container.** `ArchedTitle` sets the word on one circular arc, drawn in
   an aria-hidden SVG; the wrapper carries `role="heading"` and the label,
-  because an aria-label on a plain div is not read at all. The circle is
+  because an aria-label on a plain div is not read at all. It is faint
+  but meets 3:1 (Stan, 2026-09-18): the whole SVG, letters and hard drop
+  together, is one layer at `ARCH.fade` (0.55), because opacity applies
+  after the filter; with the fade on the letters' fill instead, each
+  letter was drawn over its own shadow and measured 2.4 to 2.7:1. Measured
+  from rendered pixels, every fully covered letter pixel on all three
+  titles is at least 3.06:1 at 1024 and 390. The circle is
   chosen by the END LETTERS' LEAN (`ARCH.lean`, 15deg), with the radius
   worked out from Rye's real advances in a layout effect (and again once
   the fonts are in), so every title is the same arc whatever its length.
@@ -931,14 +975,6 @@ versions and should not be deployed to.
 
 ## Known issues
 
-- **Two of Stan's own calls meet on the reveals and the match screen, and
-  he has not chosen between them yet** (found by the 2026-09-17 design
-  review). The reveal titles are "fainter" at his request and measure
-  about 2.45:1 against the wood, under the 3:1 WCAG AA floor for large
-  text (raising the fill from 46% to about 52-55% would pass and still
-  read faint). And the winner's score pulse animates a glow, while his
-  2026-09-14 rule was a hard drop and no glow on the winning and final
-  scores. Both are his to settle; neither was changed.
 - **The torn Scraps cards' own contact shadow does not render.** Their
   `filter` (the leftward contact shadow that is meant to draw the seam
   between cards) sits on the same element as the `clip-path`, and the

@@ -33,23 +33,31 @@ describe('the ROUND sign loop matches SIGN_BEATS', () => {
     expect(near(f, up0 + pct(0.6 * B.flipDur)).body).toContain('rotateY(108deg)');
   });
 
-  it('the number: the same pause after ROUND lands, over its own flip, on its own curve', () => {
+  it('the number: the same pause after ROUND lands, over its own flip, easing like the rest', () => {
     const f = frames('signCycleNumber');
     // Card 4 of ROUND lands at up0 + its own delay + a flip; the number
     // starts `pause` after that, less its own delay of five staggers.
     const n0 = up0 + pct(4 * B.stagger + B.flipDur + B.pause - 5 * B.stagger);
     const want = [[n0, 'rotateY(0deg)'], [n0 + pct(0.6 * B.numberDur), 'rotateY(108deg)'],
-      [n0 + pct(0.85 * B.numberDur), 'rotateY(180deg) scale(1.1)'], [n0 + pct(B.numberDur), 'scale(1.12)']];
+      [n0 + pct(B.numberDur), 'rotateY(180deg) scale(1.12)']];
     for (const [at, has] of want) {
       const fr = near(f, at);
       expect(fr, `a signCycleNumber frame at ${at.toFixed(2)}%`).toBeTruthy();
       expect(fr.body).toContain(has);
     }
-    // Each segment of the flip carries the entrance's curve.
-    for (const [at] of want.slice(0, 3)) {
-      expect(near(f, at).body).toContain('animation-timing-function:cubic-bezier(.3,.9,.4,1)');
-    }
+    // No frame carries a curve of its own: the loop's ease-in-out applies,
+    // the same as the entrance's and every ROUND flip's. A snappier curve
+    // on the number's frames is the jerk Stan saw as a glitch.
+    expect(f.some(fr => fr.body.includes('animation-timing-function'))).toBe(false);
     expect(near(f, down0) && near(f, down1)).toBeTruthy();
+  });
+
+  it('the number turns on the same two-frame shape as a ROUND card', () => {
+    const f = frames('signNumberIn');
+    expect(f.map(fr => fr.at)).toEqual([0, 60, 100]);
+    expect(near(f, 60).body).toContain('rotateY(108deg)');
+    expect(near(f, 100).body).toContain('rotate(8deg) rotateY(180deg) scale(1.12)');
+    expect(frames('ribbonFlip').map(fr => fr.at)).toEqual([0, 60, 100]);
   });
 
   it('the notes sit on the faces, and the gap Stan hears is the one he asked for', () => {
@@ -57,8 +65,8 @@ describe('the ROUND sign loop matches SIGN_BEATS', () => {
     const number = B.numberAt + B.numberDur * B.numberFace;
     expect(number - lastRound).toBeCloseTo(B.noteGap, 6);
     expect(B.pause).toBeGreaterThan(0);
-    // ease-in-out and the number's snappy curve, solved for 90 of 108deg.
+    // Both flips ease in and out, solved for 90 of 108deg.
     expect(B.wordFace).toBeCloseTo(0.43, 2);
-    expect(B.numberFace).toBeCloseTo(0.23, 2);
+    expect(B.numberFace).toBeCloseTo(0.43, 2);
   });
 });

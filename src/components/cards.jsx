@@ -696,7 +696,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
   onCardClick, faceDown=false, selectable=false,
   wiggleIds=new Set(), activeWiggle=false, aiSignaledIds=new Set(),
   shakeIds=new Set(), fadingIds=new Set(), fadingInIds=new Set(), waveIds=new Set(),
-  registerEl=null, hiddenIds=new Set(), cardSlot=null,
+  registerEl=null, hiddenIds=new Set(), cardSlot=null, dimIds=null,
   size='normal', maxWidth=null, showEmpty=true, raisedId=null, raisedStill=false }) {
 
   const sorted=faceDown?cards:sortByValue(cards);
@@ -772,6 +772,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
           const body=(
             <PlayingCard card={card} faceDown={faceDown} isScrap={false} size={size}
               selected={isSel} selectable={selectable&&!faceDown} liftTransform={false}
+              dimmed={!!dimIds&&dimIds.has(card.id)}
               registerEl={registerEl} hidden={hiddenIds.has(card.id)}
               fadingIn={fadingInIds&&fadingInIds.has(card.id)}
               wiggle={doWiggle&&!slot}

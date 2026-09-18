@@ -552,12 +552,13 @@
       @keyframes slapShadow{0%{box-shadow:0 34px 30px rgba(0,0,0,.55)}100%{box-shadow:0 0 0 rgba(0,0,0,0)}}
       @keyframes sawdust{0%{transform:scale(.6);opacity:.7}100%{transform:scale(3.6);opacity:0}}
       /* The score: the old digit up and out, the new in from below;
-         then the new one lifts and flashes on a loop (`--glow` is gold
-         for you, ember for her); the match-winning score jumps and
-         vibrates once instead. */
+         then the new one lifts on a loop, with no glow (Stan,
+         2026-09-18: "keep the pulse on winning scores, no glow"; it
+         flashed gold or ember at the top of each lift until then); the
+         match-winning score jumps and vibrates once instead. */
       @keyframes scoreRollOut{from{transform:translateY(0);opacity:1}to{transform:translateY(-100%);opacity:0}}
       @keyframes scoreRollIn{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-      @keyframes scoreWave{0%,100%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 transparent}12%{transform:translateY(-12px) rotate(-2deg);text-shadow:0 0 18px var(--glow),0 6px 6px rgba(0,0,0,.4)}26%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 transparent}}
+      @keyframes scoreWave{0%,100%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 rgba(0,0,0,0)}12%{transform:translateY(-12px) rotate(-2deg);text-shadow:0 6px 6px rgba(0,0,0,.4)}26%{transform:translateY(0) rotate(0deg);text-shadow:0 0 0 rgba(0,0,0,0)}}
       /* The point, said once: "+1" or "+2" rising off the numeral as it
          rolls, then gone. Ends invisible, so the reduced-motion collapse
          simply never shows it — the number is the information. */
@@ -583,9 +584,8 @@
          letterCycle — YOU WIN only: a wave flips each card over and
            straight back every 2.6s, the way the splash wordmark riffles;
            most of the cycle is stillness, and it is silent.
-         scorePulse — the winner's numeral swells a touch and glows in
-           its own colour (--glow), slowly, over its hard drop (--drop,
-           which is DROP in interstitials.jsx, so the two cannot differ). */
+         scorePulse — the winner's numeral swells a touch, slowly, and
+           keeps its own hard drop: no glow (Stan, 2026-09-18). */
       /* The ROUND N sign as letter cards (2026-09-17, Stan's pick off The
          Turnover). ROUND turns face up on ribbonFlip; the NUMBER turns on
          its own signNumberIn after a held pause, bigger, and lands askew.
@@ -595,27 +595,29 @@
          src/audio.js over its 6200ms `cycle`, per card from its own delay
          (ROUND i*85ms, the number 425ms): hold to `cycleDown` (48.4%),
          down in 360ms (54.2%), ROUND back up at `cycleUp` over 520ms
-         (64.5 to 72.9%), the number back up `pause` (191ms) after ROUND's
-         last card lands, over 620ms (74.6 to 84.6%, its 60% and 85%
-         frames at 80.6% and 83.1%). The number's flip carries its
-         entrance curve on each of its frames, because an animation's
-         timing function applies per segment, and the loop's ease-in-out
-         turned its face 126ms later than the entrance did (review,
-         2026-09-17). src/components/signCycle.test.js recomputes every
-         one of these from SIGN_BEATS: change a beat and it names the
-         frame to move. Every transform list within a set names the same
-         functions in the same order, so it interpolates part by part
-         rather than as a matrix. */
-      @keyframes signNumberIn{0%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}60%{transform:translateY(-18px) rotate(-6deg) rotateY(108deg) scale(1.22)}85%{transform:translateY(2px) rotate(10deg) rotateY(180deg) scale(1.1)}100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
+         (64.5 to 72.9%), the number back up `pause` (67ms) after ROUND's
+         last card lands, over 620ms (72.6 to 82.6%, its 60% frame at
+         78.6%). Every flip here, the number's included, eases in and out
+         of each frame, as ribbonFlip does: the number had a snappier
+         curve until 2026-09-18, which stops dead at each frame and leaves
+         the next one fast, and Stan saw the jerk at its 60% frame as a
+         glitch. src/components/signCycle.test.js recomputes every one of
+         these from SIGN_BEATS: change a beat and it names the frame to
+         move. Every transform list within a set names the same functions
+         in the same order, so it interpolates part by part rather than as
+         a matrix. */
+      @keyframes signNumberIn{0%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}60%{transform:translateY(-14px) rotate(4.8deg) rotateY(108deg) scale(1.08)}100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
       @keyframes signCycleWord{0%,48.4%{transform:rotateY(180deg) translateY(0)}54.2%,64.5%{transform:rotateY(0deg) translateY(0)}69.5%{transform:rotateY(108deg) translateY(-10px)}72.9%,100%{transform:rotateY(180deg) translateY(0)}}
-      @keyframes signCycleNumber{0%,48.4%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}54.2%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}74.6%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1);animation-timing-function:cubic-bezier(.3,.9,.4,1)}80.6%{transform:translateY(-18px) rotate(-6deg) rotateY(108deg) scale(1.22);animation-timing-function:cubic-bezier(.3,.9,.4,1)}83.1%{transform:translateY(2px) rotate(10deg) rotateY(180deg) scale(1.1);animation-timing-function:cubic-bezier(.3,.9,.4,1)}84.6%,100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
+      @keyframes signCycleNumber{0%,48.4%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}54.2%,72.6%{transform:translateY(0) rotate(0deg) rotateY(0deg) scale(1)}78.6%{transform:translateY(-14px) rotate(4.8deg) rotateY(108deg) scale(1.08)}82.6%,100%{transform:translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)}}
       /* PLAY SCRAPS HAND's tension (2026-09-17): both piles tremble harder
          and harder over the drumroll's 580ms, brightening, and end still
-         and lit (`forwards`) for the held beat before the reveal. */
-      @keyframes scrapTension{0%{transform:translate(0,0);filter:brightness(1)}15%{transform:translate(-.4px,.3px)}30%{transform:translate(.7px,-.5px)}45%{transform:translate(-1px,.7px)}60%{transform:translate(1.4px,-.9px)}72%{transform:translate(-1.8px,1.1px)}84%{transform:translate(2.2px,-1.3px)}92%{transform:translate(-2.4px,1.4px)}100%{transform:translate(0,0);filter:brightness(1.18)}}
+         and lit (`forwards`) for the held beat before the reveal. Stronger
+         since 2026-09-18 (Stan: yes, for a hand worth twice the points):
+         it peaked at 2.4px and read as a shiver; 4.3px now. */
+      @keyframes scrapTension{0%{transform:translate(0,0);filter:brightness(1)}15%{transform:translate(-.8px,.5px)}30%{transform:translate(1.3px,-.9px)}45%{transform:translate(-1.9px,1.3px)}60%{transform:translate(2.5px,-1.6px)}72%{transform:translate(-3.2px,2px)}84%{transform:translate(3.8px,-2.3px)}92%{transform:translate(-4.3px,2.5px)}100%{transform:translate(0,0);filter:brightness(1.22)}}
       @keyframes letterWobble{0%{transform:rotate(-1.3deg) translateY(0)}100%{transform:rotate(1.3deg) translateY(-2px)}}
       @keyframes letterCycle{0%,70%,100%{transform:rotateY(0deg) translateY(0)}80%{transform:rotateY(180deg) translateY(-10px)}90%{transform:rotateY(0deg) translateY(0)}}
-      @keyframes scorePulse{0%,100%{transform:scale(1);text-shadow:var(--drop),0 0 0 var(--glow)}50%{transform:scale(1.05);text-shadow:var(--drop),0 0 22px var(--glow)}}
+      @keyframes scorePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
       @keyframes cardWiggle{0%{transform:rotate(-4deg) scale(1.04)}100%{transform:rotate(4deg) scale(1.06)}}
       /* One card's share of the opponent's ruffle. Small on purpose:
          at 22px of lift, staggered across five cards, this read as the
@@ -913,7 +915,7 @@
         .attack-dim { transition-duration: 0.28s !important; transition-delay: 0s !important; }
         .card-glint { display: none !important; }
         .scrap-jolt { animation: none !important; }
-        .stage-wave { animation: none !important; text-shadow: 0 0 14px var(--glow), 0 0 4px var(--glow) !important; }
+        .stage-wave { animation: none !important; }
         .stage-fade { animation: scrapArrive 0.28s ease !important; animation-duration: 0.28s !important; }
         .stage-flip { animation-duration: 1ms !important; }
         /* The match screen's idle motion simply stops: the cards sit

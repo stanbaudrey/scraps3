@@ -446,9 +446,11 @@ export function gameReducer(state, action) {
           currentTurn: state.currentTurn + 1,
           phase: nextPhaseAfterTrade(state.phase, state.roundNum),
         }),
+        // Holding another Ace, the only moves left are to attack with it
+        // or end the turn: no scrapping after a counter (Stan, 2026-09-18).
         log: addLog(state, stillArmed
-          ? 'She had an Ace too. Both gone. You still hold one — attack again or scrap.'
-          : 'She had an Ace too. Both gone. Turn over.'),
+          ? 'She countered your Ace. Both Aces discarded. Attack again, or end your turn.'
+          : 'She countered your Ace. Both Aces discarded. Your turn is over.'),
       };
     }
 
@@ -488,7 +490,7 @@ export function gameReducer(state, action) {
         aiHand: state.aiHand.filter(c => c.id !== aiAce.id),
         discard: [...state.discard, playerAce, aiAce],
         pendingAiAce: null,
-        log: addLog(state, 'You had an Ace too. Both gone. Your turn continues.'),
+        log: addLog(state, 'You countered her Ace. Both Aces discarded.'),
       };
     }
 

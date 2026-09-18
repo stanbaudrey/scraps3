@@ -60,6 +60,10 @@ const CASES = {
   hand2:      stage(reveal({ which: 'hand2' })),
   scraps:     stage(reveal({ which: 'scraps', playerCards: d.slice(10, 17), aiCards: d.slice(20, 27),
                 winner: 'player', pts: 2, cleanSweep: true })),
+  // A plain Scraps result, the round going on: rests on NEXT ROUND
+  // (2026-09-18). `scraps` above is a Clean Sweep and rests on CONTINUE.
+  scrapsPlain: stage(reveal({ which: 'scraps', playerCards: d.slice(10, 17), aiCards: d.slice(20, 27),
+                winner: 'player', pts: 2 })),
   matchWin:   stage(reveal({ which: 'hand2', winner: 'player', before: { p: 9, a: 6 }, endsIt: true })),
   matchLoss:  stage(reveal({ which: 'scraps', winner: 'ai', pts: 2, before: { p: 5, a: 8 }, endsIt: true,
                 playerCards: d.slice(10, 17), aiCards: d.slice(20, 27) })),
@@ -84,7 +88,7 @@ const CASES = {
   // 2026-09-14 (an undeclared variable in render) and nothing else
   // ever mounted it outside a live match.
   aceCounter2: <AceCounterModal onCounter={noop} onAllow={noop} targets={d.slice(12, 14)} afterCounter />,
-  aiCounterNotice: <AiCounterNotice playerAce={ace} aiAce={{ ...ace, id: 'bench-ace-2' }} onOk={noop} stillArmed={false} />,
+  aiCounterNotice: <AiCounterNotice playerAce={ace} aiAce={{ ...ace, id: 'bench-ace-2' }} onOk={noop} />,
   oppAceReveal: <OpponentAceReveal targets={d.slice(12, 14)} onOk={noop} />,
   oppAceReveal2: <OpponentAceReveal targets={d.slice(12, 14)} onOk={noop} afterCounter />,
 };
