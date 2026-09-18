@@ -1,7 +1,9 @@
 // ============================================================
 // SCRAPS — Static backdrop + animated title
 // ============================================================
-import { DS, F } from "../styles/theme.js";
+import { DS } from "../styles/theme.js";
+import { PlayingCard, CARD_DIMS } from "./cards.jsx";
+import { useViewport } from "../ui/viewport.jsx";
 
 // ─────────────────────────────────────────────────────────────
 // SceneBackdrop — Stan's illustration, on the splash and the
@@ -265,43 +267,64 @@ export function TableSurface({ cardH = 146, anchorRef = null }) {
   );
 }
 
-// AnimatedTitle — the SCRAPS wordmark, set in Rye.
+// AnimatedTitle — the SCRAPS wordmark, dealt as letter cards (Stan's
+// pick off The Turnover, 2026-09-17: "Letter cards, ripple", with the
+// letters a little bigger than the bench had them and a gentle wave
+// between ripples). Until then it was six Rye letters that riffled.
+// The match screen spells its result the same way, so the first screen
+// and the last are a matched pair.
 //
-// Two behaviours share the letters, and each gets its own nested span
-// because both want `transform` (see the .scraps-* block in
-// index.html):
-//   1. Entrance, then a perpetual riffle — a spring travelling the row
-//      the way a bridged deck releases.
-//   2. Pointer devices: the hand fans open under the cursor, pure CSS.
-//      Note .scraps-title keeps `cursor: default` — hovering does
-//      something, clicking does not, and the cursor must not promise
-//      otherwise.
+// Four behaviours share each card, and each owns its own wrapper
+// because all four want `transform` (see the .scraps-* and .wm-* block
+// in index.html):
+//   1. .scraps-letter  the entrance (letterAppear)
+//   2. .scraps-kinetic pointer devices: the row fans open under the
+//      cursor like a hand of cards, pure CSS. .scraps-title keeps
+//      `cursor: default`: hovering does something, clicking does not.
+//   3. .wm-wave        the gentle wave, a slow bob travelling the row
+//   4. .wm-cycle       the ripple: every 2.6s a wave flips each card
+//      over and straight back, like the old riffle's rhythm.
+// The card is the game's own `normal` card, drawn at its natural size
+// and scaled (`k`) to fit six across the splash column and a quarter
+// of the screen's height. One ink on every face, the A included: the
+// green A belonged to the type wordmark, and a card face carries one.
 //
-// There was a THIRD, removed 2026-09-13 on Stan's call: a touch-device
-// "square up" where the letters went loose and snapped flush, on mount
-// and on every tap, with playSquareUp() under it. The riffle is the
-// wordmark's motion; a second gesture on the same six letters was two
-// things happening on the screen that has the least reason to move.
-// The .tap-layer span, the SCATTER table and the squareUp keyframes
-// all went with it. The CUE did not: playSquareUp is still in
-// audio.js, now with no caller.
-//
-// The face changed in the same pass — Bungee Shade out, Rye in — and
-// nothing here depends on which one F.title names.
+// There was a touch-device "square up" gesture until 2026-09-13; its
+// cue, playSquareUp, became the ROUND N sign's voice.
 const LETTERS = 'SCRAPS'.split('');
+const WM = { size: 'normal', rankScale: 0.78, gap: 10, wave: 3000, cycle: 2600, start: 1100, stagger: 90 };
 
 export function AnimatedTitle() {
+  const { w, h } = useViewport();
+  const d = CARD_DIMS[WM.size];
+  const avail = Math.min(600, w - 48);
+  const k = Math.max(0.42, Math.min(1, (avail - 5 * WM.gap) / (6 * d.w), (0.26 * h) / d.h));
+  const cw = Math.round(d.w * k), ch = Math.round(d.h * k);
+  const face = (i, l, down) => (
+    <span className={down ? 'wm-face wm-back' : 'wm-face'}>
+      <span style={{display:'block',width:d.w,height:d.h,transform:`scale(${k})`,transformOrigin:'0 0'}}>
+        {down
+          ? <PlayingCard card={null} faceDown size={WM.size} liftTransform={false}/>
+          : <PlayingCard card={{ id:`wm-${i}`, rank:l }} size={WM.size} rankScale={WM.rankScale}
+              rankAlign="center" liftTransform={false}/>}
+      </span>
+    </span>
+  );
   return (
-    <h1 className="scraps-title" style={{marginBottom:'clamp(26px,6vw,36px)'}}>
-      {LETTERS.map((l,i)=>(
-        <span key={i} className="scraps-letter"
-          style={{fontFamily:F.title,
-            fontSize:'clamp(44px,min(14.5vw,26vh),148px)',lineHeight:1,
-            color:l==='A'?DS.voltage:DS.frost,
-            textShadow:l==='A'?`0 0 30px ${DS.voltage}88,0 3px 0 rgba(0,0,0,.4)`:`0 3px 0 rgba(0,0,0,.4)`,
-            animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i*.09}s both,`+
-                      ` titleRiffle 2.08s cubic-bezier(.3,.9,.4,1) ${1.1+i*.055}s infinite`}}>
-          <span className="scraps-kinetic">{l}</span>
+    <h1 className="scraps-title" aria-label="SCRAPS"
+      style={{marginBottom:'clamp(26px,6vw,36px)',gap:Math.round(WM.gap * k),fontSize:ch}}>
+      {LETTERS.map((l, i) => (
+        <span key={i} className="scraps-letter" aria-hidden="true"
+          style={{width:cw,height:ch,animation:`letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i * .09}s both`}}>
+          <span className="scraps-kinetic" style={{width:cw,height:ch}}>
+            <span className="wm-wave" style={{animation:`wmWave ${WM.wave}ms ease-in-out ${-i * 340}ms infinite`}}>
+              <span className="wm-cycle"
+                style={{animation:`wmCycle ${WM.cycle}ms ease-in-out ${WM.start + i * WM.stagger}ms infinite`}}>
+                {face(i, l, false)}
+                {face(i, l, true)}
+              </span>
+            </span>
+          </span>
         </span>
       ))}
     </h1>

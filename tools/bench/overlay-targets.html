@@ -1,4 +1,8 @@
 <!doctype html><html><head><meta charset="utf-8">
+<!-- Without this a phone lays the page out 980px wide and zooms it out,
+     and every phone row this bench ever measured was that desktop-width
+     layout shrunk to fit (found by review, 2026-09-17). -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>overlay touch-target bench</title>
 <!-- The game's global CSS — reset, fonts, every @keyframes, .sr-only —
      lives in index.html's <style>, not in a file this page could link.

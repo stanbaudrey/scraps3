@@ -37,7 +37,9 @@ const ROOT   = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const CHECK  = process.argv.includes('--check');
 
-const SITE = 'https://scraps.games';
+// The address lives in src/site.js, the one place it is declared; the
+// game reads the same constant for its share sentence and share card.
+import { SITE } from '../src/site.js';
 
 // Chrome is looked up, never installed. If it is missing the
 // script says so and stops rather than writing a broken asset.

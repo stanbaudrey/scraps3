@@ -56,7 +56,7 @@ import { useDialogFocus, SETTLE } from "./overlays.jsx";
 import { Btn, MODAL_BTN_MIN } from "./buttons.jsx";
 import {
   playSlap, playHandWon, playHandLost, playRoundWon, playRoundLost,
-  playCleanSweep, playGameWon, playGameLost, playDraw, playSelect, playRoundSign,
+  playCleanSweep, playGameWon, playGameLost, playDraw, playSelect, playRoundSign, SIGN_BEATS,
 } from "../audio.js";
 import { shareResult, buildShareText, prepareShareCard } from "../share.js";
 
@@ -92,7 +92,6 @@ const FLIP = { dur: 520, stagger: 85 };
 // ~0.88s, one riffle pass to ~1.26s, at rest by 1.35s — and then it
 // WAITS. It advanced itself at 1.35s until 2026-09-14 (Stan: "don't
 // automatically progress past the Round X screen").
-const SIGN = { stagger: 55, riffleAt: 800, riffleStagger: 25, riffle: 380, lineAt: 650, settle: 1350 };
 const SWEEP_EASE = 'cubic-bezier(.5,0,.9,.6)';
 // Hard drop, no glow. The verdict, the Clean Sweep title, the winning
 // score and the final score all carried a coloured glow text-shadow,
@@ -293,20 +292,30 @@ function QuietButton({ onClick, children, show = true, style = {}, buttonRef = n
 }
 
 // ─────────────────────────────────────────────────────────────
-// RoundSign — ROUND N on the bare wood, in Rye, entering the way the
-// splash wordmark does: per-letter letterAppear, then ONE riffle
-// pass travelling the row (`signRiffle`, its own keyframe — the
-// wordmark's riffle is 62% stillness and cannot be run once). The
-// dealer line sits small under it in Fjalla, because who acts first
-// is real information and the log is the only other place it lives.
-// At rest inside 1.4s, then it holds for a tap, the same contract as
-// every reveal: a tap mid-entrance lands it, a tap at rest deals.
+// RoundSign — ROUND N dealt as letter cards (Stan's pick off The
+// Turnover, 2026-09-17; it was Rye letters with one riffle pass).
+// Six cards deal in face down over the top edge, the way a round deals;
+// ROUND turns face up a card at a time; then a held breath, and the
+// NUMBER turns on its own, bigger, and lands askew so it is the thing
+// the eye stays on. The roundSign voice puts a note on each card as its
+// face comes round, the top note on the number; both read SIGN_BEATS
+// (src/audio.js), so they cannot drift. While the sign waits for a tap
+// it CYCLES, silently: the row turns face down and the reveal plays
+// again, every 6.2s (signCycleWord / signCycleNumber in index.html).
+// The dealer line sits small under it in Fjalla, because who acts
+// first is real information and the log is the only other place it
+// lives. A tap mid-entrance lands the resting frame; a tap at rest
+// deals, the same contract as every reveal.
 // ─────────────────────────────────────────────────────────────
+const SIGN_CYCLE = 6200;
 function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
-  const letters = `ROUND ${roundNum}`.split('');
+  const B = SIGN_BEATS;
+  const letters = 'ROUND'.split('');
+  const num = String(roundNum);
   // CLICK ANYWHERE on a desktop, TAP ANYWHERE on a phone (Stan,
   // 2026-09-16). It said "Tap to continue" everywhere until then.
   const verb = usePointerVerb();
+  const { w, h } = useViewport();
   const { at, clear } = useTimeline(1);
   const doneRef = useRef(false);
   const [settled, setSettled] = useState(!!instant);
@@ -323,40 +332,79 @@ function RoundSign({ roundNum, matchPoint = false, onDone, R, instant }) {
   }, [settled, finish, clear]);
   useEffect(() => {
     if (!instant) playRoundSign();
-    if (!instant) at(SIGN.settle, () => setSettled(true));
+    if (!instant) at(B.settle, () => setSettled(true));
   }, []);
-  // Once settled the entrances come off: every one of them ends on
-  // the resting frame (letterAppear fills `both`, the riffle ends
-  // where it began), so dropping them after they finish changes
+  // Once settled the entrances come off and every card sits on its
+  // resting pose, which is the inline transform below and the first
+  // frame of the cycle; so dropping them after they finish changes
   // nothing, and dropping them EARLY on a tap lands the sign at once.
   const stop = R || instant || settled;
+  const cycling = settled && !R;
+
+  // The game's `normal` card, scaled to fit: five letters, a space, and
+  // the number, which is drawn 12% bigger by its own transform.
+  const d = CARD_DIMS.normal;
+  const GAP = 12, SPACE = 0.45 * d.w;
+  const numberX = 5 * (d.w + GAP) + SPACE;
+  const rowW = numberX + d.w;
+  const lift = d.h * 0.08;
+  const k = Math.max(0.34, Math.min(1, (Math.min(w, 860) - 48) / rowW, (0.24 * h) / d.h));
+  const numScale = num.length > 1 && num !== '10' ? 0.52 : 0.78;
+  const REST_WORD = 'rotateY(180deg) translateY(0)';
+  const REST_NUM = 'translateY(0) rotate(8deg) rotateY(180deg) scale(1.12)';
+  const card = (i, ch, isNum) => {
+    const x = isNum ? numberX : i * (d.w + GAP);
+    const t = i / 4;
+    const y = isNum ? lift * 0.5 : lift - Math.sin(t * Math.PI) * lift;
+    const rot = isNum ? 0 : -4 + t * 8;
+    const flipAnim = cycling
+      ? (isNum ? `signCycleNumber ${SIGN_CYCLE}ms ease-in-out ${5 * B.stagger}ms infinite`
+               : `signCycleWord ${SIGN_CYCLE}ms ease-in-out ${i * B.stagger}ms infinite`)
+      : stop ? undefined
+      : isNum ? `signNumberIn ${B.numberDur}ms cubic-bezier(.3,.9,.4,1) ${B.numberAt}ms both`
+      : `ribbonFlip ${B.flipDur}ms ease-in-out ${B.flipAt + i * B.stagger}ms both`;
+    return (
+      <div key={i} style={{position:'absolute',left:x * k,top:y * k,width:d.w * k,height:d.h * k,zIndex:isNum ? 9 : i,
+        '--dx': `${Math.round((rowW / 2 - x - d.w / 2) * k)}px`, '--rot': `${rot.toFixed(1)}deg`,
+        transform:`rotate(${rot.toFixed(1)}deg)`,
+        animation: stop ? undefined : `dealOn ${B.dealDur}ms cubic-bezier(.2,.9,.3,1.05) ${i * B.deal}ms both`}}>
+        <div style={{width:d.w,height:d.h,transform:`scale(${k})`,transformOrigin:'0 0'}}>
+          <div style={{width:d.w,height:d.h,perspective:900}}>
+            <div className={cycling ? 'sign-cycle' : 'stage-flip'}
+              style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
+                transform: isNum ? REST_NUM : REST_WORD, animation: flipAnim}}>
+              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden'}}>
+                <PlayingCard card={null} faceDown size="normal" liftTransform={false}/>
+              </div>
+              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
+                <PlayingCard card={{ id:`sign-${i}`, rank:ch }} rankScale={isNum ? numScale : 0.78}
+                  rankAlign="center" size="normal" liftTransform={false}/>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
   return (
     <div onClick={tap}
       style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-        alignItems:'center',justifyContent:'center',gap:'clamp(10px,2.4vh,22px)',
+        alignItems:'center',justifyContent:'center',gap:'clamp(14px,3vh,28px)',
         padding:16,cursor:'pointer'}}>
-      <div className="stage-fade" aria-label={`Round ${roundNum}`}
-        style={{display:'flex',justifyContent:'center',gap:'0.06em',perspective:'26em',
-          fontFamily:F.title,fontSize:'clamp(46px,min(13vw,22vh),132px)',lineHeight:1,
-          color:DS.frost,textShadow:'0 3px 0 rgba(0,0,0,.4)',whiteSpace:'pre'}}>
-        {letters.map((l, i) => (
-          <span key={i} aria-hidden="true" style={{display:'inline-block',willChange:'transform',
-            animation: stop ? undefined
-              : `letterAppear 0.6s cubic-bezier(.34,1.6,.64,1) ${i * SIGN.stagger}ms both,`
-              + ` signRiffle ${SIGN.riffle}ms cubic-bezier(.3,.9,.4,1) ${SIGN.riffleAt + i * SIGN.riffleStagger}ms`}}>
-            {l}
-          </span>
-        ))}
+      <div className="stage-fade" role="img" aria-label={`Round ${roundNum}`}
+        style={{position:'relative',width:rowW * k,height:(d.h + lift) * k}}>
+        {letters.map((ch, i) => card(i, ch, false))}
+        {card(5, num, true)}
       </div>
       {/* Full stops and SHE (Stan, 2026-09-16). MATCH POINT drops to a
           line of its own under it, because a sentence that has ended
           cannot carry "· MATCH POINT" on after its full stop. The pair
           shares one block so the sign's own gap does not open between
-          them. */}
+          them. It arrives once the number has landed. */}
       <div className="stage-fade" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,
         fontFamily:F.display,fontSize:'clamp(15px,2.6vw,24px)',
         color:DS.slateLight,letterSpacing:'0.18em',textAlign:'center',
-        animation: stop ? undefined : `scrapArrive 0.25s ease ${SIGN.lineAt}ms both`}}>
+        animation: stop ? undefined : `scrapArrive 0.25s ease ${B.numberAt + B.numberDur - 120}ms both`}}>
         <span>{roundNum % 2 === 1 ? 'YOU GO FIRST.' : 'SHE GOES FIRST.'}</span>
         {matchPoint && <span style={{color:DS.gold}}>MATCH POINT</span>}
       </div>
@@ -510,16 +558,28 @@ function CardRow({ cards, size, isScrap, kraft, bestIds, slap, slapAt, availW, i
 // shallow arc — the ribbon spread — from over the top edge, the way
 // a round deals in.
 // Rows deal and flip IN PARALLEL, a beat apart (ROW_OFFSET), rather
-// than one after the other: serially, OPPONENT / WINS. took 1.2s
-// longer to land than YOU WIN, so the loser got the longest ceremony
-// in the game. Now a loss lands in the win's time.
+// than one after the other: serially, the old OPPONENT / WINS. took
+// 1.2s longer to land than YOU WIN, so the loser got the longest
+// ceremony in the game. A loss now lands in the win's time. (It is
+// SHE WINS. since 2026-09-17: one row where there is room, SHE / WINS.
+// on a narrow screen, where nine cards in one row cover each other's
+// letters.)
 const ROW_OFFSET = 120;
 // `pace` scales every stagger: 1 for the win, LOSS_PACE for the loss,
-// so that a loss — thirteen cards over two rows — lands SOONER than
-// the win's six, and NEW GAME is under the thumb first. The loser
+// so that a loss lands SOONER than the win's six cards, and NEW GAME
+// is under the thumb first. The loser
 // gets the shorter ceremony on purpose.
 const LOSS_PACE = 0.5;
-function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, pace = 1 }) {
+// The row at rest (Stan, 2026-09-17: "this screen is too static"). Every
+// card wobbles a little, out of step with its neighbours; a winning row
+// also CYCLES, a wave flipping each card over and straight back every
+// `CYCLE.period`, the way the splash wordmark riffles. Each has its own
+// wrapper, between the deal (outer) and the turnover (inner), so neither
+// replaces the other's transform.
+const WOBBLE = { dur: 2100 };
+const CYCLE = { period: 2600, stagger: 90 };
+function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, pace = 1,
+  cycle = false, cycleAt = 0 }) {
   const d = CARD_DIMS[size] || CARD_DIMS.small;
   const slots = word.split('');
   const n = slots.length;
@@ -538,18 +598,28 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, 
         const flipDelay = instant ? 0 : flipAt + (i * FLIP.stagger + rowIndex * ROW_OFFSET) * pace;
         return (
           <div key={i} style={{position:'absolute',left:i * step,top:y,zIndex:i,
-            perspective:800,
             '--dx': `${Math.round(width / 2 - i * step - d.w / 2)}px`,
             '--rot': `${rot.toFixed(1)}deg`,
             animation:`dealOn ${instant ? 0 : DEAL.dur}ms cubic-bezier(.2,.9,.3,1.05) ${dealDelay}ms both`}}>
-            <div className="stage-flip" style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
-              animation:`ribbonFlip ${instant ? 0 : FLIP.dur}ms ease-in-out ${flipDelay}ms both`}}>
-              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden'}}>
-                <PlayingCard card={null} faceDown size={size} liftTransform={false}/>
-              </div>
-              <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
-                <PlayingCard card={{ id:`letter-${k}`, rank:ch }} rankScale={0.84} rankAlign="center"
-                  size={size} liftTransform={false}/>
+            {/* The perspective lives here now, on the wobble, so the
+                cycle and the turnover under it both turn in 3D. A
+                negative delay puts each card somewhere different in its
+                lean from the first frame. */}
+            <div className="letter-wobble" style={{perspective:800,
+              animation:`letterWobble ${WOBBLE.dur + (k % 3) * 260}ms ease-in-out ${-((k * 470) % 2000)}ms infinite alternate`}}>
+              <div className={cycle ? 'letter-cycle' : undefined}
+                style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
+                  animation: cycle ? `letterCycle ${CYCLE.period}ms ease-in-out ${(instant ? 700 : cycleAt) + i * CYCLE.stagger}ms infinite` : undefined}}>
+                <div className="stage-flip" style={{position:'relative',width:d.w,height:d.h,transformStyle:'preserve-3d',
+                  animation:`ribbonFlip ${instant ? 0 : FLIP.dur}ms ease-in-out ${flipDelay}ms both`}}>
+                  <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden'}}>
+                    <PlayingCard card={null} faceDown size={size} liftTransform={false}/>
+                  </div>
+                  <div style={{position:'absolute',inset:0,backfaceVisibility:'hidden',transform:'rotateY(180deg)'}}>
+                    <PlayingCard card={{ id:`letter-${k}`, rank:ch }} rankScale={0.84} rankAlign="center"
+                      size={size} liftTransform={false}/>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -561,10 +631,33 @@ function LetterRow({ word, size, availW, dealAt, flipAt, instant, rowIndex = 0, 
 
 const T = {
   // Rye (Stan, 2026-09-14) — the eighth consumer on theme.js's list.
-  // Tracked tighter than the Fjalla it replaced: Rye is a wide face
-  // and 0.12em on it read as gapped.
-  title: {fontFamily:F.title,color:DS.slateLight,letterSpacing:'0.05em',fontSize:'clamp(22px,3.6vw,30px)',lineHeight:1,textShadow:DROP},
+  // Since 2026-09-17 it is the table's SIGN rather than a label (Stan's
+  // pick off The Turnover: "arched bigger fainter", in capitals, a
+  // slightly taller arch than the bench showed). At 30px, pale, and
+  // exactly as close to her cards as the verdict was, it read as her
+  // row's label. Now: twice the size at under half strength, arched,
+  // with room under it (`marginBottom`) so it heads the whole column.
+  title: {fontFamily:F.title,color:`${DS.frost}75`,fontSize:'clamp(40px,7.2vw,62px)',lineHeight:1,
+    textShadow:'0 2px 0 rgba(0,0,0,.28)',display:'flex',justifyContent:'center',
+    marginTop:'clamp(4px,1.2vh,12px)',marginBottom:'clamp(10px,3vh,28px)'},
 };
+// The arch: the splash wordmark's own hover fan (a pivot just under the
+// letters, index.html .scraps-kinetic) with the angles opened from 13 to
+// 16 degrees and the ends dropped further, for a taller arch.
+const ARCH = { deg: 16, drop: 0.09, pivot: '50% 128%' };
+function ArchedTitle({ text }) {
+  const chars = [...text.toUpperCase()];
+  const n = chars.length;
+  return chars.map((ch, i) => {
+    const u = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;
+    return (
+      <span key={i} aria-hidden="true" style={{display:'inline-block',transformOrigin:ARCH.pivot,
+        transform:`rotate(${(ARCH.deg * u).toFixed(1)}deg) translateY(${(ARCH.drop * u * u).toFixed(3)}em)`}}>
+        {ch === ' ' ? '\u00a0' : ch}
+      </span>
+    );
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // RevealScene — Hand 1, Hand 2, the Scraps, and everything that can
@@ -765,10 +858,11 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   }, [step]);
 
   // ── The match screen ───────────────────────────────────────
-  // SHE WINS. on one row, mirroring YOU WIN (Stan, 2026-09-17). It was
-  // OPPONENT / WINS. over two rows, which is why the rows machinery is
-  // here: it still lays out any word list.
-  const word = mineWon ? ['YOU WIN'] : ['SHE WINS.'];
+  // SHE WINS. on one row, mirroring YOU WIN (Stan, 2026-09-17), where
+  // there is room. On a narrow screen nine cards in one row show only 38
+  // of their 60px each and cover each other's letters (found by review,
+  // measured at 390 and 375), so it is SHE / WINS. there, which fits.
+  const word = mineWon ? ['YOU WIN'] : narrow ? ['SHE', 'WINS.'] : ['SHE WINS.'];
   const pace = mineWon ? 1 : LOSS_PACE;
   const longest = Math.max(...word.map(r => r.length)) - 1;
   const rowsExtra = (word.length - 1) * ROW_OFFSET;
@@ -776,6 +870,9 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   const dealEnd = dealAt + (longest * DEAL.stagger + rowsExtra) * pace + DEAL.dur;
   const flipAt = dealEnd + 160 * pace;
   const flipEnd = flipAt + (longest * FLIP.stagger + rowsExtra) * pace + FLIP.dur;
+  // The win's cards start cycling once they are all face up and have sat
+  // still for a beat.
+  const cycleAt = flipEnd + 600;
   useEffect(() => {
     if (step !== 'deal') return;
     if (fast.end) { setStep('final'); return; }
@@ -989,7 +1086,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'clamp(8px,1.6vh,14px)'}}>
               {word.map((row, ri) => (
                 <LetterRow key={ri} word={row} size={letterSize} availW={availW}
-                  dealAt={dealAt} flipAt={flipAt} instant={fe} rowIndex={ri} pace={pace}/>
+                  dealAt={dealAt} flipAt={flipAt} instant={fe} rowIndex={ri} pace={pace}
+                  cycle={won} cycleAt={cycleAt}/>
               ))}
             </div>
             {!won && (
@@ -1006,26 +1104,28 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
             <div className="stage-fade" style={{display:'flex',flexDirection:'column',alignItems:'center',
               animation: showFinal ? `slideUp ${fe ? 0 : 400}ms ease ${fe ? 0 : scoreDelay}ms both` : undefined,
               opacity: showFinal ? 1 : 0}}>
-              <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:14,letterSpacing:'0.28em',marginBottom:6}}>FINAL SCORE</div>
+              {/* Enlarged 2026-09-17 (Stan); it was 14px. */}
+              <div style={{fontFamily:F.mono,color:DS.slateLight,fontSize:'clamp(17px,2.4vw,22px)',letterSpacing:'0.28em',marginBottom:8}}>FINAL SCORE</div>
               <div style={{display:'flex',alignItems:'baseline',gap:'clamp(18px,4vw,40px)'}}>
                 {[['HER', bonus.a, !won], ['YOU', bonus.p, won]].map(([lbl, n, isWinner]) => (
                   <div key={lbl} style={{display:'flex',alignItems:'baseline',gap:10,
                     flexDirection: lbl === 'YOU' ? 'row-reverse' : 'row'}}>
                     <span style={{fontFamily:F.ui,fontSize:15,color:DS.slate,letterSpacing:'0.18em',fontWeight:700}}>{lbl}</span>
-                    <span style={{fontFamily:F.display,lineHeight:1,fontSize:'clamp(56px,12vw,116px)',letterSpacing:'0.03em',
+                    {/* The winner's number pulses, slowly, in its own
+                        colour (Stan, 2026-09-17), once it has landed. */}
+                    <span className={isWinner ? 'score-pulse' : undefined}
+                      style={{fontFamily:F.display,lineHeight:1,fontSize:'clamp(56px,12vw,116px)',letterSpacing:'0.03em',
                       color: isWinner ? (won ? DS.gold : DS.ember) : DS.frost,
-                      textShadow: DROP}}>{n}</span>
+                      textShadow: DROP, display:'inline-block', transformOrigin:'50% 70%',
+                      '--glow': `${won ? DS.gold : DS.ember}8C`,
+                      animation: isWinner && showFinal ? `scorePulse 2200ms ease-in-out ${fe ? 0 : scoreDelay + 500}ms infinite` : undefined}}>{n}</span>
                   </div>
                 ))}
               </div>
-              {/* The margin, both ways. The NEW BEST MARGIN pill that used
-                  to sit beside it went on Stan's call (2026-09-14): a
-                  rounded, bordered badge with a trophy icon was web-app
-                  idiom on a picnic table. stats.js still records the
-                  best margin; nothing on this screen shows it. */}
-              <div style={{fontFamily:F.mono,fontSize:14,color:DS.slateLight,letterSpacing:'0.14em',marginTop:8}}>
-                {won ? `WON BY ${bonus.p - bonus.a}` : `LOST BY ${bonus.a - bonus.p}`}
-              </div>
+              {/* No margin line (WON BY / LOST BY): it went on Stan's
+                  call, 2026-09-17, as the NEW BEST MARGIN pill beside it
+                  had on 2026-09-14. stats.js still records the best
+                  margin; nothing on this screen shows it. */}
             </div>
           </div>
         </FitBox>
@@ -1065,8 +1165,8 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
       <FitBox modeMinW={300}>
         <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',alignItems:'center',
           justifyContent:'center',gap:'clamp(8px,1.8vh,16px)',position:'relative'}}>
-          <div data-sweep="text" data-sweep-id="title" className={fadeCls}
-            style={{...T.title, animation: textAnim('title', fadeIn(200))}}>{title}</div>
+          <div data-sweep="text" data-sweep-id="title" className={fadeCls} aria-label={title}
+            style={{...T.title, animation: textAnim('title', fadeIn(200))}}><ArchedTitle text={title}/></div>
 
           {side('ai')}
 

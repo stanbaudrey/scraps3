@@ -20,10 +20,12 @@
 //      the sentence and the URL are copied and the button says
 //      COPIED for a moment.
 //
-// The address is `window.location.origin` on purpose. The site's
-// URL has no runtime constant — `SITE` in tools/make-share-assets.mjs
-// is for the generated files — and the origin is honest wherever
-// the game is actually being played, a preview URL included.
+// The address is the site's, from src/site.js, never the page's own
+// (Stan, 2026-09-17: "the URL is scraps.games and should read as such").
+// It used to be `window.location.origin`, which put a Vercel preview's
+// long address into every share made from a preview. The copied text
+// carries the bare host, scraps.games; the share sheet gets the full
+// https address as its link.
 //
 // The card is rendered BEFORE the button is pressed (see
 // `prepareShareCard`), so the press itself calls `navigator.share`
@@ -31,6 +33,7 @@
 // is strict about that window.
 // ============================================================
 import { DS } from "./styles/theme.js";
+import { SITE, SITE_HOST } from "./site.js";
 
 // No trailing period on purpose: the share sentence appends its own,
 // and the share card sets this line as spaced capitals, where a period
@@ -197,12 +200,8 @@ export async function renderShareCard({ won, p, a, difficulty }) {
   return new Promise(res => canvas.toBlob(b => res(b), 'image/png'));
 }
 
-function siteHost() {
-  try { return window.location.host || 'scraps.games'; } catch { return 'scraps.games'; }
-}
-function siteUrl() {
-  try { return window.location.origin + '/'; } catch { return 'https://scraps.games/'; }
-}
+const siteHost = () => SITE_HOST;
+const siteUrl = () => `${SITE}/`;
 
 // Pre-render, so the press has the file ready. Cached per result.
 let prepared = null;
@@ -237,7 +236,7 @@ export async function shareResult({ won, p, a, difficulty, text }) {
     }
   }
   try {
-    await nav.clipboard.writeText(`${line} ${url}`);
+    await nav.clipboard.writeText(`${line} ${siteHost()}`);
     return 'copied';
   } catch {
     return 'failed';

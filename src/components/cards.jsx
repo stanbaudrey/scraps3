@@ -509,10 +509,13 @@ export function PlayingCard({ card, faceDown=false, isScrap=false, selected=fals
     // within a few pixels of touching.
     filters.push('drop-shadow(-2px 2px 2px rgba(0,0,0,.45))','drop-shadow(0 3px 4px rgba(0,0,0,.3))');
     // Selection on a torn card cannot be a border — a border follows
-    // the box, and the box is not the shape any more. A voltage
-    // drop-shadow traces the real tear, which is the same language
-    // the zone cue speaks.
-    if(selected) filters.push(`drop-shadow(0 0 1px ${DS.voltage})`,`drop-shadow(0 0 7px ${DS.voltage})`);
+    // the box, and the box is not the shape any more. It is a voltage
+    // drop-shadow tracing the real tear, and it is NOT applied here:
+    // this element also carries the clip-path, and a clip applies
+    // AFTER a filter, so a glow set here is cut off at the tear and
+    // never shows (measured 2026-09-17: 29 pixels of it survived on a
+    // whole pile). HorizontalScrapsZone puts it on the card's slot
+    // instead, outside the clip (SCRAP_PICK_GLOW).
   }
 
   return (
@@ -807,8 +810,16 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                   So the animation lives on an INNER element with no
                   placement of its own, and the two transforms compose
                   instead of one overwriting the other. */}
+              {/* Her EDGE FLIP while she thinks (Stan's pick off The
+                  Turnover, 2026-09-17; it was a lift-and-lean ruffle):
+                  each card tips up toward its edge and falls back, in a
+                  wave. 78 degrees, never past 90, so a face-down card
+                  only ever shows its back. The perspective is its own,
+                  on this element, so the tilt reads as depth. */}
+              <div className={waveIds.has(card.id) ? 'edge-flip' : undefined}
+                style={{perspective: waveIds.has(card.id) ? 600 : undefined}}>
               <div style={{animation: waveIds.has(card.id)
-                ? 'cardRuffle 0.34s cubic-bezier(.33,.9,.4,1)' : undefined}}>
+                ? 'cardEdgeFlip 0.42s ease-in-out' : undefined}}>
                 {slot||isRaised?(
                   <div className={doWiggle||isRaised ? 'live-cue-card' : undefined}
                     style={{position:'relative',
@@ -824,6 +835,7 @@ export function FannedHand({ cards, selectedIds=new Set(), tradeSelectedIds=new 
                     {body}
                   </div>
                 ):body}
+              </div>
               </div>
             </div>
           );
@@ -951,6 +963,8 @@ const SHADOW_BASE = (cardW) => cardW * 7 + 16;
 // 2026-09-17: "omit the shooter's crosshair"). A target is marked the
 // way every picked card is, lifted and lit, and it stays that way until
 // the Ace knocks it off.
+const SCRAP_PICK_GLOW = `drop-shadow(0 0 1px ${DS.voltage}) drop-shadow(0 0 7px ${DS.voltage})`;
+
 export function HorizontalScrapsZone({ cards, label, selectable=false, selectedIds=new Set(),
   onCardClick, discardMode=false, isOpponent=false, glowZone=false, glowStrong=false,
   registerEl=null, hiddenIds=new Set(),
@@ -1117,9 +1131,14 @@ export function HorizontalScrapsZone({ cards, label, selectable=false, selectedI
                   // placement, so the two compose in one transform
                   // instead of one replacing the other.
                   transform: `translateY(${isSel ? -lift : 0}px) rotate(${look.rot.toFixed(2)}deg)`,
+                  // A picked card's glow lives HERE, outside the card's
+                  // clip-path, where it can trace the tear (see the note
+                  // in PlayingCard). Hex colours only: see the
+                  // drop-shadow note in CLAUDE.md.
+                  filter: isSel ? SCRAP_PICK_GLOW : undefined,
                   transition:'transform 0.22s cubic-bezier(.34,1.2,.64,1), '
-                    + 'left 0.42s cubic-bezier(.4,0,.2,1)',
-                  transitionDelay:`0s, ${slideDelay}ms`,
+                    + 'left 0.42s cubic-bezier(.4,0,.2,1), filter 0.2s ease',
+                  transitionDelay:`0s, ${slideDelay}ms, 0s`,
                   zIndex: i,
                 }}
                   {...(isElig && onCardClick ? {

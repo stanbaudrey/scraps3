@@ -334,7 +334,11 @@ export function AiCounterNotice({ playerAce, aiAce, onOk, stillArmed = false }) 
   // over a crash on one of the game's two signature moments.
   const cardSize = 'normal';
   return (
-    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace">
+    // The backdrop fades in over 220ms (review, 2026-09-17): the attack's
+    // warm dim now stays down under this notice, and a 92% green backdrop
+    // arriving in one frame still flipped the table from warm to green.
+    <Shell zIndex={90} background="rgba(20,31,25,.92)" dialogLabel="Opponent countered your Ace"
+      style={{animation:'scrapArrive 0.22s ease both'}}>
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`,animation:`popIn 0.35s ${SETTLE}`}}>

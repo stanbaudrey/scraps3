@@ -43,7 +43,7 @@ export const THROW = { draw: 130, fly: 380, hold: 85, rebound: 900 };
 // hit-stop (`hold`) yours is smashed back down past your own hand, and
 // hers follows through, turns upright, grows, glows and holds (`win`)
 // before it leaves for the discard pile off the right edge (`away`).
-export const CLASH = { draw: THROW.draw, rise: 170, answer: 100, fly: 300, hold: 90, win: 440, away: 700 };
+export const CLASH = { draw: THROW.draw, rise: 170, answer: 100, fly: 300, hold: 90, win: 440, away: 520 };
 // Motion trails: copies of the card a few frames behind it, fading.
 export const TRAIL = { lag: 26, alpha: [1, 0.26, 0.18, 0.10] };
 // Reduced motion: nothing travels, the cards that leave fade in place.
@@ -155,7 +155,7 @@ export function knockOffPair(poses, K, floorY) {
 // her face-down card's, `meet` the point they collide at, `floorY` the
 // line your Ace has fallen past when it is gone. `glow` (0 to 1) in her
 // poses is the ember light around her Ace while it holds the table.
-export function clashMotions({ mine, hers, meet, K = 1, s1, floorY }) {
+export function clashMotions({ mine, hers, meet, K = 1, s1, floorY = Infinity }) {
   const tDraw = CLASH.draw, tClash = tDraw + CLASH.fly;
   const tGo = tDraw + CLASH.answer, tHold = tClash + CLASH.hold, tWin = tHold + CLASH.win;
   const fly = (from, to, arc, t0, t) => {
@@ -165,15 +165,19 @@ export function clashMotions({ mine, hers, meet, K = 1, s1, floorY }) {
   // Yours, drawn back as in the landed throw and thrown two turns.
   const back = { x: mine.x, y: mine.y + 16 * K, rot: -42, s: mine.s * (1.05 / 1.12) };
   const myTo = { x: meet.x - 8 * K, y: meet.y + 10 * K, rot: back.rot + 720, s: s1 };
-  // Hers: up out of her hand, then thrown a turn and a half, arriving
-  // bigger than yours and on top of it.
+  // Hers: up out of her hand, then thrown one turn, arriving almost
+  // upright, bigger than yours and on top of it. Never smaller than she
+  // rose: on a desktop her hand's cards are bigger than the pile-sized
+  // Aces meet at, and she read as shrinking into the fight (review,
+  // 2026-09-17).
   const herUp = { x: hers.x, y: hers.y + 26 * K, rot: 0, s: hers.s * 1.08 };
-  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: -540, s: s1 * 1.12 };
+  const herTo = { x: meet.x + 8 * K, y: meet.y - 10 * K, rot: -352, s: Math.max(s1 * 1.12, herUp.s * 1.02) };
   // Her line of travel is the way the hit goes.
   const hl = Math.hypot(herTo.x - herUp.x, herTo.y - herUp.y) || 1;
   const ux = (herTo.x - herUp.x) / hl, uy = (herTo.y - herUp.y) / hl;
-  // She follows through a little and stands up: upright, bigger.
-  const herWin = { x: herTo.x + ux * 16 * K, y: herTo.y + uy * 16 * K, rot: -720, s: s1 * 1.26 };
+  // She follows through a little and stands: upright, bigger again.
+  const herWin = { x: herTo.x + ux * 16 * K, y: herTo.y + uy * 16 * K, rot: -360,
+    s: Math.max(s1 * 1.26, herUp.s * 1.15) };
   // Yours goes back the way it came and along her line, shrinking as
   // it drops, spinning hard, until it has fallen off the screen.
   const bl = Math.hypot(back.x - myTo.x, back.y - myTo.y) || 1;
@@ -182,8 +186,10 @@ export function clashMotions({ mine, hers, meet, K = 1, s1, floorY }) {
   const knockT = fallTime(myTo.y, kvy, 2600 * K, floorY, 0.45, 1.2);
   const knock = { x0: myTo.x, y0: myTo.y, vx: kvx, vy: kvy, g: 2600 * K, spin: -1500,
     rot0: myTo.rot, s0: s1, sPeak: 0.78, dur: knockT };
-  // Hers, when it is done, spins off the right edge like any discard.
-  const exit = { x0: herWin.x, y0: herWin.y, vx: 1150 * K, vy: -420 * K, g: 1700 * K, spin: 760,
+  // Hers, when it is done, spins off the right edge like any discard,
+  // quickly: the notice waits for it, and a slow exit left the table
+  // standing empty before the notice opened.
+  const exit = { x0: herWin.x, y0: herWin.y, vx: 1500 * K, vy: -380 * K, g: 1700 * K, spin: 760,
     rot0: herWin.rot, s0: herWin.s, sPeak: 1.04, dur: CLASH.away / 1000 };
   const knockMs = knockT * 1000;
   const dur = Math.max(tHold + knockMs, tWin + CLASH.away);

@@ -143,7 +143,14 @@ for (const vp of VIEWPORTS) {
   // Infinite animations are excluded because they never finish: the Ace
   // card's `cardWiggle` and the zone cue's pulse would hang this forever.
   // They also do not move a control's box enough to matter.
-  const QUIET = () => !document.getAnimations().some(a => {
+  //
+  // A card in FLIGHT is invisible to getAnimations: the FLIP ghosts in
+  // flight.jsx are moved by requestAnimationFrame, not by CSS. So between
+  // two flights of a deal the page can look still while the deal is half
+  // done, and a probe taken there measured a pile's `scrapSettle` mid-run
+  // and raced the Ace explainer that waits for the deal (2026-09-17). Quiet
+  // now also means no ghost on the page.
+  const QUIET = () => !document.querySelector('[data-flight]') && !document.getAnimations().some(a => {
     if (a.playState !== 'running') return false;
     const t = a.effect && a.effect.getComputedTiming();
     return !t || t.iterations !== Infinity;
@@ -245,8 +252,6 @@ for (const vp of VIEWPORTS) {
   const hand = page.locator('[role="button"][aria-pressed]:has([data-card-id])');
   const n = await hand.count();
   if (n >= 2) {
-    await hand.nth(0).click().catch(() => {});
-    await page.waitForTimeout(200);
     // "Trade In (2)" became "SCRAP n → DRAW n" when the vocabulary was
     // settled; the old name matched nothing, so the walk never took a
     // turn even on the runs that reached a table.
@@ -254,8 +259,15 @@ for (const vp of VIEWPORTS) {
     // WAIT for it rather than counting it: since 2026-09-16 the band's
     // buttons only arrive once the last card of the deal has landed.
     await trade.first().waitFor({ timeout: 5000 }).catch(() => {});
+    // The Ace explainer mounts when the deal lands, which is also when
+    // that button arrives, so clear it BEFORE picking a card: a pick made
+    // under it is swallowed, and the click that follows used to hang the
+    // whole walk for 30s on the covered button (2026-09-17).
+    await dismiss();
+    await hand.nth(0).click({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(200);
     if (await trade.count()) {
-      await trade.first().click();
+      await trade.first().click({ timeout: 5000 }).catch(e => errors.push(`scrap click: ${String(e).split('\n')[0]}`));
       await page.waitForTimeout(2600);
       await dismiss();
     }

@@ -242,6 +242,17 @@ laptop walk now scraps a card, watches her turn, and comes back to "Your
 turn. Scrap cards." **Before trusting this harness, open `4-table` and
 `5-after-trade` side by side. If they match, it measured nothing.**
 
+**And a fourth time, 2026-09-17: "still" did not include cards in
+flight.** The FLIP ghosts move by requestAnimationFrame, so
+`getAnimations()` cannot see them, and between two flights of a deal the
+page looked still while the deal was half done: the walk measured a
+pile's `scrapSettle` mid-run and then took its turn just as the Ace
+explainer arrived, hanging 30s on the covered SCRAP button (two crashes
+in three runs, after the ROUND sign's entrance grew to 2.9s). Quiet now
+also means no `[data-flight]` on the page, and the scrap step clears any
+dialog BEFORE picking a card, with a click that records an error rather
+than hanging the run.
+
 `tools/overlay-targets.mjs` is the companion, and it exists because the
 harness above walks a REAL game: it only reaches a modal the random deal
 happens to open. The Ace explainer had therefore never been measured
@@ -319,7 +330,11 @@ looks broken locally, it is not a missing-secret problem.
   before touching any beat.
 - **`src/share.js`** — the SHARE button's three tiers (share sheet with a
   PNG result card drawn on a canvas, share sheet without files, clipboard
-  with a COPIED state), the share sentence, and `TAGLINE`.
+  with a COPIED state), the share sentence, and `TAGLINE`. The address it
+  shows is `src/site.js`'s, never the page's own.
+- **`src/site.js`** (2026-09-17) — the site's address, declared once:
+  `SITE` for the generator and the share sheet's link, `SITE_HOST`
+  (scraps.games) for anything a viewer reads.
 - **`src/screens/MenuScreens.jsx`** — the splash (wordmark, the subtitle
   "Play poker with both hands." in Fjalla — back since 2026-09-14 after a
   day away, reworded by Stan later the same day, and the splash alone
@@ -756,6 +771,34 @@ looks broken locally, it is not a missing-secret problem.
   her notice (`dimOn` includes `aiCounterNotice`, which only a clash
   opens): lifting it as the notice's backdrop arrived flipped the table
   from warm dark to green in one beat.
+- **A glow on a torn card goes on its SLOT, never on the card.** A Scraps
+  card carries its tear as a `clip-path`, and CSS clips AFTER it filters,
+  so a `drop-shadow` set on the card itself is cut off at the tear. The
+  pick glow did exactly that until 2026-09-17 (29 pixels of it survived
+  on a whole pile), so a picked Scraps card only ever lifted; it lives on
+  the slot wrapper in `HorizontalScrapsZone` now (`SCRAP_PICK_GLOW`) and
+  traces the tear. The per-card contact shadow on the card itself is
+  still clipped the same way; see Known issues.
+- **The ROUND sign's cards and its notes read ONE table.** `SIGN_BEATS`
+  in src/audio.js holds the sign's deal, flip, pause and number timings;
+  `RoundSign` schedules its cards from it and the `roundSign` voice
+  places a note on each card as its face comes round, the top note on
+  the number. Its idle cycle's keyframe percentages (signCycleWord /
+  signCycleNumber in index.html) are worked out from the same beats over
+  a 6200ms period, and the comment above them shows the arithmetic:
+  change a beat and redo it. The sign cycles only after it settles and
+  only with motion allowed, and the voice never replays.
+- **The wordmark and the match screen are letter cards, one layer per
+  motion.** The SCRAPS wordmark (backdrop.jsx `AnimatedTitle`) and the
+  match screen's letters (`LetterRow`) are the game's own cards, and
+  each motion on them owns its own wrapper: entrance, hover fan, wave,
+  ripple on the wordmark; deal, wobble, cycle, turnover on the match
+  screen. Two animations on one element's `transform` do not add, the
+  later one replaces the other, so a new motion gets a new wrapper. The
+  loops (wave, ripple, wobble, cycle, the ROUND sign's cycle, the
+  winner's score pulse) all stop under reduced motion by name in
+  index.html's reduced-motion block, because the blanket 1ms rule would
+  otherwise run an infinite loop as a flicker.
 - **A reveal's thump sits ON its card's stop, and the next card waits.**
   The slap is an ease-in fall to a dead stop (`SLAP` in interstitials.jsx,
   `slapDown` in index.html), `SLAP.land` equals `SLAP.dur`, and cards are
@@ -793,9 +836,15 @@ real domain registered through Vercel and expiring 2027-09-08. The old
 does `www.scraps.games`, so there is one canonical address. Every URL the
 site advertises — canonical tag, Open Graph, `sitemap.xml`, `robots.txt`,
 `llms.txt` — is generated from the single `SITE` constant in
-`tools/make-share-assets.mjs` and cross-checked against `index.html` by
-`npm run share:check`. To change the address, change `SITE` and run
-`npm run share`; never hand-edit the generated files.
+**`src/site.js`** (it lived in `tools/make-share-assets.mjs` until
+2026-09-17), which the generator imports, and `npm run share:check`
+cross-checks `index.html` against it. The GAME reads the same constant
+for the share sentence and the share card (`SITE_HOST`, the bare
+scraps.games), so a viewer sees scraps.games even on a Vercel preview;
+until 2026-09-17 the share code used `window.location` and every share
+made from a preview carried the preview's long address. To change the
+address, change `SITE` and run `npm run share`; never hand-edit the
+generated files.
 
 The `dev` branch exists and is pushed, so `/preview` has somewhere to deploy
 before anything reaches `main`.
@@ -805,6 +854,23 @@ same account. This repo is `scraps3` — the other two are abandoned earlier
 versions and should not be deployed to.
 
 ## Known issues
+
+- **The torn Scraps cards' own contact shadow does not render.** Their
+  `filter` (the leftward contact shadow that is meant to draw the seam
+  between cards) sits on the same element as the `clip-path`, and the
+  clip is applied after the filter, so the shadow is cut away at the
+  tear. Found by the design review on 2026-09-17 alongside the pick glow,
+  which was moved to the slot; the shadow was left as it is because
+  making it visible would change how every pile looks, and that is
+  Stan's call. The pooled shadow under each pile is a sibling and does
+  render.
+- **`tools/overlay-targets.mjs` never measured a phone before
+  2026-09-17.** Its bench page had no viewport meta, so every emulated
+  phone laid the page out 980px wide and zoomed it out; every "phone"
+  row and screenshot taken through it before then (including the
+  2026-09-17 loss-screen check and The Turnover's phone title shots) was
+  a desktop layout shrunk to fit. Fixed the same day; the other bench,
+  `attack.html`, always had the meta.
 
 - **The privacy notice is unreachable in the shipped game.** It lives in
   `RulesModal` (`overlays.jsx`), and `RulesModal` has had no importer

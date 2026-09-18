@@ -313,7 +313,7 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // may never hear at all:
 //
 //   select .12 · draw .22 · slap .26 · invalid/handWon/handLost .34
-//   scrap .30 · roundSign .40 · roundLost .46 · roundWon .50
+//   scrap .30 · roundSign .265 · roundLost .46 · roundWon .50
 //   aceStrike .56 · gameLost .66 · gameWon .72 · aceCounter .80
 //   cleanSweep .94 · revealBuild .297
 //   the attack's own: lock .12 · whoosh .18 · whooshHer .18 · chips .26
@@ -332,6 +332,12 @@ const RUN = [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5,
 // level with `aceStrike`, the hit it replaces when she counters, with
 // `aceCounter` still playing over it. Measured the same way as the
 // rest, at 48 kHz.
+//
+// `roundSign` came down from .40 to .265 on 2026-09-17, when its low
+// landing went (Stan: the thud "reads negative"). That landing was the
+// cue's peak, so keeping .40 would have played the six notes that are
+// left 51% louder than he has been hearing them; .265 is exactly where
+// they already sat, and the trim barely moves.
 //
 // `slap` and `roundSign` are NEW on 2026-09-14 (the interstitials
 // pass) and their targets are a first placement, not a pick from a
@@ -401,7 +407,9 @@ const TRIM = {
   // 44.1 kHz puts `slap` 10% and `draw` 18% away from these numbers.
   // Whoever measures next should say which rate they used.
   slap:        0.5368,
-  roundSign:   4.9099,
+  // Re-measured 2026-09-17 at 48 kHz after the landing went and the six
+  // notes moved onto the sign's card flips; the target came down to .265.
+  roundSign:   5.3055,
   // The Throw's cues, 2026-09-16, tools/trim-measure.mjs at 48 kHz.
   // armDraw, lock, whoosh and clash measured identical to their bench
   // trims, which is the check that the port is the voice Stan heard.
@@ -433,7 +441,7 @@ const burstN = { select: 0, draw: 0 };
 
 // `delay` (seconds) schedules a cue on the audio clock rather than on a
 // timer, for the few that must land a fixed hair after another: the
-// wood chips 15ms under the Ace's hit, a sight's lock after its select.
+// wood chips 15ms under the Ace's hit, a target's lock after its select.
 function cue(name, delay = 0) {
   // QA only: a harness that sets `window.__cueLog = []` can read which
   // cues played and when, on the page's clock, to check a sound against
@@ -450,6 +458,24 @@ function cue(name, delay = 0) {
   // A sound must never take the game down with it.
   try { renderCue(name, c, out, c.currentTime + 0.02 + delay, i); } catch (e) {}
 }
+
+// ─────────────────────────────────────────────────────────────
+// The ROUND N sign's beats, in ms (2026-09-17). Declared HERE because
+// the voice below has to render offline for TRIM without React, and
+// the sign's cards (interstitials.jsx, RoundSign) import the same
+// numbers, so a note can never drift off the card it belongs to.
+//   deal / dealDur   the six cards dealt face down, a card per `deal`
+//   flipAt, stagger  ROUND turning face up, a card per `stagger`
+//   pause            the held breath before the number turns
+//   numberAt         derived: the number's flip starts
+//   settle           derived: the sign at rest, ready for a click
+// ─────────────────────────────────────────────────────────────
+export const SIGN_BEATS = (() => {
+  const b = { deal: 70, dealDur: 380, flipAt: 820, stagger: 85, flipDur: 520, pause: 480, numberDur: 620 };
+  b.numberAt = b.flipAt + 4 * b.stagger + b.flipDur + b.pause;
+  b.settle = b.numberAt + b.numberDur + 120;
+  return b;
+})();
 
 // ─────────────────────────────────────────────────────────────
 // Voices
@@ -674,12 +700,18 @@ const VOICES = {
   },
 
   /** ROUND N landing on the table (interstitials.jsx, 2026-09-14).
+   *  RETIMED 2026-09-17 to the sign's letter cards (Stan's pick off The
+   *  Turnover): the brush plays under the deal and each of the six notes
+   *  lands on a card turning face up, the top one on the number. The
+   *  history below is how the voice got here.
+   *
    *  This is the splash wordmark's old square-up phrase — playSquareUp,
    *  which lost its caller when the tap gesture went on 2026-09-13 and
    *  was kept for exactly this — retimed to the sign's own letters: a
    *  brush of card edges as they come in, one soft triangle tap per
-   *  letter on the sign's 55ms stagger, and the low landing under the
-   *  riffle at 0.80s. The six taps are G major pentatonic, the set the
+   *  letter on the sign's 55ms stagger. (It also had a low landing
+   *  under the riffle at 0.80s until 2026-09-17, when Stan heard it as
+   *  a thud that read negative.) The six taps are G major pentatonic, the set the
    *  outcome bars use; the voice was chosen by ear in the splash-identity
    *  session from sixteen options and is unchanged. Two things did
    *  change: the bed's exciter is seeded now, so the cue is measurable
@@ -704,8 +736,15 @@ const VOICES = {
     bg.gain.exponentialRampToValueAtTime(0.001, t + bedDur);
     s.connect(f); f.connect(bg); bg.connect(o);
     s.start(t); s.stop(t + bedDur);
+    // One note per card as it turns face up (2026-09-17): the five of
+    // ROUND on their flips, and the top note held back for the number,
+    // after the sign's dramatic pause. The times are the sign's own
+    // (SIGN_BEATS), taken at the moment each card's face comes round.
+    const B = SIGN_BEATS;
+    const noteAt = (i) => (i < 5 ? B.flipAt + i * B.stagger + B.flipDur * 0.5
+      : B.numberAt + B.numberDur * 0.5) / 1000;
     [NOTE.G4, NOTE.A4, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5].forEach((fq, i) => {
-      const at = t + 0.10 + i * 0.055;
+      const at = t + noteAt(i);
       const osc = c.createOscillator(); osc.type = 'triangle';
       osc.frequency.setValueAtTime(fq, at);
       const lpf = lp(c, 2400);
@@ -716,16 +755,9 @@ const VOICES = {
       osc.connect(lpf); lpf.connect(g); g.connect(o);
       osc.start(at); osc.stop(at + 0.12);
     });
-    const end = t + 0.80;
-    const low = c.createOscillator(); low.type = 'triangle';
-    low.frequency.setValueAtTime(190, end);
-    low.frequency.exponentialRampToValueAtTime(120, end + 0.20);
-    const lg = c.createGain();
-    lg.gain.setValueAtTime(0.0001, end);
-    lg.gain.exponentialRampToValueAtTime(0.085, end + 0.012);
-    lg.gain.exponentialRampToValueAtTime(0.001, end + 0.22);
-    low.connect(lg); lg.connect(o);
-    low.start(end); low.stop(end + 0.23);
+    // The low landing that closed this phrase at 0.80s, a triangle
+    // falling 190 to 120 Hz, is gone (Stan, 2026-09-17: "the thud reads
+    // negative"). The phrase now ends on its top note.
   },
 
   // ── The Throw, 2026-09-16 ──────────────────────────────────
@@ -786,7 +818,7 @@ export const CUE_DUR = {
   select: .14, scrap: .58, draw: .22, aceStrike: .44, aceCounter: .72,
   invalid: .28, handWon: .40, handLost: .46, roundWon: .52, roundLost: .60,
   gameWon: 1.00, gameLost: 2.25, cleanSweep: 1.20, revealBuild: .70,
-  slap: .30, roundSign: 1.10,
+  slap: .30, roundSign: 2.65,
   armDraw: .36, lock: .08, whoosh: .36, whooshHer: .30, chips: .28, clash: .36,
 };
 

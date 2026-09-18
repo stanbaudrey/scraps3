@@ -189,7 +189,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // fan and the table goes dark around her pile; REMOVE throws it.
   //
   // `strike` is the throw in progress, from REMOVE until the table
-  // lights come back: `{ countered, impacted }`. It is UI state and
+  // lights come back: `{ countered }`. It is UI state and
   // deliberately NOT the game's: the hit commits to the reducer only at
   // the moment of impact, after the hit-stop, because until then her
   // targets are still sitting in her pile waiting to be struck. That is
@@ -515,7 +515,8 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   }
   function toggleScrapsDiscardCard(card) {
     if (!card.eligibleForDiscard) return;
-    playSelect();
+    // The pile plays the select for this click itself (its onClick and
+    // onKeyDown); a second one here doubled it.
     setScrapsDiscard(prev => prev.find(c => c.id === card.id) ? prev.filter(c => c.id !== card.id) : [...prev, card]);
   }
 
@@ -758,7 +759,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const later = (fn, ms) => { st.timers.push(setTimeout(fn, ms)); };
     const rm = prefersReducedMotion();
     setCounterStand(false);
-    setStrike({ countered: !!aiAce, impacted: rm });
+    setStrike({ countered: !!aiAce });
 
     const measured = aceRect && targetRects.every(Boolean) && (!aiAce || herRect);
 
@@ -771,10 +772,19 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       const moves = [];
       const fade = (card, rect, size, extra) => rect && moves.push({ card, fromSize: size,
         motion: fadeMotion(poseOf(rect, size)), rmSafe: true, ...extra });
+      // Her win, without travel (review, 2026-09-17: the still version
+      // had no moment where she won). Her Ace shows face up where it sat,
+      // lit, for a beat while yours fades, then fades itself.
+      const RM_HER = RM_FADE + 420;
       if (aiAce) {
         playAceCounter();
         fade(ace, aceRect, sz.hand);
-        fade(null, herRect, sz.oppHand, { faceDown: true });
+        if (herRect) {
+          const pose = { ...poseOf(herRect, sz.hand), rot: 0 };
+          moves.push({ card: aiAce, fromSize: sz.hand, rmSafe: true, hideIds: [aiAce.id],
+            motion: { dur: RM_HER, at: (tm) => ({ ...pose, glow: 1, trail: false,
+              o: tm < RM_HER - RM_FADE ? 1 : Math.max(0, (RM_HER - tm) / RM_FADE) }) } });
+        }
       } else {
         playAceStrike(); playChips();
         targets.forEach((c, i) => fade(c, targetRects[i], sz.pile, { fromScrap: true, kraft: true }));
@@ -782,7 +792,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       }
       st.commit();
       fly(moves);
-      later(endStrike, RM_FADE);
+      later(endStrike, aiAce ? RM_HER : RM_FADE);
       return;
     }
 
@@ -804,7 +814,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         playAceStrike(); playChips();
         fx.ring(P.x, P.y, { r0: 10 * K, r1: 120 * K, dur: 0.36, color: DS.frost, lw: 6 * K,
           wait: THROW.hold / 1000 });
-        setStrike(v => v && { ...v, impacted: true });
       }, m.impactAt);
       // The hit-stop ends: the table jumps, chips fly, the two targets
       // are knocked up and off and the rest of her pile hops. Measured
@@ -835,7 +844,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // hers stands up, lit, holds the table, then leaves for the discard
     // pile. Her notice opens once both are gone (endStrike).
     const mine = poseOf(aceRect, sz.hand);
-    const meet = { x: mine.x + (P.x - mine.x) * 0.5, y: mine.y + (P.y - mine.y) * 0.45 };
+    // On a phone (the stacked table) the meeting point sits higher,
+    // between the two piles: at 0.45 her winning Ace stood on YOUR pile,
+    // which read as her attacking it (review, 2026-09-17).
+    const meet = { x: mine.x + (P.x - mine.x) * 0.5, y: mine.y + (P.y - mine.y) * (stack ? 0.62 : 0.45) };
     const cm = clashMotions({ mine, hers: poseOf(herRect, sz.hand), meet, K,
       s1: pileW * 1.1 / handW, floorY: window.innerHeight + CARD_DIMS[sz.pile].h * k + 40 });
     const t0 = performance.now();
@@ -852,7 +864,6 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       playClash();
       fx.ring(meet.x, meet.y, { r0: 10 * K, r1: 110 * K, dur: 0.32, color: DS.ember, lw: 6 * K,
         wait: CLASH.hold / 1000 });
-      setStrike(v => v && { ...v, impacted: true });
     }, cm.clashAt);
     later(() => {
       st.commit();
@@ -1075,15 +1086,16 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const T = (fn, ms) => timers.push(setTimeout(fn, ms));
 
     const FLIGHT_SETTLE = 120;   // the board is already still here
-    // ONE ruffle, not a wave. The old gesture lifted every card 22px
-    // in sequence over 800ms, which read as the opponent's cards
-    // jumping around on their own rather than as somebody thinking.
-    // A ruffle is one quick pass across the hand — a small lift and
-    // lean, tightly staggered, done once — the way a real hand gets
-    // riffled while its owner decides. It resolves before the scrap
-    // animation starts, so the two never overlap.
-    const RUFFLE_MS = 340;       // one card's pass
-    const RUFFLE_STAGGER = 38;   // card-to-card offset across the fan
+    // ONE pass, not a wave that loops. The old gesture lifted every
+    // card 22px in sequence over 800ms, which read as the opponent's
+    // cards jumping around on their own rather than as somebody
+    // thinking. Since 2026-09-17 the pass is an EDGE FLIP (Stan's pick
+    // off The Turnover): each card tips up toward its edge and falls
+    // back, never far enough to show its face (cards.jsx, cardEdgeFlip).
+    // It resolves before the scrap animation starts, so the two never
+    // overlap.
+    const RUFFLE_MS = 420;       // one card's tip and fall
+    const RUFFLE_STAGGER = 60;   // card-to-card offset across the fan
 
     // Step 1: the opponent ruffles their hand once, after your cards land
     T(() => {
@@ -1558,6 +1570,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // the whole throw it just started. A deliberate click still lands it.
       const st = strikeRef.current;
       if (st && (e.detail > 1 || e.repeat || performance.now() - st.t0 < 250)) return;
+      // Enter lands the attack and must stop there. Without this the same
+      // key press went on to click the button her counter notice had just
+      // focused, and the notice closed 3ms after it opened.
+      if (st && e.type === 'keydown') e.preventDefault();
       clearDrawSfx();
       // An Ace attack in the air commits and clears in the same beat, so
       // dropping its ghosts never leaves the Ace back in your hand.
