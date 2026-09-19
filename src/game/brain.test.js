@@ -15,7 +15,7 @@ import {
 import { gameReducer, createInitialState, buildRoundDeal, UNFAIR_RULES } from './reducer.js';
 import {
   scoreCards, bestPlayOf, listPlays, readSignal, viewFor, chooseSignal,
-  chooseTurn, chooseCounter, worstTwo, cheapestTwo, equity, CAT, aiTurn, aiSignal,
+  chooseTurn, chooseCounter, worstTwo, cheapestTwo, equity, CAT, herTurn, herSignal,
 } from './brain.js';
 
 function seeded(seed) {
@@ -218,7 +218,7 @@ describe('her turns', () => {
       expect(s.phase).toBe('ai-turn-1a');
       // a full pile, so a scrap has to give something up
       if (i % 3 === 0) s = { ...s, aiScraps: [...s.aiScraps, ...s.deck.slice(0, 5).map(c => ({ ...c, turnAdded: 0 }))], deck: s.deck.slice(5) };
-      const act = aiTurn(s, 'hard', rng);
+      const act = herTurn(s, 'hard', rng);
       expect(['trade', 'ace', 'skip']).toContain(act.type);
       if (act.type !== 'trade') continue;
       turns++; scrapped += act.cards.length;
@@ -285,9 +285,9 @@ describe('UNFAIR', () => {
     let s = createInitialState();
     s = gameReducer(s, { type: 'START_ROUND', deal: buildRoundDeal({ rng }), alternate: true });
     s = gameReducer(s, { type: 'INTERSTITIAL_DONE' });
-    const act = aiTurn(s, 'easy', rng);
+    const act = herTurn(s, 'easy', rng);
     if (act.type === 'trade') expect(act.cards).toHaveLength(1);
-    const sig = aiSignal(s, null, 'easy', rng);
+    const sig = herSignal(s, null, 'easy', rng);
     expect(sig.cards).toHaveLength(sig.signal);
   });
 });

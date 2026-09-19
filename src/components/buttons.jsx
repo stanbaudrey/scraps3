@@ -255,7 +255,10 @@ export function BigBtn({ children, onClick, variant='primary', disabled=false, c
 // clear of AA).
 const DIM = 0.8;
 
-export function TableActionBtn({ onClick, disabled, label, blocked=false, compact=false }) {
+// `act` names the control for tools/play-through.mjs ("scrap" or
+// "signal"). Its LABEL cannot: the signal button's text is whatever hand
+// is selected, A THREE or FULL HOUSE, so a script has nothing to look for.
+export function TableActionBtn({ onClick, disabled, label, blocked=false, compact=false, act=null }) {
   const fill = disabled ? DS.duskMid : blocked ? DS.ember : DS.voltage;
   const fillHover = blocked ? DS.emberHover : DS.voltageHover;
   const glow = blocked ? DS.ember : DS.voltage;
@@ -272,7 +275,7 @@ export function TableActionBtn({ onClick, disabled, label, blocked=false, compac
   };
   return (
     <button type="button" disabled={disabled} {...pressStyles(hIn,hOut)}
-      onClick={disabled?undefined:onClick}
+      onClick={disabled?undefined:onClick} data-table-action={act || undefined}
       style={{
         border:disabled?`2px solid ${DS.slate}88`:'none',
         cursor:disabled?'not-allowed':'pointer',
@@ -312,7 +315,7 @@ export function ScrapBtn({ onClick, disabled, count, drawCount=0, projectedHand=
   else if (blocked) label = `Hand would be ${projectedHand}/7`;
   else label = `Scrap ${count} \u2192 Draw ${drawCount}`;
   return <TableActionBtn onClick={onClick} disabled={disabled} blocked={blocked}
-    compact={compact} label={label}/>;
+    compact={compact} label={label} act="scrap"/>;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -332,7 +335,7 @@ export function ScrapBtn({ onClick, disabled, count, drawCount=0, projectedHand=
 // player actually has, in the place they are already looking.
 // ─────────────────────────────────────────────────────────────
 export function SignalBtn({ onClick, disabled, handLabel=null, compact=false }) {
-  return <TableActionBtn onClick={onClick} disabled={disabled} compact={compact}
+  return <TableActionBtn onClick={onClick} disabled={disabled} compact={compact} act="signal"
     label={disabled || !handLabel ? 'Select Hand' : handLabel}/>;
 }
 

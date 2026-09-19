@@ -11,7 +11,8 @@ import { useState, useEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
-import { loadStats, loadUnlocks, markUnfairSeen } from "../game/stats.js";
+import { loadStats, loadUnlocks, markUnfairSeen, unlockUnfair } from "../game/stats.js";
+import { PANEL_STAGGER_MS, UNLOCK_BEAT_MS, UNLOCK_FALL_MS, UNLOCK_BEAT_NOW_MS } from "./pickerTiming.js";
 import { playSlap } from "../audio.js";
 import { PlayingCard, scrapLook } from "../components/cards.jsx";
 import { useViewport } from "../ui/viewport.jsx";
@@ -116,8 +117,28 @@ const ARM_MS = 720;
 // Reduced motion: no fall, no ring, no sweep and no thud on a timer. The
 // panel is simply there with the others (the blanket rule in index.html
 // lands every entrance on its resting frame), and it is still marked seen.
-const UNLOCK_BEAT = 1500;      // after mount: the others have dealt and armed
-const UNLOCK_FALL = 420;       // the fall itself; the thud sits on its end
+//
+// WHEN it starts is in pickerTiming.js: within 50ms of HARD finishing its
+// own deal (Stan, 2026-09-18; it used to hold a 1.5s beat first, and the
+// beat was the part that was too long).
+
+// THE SECRET WAY IN (Stan, 2026-09-18: "a secret key combination or mobile
+// signal that will allow me to access unfair mode right away in future
+// sessions"). On the picker, while the mode is still locked:
+//
+//   a keyboard    type  u n f a i r
+//   a touch screen tap the line "Beat HARD to unlock UNFAIR." seven times
+//                  inside four seconds (a mouse may do the same)
+//
+// Either opens UNFAIR for good in that browser, exactly as a win against
+// HARD does, and the panel makes its first appearance there and then.
+// This one works on the LIVE site, unlike the preview link (stats.js),
+// because its whole purpose is a new phone or a cleared browser. It is
+// not much of a secret (this file is in a public repository) and it does
+// not need to be: what it skips is a win, not a lock.
+const SECRET_WORD = 'unfair';
+const SECRET_TAPS = 7;
+const SECRET_TAPS_MS = 4000;
 
 // UNFAIR IS NOT A THIRD BOX (Stan, 2026-09-18: "give UNFAIR mode a unique
 // visual treatment"). NORMAL and HARD are the game's interface talking:
@@ -162,12 +183,15 @@ const UNFAIR_ACE = { id: 'picker-unfair-ace', rank: 'A', value: 14 };
 export function DifficultyPicker({ onChoose, onBack = null }) {
   const stats = loadStats();
   const { w: vw, h: vh } = useViewport();
-  // Read once per visit: the entrance must not switch itself off halfway
-  // through because it has just been marked seen.
-  const unlocks = useRef(null);
-  if (!unlocks.current) unlocks.current = { ...loadUnlocks() };
-  const unfairOpen = unlocks.current.unfair;
-  const debut = unfairOpen && !unlocks.current.unfairSeen;
+  // A COPY, taken when the picker opens (and again if the secret opens the
+  // mode): the entrance must not switch itself off halfway through because
+  // it has just been marked seen. `beat` is how long the entrance waits:
+  // for HARD to finish dealing on a normal visit, no time at all when the
+  // secret has just opened it on a picker that dealt long ago.
+  const [unlocks, setUnlocks] = useState(() => ({ ...loadUnlocks(), beat: UNLOCK_BEAT_MS }));
+  const unfairOpen = unlocks.unfair;
+  const debut = unfairOpen && !unlocks.unfairSeen;
+  const UNLOCK_BEAT = unlocks.beat, UNLOCK_FALL = UNLOCK_FALL_MS;
   const [armed, setArmed] = useState(false);
   // The debut panel arms when it lands, not with the other two.
   const [landed, setLanded] = useState(!debut);
@@ -183,6 +207,33 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
     const t = setTimeout(() => { playSlap(); setLanded(true); }, UNLOCK_BEAT + UNLOCK_FALL);
     return () => clearTimeout(t);
   }, [debut]);
+
+  // The secret way in. See SECRET_WORD above.
+  const openBySecret = () => {
+    if (loadUnlocks().unfair) return;
+    unlockUnfair();
+    setLanded(false);
+    setUnlocks({ ...loadUnlocks(), beat: UNLOCK_BEAT_NOW_MS });
+  };
+  const secretRef = useRef(openBySecret);
+  secretRef.current = openBySecret;
+  useEffect(() => {
+    if (unfairOpen) return undefined;
+    let typed = '';
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || !e.key || e.key.length !== 1) return;
+      typed = (typed + e.key.toLowerCase()).slice(-SECRET_WORD.length);
+      if (typed === SECRET_WORD) secretRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [unfairOpen]);
+  const taps = useRef([]);
+  const onNoteTap = () => {
+    const now = performance.now();
+    taps.current = [...taps.current.filter(t => now - t < SECRET_TAPS_MS), now];
+    if (taps.current.length >= SECRET_TAPS) { taps.current = []; openBySecret(); }
+  };
 
   // Ember on HARD, not a second fern box. Ember is the committed
   // opponent/danger colour everywhere else in the game, and this is the
@@ -273,7 +324,7 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
               className={`pick-box${live ? ' armed' : ''}${o.debut ? ' pick-debut' : ''}${o.paper ? ' pick-card' : ''}`}
               disabled={!live}
               onClick={live ? () => onChoose(o.id) : undefined}
-              style={{animationDelay: o.debut ? `${UNLOCK_BEAT}ms` : `${i * 150}ms`,
+              style={{animationDelay: o.debut ? `${UNLOCK_BEAT}ms` : `${i * PANEL_STAGGER_MS}ms`,
                 animationDuration: o.debut ? `${UNLOCK_FALL}ms` : undefined,
                 '--accent':o.tone, '--debut-at':`${UNLOCK_BEAT + UNLOCK_FALL}ms`,
                 padding: o.paper ? 0 : pad}}>
@@ -306,7 +357,11 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
             purpose: it is a note, not a third option, and it cannot be
             pressed. It comes in with the panels, after them. */}
         {!unfairOpen && (
-          <p className="pick-note" style={{margin:0,textAlign:'center',fontFamily:F.ui,fontWeight:500,
+          // Not a button and not announced as one: tapping it seven times is
+          // the secret way in, and a secret has no affordance.
+          <p className="pick-note" onClick={onNoteTap}
+            style={{margin:0,textAlign:'center',fontFamily:F.ui,fontWeight:500,
+            userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',touchAction:'manipulation',
             color:DS.slateLight,fontSize:'clamp(15px,min(3.8vw,2.4vh),19px)',lineHeight:1.35,
             animationDelay:'420ms'}}>
             Beat <span style={{color:DS.ember,fontWeight:700,letterSpacing:'0.04em'}}>HARD</span> to

@@ -44,10 +44,12 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **111 tests** (75 until 2026-09-18, when the HARD
+- Vitest for tests. **140 tests** (75 until 2026-09-18, when the HARD
   brain brought 19 of its own in `src/game/brain.test.js`, the reducer
   gained 11 for UNFAIR's rules, her full-pile scrap and the deck refresh,
-  and `src/game/stats.test.js` added 6 for the unlock and the preview link)
+  `src/game/stats.test.js` added 6 for the unlock and the preview link,
+  `src/screens/wiring.test.js` one per source file (26) for shadowed
+  imports, and `src/screens/pickerTiming.test.js` two for the picker's clock)
   cover the engine, the reducer, the brain, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
@@ -157,7 +159,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 111 tests, runs in about a second
+npm test          # vitest, 140 tests, runs in about a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -179,6 +181,23 @@ cannot drift. (The `<title>` is a literal in `index.html`, not read from
 `TAGLINE`; since 2026-09-18 it says "SCRAPS - Play poker with both
 hands." to match, by Stan's call, and a future tagline change has to
 move both by hand.)
+
+**`tools/play-through.mjs` (2026-09-18) is the check to run before any
+preview that touches how the game is PLAYED.** It plays a whole match on
+NORMAL, HARD and UNFAIR in a real browser by pressing what is on the
+screen (scrap a card, signal a card, every reveal, every prompt, through
+to the match screen) and fails on two things only: an error on the page,
+or the screen not changing for 25 seconds. `PORT=5194 node
+tools/play-through.mjs`, one to two minutes a mode; `MODES=unfair
+ROUNDS=2` for a quick one. It exists because the new HARD froze at the
+first signal in front of Stan with 111 tests green and 30,000 arena
+matches behind it: the bug was in the SCREEN's wiring (see the shadowed
+import, under Gotchas), which no unit test and no arena touches, and the
+browser walk done that night stopped one click short of signalling.
+Broken on purpose (her reply made never to come), it reports `STALLED for
+25s on: "... Signal locked. Waiting for her..."`, the freeze he saw, word
+for word. The responsive walk takes ONE turn and the arena never opens a
+browser; neither is a substitute.
 
 `tools/ai-arena.mjs` (2026-09-18) plays whole matches, bot against bot,
 through the REAL reducer with a seeded shuffle, and is how any change to
@@ -351,7 +370,7 @@ looks broken locally, it is not a missing-secret problem.
   discard and COUNTS of the rest, and `brain.test.js` fails if any card id
   outside the public set can be found inside a view. `TUNE` holds her
   judgement constants; the header comment records what each measured. The
-  game calls three functions, `aiTurn`, `aiSignal` and `aiCounter`, which
+  game calls three functions, `herTurn`, `herSignal` and `herCounter`, which
   hand NORMAL to the engine's old cautious player and everything else to
   the brain. The engine's old `hard` branch is kept ONLY as the arena's
   `classic` yardstick and nothing in the game reaches it.
@@ -459,6 +478,43 @@ looks broken locally, it is not a missing-secret problem.
 
 ## Gotchas
 
+- **A name imported into a screen must never be redeclared in it, and
+  `GameScreen` pulls a dozen names out of `state`.** The freeze of
+  2026-09-18: the brain's entry points were `aiTurn`, `aiSignal` and
+  `aiCounter`, and `aiSignal` is ALSO a field of game state that
+  `GameScreen` destructures. The field shadowed the function, "ask her
+  for a signal" called a number, the throw happened inside a `setTimeout`
+  where nothing reports it, and the table sat on "Signal locked. Waiting
+  for her..." for good, on HARD and UNFAIR alike, at the first signal of
+  every game. `no-undef` was clean, because the name was defined. Three
+  things stand between that and a repeat. The entry points are `herTurn`,
+  `herSignal` and `herCounter`, names no state field will ever take.
+  `src/screens/wiring.test.js` reads every source file as text and fails
+  if an imported name is declared again anywhere in it (run against the
+  commit that froze, it names `aiSignal`). And every decision she makes is
+  asked for through `safely()` in `GameScreen`: if her thinking throws, the
+  error is logged and the engine's plain player answers with a legal move,
+  because a worse move for one turn is a far better failure than a dead
+  table. **Any new call into the brain from a timer goes through
+  `safely()`.**
+- **The secret way into UNFAIR, which works on the LIVE site** (Stan,
+  2026-09-18). On the picker while the mode is locked: type `u n f a i r`
+  on a keyboard, or tap the line "Beat HARD to unlock UNFAIR." seven times
+  inside four seconds (a mouse may do the same). It opens the mode for
+  good in that browser, exactly as a win does, and the panel makes its
+  first appearance there and then. `SECRET_WORD` and `SECRET_TAPS` in
+  `MenuScreens.jsx`. It is for his new phone or a cleared browser. It is
+  not much of a secret, since this repository is public, and it does not
+  need to be: what it skips is a win, not a lock. The line is deliberately
+  not a button and has no affordance.
+- **The picker's clock lives in `src/screens/pickerTiming.js`.** The
+  panels deal in from CSS and UNFAIR's first appearance is timed from JS
+  against the moment HARD finishes dealing (770ms), starting 40ms later
+  (Stan: "within 50ms"; it held a 1.5s beat before, and the beat was what
+  was too long). `pickerTiming.test.js` reads `index.html` and fails if
+  the stylesheet's `panelDeal` duration stops matching, or the gap passes
+  50ms. Measured from the browser's own animation clock: 0 to 620, 150 to
+  770, 810 to 1230.
 - **Three difficulties, and the IDs are not the labels.** NORMAL is ID
   `easy` (renamed 2026-09-18; the ID stayed because it is the key every
   saved win-loss record lives under, and renaming it would have wiped

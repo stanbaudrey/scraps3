@@ -22,7 +22,21 @@ import {
 // Her decisions. NORMAL still runs the engine's cautious player; HARD and
 // UNFAIR run the brain, which is handed a view of the table with your hand
 // and the deck's order left out of it (brain.js).
-import { aiTurn, aiSignal, aiCounter, worstTwo, cheapestTwo } from "../game/brain.js";
+//
+// THEY ARE NAMED herTurn / herSignal / herCounter ON PURPOSE. They were
+// aiTurn / aiSignal / aiCounter for one evening, and `aiSignal` is also a
+// field of game state that this component destructures a few lines down.
+// The field shadowed the function, "ask her for a signal" called a NUMBER,
+// the timer's callback threw, and her reply never came: the table sat on
+// "Signal locked. Waiting for her..." for good (Stan, 2026-09-18, on the
+// preview). Nothing caught it: the name was defined, so `no-undef` passed;
+// the brain's own tests never touch this file; and the browser walk had
+// stopped one click short of signalling. wiring.test.js now fails if any
+// name imported here is also pulled out of `state`, tools/play-through.mjs
+// plays whole rounds in a real browser, and `safely` below means a throw
+// in her thinking can no longer stop the game.
+import { herTurn, herSignal, herCounter, worstTwo, cheapestTwo } from "../game/brain.js";
+import { aiDecide, aiChooseSignal, getBestCardsForSignal, shouldCounterAce } from "../game/engine.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
@@ -168,6 +182,26 @@ const poseOf = (r, size) => ({
 const initGame = ({ rig, difficulty }) => (rig && rig.state
   ? { ...createInitialState(rulesFor(difficulty)), ...rig.state }
   : createInitialState(rulesFor(difficulty)));
+
+// HER THINKING MAY NEVER STOP THE GAME. Every decision she makes is
+// asked for from inside a timer, where a throw is silent: no crash, no
+// message, just a table waiting for a reply that is not coming. So each
+// one is asked through this. If it throws, the error is logged for
+// whoever is looking and the engine's plain, cautious player answers
+// instead, which is always a legal move. A worse move for one turn is a
+// far better failure than a dead table.
+function safely(what, think, fallback) {
+  try { return think(); }
+  catch (err) {
+    console.error(`SCRAPS: her ${what} failed, the plain player answered instead`, err);
+    return fallback();
+  }
+}
+const plainSignal = (s, playerSig) => {
+  const count = aiChooseSignal(s.aiHand, playerSig, 'easy', s.aiScore, s.playerScore);
+  const cards = getBestCardsForSignal(s.aiHand, count) || s.aiHand.slice(0, 1);
+  return { signal: cards.length, cards };
+};
 
 const OFF_MARGIN = 40;
 const rectAt = (left, top, d) => ({
@@ -798,7 +832,8 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // shows you hers, and decides on those (brain.js, chooseCounter).
     // (`sheCounters` is the attack bench's override, never the game's.)
     const counters = rigRef.current && rigRef.current.sheCounters != null
-      ? rigRef.current.sheCounters : aiCounter(s, targets, difficulty);
+      ? rigRef.current.sheCounters : safely('counter', () => herCounter(s, targets, difficulty),
+        () => shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore));
     const aiAce = counters ? (s.aiHand.find(c => c.rank === 'A') || null) : null;
     const sz = szRef.current;
     const k = tableScale();
@@ -1302,7 +1337,8 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // actually guarantees the opponent does not move behind the box.
       if (aceDrawnRef.current) return;
 
-      let action = aiTurn(s, difficulty);
+      let action = safely('turn', () => herTurn(s, difficulty),
+        () => aiDecide(s.aiHand, s.aiScraps, s.playerScraps, [], 'easy', phase, s.aiScore, s.playerScore));
       // BENCH ONLY (tools/bench/attack.jsx). The brain holds an Ace until
       // late in the round, which is right and is no use to a bench that
       // exists to watch her attack on demand. The game never sets `rig`.
@@ -1454,7 +1490,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     T(() => {
       const s = stateRef.current;
       if (s.phase !== phase || s.gameOver) return;
-      const { signal: aiSig, cards: aiCards } = aiSignal(s, null, difficulty);
+      const { signal: aiSig, cards: aiCards } = safely('signal', () => herSignal(s, null, difficulty), () => plainSignal(s, null));
       setAiSignaledIds(new Set(aiCards.map(c => c.id)));
       T(() => dispatch({ type: 'AI_FIRST_SIGNAL', signal: aiSig, cards: aiCards }), 1000);
     }, 700);
@@ -1478,7 +1514,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // Player signaled first — the AI responds after seeing it
       setTimeout(() => {
         const s = stateRef.current;
-        const { signal: aiSig, cards: aiCards } = aiSignal(s, sig, difficulty);
+        const { signal: aiSig, cards: aiCards } = safely('signal', () => herSignal(s, sig, difficulty), () => plainSignal(s, sig));
         setAiSignaledIds(new Set(aiCards.map(c => c.id)));
         // Keep aiSignaledIds set — cards stay toggled until reveal
         setTimeout(() => {

@@ -681,7 +681,7 @@ export function chooseCounter(view, targets) {
 // same brain; the second only plays under tilted rules.
 const thinks = (difficulty) => difficulty === 'hard' || difficulty === 'unfair';
 
-export function aiTurn(state, difficulty, rng = Math.random) {
+export function herTurn(state, difficulty, rng = Math.random) {
   if (!thinks(difficulty)) {
     return aiDecide(state.aiHand, state.aiScraps, state.playerScraps, [], difficulty,
       state.phase, state.aiScore, state.playerScore);
@@ -690,7 +690,7 @@ export function aiTurn(state, difficulty, rng = Math.random) {
 }
 
 // `playerSignal` is your count if you signalled first, else null.
-export function aiSignal(state, playerSignal, difficulty, rng = Math.random) {
+export function herSignal(state, playerSignal, difficulty, rng = Math.random) {
   if (!thinks(difficulty)) {
     const sig = aiChooseSignal(state.aiHand, playerSignal, difficulty, state.aiScore, state.playerScore);
     const cards = getBestCardsForSignal(state.aiHand, sig) || [];
@@ -700,7 +700,7 @@ export function aiSignal(state, playerSignal, difficulty, rng = Math.random) {
   return { signal: cards.length, cards };
 }
 
-export function aiCounter(state, targets, difficulty, rng = Math.random) {
+export function herCounter(state, targets, difficulty, rng = Math.random) {
   if (!state.aiHand.some(c => c.rank === 'A')) return false;
   if (!thinks(difficulty)) {
     return shouldCounterAce(state.aiScraps, state.playerScraps, state.aiScore, state.playerScore);
