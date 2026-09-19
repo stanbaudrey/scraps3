@@ -145,7 +145,9 @@ const HAND = ['10','J','Q','K','A'];
 // no name and no contact line. That is a deliberate trade for a
 // hobby game, recorded so nobody "fixes" it by accident.
 const PRIVACY = [
-  `SCRAPS saves two things to your browser: a win-loss record for each difficulty and a note that you've seen the "How to Play" intro. Clearing your browser data removes them.`,
+  // Three since 2026-09-18: the UNFAIR unlock is its own saved item
+  // (stats.js, scraps-unlocks-v1), so it is named here. Still one sentence.
+  `SCRAPS saves three things to your browser: a win-loss record for each difficulty, whether you've unlocked UNFAIR mode, and a note that you've seen the "How to Play" intro. Clearing your browser data removes them.`,
   `This site is hosted on Vercel, so they log your IP address.`,
   `Nothing else is collected.`,
 ];

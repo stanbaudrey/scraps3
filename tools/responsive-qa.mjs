@@ -235,7 +235,7 @@ for (const vp of VIEWPORTS) {
 
   await shot('3-difficulty');
   await page.waitForTimeout(900);
-  await page.getByRole('button', { name: /EASY/ }).click();
+  await page.getByRole('button', { name: /NORMAL/ }).click();   // EASY until 2026-09-18
   await page.waitForTimeout(3200);
   await dismiss();
   await shot('4-table');

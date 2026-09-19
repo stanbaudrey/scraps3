@@ -47,10 +47,10 @@ const reveal = (over) => ({
 
 const params = new URLSearchParams(location.search);
 const live = params.get('live') === '1';
-const stage = (s) => (
+const stage = (s, extra = {}) => (
   <TableStage stage={s} cardH={146} tableAnchorRef={{ current: null }} instant={!live}
     onSignDone={called('signDone')} onContinue={called('continue')} onSwept={called('swept')}
-    onNewGame={called('newGame')}
+    onNewGame={called('newGame')} {...extra}
     difficulty="hard" winStats={{ margin: 4, bestMargin: 4, isNewRecord: true }}/>
 );
 
@@ -67,6 +67,14 @@ const CASES = {
   matchWin:   stage(reveal({ which: 'hand2', winner: 'player', before: { p: 9, a: 6 }, endsIt: true })),
   matchLoss:  stage(reveal({ which: 'scraps', winner: 'ai', pts: 2, before: { p: 5, a: 8 }, endsIt: true,
                 playerCards: d.slice(10, 17), aiCards: d.slice(20, 27) })),
+  // The win that opens UNFAIR (2026-09-18): the callout under the score
+  // and a THIRD button, which wraps to a second row on a phone.
+  matchUnlock: stage(reveal({ which: 'hand2', winner: 'player', before: { p: 9, a: 6 }, endsIt: true }),
+                { onNewUnfair: called('newUnfair'), unfairJustUnlocked: true }),
+  // UNFAIR's broken tie: the verdict says both halves.
+  tieBroken:  stage(reveal({ winner: 'ai', pts: 1, tieBroken: true, playerHandName: 'Pair', aiHandName: 'Pair',
+                playerCards: d.filter(c => c.rank === '9').slice(0, 2), aiCards: d.filter(c => c.rank === '9').slice(2, 4) })),
+  aceDrawnUnfair: <AceDrawnLightbox ace={ace} onDismiss={noop} herPick />,
   sweepWin:   stage(reveal({ which: 'scraps', winner: 'player', pts: 2, before: { p: 8, a: 6 }, endsIt: true,
                 cleanSweep: true, playerCards: d.slice(10, 17), aiCards: d.slice(20, 27) })),
   tie:        stage(reveal({ winner: 'tie', pts: 0 })),

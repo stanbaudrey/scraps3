@@ -451,6 +451,52 @@
         transform: scale(0.985);
       }
 
+      /* UNFAIR's first appearance on the picker (MenuScreens.jsx). The
+         panel FALLS and stops dead, as a winning card does on a reveal,
+         rather than dealing in from the side like the other two: the
+         animation below replaces panelDeal on this one box, and both its
+         delay and its length are set inline. `backwards` holds it on its
+         first frame, invisible, through the wait, so its room is already
+         there and nothing above it moves when it lands.
+
+         The ring and the word's flash are timed from --debut-at, the
+         frame the fall ends. The word is SOLID TYPE throughout: it lands
+         pale and a touch large and settles into its own gold. Its first
+         version swept a band of light through it with background-clip on
+         the text, which is a filed ban in Stan's lookbook (gradient text)
+         for a reason that bites here: it breaks under Increase Contrast,
+         which his own phone has switched on. The scan caught it the same
+         night. Neither effect runs again after the first visit, because
+         the class is only set for the debut.
+
+         REDUCED MOTION: the blanket rule at the foot of this file lands
+         every one of these on its last frame at once, which is the panel
+         at rest, no ring, the word in its own colour. */
+      .pick-box.pick-debut {
+        animation-name: unlockSlam;
+        animation-timing-function: cubic-bezier(.55,0,.9,.3);
+      }
+      .pick-box.pick-debut::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 14px;
+        pointer-events: none;
+        animation: unlockRing 760ms cubic-bezier(.2,.8,.3,1) var(--debut-at, 0ms) both;
+      }
+      .pick-debut-word {
+        display: inline-block;
+        transform-origin: 0% 60%;
+        animation: unlockWord 700ms cubic-bezier(.2,.8,.3,1) var(--debut-at, 0ms) both;
+      }
+      @keyframes unlockSlam{0%{transform:translateY(-54px) scale(1.22);opacity:0}25%{opacity:1}100%{transform:none;opacity:1}}
+      @keyframes unlockRing{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent) 85%, transparent),0 0 0 0 transparent;opacity:1}
+        40%{box-shadow:0 0 0 7px color-mix(in srgb, var(--accent) 55%, transparent),0 0 44px 6px color-mix(in srgb, var(--accent) 45%, transparent);opacity:1}
+        100%{box-shadow:0 0 0 18px transparent,0 0 60px 10px transparent;opacity:0}}
+      @keyframes unlockWord{0%{color:#FFF6DC;transform:scale(1.16)}100%{transform:none}}
+      .pick-note { animation: fadeInNote 500ms ease-out backwards; }
+      @keyframes fadeInNote{0%{opacity:0}100%{opacity:1}}
+
       /* Storyboard walkthrough — the ONLY motion on those screens.
          A slow lean applied to a wrapper, never to the card itself,
          so PlayingCard's own transform/transition stays untouched

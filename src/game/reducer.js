@@ -31,6 +31,27 @@ export const PLAYER_TURN_PHASES = ['player-turn-1a','player-turn-1b','player-tur
 export const AI_TURN_PHASES     = ['ai-turn-1a','ai-turn-1b','ai-turn-2a','ai-turn-2b'];
 export const AI_SIGNAL_PHASES   = ['signal-ai','signal-ai-2'];
 
+// ── Match rules ──────────────────────────────────────────────
+// NORMAL and HARD play the game straight: the same rules on both sides
+// of the table, and HARD is only a better player. UNFAIR is
+// the one mode that tilts the table, and it does it in the open — every
+// one of these is stated on the difficulty picker (Stan, 2026-09-18):
+//
+//   herAce         she starts every round holding an Ace
+//   signalsSecond  she always sees your signal before choosing hers
+//   tiesToHer      a tied hand, private or Scraps, is hers
+//   herPick        SHE chooses which two cards your Ace removes
+//
+// They live in STATE, set once when the match is created, so the reducer
+// stays pure and nothing downstream has to be told the difficulty.
+export const FAIR_RULES = Object.freeze({
+  herAce: false, signalsSecond: false, tiesToHer: false, herPick: false,
+});
+export const UNFAIR_RULES = Object.freeze({
+  herAce: true, signalsSecond: true, tiesToHer: true, herPick: true,
+});
+export const rulesFor = (difficulty) => (difficulty === 'unfair' ? UNFAIR_RULES : FAIR_RULES);
+
 // ── Dealer / turn-order helpers ──────────────────────────────
 
 // Odd rounds (1,3,5…): opponent deals → player acts first.
@@ -55,14 +76,16 @@ export function tradeOrder(roundNum, handNum) {
 // Given the phase a trade (or skip, or Ace) just completed in,
 // return the next phase. After the fourth trade of a hand, play
 // moves to the signal stage — and the first actor signals first.
-export function nextPhaseAfterTrade(phase, roundNum) {
+export function nextPhaseAfterTrade(phase, roundNum, rules = FAIR_RULES) {
   const handNum = phase.includes('-1') ? 1 : 2;
   const order = tradeOrder(roundNum, handNum);
   const i = order.indexOf(phase);
   if (i === -1) return phase; // not a trade phase — no change
   if (i < order.length - 1) return order[i + 1];
-  // All four trades done → signal stage, first actor signals first
-  const f = firstActorForRound(roundNum);
+  // All four trades done → signal stage, first actor signals first.
+  // Under `signalsSecond` that is always you, whoever dealt: the scrap
+  // turns still alternate with the dealer, only the signal order is fixed.
+  const f = rules.signalsSecond ? 'player' : firstActorForRound(roundNum);
   if (f === 'player') return handNum === 1 ? 'signal-player' : 'signal-player-2';
   return handNum === 1 ? 'signal-ai' : 'signal-ai-2';
 }
@@ -108,10 +131,10 @@ export const EMPTY_SCRAPS_HAND = {
   rank: -1, name: 'Empty Scraps hand', cards: [], tiebreakers: [],
 };
 
-export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins) {
+export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins, rules = FAIR_RULES) {
   const pB = evaluateBestHand(playerScraps) || EMPTY_SCRAPS_HAND;
   const aB = evaluateBestHand(aiScraps) || EMPTY_SCRAPS_HAND;
-  const res = compareHands(pB, aB);
+  const res = compareHands(pB, aB) || (rules.tiesToHer ? -1 : 0);
   let pPts = 0, aPts = 0, winner = 'tie';
   const rw = { ...roundWins };
   if (res > 0)      { pPts = 2; rw.player++; winner = 'player'; }
@@ -123,12 +146,45 @@ export function scoreScrapsOutcome(playerScraps, aiScraps, roundWins) {
   return { pPts, aPts, winner, cleanSweep, aiSweep, pB, aB };
 }
 
+// ── Private hand scoring (pure, testable) ────────────────────
+// Who takes a private hand, from the two sets of played cards. It lived
+// inside GameScreen's resolveSmallHand until 2026-09-18; it is here so
+// the table and tools/ai-arena.mjs cannot disagree about a result, and
+// so `tiesToHer` has exactly one place to be true.
+export function scoreSmallHand(playerPlayed, aiPlayed, rules = FAIR_RULES) {
+  const pH = evaluateBestHand(playerPlayed);
+  const aH = evaluateBestHand(aiPlayed);
+  const res = (pH && aH ? compareHands(pH, aH) : 0) || (rules.tiesToHer ? -1 : 0);
+  const winner = res > 0 ? 'player' : res < 0 ? 'ai' : 'tie';
+  return { winner, pts: winner === 'tie' ? 0 : 1, pH, aH,
+    tieBroken: !!(rules.tiesToHer && pH && aH && compareHands(pH, aH) === 0) };
+}
+
 // ── Round setup (impure: shuffles) ───────────────────────────
 // Called by the UI, never by the reducer, so the reducer stays
 // pure. Deals a straight, unrigged round: five cards to each
 // hand, two to each Scraps pile, rest to the deck.
-export function buildRoundDeal() {
-  const d = shuffle(createDeck());
+//
+// `herAce` (UNFAIR) puts one Ace in her opening five. The
+// deck is still the same 52 cards: one Ace is lifted out before the
+// deal, she is dealt four instead of five, and the Ace joins them at a
+// random seat in her hand. Everything else is dealt as it always is.
+export function buildRoundDeal({ rng = Math.random, herAce = false } = {}) {
+  let d = shuffle(createDeck(), rng);
+  let planted = null;
+  if (herAce) {
+    // ANY of the four Aces, picked at random, never "the first one in
+    // the deck". Lifting out the first would leave the other three all
+    // sitting behind it, which quietly pushes Aces away from your opening
+    // hand as well: a second, hidden tilt on top of the stated one. With
+    // a random Ace lifted, the other 51 cards are still an even shuffle.
+    const aces = d.filter(c => c.rank === 'A');
+    planted = aces[Math.floor(rng() * aces.length)];
+    d = d.filter(c => c.id !== planted.id);
+    // dealRound takes her five from positions 5 to 9; seat the Ace there.
+    const seat = 5 + Math.floor(rng() * 5);
+    d = [...d.slice(0, seat), planted, ...d.slice(seat)];
+  }
   const deal = dealRound(d);
   const remainingDeck = deal.remainingDeck;
   const playerHand = deal.playerHand;
@@ -162,12 +218,36 @@ export function planReplenish(playerHand, aiHand, deck) {
   return { player: drawn.slice(0, pN), ai: drawn.slice(pN, pN + aN), take: pN + aN };
 }
 
+// ── The deck running low (pure, testable) ────────────────────
+// A round starts with 38 cards in the deck, and until 2026-09-18 that
+// was always plenty: the old HARD scrapped four cards a round and the
+// deck finished a round with about fourteen left. The new one scraps in
+// volume, as a good player does, and two volume scrappers ran the deck
+// DRY in 7% of rounds in the arena. A dry deck is not a small thing: a
+// scrap draws nothing, the Hand 2 refill deals nothing, and a player can
+// reach a signal with no cards to signal with, which is a dead end.
+//
+// So the discards go back under the deck before it can happen, the way
+// any card table handles it. The SHUFFLE cannot live in the reducer (it
+// would stop being pure, and the table reads the top of the deck BEFORE
+// it dispatches a draw, to animate it), so whoever is driving, the table
+// or the arena, asks `deckNeedsRefresh` after every change and dispatches
+// DECK_REFRESH with the discards already shuffled. The reducer checks
+// they really are the discards, puts them UNDER what is left, and
+// empties the discard. 12 is more than any one action can draw: a scrap
+// is capped by the 7-card hand, and the refill deals at most ten.
+export const DECK_LOW = 12;
+export const deckNeedsRefresh = (state) =>
+  state.deck.length < DECK_LOW && state.discard.length > 0 && !state.gameOver;
+
 // ── Initial state ────────────────────────────────────────────
-export function createInitialState() {
+export function createInitialState(rules = FAIR_RULES) {
   return {
+    rules,
     roundNum: 1,
     phase: 'init',
     currentTurn: 0,
+    handStartTurn: 1,
     deck: [], playerHand: [], aiHand: [],
     playerScraps: [], aiScraps: [], discard: [],
     playerScore: 0, aiScore: 0,
@@ -220,6 +300,11 @@ export function gameReducer(state, action) {
         pendingAiAce: null, counterStand: false,
         arrivals: { player: { toScraps: [], toHand: [] } },
         currentTurn: 1,
+        // The turn this HAND began on. A pile card whose turnAdded is at
+        // or past it was scrapped during the hand in play, which is public
+        // (you watched it go in) and is how the HARD brain knows how much
+        // of your hand you have turned over. See brain.js, viewFor.
+        handStartTurn: 1,
         phase: 'dealing',
       };
     }
@@ -261,7 +346,7 @@ export function gameReducer(state, action) {
         deck: state.deck.slice(drawCount),
         arrivals: { player: { toScraps: tagged, toHand: drawn } },
         currentTurn: state.currentTurn + 1,
-        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         log: addLog(state, `Scrapped ${cards.length} card${cards.length > 1 ? 's' : ''}. Drew ${drawCount}.`),
       };
     }
@@ -320,7 +405,7 @@ export function gameReducer(state, action) {
         discard: [...state.discard, ...action.discardCards],
         pendingTrade: null, scrapsOverflow: 0,
         currentTurn: state.currentTurn + 1,
-        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         log: addLog(state, `Discarded ${action.discardCards.length} from Scraps. Scrapped ${cards.length} card${cards.length > 1 ? 's' : ''}. Drew ${drawCount}.`),
       };
     }
@@ -338,7 +423,7 @@ export function gameReducer(state, action) {
         ...state,
         counterStand: false,
         currentTurn: state.currentTurn + 1,
-        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         log: addLog(state, 'You end your turn.'),
       };
     }
@@ -348,7 +433,7 @@ export function gameReducer(state, action) {
       return {
         ...state,
         counterStand: false,
-        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         log: addLog(state, 'You have nothing legal to scrap. Your turn is skipped.'),
       };
     }
@@ -377,9 +462,17 @@ export function gameReducer(state, action) {
       const newSC = state.aiScraps.length + cards.length;
       let aiScraps, discard = state.discard;
       if (newSC > 7) {
-        const el = state.aiScraps.filter(c => c.eligibleForDiscard);
+        // The same rule the player is held to: any card ALREADY in the
+        // pile may go, the ones arriving now may not. (This used to read
+        // the stored eligibleForDiscard flag, which is only refreshed at
+        // the Hand 2 refill, so in Hand 1 she could be left holding more
+        // than seven. She never scrapped enough for it to happen.)
+        // `action.discards` is her own choice of what to give up; without
+        // one, or with a bad one, the oldest cards go, as before.
         const ex = newSC - 7;
-        const td = el.slice(0, ex);
+        const named = (action.discards || [])
+          .map(d => state.aiScraps.find(c => c.id === d.id)).filter(Boolean);
+        const td = named.length === ex ? named : state.aiScraps.slice(0, ex);
         const dIds = new Set(td.map(c => c.id));
         discard = [...discard, ...td];
         aiScraps = [...state.aiScraps.filter(c => !dIds.has(c.id)), ...tagged];
@@ -400,7 +493,7 @@ export function gameReducer(state, action) {
     // was scheduled for, so a stale timer can't double-advance.
     case 'ADVANCE_FROM': {
       if (state.phase !== action.phase) return state;
-      return { ...state, phase: nextPhaseAfterTrade(state.phase, state.roundNum) };
+      return { ...state, phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules) };
     }
 
     // ── Aces ─────────────────────────────────────────────────
@@ -416,7 +509,7 @@ export function gameReducer(state, action) {
         aiScraps: state.aiScraps.filter(c => !targetIds.has(c.id)),
         discard: [...state.discard, ace, ...targets],
         currentTurn: state.currentTurn + 1,
-        phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+        phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         log: addLog(state, `Ace played! Removed ${targets.map(c => c.rank).join(', ')} from her Scraps.`),
       };
     }
@@ -454,7 +547,7 @@ export function gameReducer(state, action) {
         counterStand: stillArmed,
         ...(stillArmed ? {} : {
           currentTurn: state.currentTurn + 1,
-          phase: nextPhaseAfterTrade(state.phase, state.roundNum),
+          phase: nextPhaseAfterTrade(state.phase, state.roundNum, state.rules),
         }),
         // Holding another Ace, the only moves left are to attack with it
         // or end the turn: no scrapping after a counter (Stan, 2026-09-18).
@@ -592,8 +685,25 @@ export function gameReducer(state, action) {
         playerScraps: state.playerScraps.map(c => ({ ...c, eligibleForDiscard: true })),
         aiScraps: state.aiScraps.map(c => ({ ...c, eligibleForDiscard: true })),
         currentTurn: state.currentTurn + 1,
+        handStartTurn: state.currentTurn + 1,
         phase: `${first}-turn-2a`,
         log: addLog(state, 'Fresh cards. Second hand.'),
+      };
+    }
+
+    // ── The discards go back under the deck ──────────────────
+    // See deckNeedsRefresh. `action.cards` is the discard pile, shuffled
+    // by the caller; anything else is refused, so this can only ever
+    // move the cards that are really there.
+    case 'DECK_REFRESH': {
+      const cards = action.cards || [];
+      const want = new Set(state.discard.map(c => c.id));
+      if (!cards.length || cards.length !== want.size || !cards.every(c => want.has(c.id))) return state;
+      return {
+        ...state,
+        deck: [...state.deck, ...cards.map(({ id, rank, value }) => ({ id, rank, value }))],
+        discard: [],
+        log: addLog(state, 'The discards are shuffled back under the deck.'),
       };
     }
 

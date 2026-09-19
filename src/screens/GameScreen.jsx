@@ -12,14 +12,17 @@
 
 import { useReducer, useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from "react";
 import {
-  evaluateBestHand, getBestCardsForSignal, getActiveHandCards, compareHands,
-  aiDecide, aiChooseSignal, isValidSignal, hasLegalTrade, scrapValue,
-  shouldCounterAce, chooseAceTargets, signalHandLabel,
+  getActiveHandCards, isValidSignal, hasLegalTrade, scrapValue,
+  chooseAceTargets, signalHandLabel, shuffle,
 } from "../game/engine.js";
 import {
-  gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome,
-  checkWin, planReplenish, AI_TURN_PHASES, AI_SIGNAL_PHASES,
+  gameReducer, createInitialState, buildRoundDeal, scoreScrapsOutcome, scoreSmallHand,
+  checkWin, planReplenish, rulesFor, deckNeedsRefresh, AI_TURN_PHASES, AI_SIGNAL_PHASES,
 } from "../game/reducer.js";
+// Her decisions. NORMAL still runs the engine's cautious player; HARD and
+// UNFAIR run the brain, which is handed a view of the table with your hand
+// and the deck's order left out of it (brain.js).
+import { aiTurn, aiSignal, aiCounter, worstTwo, cheapestTwo } from "../game/brain.js";
 import { DS, F, WIN_SCORE } from "../styles/theme.js";
 import { setAudioMuted, isAudioMuted,
   playSelect, playScrap, playDraw, playAceStrike, playAceCounter,
@@ -36,7 +39,8 @@ import { BigBtn, ScrapBtn, SignalBtn, AceTag, TOUCH_MIN, TOUCH_MIN_COMPACT, pres
 import { IconBolt, IconChevron } from "../components/icons.jsx";
 import { TableSurface } from "../components/backdrop.jsx";
 import { Walkthrough } from "./Walkthrough.jsx";
-import { recordGame } from "../game/stats.js";
+import { recordGame, loadUnlocks, unlockUnfair } from "../game/stats.js";
+import { DIFF } from "../share.js";
 import { useViewport, usePointerVerb, layoutMode, MODE_MIN_W, SHORT_MAX_H, FitBox } from "../ui/viewport.jsx";
 import {
   AceCounterModal, SkipTurnModal, QuitConfirmModal,
@@ -161,9 +165,9 @@ const poseOf = (r, size) => ({
 // game itself never passes it. The Ace attack needs an Ace in your hand, a
 // pile of hers worth hitting and, for her counter, an Ace in hers and a
 // reason to spend it, and a shuffle will not produce that on demand.
-const initGame = (rig) => (rig && rig.state
-  ? { ...createInitialState(), ...rig.state }
-  : createInitialState());
+const initGame = ({ rig, difficulty }) => (rig && rig.state
+  ? { ...createInitialState(rulesFor(difficulty)), ...rig.state }
+  : createInitialState(rulesFor(difficulty)));
 
 const OFF_MARGIN = 40;
 const rectAt = (left, top, d) => ({
@@ -173,7 +177,9 @@ const rectAt = (left, top, d) => ({
 
 export function GameScreen({ difficulty, onExit, rig = null }) {
   // ── Game state machine ─────────────────────────────────────
-  const [state, dispatch] = useReducer(gameReducer, rig, initGame);
+  const [state, dispatch] = useReducer(gameReducer, { rig, difficulty }, initGame);
+  // The match's rules: all false except under UNFAIR (reducer.js).
+  const rules = state.rules;
   const rigRef = useRef(rig);
   const {
     // `deck` and `discard` are no longer read here: the two piles came
@@ -429,10 +435,19 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   const szRef = useRef(SZ);
   szRef.current = SZ;
 
+  // The discards go back under a low deck, before it can run dry
+  // (reducer.js, deckNeedsRefresh). They are appended UNDER what is left,
+  // so the cards a pending draw has already measured off the top are the
+  // cards it still gets. A second run of this effect is refused by the
+  // reducer, because by then there are no discards to return.
+  useEffect(() => {
+    if (deckNeedsRefresh(state)) dispatch({ type: 'DECK_REFRESH', cards: shuffle(state.discard) });
+  }, [state.deck.length, state.discard.length, state.gameOver]);
+
   // ── Round setup ────────────────────────────────────────────
   const startNewRound = useCallback((alternate) => {
     const deal = rigRef.current && rigRef.current.deal
-      ? rigRef.current.deal() : buildRoundDeal();
+      ? rigRef.current.deal() : buildRoundDeal({ herAce: rulesFor(difficulty).herAce });
     dispatch({ type: 'START_ROUND', deal, alternate });
     // The fresh hands sit behind the BEGIN ROUND interstitial
     // until dealWave flies them out of the deck.
@@ -536,6 +551,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // the margin and best-ever margin.
   const recordedRef = useRef(false);
   const [winStats, setWinStats] = useState(null);
+  const [unfair, setUnfair] = useState(() => ({ open: loadUnlocks().unfair, justNow: false }));
   useEffect(() => {
     if (!gameOver || recordedRef.current) return;
     recordedRef.current = true;
@@ -543,6 +559,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const margin = Math.abs(playerScore - aiScore);
     const res = recordGame(difficulty, won, won ? margin : 0);
     if (won) setWinStats({ margin, bestMargin: res.bestMargin, isNewRecord: res.isNewRecord });
+    // Beating HARD opens UNFAIR, for good, in this browser (stats.js).
+    // `justNow` is true for the one win that did it, which is the only
+    // time the match screen announces it.
+    const justNow = won && difficulty === 'hard' && unlockUnfair();
+    setUnfair({ open: loadUnlocks().unfair, justNow });
   }, [gameOver]);
 
   // ── Card selection ─────────────────────────────────────────
@@ -731,11 +752,20 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         setTimeout(() => setTagEcho(null), 420),
       ];
     }
+    // UNFAIR: the two cards are HER choice, the two her pile will miss
+    // least, and they come up already picked. REMOVE still throws it, and
+    // backing out still costs nothing.
+    if (rules.herPick) {
+      setAceMode(ace); setAceTargets(cheapestTwo(aiScraps)); setSelected([]);
+      setTimeout(playLock, 240);
+      dispatch({ type: 'LOG', msg: 'She chooses which two cards your Ace removes.' });
+      return;
+    }
     setAceMode(ace); setAceTargets([]); setSelected([]);
     dispatch({ type: 'LOG', msg: "Select 2 cards from her Scraps to discard." });
   }
   function toggleAceTarget(card) {
-    if (strikeRef.current) return;
+    if (strikeRef.current || rules.herPick) return;
     // The pile has already played the select for this click (its own
     // onClick and onKeyDown do); this used to play a second one on top.
     // A target being added gets its own small lock under the select.
@@ -763,9 +793,13 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // a bogus hand. The result was constant per difficulty and blind to
     // the table: easy true, hard true, i.e. always countered.
     const s = stateRef.current;
-    const aiAce = shouldCounterAce(s.aiScraps, s.playerScraps, s.aiScore, s.playerScore)
-      ? (s.aiHand.find(c => c.rank === 'A') || null) : null;
     const targets = [...aceTargets];
+    // She is shown the two cards you named, as your own counter prompt
+    // shows you hers, and decides on those (brain.js, chooseCounter).
+    // (`sheCounters` is the attack bench's override, never the game's.)
+    const counters = rigRef.current && rigRef.current.sheCounters != null
+      ? rigRef.current.sheCounters : aiCounter(s, targets, difficulty);
+    const aiAce = counters ? (s.aiHand.find(c => c.rank === 'A') || null) : null;
     const sz = szRef.current;
     const k = tableScale();
     const K = motionScale(k);
@@ -1017,7 +1051,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       if (cur.gameOver || cur.pendingAiAce) return;
       if (!cur.aiHand.some(c => c.id === nextAce.id)) return;
       if (cur.playerScraps.length < 2) return;
-      const targets = chooseAceTargets(cur.playerScraps);
+      const targets = difficulty === 'easy' ? chooseAceTargets(cur.playerScraps) : worstTwo(cur.playerScraps);
       if (!targets || targets.length < 2) return;
       playAceStrike();
       handleAiAce(nextAce, targets, true);
@@ -1179,6 +1213,17 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // flight. `recounterPending` covers the beat before her second Ace.
   const [aiAceTurn, setAiAceTurn] = useState(null);
   const [recounterPending, setRecounterPending] = useState(false);
+  // HER SCRAP, held inside her turn the same way (2026-09-18). The flat
+  // timer was written for a HARD that scrapped one card: one flight and
+  // a draw or two, 1.3s, well inside the 2.1s it waited. The brain scraps
+  // five, gives up five more to make room and draws eight, which is still
+  // landing when 2.1s is up, so "Your turn." arrived over cards in the
+  // air. `aiTradeTurn` is { phase, at }: the turn hands over once nothing
+  // is in flight AND the old 2.1s has passed, so a short scrap keeps
+  // exactly the pace it had and a long one is simply allowed to finish. A
+  // click that drops the ghosts clears `animating`, so skipping still works.
+  const [aiTradeTurn, setAiTradeTurn] = useState(null);
+  const AI_TRADE_MIN = 2100;
   // The explainer, mirrored into a ref so the RUNNER can check it too.
   // Effects flush in declaration order and this gate is declared above
   // the effect that opens the explainer, so on the tick where an Ace
@@ -1257,8 +1302,17 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // actually guarantees the opponent does not move behind the box.
       if (aceDrawnRef.current) return;
 
-      const action = aiDecide(s.aiHand, s.aiScraps, s.playerScraps, s.deck, difficulty, phase, s.aiScore, s.playerScore);
+      let action = aiTurn(s, difficulty);
+      // BENCH ONLY (tools/bench/attack.jsx). The brain holds an Ace until
+      // late in the round, which is right and is no use to a bench that
+      // exists to watch her attack on demand. The game never sets `rig`.
+      if (rigRef.current && rigRef.current.herAttacks
+        && s.aiHand.some(c => c.rank === 'A') && s.playerScraps.length >= 2) {
+        action = { type: 'ace', targetCards: worstTwo(s.playerScraps) };
+      }
       let aceTurn = false;
+      const acted = performance.now();
+      const trading = action.type === 'trade' && action.cards.length > 0;
 
       if (action.type === 'trade' && action.cards.length > 0) {
         // Animate AI selection: lift cards, then fly to scraps
@@ -1267,19 +1321,34 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           // Same FLIP shape as the player's trade: measure the lifted
           // cards where they sit, commit, then animate the delta.
           const first = action.cards.map(c => ({ card: c, rect: rectOf(c.id) }));
+          // What she gives up to make room, once her pile is full: the
+          // same move you make, and drawn the same way, off the right
+          // edge ahead of the cards coming in. The old HARD never filled
+          // her pile, so this had never been needed.
+          const leaving = (action.discards || []).map(c => ({ card: c, rect: rectOf(c.id) }));
           const deckRect = deckAnchor();
           const drawCount = action.cards.reduce((sum, c) => sum + scrapValue(c), 0);
           const drawn = stateRef.current.deck.slice(0, drawCount);
           setAiSignaledIds(new Set());
           setAiMoveDone(phase);
-          dispatch({ type: 'AI_TRADE_APPLY', cards: action.cards });
+          setAiTradeTurn({ phase, at: acted });
+          const n = action.cards.length, d = leaving.length;
+          dispatch({ type: 'AI_TRADE_APPLY', cards: action.cards, discards: action.discards,
+            logMsg: `She scrapped ${n} card${n > 1 ? 's' : ''}${d ? ` and discarded ${d} from her Scraps` : ''}.` });
           const STEP = 90;
+          const out = discardAnchor() ? leaving.filter(f => f.rect).map((f, i) => ({
+            card: f.card, fromRect: f.rect, toRect: discardAnchor(i),
+            fromSize: szRef.current.pile, toSize: szRef.current.pile, fromScrap: true, toScrap: true,
+            arc: i % 2 ? 0.5 : -0.5, delay: i * 70,
+          })) : [];
+          const lead = out.length ? 160 : 0;
           const moves = first.filter(f => f.rect).map((f, i) => ({
             card: f.card, faceDown: true, fromRect: f.rect, toId: f.card.id,
             fromSize: szRef.current.oppHand, toSize: szRef.current.pile, toScrap: true,
             arc: first.length === 1 ? 0.35 : (i / (first.length - 1) - 0.5) * 1.2,
-            delay: i * STEP,
+            delay: lead + i * STEP,
           }));
+          moves.unshift(...out);
           // ONLY the scrapped cards fly. The replacement draws used
           // to fly face-down from the deck as well, so that the
           // opponent's intake stayed visible — but the motion system
@@ -1305,7 +1374,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           // committed, so nothing ever looked like it left. That was a
           // wrong fix for the vanishing-cards bug, whose real cause was
           // the ruffle stripping each card's fan transform.
-          const LAND = Math.max(0, first.length - 1) * STEP + 320;
+          const LAND = lead + Math.max(0, first.length - 1) * STEP + 320;
           if (deckRect && drawn.length) {
             drawn.forEach((card, i) => moves.push({
               card: null, faceDown: true, fromRect: deckRect, toId: card.id,
@@ -1331,9 +1400,10 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         dispatch({ type: 'AI_SKIP' });
       }
 
-      if (!aceTurn) T(() => {
+      // A scrap hands over from the effect below, once it has landed.
+      if (!aceTurn && !trading) T(() => {
         dispatch({ type: 'ADVANCE_FROM', phase });
-      }, 2100);
+      }, AI_TRADE_MIN);
     }, 800);
 
     return () => timers.forEach(clearTimeout);
@@ -1345,6 +1415,21 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     const b = endTurnRef.current && endTurnRef.current.querySelector('button');
     if (b) b.focus({ preventScroll: true });
   });
+
+  // Her scrap has landed: her turn hands over. See `aiTradeTurn`. Its own
+  // effect, NOT a timer inside the runner, because the runner's timers
+  // are torn down when `aiGo` changes and this one has to outlive that.
+  useEffect(() => {
+    if (!aiTradeTurn) return undefined;
+    if (phase !== aiTradeTurn.phase || gameOver) { setAiTradeTurn(null); return undefined; }
+    if (animating) return undefined;
+    const wait = Math.max(260, aiTradeTurn.at + AI_TRADE_MIN - performance.now());
+    const t = setTimeout(() => {
+      setAiTradeTurn(null);
+      dispatch({ type: 'ADVANCE_FROM', phase: aiTradeTurn.phase });
+    }, wait);
+    return () => clearTimeout(t);
+  }, [aiTradeTurn, phase, gameOver, animating]);
 
   // Her Ace exchange is over: a beat, then her turn hands over. See
   // `aiAceTurn`.
@@ -1369,8 +1454,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     T(() => {
       const s = stateRef.current;
       if (s.phase !== phase || s.gameOver) return;
-      const aiSig = aiChooseSignal(s.aiHand, null, difficulty, s.aiScore, s.playerScore);
-      const aiCards = getBestCardsForSignal(s.aiHand, aiSig) || [];
+      const { signal: aiSig, cards: aiCards } = aiSignal(s, null, difficulty);
       setAiSignaledIds(new Set(aiCards.map(c => c.id)));
       T(() => dispatch({ type: 'AI_FIRST_SIGNAL', signal: aiSig, cards: aiCards }), 1000);
     }, 700);
@@ -1394,8 +1478,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // Player signaled first — the AI responds after seeing it
       setTimeout(() => {
         const s = stateRef.current;
-        const aiSig = aiChooseSignal(s.aiHand, sig, difficulty, s.aiScore, s.playerScore);
-        const aiCards = getBestCardsForSignal(s.aiHand, aiSig) || [];
+        const { signal: aiSig, cards: aiCards } = aiSignal(s, sig, difficulty);
         setAiSignaledIds(new Set(aiCards.map(c => c.id)));
         // Keep aiSignaledIds set — cards stay toggled until reveal
         setTimeout(() => {
@@ -1411,12 +1494,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // then (stateRef), never the render the press happened in.
     const { playerPlayed, aiPlayed, phase, playerScore, aiScore, roundNum } = stateRef.current;
     if (!playerPlayed || !aiPlayed) return;
-    const pH = evaluateBestHand(playerPlayed);
-    const aH = evaluateBestHand(aiPlayed);
-    const res = pH && aH ? compareHands(pH, aH) : 0;
-    let winner = 'tie', pts = 0;
-    if (res > 0) { winner = 'player'; pts = 1; }
-    else if (res < 0) { winner = 'ai'; pts = 1; }
+    // One function names the winner for the table and the arena alike,
+    // and it is where UNFAIR's "she wins ties" lives (reducer.js).
+    const { winner, pts, pH, aH, tieBroken } = scoreSmallHand(playerPlayed, aiPlayed, stateRef.current.rules);
     const curPhase = phase;
     // The outcome cue is not played here any more. The reveal plays it
     // as the score rolls (RevealScene in interstitials.jsx), which is
@@ -1444,7 +1524,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       which: curPhase === 'reveal-1' ? 'hand1' : 'hand2',
       playerCards: [...playerPlayed], aiCards: [...aiPlayed],
       playerHandName: pH?.name || '', aiHandName: aH?.name || '',
-      winner, pts, endsIt,
+      winner, pts, endsIt, tieBroken,
       before: { p: playerScore, a: aiScore },
       // Hand 1's PLAY HAND 2 commits the score AND the second hand's
       // cards in one step — see dealSecondHand. Hand 2's continue still
@@ -1528,8 +1608,11 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
     // pile is a hand that loses to anything, and the other player takes
     // the 2 points. This used to bail out on a null and leave the game
     // stranded in `scraps-reveal` with no way forward.
-    const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins);
+    const out = scoreScrapsOutcome(playerScraps, aiScraps, roundWins, stateRef.current.rules);
     const { pPts, aPts, winner, cleanSweep, aiSweep, pB, aB } = out;
+    // Two equal piles under UNFAIR: the hand is hers, and the reveal says why.
+    const tieBroken = !!stateRef.current.rules.tiesToHer && winner === 'ai'
+      && scoreScrapsOutcome(playerScraps, aiScraps, roundWins).winner === 'tie';
     const pBestIds = new Set(getActiveHandCards(pB).map(c => c.id));
     const aBestIds = new Set(getActiveHandCards(aB).map(c => c.id));
     const endsIt = !!checkWin(playerScore + pPts, aiScore + aPts);
@@ -1543,7 +1626,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       // The Scraps hand is 2. A Clean Sweep's third point is the beat's
       // own tick, whichever side swept — the reveal reads `cleanSweep`
       // and `aiSweep` and adds it there.
-      winner, pts: winner === 'tie' ? 0 : 2, cleanSweep, aiSweep, endsIt,
+      winner, pts: winner === 'tie' ? 0 : 2, cleanSweep, aiSweep, endsIt, tieBroken,
       before: { p: playerScore, a: aiScore },
       // The Scraps reveal sweeps itself off the table and THEN hands
       // back. The score commits and the next round starts in the same
@@ -1833,7 +1916,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
   // every tap and read as a progress bar rather than a sentence.
   // Quiet while the Ace is in the air: the throw is the sentence.
   else if (strike) hint = '';
-  else if (aceMode) hint = "Select 2 cards from her Scraps to discard.";
+  else if (aceMode) hint = rules.herPick
+    ? "She chose the two cards your Ace removes."
+    : "Select 2 cards from her Scraps to discard.";
   // After she counters, while you still hold an Ace (Stan, 2026-09-18):
   // attack again or end the turn. No scrapping; the hand says so too.
   else if (counterStand && isPlayerTurn) hint = 'Attack with another Ace, or end your turn.';
@@ -2008,7 +2093,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
         position:'relative',zIndex:dimOn?31:undefined,
         animation: scrapsBuilding ? 'scrapTension 580ms linear forwards' : undefined}}>
         <HorizontalScrapsZone cards={aceMode?aiScraps.map(c=>({...c,eligibleForDiscard:true})):aiScraps}
-          label="Her Scraps" selectable={!!aceMode&&!strike}
+          label="Her Scraps" selectable={!!aceMode&&!strike&&!rules.herPick}
           selectedIds={aceTargetIds} onCardClick={toggleAceTarget}
           registerEl={registerCard} hiddenIds={allHiddenIds}
           isOpponent={true} glowZone={glowOppScraps}
@@ -2468,7 +2553,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
           it, so the brightest thing on screen is never a score. */}
       <div style={{position:'relative',flexShrink:0}}>
         <OpponentBar aiScore={aiScore}
-          difficultyLabel={(difficulty||'').toUpperCase()} compact={tight}/>
+          difficultyLabel={(DIFF[difficulty]||difficulty||'').toUpperCase()} compact={tight}/>
         {barDim}
       </div>
 
@@ -2682,7 +2767,7 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       {mustSkip&&!dealHold&&!revealData&&!showInterstitial&&!aiAceReveal&&!aiCounterNotice&&(
         <SkipTurnModal onOk={()=>dispatch({type:'PLAYER_SKIP'})}/>
       )}
-      {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} onDismiss={()=>setAceDrawnCard(null)}/>}
+      {aceDrawnCard&&<AceDrawnLightbox ace={aceDrawnCard} herPick={rules.herPick} onDismiss={()=>setAceDrawnCard(null)}/>}
     </div>
     {/* Outside the inert root, deliberately — see the comment on it.
         The sign reads the scores for its MATCH POINT line. */}
@@ -2691,6 +2776,9 @@ export function GameScreen({ difficulty, onExit, rig = null }) {
       onSignDone={onInterstitialDone}
       onContinue={stage.onContinue} onSwept={stage.onSwept}
       onNewGame={()=>onExit('difficulty')}
+      // Offered after any HARD or UNFAIR match once the mode is open.
+      onNewUnfair={unfair.open && (difficulty==='hard' || difficulty==='unfair') ? ()=>onExit('unfair') : null}
+      unfairJustUnlocked={unfair.justNow}
       difficulty={difficulty} winStats={winStats}/>}
     {flightsOverlay}
     {/* The Throw's press and its debris, over everything, flights included. */}

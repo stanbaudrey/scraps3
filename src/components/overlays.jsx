@@ -134,7 +134,7 @@ const CARD_PAD = 'clamp(18px,5vw,32px)';
 // separate animations would drift apart and break the pairing.
 // The only thing to press is OKAY, at the bottom.
 // ─────────────────────────────────────────────────────────────
-export function AceDrawnLightbox({ ace, onDismiss }) {
+export function AceDrawnLightbox({ ace, onDismiss, herPick = false }) {
   // A short screen (a landscape phone) cannot hold the illustration AND
   // the explanation. The Shell's FitBox would otherwise scale the whole
   // box to ~0.48 to make it fit, which drags the OK button down to 26px
@@ -177,10 +177,22 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           )}
           <div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
+          {/* "her", not "your opponent" (Stan, 2026-09-18). */}
           You can play your Ace like normal, or use it to{' '}
-          <strong style={{color:DS.frost}}>attack</strong> your opponent and
+          <strong style={{color:DS.frost}}>attack</strong> her and
           discard two cards from her Scraps.
         </p>
+        {/* TWO paragraphs, never three: a landscape phone has no room for
+            a third. Under UNFAIR the second one is the rule that mode
+            changes (Stan's copy, 2026-09-18); everywhere else it is the
+            counter, which anyone who has reached UNFAIR has already met
+            by beating HARD. */}
+        {herPick ? (
+        <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
+          On <strong style={{color:DS.gold}}>UNFAIR</strong> mode, she decides
+          which two cards your Ace attacks.
+        </p>
+        ) : (
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:roomy?18:15,lineHeight:1.5,marginBottom:10}}>
           {/* Stan's copy, 2026-09-16, with the verb set the way
               "attack" is in the sentence above. */}
@@ -188,6 +200,7 @@ export function AceDrawnLightbox({ ace, onDismiss }) {
           <strong style={{color:DS.frost}}>counter</strong> to cancel your
           attack. Both Aces get discarded.
         </p>
+        )}
           </div>
         </div>
 

@@ -44,7 +44,7 @@ const VIEWPORTS = [
   { name: 'laptop-720', width: 1280, height: 720,  touch: false },
   { name: 'desktop-hd', width: 1920, height: 1080, touch: false },
 ];
-const CASES = ['reveal', 'scraps', 'matchWin', 'matchLoss', 'sign', 'aceDrawn', 'aceCounter'];
+const CASES = ['reveal', 'scraps', 'matchWin', 'matchLoss', 'matchUnlock', 'tieBroken', 'sign', 'aceDrawn', 'aceDrawnUnfair', 'aceCounter'];
 
 // Infinite animations are excluded because they never finish — the Ace
 // card's `cardWiggle` would hang this forever — and they do not move a

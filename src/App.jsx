@@ -80,6 +80,10 @@ export default function App() {
   if(screen==='splash')      return <SplashScreen onStart={handlePlay}/>;
   if(screen==='walkthrough') return <Walkthrough onDone={finishWalkthrough} startAt={walkStart}/>;
   if(screen==='difficulty')  return <DifficultyPicker onChoose={startGame} onBack={backToRules}/>;
-  if(screen==='game')        return <GameScreen key={gameKey} difficulty={difficulty} onExit={()=>setScreen('difficulty')}/>;
+  // NEW GAME goes back to the picker, as it always has. NEW UNFAIR GAME
+  // (the win screen, once the mode is unlocked) is the one way a match
+  // starts without passing through it.
+  if(screen==='game')        return <GameScreen key={gameKey} difficulty={difficulty}
+    onExit={(to)=> to==='unfair' ? startGame('unfair') : setScreen('difficulty')}/>;
   return null;
 }

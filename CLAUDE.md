@@ -44,7 +44,10 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **75 tests** cover the engine, the reducer, the Ace
+- Vitest for tests. **105 tests** (75 until 2026-09-18, when the HARD
+  brain brought 19 of its own in `src/game/brain.test.js` and the reducer
+  gained 11 for UNFAIR's rules, her full-pile scrap and the deck refresh)
+  cover the engine, the reducer, the brain, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
   two for yours) and the ROUND sign against its beats
@@ -153,7 +156,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 75 tests, runs in under a second
+npm test          # vitest, 105 tests, runs in about a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -175,6 +178,19 @@ cannot drift. (The `<title>` is a literal in `index.html`, not read from
 `TAGLINE`; since 2026-09-18 it says "SCRAPS - Play poker with both
 hands." to match, by Stan's call, and a future tagline change has to
 move both by hand.)
+
+`tools/ai-arena.mjs` (2026-09-18) plays whole matches, bot against bot,
+through the REAL reducer with a seeded shuffle, and is how any change to
+her brain gets measured: `node tools/ai-arena.mjs` runs the standard card
+(about a minute at the default 400 matches a pairing), `node
+tools/ai-arena.mjs brain sharp` one pairing, `RULES=unfair` the tilted
+rules, and `brain:samples=64,hold=0` plays the brain with those numbers
+changed on that seat only, which is how each of its judgement constants
+was priced. Its policies are `brain`, `classic` (HARD as it was), `normal`
+and `sharp`, a scripted good player. **It measures bots against bots.**
+Stan's target for HARD is that a strong PERSON wins about half, and no
+number here can say whether that is met; only real win-loss records can.
+Not part of `npm test`.
 
 `tools/trim-measure.mjs` renders every cue in `src/audio.js` offline and
 prints the trim each one needs to hit its declared target. It is the method
@@ -270,7 +286,9 @@ Vite's only entry is `index.html`.
 node tools/overlay-targets.mjs   # needs the same dev server on 5193
 ```
 
-Its seven cases since 2026-09-14 are `reveal`, `scraps`, `matchWin`,
+(Ten since 2026-09-18: `matchUnlock`, the win that opens UNFAIR with its
+callout and third button, `tieBroken`, UNFAIR's TIE. SHE WINS verdict, and
+`aceDrawnUnfair` joined the measured set.) Its seven cases since 2026-09-14 are `reveal`, `scraps`, `matchWin`,
 `matchLoss` and `sign` (the real `TableStage`, mounted with `instant` so
 each scene sits on its resting frame; add `&live=1` to run the
 choreography instead) plus `aceDrawn` and `aceCounter`. The bench page
@@ -321,6 +339,21 @@ looks broken locally, it is not a missing-secret problem.
   52-card deck — see Session 2's balance fix in PROJECT-BRIEF.md), shuffling,
   hand evaluation, signal validation, trade legality, and the AI's
   decision-making. No React, no side effects.
+- **`src/game/brain.js`** (2026-09-18) — HARD's and UNFAIR's player. One
+  method for every decision: list every legal option, deal the cards she
+  cannot see at random a couple of hundred times in a way that agrees with
+  everything she has seen, keep the option that leaves her likeliest to win
+  the MATCH (`equity`, a coin-flip model of every hand still to come, which
+  is what makes her stop saving cards on 9). She counts cards within a
+  round. **She does not peek, and that is enforced:** every decision is made
+  from `viewFor(state, seat)`, which holds her cards, both piles, the
+  discard and COUNTS of the rest, and `brain.test.js` fails if any card id
+  outside the public set can be found inside a view. `TUNE` holds her
+  judgement constants; the header comment records what each measured. The
+  game calls three functions, `aiTurn`, `aiSignal` and `aiCounter`, which
+  hand NORMAL to the engine's old cautious player and everything else to
+  the brain. The engine's old `hard` branch is kept ONLY as the arena's
+  `classic` yardstick and nothing in the game reaches it.
 - **`src/game/reducer.js`** (~615 lines) — the state machine. One pure reducer
   owns all game state: cards, scores, signals, and the phase. Turn order is
   dealer-aware and the dealer alternates each round; the non-dealer acts
@@ -408,7 +441,12 @@ looks broken locally, it is not a missing-secret problem.
   under a different parent. Because state is already final, a click or
   Enter can drop every ghost at any moment and the board is correct.
 - **`src/game/stats.js`** — win/loss record and best margin per difficulty,
-  in `localStorage` under the key `scraps-stats-v1`. All access is
+  in `localStorage` under the key `scraps-stats-v1`, and since 2026-09-18
+  the UNFAIR unlock and its seen-once flag under `scraps-unlocks-v1`. The
+  privacy notice names both (it is generated: `PRIVACY` in
+  `tools/make-share-assets.mjs`, then `npm run share`). The picker shows
+  the record at 17 to 22px and no longer shows BEST +N; the margin is
+  still recorded. All access is
   try/caught, so private-browsing degrades to zeroed stats rather than
   crashing.
 - **`src/styles/theme.js`** — the JS design tokens (`DS` colors, `F` fonts,
@@ -419,6 +457,76 @@ looks broken locally, it is not a missing-secret problem.
   paint. Its comment calls itself the single source of truth for global CSS.
 
 ## Gotchas
+
+- **Three difficulties, and the IDs are not the labels.** NORMAL is ID
+  `easy` (renamed 2026-09-18; the ID stayed because it is the key every
+  saved win-loss record lives under, and renaming it would have wiped
+  them). HARD is `hard`. UNFAIR is `unfair`, unlocked by beating HARD and
+  kept open per browser by its OWN flag (`scraps-unlocks-v1` in
+  `stats.js`), not by "has a HARD win on record": HARD became a far
+  stronger player the day the mode was added, and Stan's call is that
+  only a win against that one counts. `DIFF` in `src/share.js` is the one
+  place an ID becomes a name. **The mode was REALLY REALLY HARD for about
+  an hour of its planning; the name is UNFAIR everywhere and the old one
+  should not come back.**
+- **UNFAIR is HARD's brain under four tilted rules, all stated to the
+  player, none hidden.** `UNFAIR_RULES` in `reducer.js`, set once into
+  `state.rules` when the match is created: `herAce` (she starts every
+  round holding an Ace: `buildRoundDeal` lifts out one of the four AT
+  RANDOM and seats it in her five, because lifting "the first Ace in the
+  deck" leaves the other three behind it and quietly starves your opening
+  hand too, a second hidden tilt, and a test measures that it does not),
+  `signalsSecond` (`nextPhaseAfterTrade` sends every hand to
+  `signal-player`; the scrap turns still alternate with the dealer),
+  `tiesToHer` (`scoreSmallHand` and `scoreScrapsOutcome`; the reveal's
+  verdict reads TIE. SHE WINS so two visibly equal hands explain
+  themselves) and `herPick` (ATTACK opens with HER two cards already
+  picked, `cheapestTwo`, and the pile cannot be clicked). The picker names
+  three of them; the fourth is told on the Ace alert, whose second
+  paragraph swaps from the counter rule to it under UNFAIR, because a
+  landscape phone has no room for a third.
+- **The discards go back under the deck when it runs low, and the old
+  HARD is why this never came up.** She scrapped four cards a round and a
+  round ended with fourteen in the deck. The brain scraps thirteen, as a
+  good player does, and two such players ran the deck DRY in 7% of arena
+  rounds: a scrap that draws nothing, a Hand 2 refill that deals nothing,
+  and a player at a signal with no cards, which is a dead end.
+  `deckNeedsRefresh` (under `DECK_LOW`, 12, more than any one action can
+  draw) is checked by an effect in `GameScreen` and after every action in
+  the arena; the caller shuffles the discards and `DECK_REFRESH` puts them
+  UNDER what is left, so a draw the table has already measured off the top
+  still gets those cards. It happens about once a round in the arena. It
+  is a rule the game did not have before; nothing on screen shows it but a
+  history line, because the table has no deck to show.
+- **Her turn hands over when her cards have LANDED, not on a timer.**
+  `aiTradeTurn` in `GameScreen`. The flat 2.1s was written for a one-card
+  scrap; five scrapped, five given up and eight drawn is still in the air
+  at 2.1s and "Your turn." arrived over it. Measured inside the page after
+  the fix: no frame with both a card in flight and "Your turn." showing,
+  and the hand-over about 300ms after the last card lands. Her discards,
+  which the old HARD never made, fly off the right edge ahead of the
+  scrap, as yours do.
+- **`AI_TRADE_APPLY` lets any card ALREADY in her pile be given up**, the
+  rule you are held to. It used to read the stored `eligibleForDiscard`
+  flag, which is only refreshed at the Hand 2 refill, so a big Hand 1
+  scrap could have left her holding more than seven. `action.discards` is
+  her own choice; with none, or a bad one, the oldest go.
+- **A kept card is a fresh card not drawn, so "save it for Hand 2" is
+  worth less than it sounds, and this was measured.** Hand 2 deals back up
+  to five. Over 40,000 deals a LOW pair carried into Hand 2 won it 45% of
+  the time against 50% for keeping nothing; a pair of Queens, 53%. What
+  makes a kept pair worth having is scrapping it, a made pair for the
+  2-point pile, so `chooseSignal`'s `carry` values a kept set at the
+  better of its two uses. In the arena the whole holding-back mechanism
+  measured inside the noise (52.4% against a 52.1% seat baseline). It
+  stays because Stan asked for it and it reads as good play: she plays
+  three Kings into your pair and keeps the fives. It is not where her
+  strength comes from; seeing three times as many cards is.
+- **The attack bench FORCES her moves since 2026-09-18.** Its cases relied
+  on the old HARD attacking at once and always countering. The brain
+  holds an Ace until late in the round and counters only for cards that
+  matter, so `rig.herAttacks` and `rig.sheCounters` override her for a
+  rigged game only. `&mode=unfair` runs a case under UNFAIR.
 
 - **A card is a rank and an id.** `createDeck()` builds 52 cards as four
   copies of thirteen ranks — the four-fold loop is the SAME loop that used

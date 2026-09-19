@@ -41,7 +41,11 @@ import { SITE, SITE_HOST } from "./site.js";
 // "Poker with both hands" until 2026-09-14 (Stan's revision).
 export const TAGLINE = 'Play poker with both hands';
 
-const DIFF = { easy: 'Easy', hard: 'Hard' };
+// What each difficulty is CALLED, wherever it is shown: the share
+// sentence and card here, the table's header, the match screen. The keys
+// are the IDs the records are saved under; `easy` has read NORMAL since
+// 2026-09-18.
+export const DIFF = { easy: 'Normal', hard: 'Hard', unfair: 'Unfair' };
 
 export function buildShareText({ won, p, a, difficulty }) {
   const d = DIFF[difficulty] || (difficulty ? difficulty[0].toUpperCase() + difficulty.slice(1) : '');

@@ -46,10 +46,14 @@ export function createDeck() {
   return deck;
 }
 
-export function shuffle(deck) {
+// `rng` is any function returning [0, 1). The game never passes one, so
+// every real deal is Math.random, exactly as before. tools/ai-arena.mjs
+// passes a seeded generator, which is what makes a bot-versus-bot match
+// replayable: the same seed deals the same cards to both sides.
+export function shuffle(deck, rng = Math.random) {
   const d = [...deck];
   for (let i = d.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [d[i], d[j]] = [d[j], d[i]];
   }
   return d;
@@ -630,7 +634,16 @@ export function aiDecide(aiHand, aiScraps, opponentScraps, deck, difficulty, pha
     return { type: 'trade', cards: [candidates.sort((a, b) => a.value - b.value)[0]] };
   }
 
-  // ── HARD ───────────────────────────────────────────────────
+  // ── HARD, AS IT WAS ────────────────────────────────────────
+  // THE GAME NO LONGER CALLS THIS BRANCH. Since 2026-09-18 HARD (and
+  // UNFAIR) are played by src/game/brain.js; the table reaches this file
+  // only for NORMAL, which is the `easy` branch above. This one is kept,
+  // untouched, as the yardstick: tools/ai-arena.mjs seats it as `classic`
+  // so "is she better than she was" stays a number. It lost 99.7% of
+  // 1,500 matches to the brain, for three reasons you can read below: it
+  // scraps exactly ONE card a turn, it never fills its pile, and
+  // aiChooseSignal (further down) compares how MANY cards you signalled
+  // rather than what they must be. Do not fix it; that is what it is for.
   if (difficulty === 'hard') {
     // Full strategic framework per design spec.
 

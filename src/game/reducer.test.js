@@ -7,8 +7,9 @@ import {
   gameReducer, createInitialState, buildRoundDeal,
   firstActorForRound, tradeOrder, nextPhaseAfterTrade,
   scoreScrapsOutcome, checkWin, planReplenish,
+  scoreSmallHand, rulesFor, FAIR_RULES, UNFAIR_RULES, deckNeedsRefresh, DECK_LOW,
 } from './reducer.js';
-import { scrapValue, RANK_VALUES, shouldCounterAce } from './engine.js';
+import { scrapValue, RANK_VALUES, shouldCounterAce, shuffle } from './engine.js';
 
 let nextId = 0;
 // Suits left the game on 2026-09-13. The array form `'9'` at
@@ -509,5 +510,137 @@ describe('PLAYER_END_TURN', () => {
   it('is ignored outside a player turn, so it cannot skip the AI', () => {
     const s = { ...freshRound(1), phase: 'ai-turn-1a' };
     expect(gameReducer(s, { type: 'PLAYER_END_TURN' })).toBe(s);
+  });
+});
+
+// ── UNFAIR: the one mode that tilts the table (2026-09-18) ───
+describe('UNFAIR rules', () => {
+  it('only UNFAIR is tilted; NORMAL and HARD play the same fair game', () => {
+    expect(rulesFor('easy')).toBe(FAIR_RULES);
+    expect(rulesFor('hard')).toBe(FAIR_RULES);
+    expect(rulesFor('unfair')).toBe(UNFAIR_RULES);
+    expect(Object.values(FAIR_RULES).some(Boolean)).toBe(false);
+    expect(Object.values(UNFAIR_RULES).every(Boolean)).toBe(true);
+    expect(createInitialState().rules).toBe(FAIR_RULES);
+  });
+
+  it('she starts every round holding an Ace, and the deck is still one of each card', () => {
+    for (let i = 0; i < 200; i++) {
+      const d = buildRoundDeal({ herAce: true });
+      expect(d.aiHand.some(x => x.rank === 'A')).toBe(true);
+      expect(d.aiHand).toHaveLength(5);
+      expect(d.playerHand).toHaveLength(5);
+      const all = [...d.deck, ...d.playerHand, ...d.aiHand, ...d.playerScraps, ...d.aiScraps];
+      expect(all).toHaveLength(52);
+      expect(new Set(all.map(x => x.id)).size).toBe(52);
+    }
+  });
+
+  it('lifting her Ace out does not quietly starve YOUR opening hand of Aces', () => {
+    // With one Ace planted, three are left among 51 cards, so your five
+    // should hold 5 x 3/51 = 0.294 Aces on average. Lifting "the first Ace
+    // in the deck" instead of a random one measured well under that.
+    let yours = 0;
+    const N = 6000;
+    for (let i = 0; i < N; i++) yours += buildRoundDeal({ herAce: true }).playerHand.filter(x => x.rank === 'A').length;
+    expect(yours / N).toBeGreaterThan(0.27);
+    expect(yours / N).toBeLessThan(0.32);
+  });
+
+  it('she always signals second, whoever dealt; the scrap turns still alternate', () => {
+    // round 2, a fair game: she acts first AND signals first
+    expect(nextPhaseAfterTrade('player-turn-1b', 2)).toBe('signal-ai');
+    // UNFAIR: you signal first in every round
+    expect(nextPhaseAfterTrade('player-turn-1b', 2, UNFAIR_RULES)).toBe('signal-player');
+    expect(nextPhaseAfterTrade('player-turn-2b', 2, UNFAIR_RULES)).toBe('signal-player-2');
+    expect(nextPhaseAfterTrade('ai-turn-1b', 1, UNFAIR_RULES)).toBe('signal-player');
+    // the order of the scrap turns is untouched
+    expect(nextPhaseAfterTrade('ai-turn-1a', 2, UNFAIR_RULES)).toBe('player-turn-1a');
+  });
+
+  it('a tied private hand is hers, and says it was a tie', () => {
+    const fair = scoreSmallHand(cards('9', '9'), cards('9', '9'));
+    expect(fair.winner).toBe('tie');
+    expect(fair.pts).toBe(0);
+    const tilted = scoreSmallHand(cards('9', '9'), cards('9', '9'), UNFAIR_RULES);
+    expect(tilted.winner).toBe('ai');
+    expect(tilted.pts).toBe(1);
+    expect(tilted.tieBroken).toBe(true);
+    // a hand she simply wins is not a broken tie, and your wins stay yours
+    expect(scoreSmallHand(cards('9', '9'), cards('K', 'K'), UNFAIR_RULES).tieBroken).toBe(false);
+    expect(scoreSmallHand(cards('K', 'K'), cards('9', '9'), UNFAIR_RULES).winner).toBe('player');
+  });
+
+  it('a tied Scraps hand is hers too, sweep bonus included', () => {
+    const p = cards('7', '7', '2'), a = cards('7', '7', '2');
+    expect(scoreScrapsOutcome(p, a, { player: 0, ai: 0 }).winner).toBe('tie');
+    const out = scoreScrapsOutcome(p, a, { player: 0, ai: 2 }, UNFAIR_RULES);
+    expect(out.winner).toBe('ai');
+    expect(out.aPts).toBe(3);
+    expect(out.aiSweep).toBe(true);
+  });
+});
+
+// ── Her scrap, now that she fills her pile ───────────────────
+describe('AI_TRADE_APPLY with a full pile', () => {
+  const full = () => {
+    const s = { ...freshRound(2) };
+    const extra = s.deck.slice(0, 5).map(x => ({ ...x, turnAdded: 1, eligibleForDiscard: false }));
+    return { ...s, aiScraps: [...s.aiScraps, ...extra], deck: s.deck.slice(5) };
+  };
+
+  it('gives up exactly the cards she names', () => {
+    const s = full();
+    expect(s.aiScraps).toHaveLength(7);
+    const give = [s.aiScraps[3], s.aiScraps[6]];
+    const out = gameReducer(s, { type: 'AI_TRADE_APPLY', cards: s.aiHand.slice(0, 2), discards: give });
+    expect(out.aiScraps).toHaveLength(7);
+    for (const g of give) {
+      expect(out.aiScraps.some(x => x.id === g.id)).toBe(false);
+      expect(out.discard.some(x => x.id === g.id)).toBe(true);
+    }
+  });
+
+  it('never ends over seven, even in Hand 1 and even with no discards named', () => {
+    // It could, before: only cards flagged at the Hand 2 refill were
+    // allowed to go, and in Hand 1 that was just the two she was dealt.
+    const s = full();
+    const out = gameReducer(s, { type: 'AI_TRADE_APPLY', cards: s.aiHand.slice(0, 3) });
+    expect(out.aiScraps).toHaveLength(7);
+    const bad = gameReducer(s, { type: 'AI_TRADE_APPLY', cards: s.aiHand.slice(0, 3), discards: s.playerScraps });
+    expect(bad.aiScraps).toHaveLength(7);
+  });
+});
+
+// ── The deck running low ─────────────────────────────────────
+describe('DECK_REFRESH', () => {
+  const low = () => {
+    const s = freshRound(1);
+    const keep = DECK_LOW - 2;
+    return { ...s, deck: s.deck.slice(0, keep), discard: s.deck.slice(keep) };
+  };
+
+  it('is asked for only when the deck is low and there is something to return', () => {
+    expect(deckNeedsRefresh(freshRound(1))).toBe(false);
+    expect(deckNeedsRefresh(low())).toBe(true);
+    expect(deckNeedsRefresh({ ...low(), discard: [] })).toBe(false);
+  });
+
+  it('puts the discards UNDER the deck, so the cards about to be drawn do not change', () => {
+    const s = low();
+    const top = s.deck.map(x => x.id);
+    const out = gameReducer(s, { type: 'DECK_REFRESH', cards: shuffle(s.discard) });
+    expect(out.deck.slice(0, top.length).map(x => x.id)).toEqual(top);
+    expect(out.deck).toHaveLength(top.length + s.discard.length);
+    expect(out.discard).toHaveLength(0);
+    expect(deckNeedsRefresh(out)).toBe(false);
+  });
+
+  it('refuses anything that is not exactly the discard pile, and a second run does nothing', () => {
+    const s = low();
+    expect(gameReducer(s, { type: 'DECK_REFRESH', cards: s.playerHand })).toBe(s);
+    expect(gameReducer(s, { type: 'DECK_REFRESH', cards: s.discard.slice(1) })).toBe(s);
+    const once = gameReducer(s, { type: 'DECK_REFRESH', cards: shuffle(s.discard) });
+    expect(gameReducer(once, { type: 'DECK_REFRESH', cards: shuffle(s.discard) })).toBe(once);
   });
 });

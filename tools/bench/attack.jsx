@@ -21,6 +21,17 @@
 //             on her first turn and you can counter it (2026-09-17)
 //   her2      as her, with a second Ace in her hand: after your counter she
 //             comes straight back with it, and you have none left
+//
+// &mode=unfair plays the same case under UNFAIR's rules, where SHE picks
+// the two cards your Ace removes (2026-09-18).
+//
+// WHAT SHE DOES HERE IS FORCED, since 2026-09-18. The cases used to rely
+// on the old HARD's habits (attack at once, always counter). The brain
+// that replaced it holds an Ace until late in the round and counters only
+// when the two named cards are worth it, which is right at the table and
+// no use to a bench that must show the animation on demand. So the rig
+// carries `herAttacks` and `sheCounters`, which GameScreen honours for a
+// rigged game only.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createDeck } from '../../src/game/engine.js';
@@ -41,18 +52,19 @@ function rigFor(name) {
     const aiHand = [take('A'), name === 'her2' ? take('A') : take('3'), take('6'), take('8'), take('J')];
     const aiScraps = scraps([take('2'), take('5')]);
     const playerScraps = scraps([take('K'), take('K'), take('K'), take('9'), take('9')]);
-    return { deal: () => ({ deck: pool.slice(), playerHand, aiHand, playerScraps, aiScraps }) };
+    return { herAttacks: true, deal: () => ({ deck: pool.slice(), playerHand, aiHand, playerScraps, aiScraps }) };
   }
   const counter = name !== 'lands';
   const playerHand = [take('A'), take('4'), take('7'), take('10'), name === 'counter2' ? take('A') : take('Q')];
   const aiHand = [counter ? take('A') : take('3'), take('6'), take('8'), take('J'), take('5')];
   const aiScraps = scraps(counter ? [take('K'), take('K'), take('9'), take('9')] : [take('4'), take('9'), take('K')]);
   const playerScraps = scraps([take('2'), take('Q')]);
-  return { deal: () => ({ deck: pool.slice(), playerHand, aiHand, playerScraps, aiScraps }) };
+  return { sheCounters: counter, deal: () => ({ deck: pool.slice(), playerHand, aiHand, playerScraps, aiScraps }) };
 }
 
 const rig = rigFor(which);
+const mode = params.get('mode') === 'unfair' ? 'unfair' : 'hard';
 window.__benchCase = which;
 createRoot(document.getElementById('root')).render(
-  <GameScreen difficulty="hard" rig={rig} onExit={() => {}}/>
+  <GameScreen difficulty={mode} rig={rig} onExit={() => {}}/>
 );

@@ -7,11 +7,12 @@
 // and the ? button on the table keeps the full text one tap
 // away for anyone who wants it mid-game.
 // ============================================================
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DS, F } from "../styles/theme.js";
 import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
-import { loadStats } from "../game/stats.js";
+import { loadStats, loadUnlocks, markUnfairSeen } from "../game/stats.js";
+import { playSlap } from "../audio.js";
 import { TAGLINE } from "../share.js";
 import { RAIL_BOTTOM, railBtnStyle } from "./Walkthrough.jsx";
 
@@ -96,13 +97,49 @@ export function SplashScreen({ onStart }) {
 // ─────────────────────────────────────────────────────────────
 const ARM_MS = 720;
 
+// UNFAIR's FIRST APPEARANCE (Stan, 2026-09-18: "animate it after a small
+// delay on the picker screen. give it a special umph"). The first time
+// the picker is shown after the mode is unlocked, the two usual panels
+// deal in and arm as they always do, there is a held beat, and then the
+// third panel LANDS: the same fall to a dead stop a winning card makes on
+// a reveal (slapDown's shape, the `slap` thud on the frame it stops), a
+// ring of its own colour off the impact, and the word landing pale and
+// large and settling into its gold. Solid type throughout: a band of
+// light swept through the word was tried first, and it is gradient text,
+// which the lookbook bans (index.html says why). Nothing filed there fit
+// better than the game's own slap-down. Every later visit it deals in with the
+// others, third in line. Its room is reserved from the first frame either
+// way, so the two panels above it never move when it arrives.
+//
+// Reduced motion: no fall, no ring, no sweep and no thud on a timer. The
+// panel is simply there with the others (the blanket rule in index.html
+// lands every entrance on its resting frame), and it is still marked seen.
+const UNLOCK_BEAT = 1500;      // after mount: the others have dealt and armed
+const UNLOCK_FALL = 420;       // the fall itself; the thud sits on its end
+
 export function DifficultyPicker({ onChoose, onBack = null }) {
   const stats = loadStats();
+  // Read once per visit: the entrance must not switch itself off halfway
+  // through because it has just been marked seen.
+  const unlocks = useRef(null);
+  if (!unlocks.current) unlocks.current = { ...loadUnlocks() };
+  const unfairOpen = unlocks.current.unfair;
+  const debut = unfairOpen && !unlocks.current.unfairSeen;
   const [armed, setArmed] = useState(false);
+  // The debut panel arms when it lands, not with the other two.
+  const [landed, setLanded] = useState(!debut);
   useEffect(() => {
     const t = setTimeout(() => setArmed(true), ARM_MS);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => {
+    if (!debut) return undefined;
+    markUnfairSeen();
+    const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) { setLanded(true); return undefined; }
+    const t = setTimeout(() => { playSlap(); setLanded(true); }, UNLOCK_BEAT + UNLOCK_FALL);
+    return () => clearTimeout(t);
+  }, [debut]);
 
   // Ember on HARD, not a second fern box. Ember is the committed
   // opponent/danger colour everywhere else in the game, and this is the
@@ -113,11 +150,21 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
   // came out as "win a 2-" over "pointer." A nowrap span rather than a
   // non-breaking hyphen character, which Work Sans may not carry.
   const keep = (s) => <span style={{whiteSpace:'nowrap'}}>{s}</span>;
+  // EASY became NORMAL on 2026-09-18 (Stan), when HARD became a far
+  // stronger player and UNFAIR arrived above it. The ID is still `easy`:
+  // it is the key the win-loss record is saved under, and renaming it
+  // would have wiped every record in every browser.
   const opts = [
-    { id:'easy', label:'EASY', tone:DS.voltage,
+    { id:'easy', label:'NORMAL', tone:DS.voltage,
       desc:'Doesn’t take risks. Rarely attacks. Not too bright.' },
     { id:'hard', label:'HARD', tone:DS.ember,
       desc:<>Bold. Sacrifices a {keep('1-pt')} hand to win a {keep('2-pointer.')}</> },
+    // Gold, the milestone colour: this one is earned, and it is the only
+    // panel that is. Its three sentences are the whole of what the mode
+    // changes that you can plan around (her picking what your Ace removes
+    // is told at the moment it matters, on the Ace alert).
+    ...(unfairOpen ? [{ id:'unfair', label:'UNFAIR', tone:DS.gold, debut,
+      desc:'Starts with an Ace. Wins ties. Signals second.' }] : []),
   ];
 
   return (
@@ -142,6 +189,7 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
         display:'flex',flexDirection:'column',gap:'clamp(12px,3vh,22px)'}}>
         {opts.map((o, i) => {
           const rec = stats[o.id];
+          const live = o.debut ? armed && landed : armed;
           return (
             // A real <button>, not a div with an onClick: this is the
             // last decision before a game starts and it was unreachable
@@ -149,18 +197,26 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
             // arm lock semantically, which pointer-events never could —
             // assistive tech now knows the control is not yet live.
             <button key={o.id} type="button"
-              className={`pick-box${armed ? ' armed' : ''}`}
-              disabled={!armed}
-              onClick={armed ? () => onChoose(o.id) : undefined}
-              style={{animationDelay:`${i * 150}ms`, '--accent':o.tone,
-                padding:'clamp(14px,3.2vh,26px) clamp(18px,4vw,30px)'}}>
+              className={`pick-box${live ? ' armed' : ''}${o.debut ? ' pick-debut' : ''}`}
+              disabled={!live}
+              onClick={live ? () => onChoose(o.id) : undefined}
+              style={{animationDelay: o.debut ? `${UNLOCK_BEAT}ms` : `${i * 150}ms`,
+                animationDuration: o.debut ? `${UNLOCK_FALL}ms` : undefined,
+                '--accent':o.tone, '--debut-at':`${UNLOCK_BEAT + UNLOCK_FALL}ms`,
+                padding:'clamp(12px,min(3.2vh,2.6vw + 8px),26px) clamp(18px,4vw,30px)'}}>
               <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
-                <span style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
+                <span className={o.debut ? 'pick-debut-word' : undefined}
+                  style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
                   color:o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
+                {/* The record. 13px slate until 2026-09-18, which Stan could
+                    not read, and his Mac's scaled resolution draws a CSS
+                    pixel LARGER than most screens do, so it was smaller
+                    still for everyone else. BEST +N went the same day: the
+                    margin is still recorded (stats.js), nothing shows it. */}
                 {rec && (rec.w > 0 || rec.l > 0) && (
-                  <span style={{fontFamily:F.mono,color:DS.slate,fontSize:13,letterSpacing:'0.1em',
-                    whiteSpace:'nowrap'}}>
-                    {rec.w}W · {rec.l}L{rec.bestMargin > 0 ? ` · BEST +${rec.bestMargin}` : ''}
+                  <span style={{fontFamily:F.mono,color:DS.slateLight,fontWeight:500,
+                    fontSize:'clamp(17px,min(3.4vw,3vh),22px)',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>
+                    {rec.w}W · {rec.l}L
                   </span>
                 )}
               </span>
@@ -170,6 +226,17 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
             </button>
           );
         })}
+        {/* What the third panel's room is for, until it is earned. Quiet on
+            purpose: it is a note, not a third option, and it cannot be
+            pressed. It comes in with the panels, after them. */}
+        {!unfairOpen && (
+          <p className="pick-note" style={{margin:0,textAlign:'center',fontFamily:F.ui,fontWeight:500,
+            color:DS.slateLight,fontSize:'clamp(15px,min(3.8vw,2.4vh),19px)',lineHeight:1.35,
+            animationDelay:'420ms'}}>
+            Beat <span style={{color:DS.ember,fontWeight:700,letterSpacing:'0.04em'}}>HARD</span> to
+            unlock <span style={{color:DS.gold,fontWeight:700,letterSpacing:'0.04em'}}>UNFAIR</span>.
+          </p>
+        )}
       </div>
       {/* Quieter than the two panels by design: it is the way out of
           a decision, not a third option to weigh. Ghost outline in

@@ -194,7 +194,7 @@ function SlideBox({ children, style = {}, instant = false }) {
 //                                              can follow them
 // ─────────────────────────────────────────────────────────────
 export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, onContinue, onSwept, onNewGame,
-  difficulty, winStats, instant = false }) {
+  onNewUnfair = null, unfairJustUnlocked = false, difficulty, winStats, instant = false }) {
   const rootRef = useRef(null);
   const R = useMemo(prefersReducedMotion, []);
   const dialogRef = useDialogFocus(true);
@@ -261,7 +261,8 @@ export function TableStage({ stage, cardH, tableAnchorRef = null, onSignDone, on
         ? <RoundSign key={`sign-${stage.roundNum}`} roundNum={stage.roundNum} matchPoint={signMP}
             onDone={onSignDone} R={R} instant={instant}/>
         : <RevealScene key={stage.key} {...sceneProps(stage)} onContinue={onContinue} onSwept={onSwept}
-            onNewGame={onNewGame} difficulty={difficulty} winStats={winStats}
+            onNewGame={onNewGame} onNewUnfair={onNewUnfair} unfairJustUnlocked={unfairJustUnlocked}
+            difficulty={difficulty} winStats={winStats}
             shake={shake} R={R} instant={instant}/>}
     </div>
   );
@@ -777,7 +778,8 @@ const idx = (s) => STEPS.indexOf(s);
 
 function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   playerBestIds = null, aiBestIds = null, winner, pts, cleanSweep = false, aiSweep = false,
-  endsIt = false, before, onContinue, onSwept, onNewGame, difficulty, winStats, shake, R, instant }) {
+  endsIt = false, tieBroken = false, before, onContinue, onSwept, onNewGame, onNewUnfair = null,
+  unfairJustUnlocked = false, difficulty, winStats, shake, R, instant }) {
 
   const { w } = useViewport();
   const verb = usePointerVerb();
@@ -1138,7 +1140,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // `stage-fade` is the reduced-motion fade-on; it comes OFF while
   // sweeping, or the substitute would fade a leaving line back in.
   const fadeCls = sweeping ? undefined : 'stage-fade';
-  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : 'SHE WINS';
+  // UNFAIR gives her every tied hand. The two hands on the table are
+  // visibly equal, so the verdict says both halves: it was a tie, and
+  // that is why it is hers.
+  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : tieBroken ? 'TIE. SHE WINS' : 'SHE WINS';
   const verdictColor = tie ? DS.slate : mineWon ? DS.voltage : DS.ember;
   const title = which === 'hand1' ? 'Hand 1' : which === 'hand2' ? 'Hand 2' : 'Scraps';
 
@@ -1216,10 +1221,13 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
     // a phone — rather than wherever the centred column ends.
     const btnDelay = won ? 340 : 0;
     const scoreDelay = won ? 120 : 300;
+    // Three buttons wrap onto a second row on a phone, and the column
+    // above has to stay clear of both rows.
+    const twoRows = !!onNewUnfair && narrow;
     return (
       <div ref={rootRef} onClick={() => onTap()}
         style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
-          padding:'14px 14px clamp(84px,14vh,120px)',cursor:'default'}}>
+          padding:`14px 14px ${twoRows ? 'clamp(152px,24vh,190px)' : 'clamp(84px,14vh,120px)'}`,cursor:'default'}}>
         <FitBox modeMinW={300}>
           <div style={{flex:'1 0 auto',display:'flex',flexDirection:'column',alignItems:'center',
             justifyContent:'center',gap:'clamp(12px,2.6vh,22px)'}}>
@@ -1263,6 +1271,16 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
                   call, 2026-09-17, as the NEW BEST MARGIN pill beside it
                   had on 2026-09-14. stats.js still records the best
                   margin; nothing on this screen shows it. */}
+              {/* The one win that opens UNFAIR says so, once (Stan,
+                  2026-09-18). Gold, because this IS a milestone. It rides
+                  the score block's own entrance, so it needs no animation
+                  of its own and nothing to switch off under reduced motion. */}
+              {unfairJustUnlocked && (
+                <div style={{marginTop:'clamp(10px,2vh,18px)',textAlign:'center',fontFamily:F.display,
+                  fontSize:'clamp(18px,3.2vw,28px)',letterSpacing:'0.12em',color:DS.gold,textShadow:DROP}}>
+                  UNFAIR MODE UNLOCKED
+                </div>
+              )}
             </div>
           </div>
         </FitBox>
@@ -1276,12 +1294,22 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
               game is voltage now, SHARE included, and NEW GAME lost its
               gold on the win for the same rule. */}
           <Btn onClick={onNewGame}>New Game</Btn>
+          {/* Beside NEW GAME where there is room (Stan, 2026-09-18). On a
+              phone the three will not share a row, and left to wrap they
+              took THREE; so there it goes last, on a row of its own under
+              NEW GAME and SHARE, and the screen stays at two. */}
+          {onNewUnfair && (
+            <span style={{display:'flex',order: narrow ? 3 : 0, flexBasis: narrow ? '100%' : 'auto',justifyContent:'center'}}>
+              <Btn onClick={onNewUnfair}>New Unfair Game</Btn>
+            </span>
+          )}
           <Btn onClick={doShare} disabled={shareState === 'busy'}>
             {shareState === 'copied' ? 'Copied' : shareState === 'failed' ? "Couldn't share" : 'Share'}
           </Btn>
         </div>
         <div className="sr-only" role="status" aria-live="polite">
           {showFinal ? `${won ? 'You win' : 'She wins'}. Final score: you ${bonus.p}, her ${bonus.a}.` : ''}
+          {showFinal && unfairJustUnlocked ? ' Unfair mode unlocked.' : ''}
           {shareState === 'copied' ? ' Copied to the clipboard.' : ''}
           {shareState === 'failed' ? " Couldn't share from here." : ''}
         </div>
@@ -1388,7 +1416,7 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
           </SlideBox>
 
           <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : `she wins with ${aiHandName}`}.` : ''}
+            {showVerdict ? `${title}: ${tie ? 'tie' : mineWon ? `you win with ${playerHandName}` : tieBroken ? 'a tie, and she wins ties' : `she wins with ${aiHandName}`}.` : ''}
             {ticked ? ` Score: you ${sp.to}, her ${sa.to}.` : ''}
             {beatOn ? ' Clean sweep: all three hands, plus one bonus point.' : ''}
           </div>
