@@ -197,7 +197,10 @@ browser walk done that night stopped one click short of signalling.
 Broken on purpose (her reply made never to come), it reports `STALLED for
 25s on: "... Signal locked. Waiting for her..."`, the freeze he saw, word
 for word. The responsive walk takes ONE turn and the arena never opens a
-browser; neither is a substitute.
+browser; neither is a substitute. To play the BUILT bundle rather than the
+dev server, which is what a preview actually serves: `npm run build`, start
+the `scraps3-built` launch entry (`vite preview` on 5195), then `PORT=5195
+node tools/play-through.mjs`.
 
 `tools/ai-arena.mjs` (2026-09-18) plays whole matches, bot against bot,
 through the REAL reducer with a seeded shuffle, and is how any change to

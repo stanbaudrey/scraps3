@@ -4,14 +4,40 @@
     {
       "name": "scraps3-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5193", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5193",
+        "--strictPort"
+      ],
       "port": 5193
     },
     {
       "name": "scraps3-dev-alt",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5194", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5194",
+        "--strictPort"
+      ],
       "port": 5194
+    },
+    {
+      "name": "scraps3-built",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "5195",
+        "--strictPort"
+      ],
+      "port": 5195
     }
   ]
 }
