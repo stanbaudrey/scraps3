@@ -5992,7 +5992,7 @@ A /preview and /wrap after the pop. The preview needed nothing new: `dev` matche
 
 ### Unplanned session — His three notes off the UNFAIR preview ✅ Done, on the preview, NOT published (2026-09-18, late night)
 
-**Unplanned: his reply to the preview above, three asks, all built.**
+**Unplanned: his reply to the preview above, three asks, all built.** On `dev` at `37496e1`; the preview (`scraps3-p4mvh6ebz`, and the dev alias) serves `index-6JjM5lxw.js`, the content hash of the tested local build, read from the preview's own HTML through the Vercel connector. Notion has the entry and two decision rows.
 
 **The tie headline is SHE WINS TIES.** It read TIE. SHE WINS. His version states the rule where mine stated the result. One line at 320, 375 and 1024 wide, measured; the screen-reader sentence unchanged ("a tie, and she wins ties").
 
