@@ -5,6 +5,7 @@
 //   node tools/play-through.mjs                 a whole match each of NORMAL, HARD, UNFAIR
 //   MODES=unfair ROUNDS=2 node tools/play-through.mjs   stop after two rounds
 //   PORT=5194 node tools/play-through.mjs       when 5193 is held (see CLAUDE.md)
+//   BASE=https://scraps.games MODES=hard ROUNDS=1 ...   smoke-test the live site
 //   HEADED=1 ...                                watch it
 //
 // WHY IT EXISTS. On 2026-09-18 the new HARD froze at the first signal, on
@@ -44,6 +45,10 @@ async function loadPlaywright() {
 }
 
 const PORT = process.env.PORT || 5193;
+// BASE=https://scraps.games plays the LIVE site (a smoke test after a
+// publish). UNFAIR cannot be reached that way: the link that opens it is
+// ignored on the live domain, on purpose, so use MODES=normal,hard there.
+const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const ROUNDS = Number(process.env.ROUNDS || 99);   // 99: play the match out
 const MODES = (process.env.MODES || 'normal,hard,unfair').split(',');
 const STALL_MS = 25000;
@@ -63,7 +68,7 @@ for (const mode of MODES) {
   page.on('pageerror', e => errors.push(`pageerror: ${String(e).split('\n')[0]}`));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(`console: ${m.text().slice(0, 200)}`); });
 
-  await page.goto(`http://localhost:${PORT}/?unfair=${mode === 'unfair' ? 'open' : 'locked'}`);
+  await page.goto(`${BASE}/?unfair=${mode === 'unfair' ? 'open' : 'locked'}`);
   await page.getByRole('button', { name: /^play$/i }).click();
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: LABEL[mode] }).click();

@@ -200,7 +200,9 @@ for word. The responsive walk takes ONE turn and the arena never opens a
 browser; neither is a substitute. To play the BUILT bundle rather than the
 dev server, which is what a preview actually serves: `npm run build`, start
 the `scraps3-built` launch entry (`vite preview` on 5195), then `PORT=5195
-node tools/play-through.mjs`.
+node tools/play-through.mjs`. After a publish, `BASE=https://scraps.games
+MODES=hard ROUNDS=1` smoke-tests the live site (UNFAIR cannot be reached
+that way: the link that opens it is ignored on the live domain).
 
 `tools/ai-arena.mjs` (2026-09-18) plays whole matches, bot against bot,
 through the REAL reducer with a seeded shuffle, and is how any change to
@@ -544,7 +546,12 @@ looks broken locally, it is not a missing-secret problem.
   picked, `cheapestTwo`, and the pile cannot be clicked). The picker names
   three of them; the fourth is told on the Ace alert, whose second
   paragraph swaps from the counter rule to it under UNFAIR, because a
-  landscape phone has no room for a third.
+  landscape phone has no room for a third. Her own attack alerts are the
+  same in every mode (UNFAIR changes what YOUR Ace does, not hers), and
+  the counter prompt's headline is sentence case since 2026-09-19: "She
+  plays an Ace." and "She had another Ace." There are TWO buttons named
+  LET IT HAPPEN while that prompt is up, the modal's and the narrator
+  band's behind it; a script has to take the one inside the dialog.
 - **On the picker UNFAIR is a sheet of HER paper, not a third box**
   (Stan, 2026-09-18: "a unique visual treatment"). NORMAL and HARD are the
   interface talking; UNFAIR is her: a strip of `stockKraft`, torn, stained
@@ -1178,6 +1185,14 @@ looks broken locally, it is not a missing-secret problem.
   before the first click is the browser, not a bug.
 
 ## Deploy
+
+**This repository is PUBLIC and `index.html` ships its comments verbatim
+(the minifier strips JS comments, never HTML or CSS ones in that file).**
+Write a design note there about the GAME, never about Stan: his devices,
+his display or accessibility settings, his eyesight. On 2026-09-19 the
+publish gate caught exactly that in a CSS comment, one merge from the live
+site. The same goes for this file and the brief, which anyone can read on
+GitHub; say `prefers-contrast: more`, not whose phone has it on.
 
 Connected to the Vercel project **scraps3** (team
 `samvaudrey-3466s-projects`), framework preset Vite, output `dist`. GitHub
