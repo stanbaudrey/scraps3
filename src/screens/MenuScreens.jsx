@@ -244,13 +244,16 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
   // it is the key the win-loss record is saved under, and renaming it
   // would have wiped every record in every browser.
   const opts = [
+    // All three lines are Stan's, 2026-09-19. NORMAL lost "Rarely attacks."
     { id:'easy', label:'NORMAL', tone:DS.voltage,
-      desc:'Doesn’t take risks. Rarely attacks. Not too bright.' },
+      desc:'Doesn’t take risks. Not too bright.' },
     // Stan's copy, 2026-09-18, for the new HARD. It was "Bold. Sacrifices
     // a 1-pt hand to win a 2-pointer.", written for the player she
     // replaced, with a nowrap helper to stop a phone breaking "2-" from
     // "pointer"; three words need no helper and it went with the line.
-    { id:'hard', label:'HARD', tone:DS.ember, desc:'Strategic. Bold. Mean.' },
+    // (It read "Strategic. Bold. Mean." for a day. His note spelled the first
+    // word "Stategic", which was taken as a slip and set as Strategic.)
+    { id:'hard', label:'HARD', tone:DS.ember, desc:'Strategic. Thoughtful. Mean.' },
     // The earned one, and her own paper rather than a panel (see
     // tornStrip above). Gold, the milestone colour, is only its GLOW: the
     // light under it when it lands and when it is picked up. Its three
@@ -258,7 +261,7 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
     // around (her picking what your Ace removes is told at the moment it
     // matters, on the Ace alert).
     ...(unfairOpen ? [{ id:'unfair', label:'UNFAIR', tone:DS.gold, debut, paper:true,
-      desc:'Starts with an Ace. Wins ties. Signals second.' }] : []),
+      desc:'Starts with an Ace. Signals second. Wins ties.' }] : []),
   ];
   // The sheet's stains, crease and grime, from the generator every Scraps
   // card uses. The seed is fixed, so it is the same sheet every visit.
