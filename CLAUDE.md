@@ -590,8 +590,9 @@ looks broken locally, it is not a missing-secret problem.
   the arena; the caller shuffles the discards and `DECK_REFRESH` puts them
   UNDER what is left, so a draw the table has already measured off the top
   still gets those cards. It happens about once a round in the arena. It
-  is a rule the game did not have before; nothing on screen shows it but a
-  history line, because the table has no deck to show.
+  is a rule the game did not have before, and **Stan confirmed it on
+  2026-09-19**, so it is settled; nothing on screen shows it but a history
+  line, because the table has no deck to show.
 - **Her turn hands over when her cards have LANDED, not on a timer.**
   `aiTradeTurn` in `GameScreen`. The flat 2.1s was written for a one-card
   scrap; five scrapped, five given up and eight drawn is still in the air
