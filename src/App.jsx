@@ -14,6 +14,11 @@ import { SplashScreen, DifficultyPicker } from "./screens/MenuScreens.jsx";
 import { Walkthrough, LAST_BEAT } from "./screens/Walkthrough.jsx";
 import { GameScreen } from "./screens/GameScreen.jsx";
 import { playHandWon } from "./audio.js";
+import { applyPreviewUnlock } from "./game/stats.js";
+
+// A preview link can ask to open with UNFAIR already unlocked
+// (?unfair=unlocked). Ignored on scraps.games. See stats.js.
+applyPreviewUnlock();
 
 // "Session" is the browser tab: sessionStorage clears when it
 // closes, so a returning player next week gets the storyboard

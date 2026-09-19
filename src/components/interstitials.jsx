@@ -1141,9 +1141,10 @@ function RevealScene({ which, playerCards, aiCards, playerHandName, aiHandName,
   // sweeping, or the substitute would fade a leaving line back in.
   const fadeCls = sweeping ? undefined : 'stage-fade';
   // UNFAIR gives her every tied hand. The two hands on the table are
-  // visibly equal, so the verdict says both halves: it was a tie, and
-  // that is why it is hers.
-  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : tieBroken ? 'TIE. SHE WINS' : 'SHE WINS';
+  // visibly equal, so the verdict states the RULE, not just the result:
+  // SHE WINS TIES. (Stan's headline, 2026-09-18; the first version read
+  // TIE. SHE WINS.)
+  const verdictText = tie ? 'TIE' : mineWon ? 'YOU WIN' : tieBroken ? 'SHE WINS TIES.' : 'SHE WINS';
   const verdictColor = tie ? DS.slate : mineWon ? DS.voltage : DS.ember;
   const title = which === 'hand1' ? 'Hand 1' : which === 'hand2' ? 'Hand 2' : 'Scraps';
 

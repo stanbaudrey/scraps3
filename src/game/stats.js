@@ -59,6 +59,8 @@ export function recordGame(difficulty, won, margin = 0) {
 // the unlock true for as long as the tab is open, which is the most that
 // can be promised there. The privacy notice names this item
 // (tools/make-share-assets.mjs, PRIVACY).
+import { SITE_HOST } from '../site.js';
+
 const UNLOCK_KEY = 'scraps-unlocks-v1';
 let memory = null;
 
@@ -86,4 +88,29 @@ export function unlockUnfair() {
 export function markUnfairSeen() {
   const u = loadUnlocks();
   if (!u.unfairSeen) saveUnlocks({ ...u, unfairSeen: true });
+}
+
+// ── A preview can be opened already unlocked ─────────────────
+// Stan reviews on a preview link, on his Mac and on his phone, and "win a
+// match against HARD first" is not a reasonable thing to ask of a look at
+// a picker. So a link can carry the state it should open in:
+//
+//   ?unfair=unlocked   UNFAIR open, its one-time entrance still to play
+//                      (it replays on every load of that link)
+//   ?unfair=open       UNFAIR open, entrance already seen
+//   ?unfair=locked     back to the start: "Beat HARD to unlock UNFAIR."
+//
+// NEVER ON THE LIVE SITE. On scraps.games the parameter is ignored, so the
+// mode cannot be unlocked by typing at the address bar: it works on
+// previews and on localhost, and nowhere a player will be. App.jsx calls
+// this once, before anything reads the unlock.
+export function applyPreviewUnlock(loc = typeof window !== 'undefined' ? window.location : null) {
+  if (!loc) return false;
+  if (loc.hostname === SITE_HOST || loc.hostname === `www.${SITE_HOST}`) return false;
+  const want = new URLSearchParams(loc.search || '').get('unfair');
+  if (want === 'unlocked') saveUnlocks({ unfair: true, unfairSeen: false });
+  else if (want === 'open') saveUnlocks({ unfair: true, unfairSeen: true });
+  else if (want === 'locked') saveUnlocks({ unfair: false, unfairSeen: false });
+  else return false;
+  return true;
 }

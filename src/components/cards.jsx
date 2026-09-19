@@ -179,7 +179,12 @@ function hashId(id){
 
 const LOOKS = new Map();
 
-function scrapLook(id, aspect){
+// Exported 2026-09-18 for ONE outside caller: the difficulty picker's
+// UNFAIR panel, which is a sheet of her paper and takes its stains, its
+// crease and its edge grime from here (`paint` and `grime`; it cuts its
+// own outline, because a wide strip wants many small teeth where a card
+// wants five points a side).
+export function scrapLook(id, aspect){
   const key = `${id}|${aspect.toFixed(2)}`;
   const hit = LOOKS.get(key);
   if (hit) return hit;

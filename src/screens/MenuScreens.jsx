@@ -13,6 +13,8 @@ import { Btn, TOUCH_MIN } from "../components/buttons.jsx";
 import { SceneBackdrop, TableSurface, AnimatedTitle } from "../components/backdrop.jsx";
 import { loadStats, loadUnlocks, markUnfairSeen } from "../game/stats.js";
 import { playSlap } from "../audio.js";
+import { PlayingCard, scrapLook } from "../components/cards.jsx";
+import { useViewport } from "../ui/viewport.jsx";
 import { TAGLINE } from "../share.js";
 import { RAIL_BOTTOM, railBtnStyle } from "./Walkthrough.jsx";
 
@@ -117,8 +119,49 @@ const ARM_MS = 720;
 const UNLOCK_BEAT = 1500;      // after mount: the others have dealt and armed
 const UNLOCK_FALL = 420;       // the fall itself; the thud sits on its end
 
+// UNFAIR IS NOT A THIRD BOX (Stan, 2026-09-18: "give UNFAIR mode a unique
+// visual treatment"). NORMAL and HARD are the game's interface talking:
+// two dusk panels with a coloured rule round them. UNFAIR is HER talking.
+// It is a sheet of her own kraft stock, the browner of the game's two
+// papers and the one every card of hers is printed on, torn along its
+// edges like a Scraps card, stained and creased by the same generator,
+// lying a degree and a half out of true on the wood, with the word in
+// ink. And an Ace is tucked under its corner, because that is the first
+// thing the mode does: she starts with one. It says the rule before the
+// sentence under it does.
+//
+// The word stays in Fjalla, like the two above it. It is tempting to set
+// it in Rye, since this is a card, but theme.js keeps a closed list of
+// what Rye may be used for and "a heading that wants Rye and is not on
+// this list is wrong". The Ace under the corner IS a card rank, so that
+// one is Rye by right.
+//
+// The outline is cut here rather than borrowed from a card. It is written
+// in PIXELS through calc(), not percentages, so the teeth are the same
+// size on a 620px desktop strip and a 327px phone one, and nothing has to
+// be measured. Seeded, so it is the same sheet on every visit.
+function tornStrip(seed) {
+  let s = seed >>> 0;
+  const r = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  r();
+  const pt = [];
+  const TOP = 17, SIDE = 4, BITE = 5;
+  for (let i = 0; i <= TOP; i++) pt.push(`${(i / TOP * 100).toFixed(1)}% ${(r() * BITE).toFixed(1)}px`);
+  for (let i = 1; i < SIDE; i++) pt.push(`calc(100% - ${(r() * BITE).toFixed(1)}px) ${(i / SIDE * 100).toFixed(1)}%`);
+  // one corner has come away, bottom right, under where the Ace sits
+  pt.push(`calc(100% - ${(r() * 3).toFixed(1)}px) calc(100% - 19px)`);
+  pt.push(`calc(100% - 11px) calc(100% - 9px)`);
+  pt.push(`calc(100% - 24px) calc(100% - ${(r() * 3).toFixed(1)}px)`);
+  for (let i = 1; i < TOP; i++) pt.push(`${(100 - i / TOP * 100).toFixed(1)}% calc(100% - ${(r() * BITE).toFixed(1)}px)`);
+  for (let i = 0; i < SIDE; i++) pt.push(`${(r() * BITE).toFixed(1)}px ${(100 - i / SIDE * 100).toFixed(1)}%`);
+  return `polygon(${pt.join(',')})`;
+}
+const UNFAIR_TEAR = tornStrip(0x5C4A9);
+const UNFAIR_ACE = { id: 'picker-unfair-ace', rank: 'A', value: 14 };
+
 export function DifficultyPicker({ onChoose, onBack = null }) {
   const stats = loadStats();
+  const { w: vw, h: vh } = useViewport();
   // Read once per visit: the entrance must not switch itself off halfway
   // through because it has just been marked seen.
   const unlocks = useRef(null);
@@ -145,11 +188,6 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
   // opponent/danger colour everywhere else in the game, and this is the
   // screen where you pick an opponent — so the two boxes now differ by
   // something other than the words inside them.
-  // Stan's copy, 2026-09-16. The two hyphenated terms are held together:
-  // a browser will break a line AT a hyphen, and on a 390px phone HARD
-  // came out as "win a 2-" over "pointer." A nowrap span rather than a
-  // non-breaking hyphen character, which Work Sans may not carry.
-  const keep = (s) => <span style={{whiteSpace:'nowrap'}}>{s}</span>;
   // EASY became NORMAL on 2026-09-18 (Stan), when HARD became a far
   // stronger player and UNFAIR arrived above it. The ID is still `easy`:
   // it is the key the win-loss record is saved under, and renaming it
@@ -157,15 +195,25 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
   const opts = [
     { id:'easy', label:'NORMAL', tone:DS.voltage,
       desc:'Doesn’t take risks. Rarely attacks. Not too bright.' },
-    { id:'hard', label:'HARD', tone:DS.ember,
-      desc:<>Bold. Sacrifices a {keep('1-pt')} hand to win a {keep('2-pointer.')}</> },
-    // Gold, the milestone colour: this one is earned, and it is the only
-    // panel that is. Its three sentences are the whole of what the mode
-    // changes that you can plan around (her picking what your Ace removes
-    // is told at the moment it matters, on the Ace alert).
-    ...(unfairOpen ? [{ id:'unfair', label:'UNFAIR', tone:DS.gold, debut,
+    // Stan's copy, 2026-09-18, for the new HARD. It was "Bold. Sacrifices
+    // a 1-pt hand to win a 2-pointer.", written for the player she
+    // replaced, with a nowrap helper to stop a phone breaking "2-" from
+    // "pointer"; three words need no helper and it went with the line.
+    { id:'hard', label:'HARD', tone:DS.ember, desc:'Strategic. Bold. Mean.' },
+    // The earned one, and her own paper rather than a panel (see
+    // tornStrip above). Gold, the milestone colour, is only its GLOW: the
+    // light under it when it lands and when it is picked up. Its three
+    // sentences are the whole of what the mode changes that you can plan
+    // around (her picking what your Ace removes is told at the moment it
+    // matters, on the Ace alert).
+    ...(unfairOpen ? [{ id:'unfair', label:'UNFAIR', tone:DS.gold, debut, paper:true,
       desc:'Starts with an Ace. Wins ties. Signals second.' }] : []),
   ];
+  // The sheet's stains, crease and grime, from the generator every Scraps
+  // card uses. The seed is fixed, so it is the same sheet every visit.
+  const sheet = scrapLook('picker-unfair-sheet-3', 0.2);
+  // The Ace under the corner is a size down on a phone or a short screen.
+  const aceSize = vw < 520 || vh < 520 ? 'tiny' : 'small';
 
   return (
     <div className="app-vh" style={{display:'flex',flexDirection:'column',alignItems:'center',
@@ -190,6 +238,31 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
         {opts.map((o, i) => {
           const rec = stats[o.id];
           const live = o.debut ? armed && landed : armed;
+          const ink = o.paper ? DS.ink : null;
+          const head = (
+            <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
+              <span className={o.debut ? 'pick-debut-word' : undefined}
+                style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
+                color: ink || o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
+              {/* The record. 13px slate until 2026-09-18, which Stan could
+                  not read, and his Mac's scaled resolution draws a CSS
+                  pixel LARGER than most screens do, so it was smaller
+                  still for everyone else. BEST +N went the same day: the
+                  margin is still recorded (stats.js), nothing shows it. */}
+              {rec && (rec.w > 0 || rec.l > 0) && (
+                <span style={{fontFamily:F.mono,color: ink || DS.slateLight,fontWeight: ink ? 600 : 500,
+                  fontSize:'clamp(17px,min(3.4vw,3vh),22px)',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>
+                  {rec.w}W · {rec.l}L
+                </span>
+              )}
+            </span>
+          );
+          const blurb = (
+            <span style={{display:'block',fontFamily:F.ui,color: ink || DS.slateLight,
+              fontSize:'clamp(14px,min(3.8vw,2.2vh),20px)',
+              fontWeight: ink ? 600 : 500,marginTop:'clamp(4px,1vh,8px)',lineHeight:1.4}}>{o.desc}</span>
+          );
+          const pad = 'clamp(12px,min(3.2vh,2.6vw + 8px),26px) clamp(18px,4vw,30px)';
           return (
             // A real <button>, not a div with an onClick: this is the
             // last decision before a game starts and it was unreachable
@@ -197,32 +270,35 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
             // arm lock semantically, which pointer-events never could —
             // assistive tech now knows the control is not yet live.
             <button key={o.id} type="button"
-              className={`pick-box${live ? ' armed' : ''}${o.debut ? ' pick-debut' : ''}`}
+              className={`pick-box${live ? ' armed' : ''}${o.debut ? ' pick-debut' : ''}${o.paper ? ' pick-card' : ''}`}
               disabled={!live}
               onClick={live ? () => onChoose(o.id) : undefined}
               style={{animationDelay: o.debut ? `${UNLOCK_BEAT}ms` : `${i * 150}ms`,
                 animationDuration: o.debut ? `${UNLOCK_FALL}ms` : undefined,
                 '--accent':o.tone, '--debut-at':`${UNLOCK_BEAT + UNLOCK_FALL}ms`,
-                padding:'clamp(12px,min(3.2vh,2.6vw + 8px),26px) clamp(18px,4vw,30px)'}}>
-              <span style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:14}}>
-                <span className={o.debut ? 'pick-debut-word' : undefined}
-                  style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
-                  color:o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
-                {/* The record. 13px slate until 2026-09-18, which Stan could
-                    not read, and his Mac's scaled resolution draws a CSS
-                    pixel LARGER than most screens do, so it was smaller
-                    still for everyone else. BEST +N went the same day: the
-                    margin is still recorded (stats.js), nothing shows it. */}
-                {rec && (rec.w > 0 || rec.l > 0) && (
-                  <span style={{fontFamily:F.mono,color:DS.slateLight,fontWeight:500,
-                    fontSize:'clamp(17px,min(3.4vw,3vh),22px)',letterSpacing:'0.08em',whiteSpace:'nowrap'}}>
-                    {rec.w}W · {rec.l}L
+                padding: o.paper ? 0 : pad}}>
+              {o.paper ? (
+                // The tilt and the shadow live on this wrapper, NOT on the
+                // button: the button's entrance ends on `transform: none`,
+                // and an entrance has to end on the element's resting
+                // style. The shadow is a drop-shadow for the reason every
+                // torn card's is: box-shadow ignores a clip-path and would
+                // draw the rectangle the sheet has stopped being. It
+                // traces the Ace as well, which is what seats the two
+                // together on the wood.
+                <span className="pick-card-tilt">
+                  <span className="pick-card-ace" aria-hidden="true">
+                    {/* A hand card, so it is the pale stock: her kraft is
+                        only ever seen on a Scraps card, and a pale card
+                        against the kraft sheet is what lets it be seen. */}
+                    <PlayingCard card={UNFAIR_ACE} size={aceSize} liftTransform={false}/>
                   </span>
-                )}
-              </span>
-              <span style={{display:'block',fontFamily:F.ui,color:DS.slateLight,
-                fontSize:'clamp(14px,min(3.8vw,2.2vh),20px)',
-                fontWeight:500,marginTop:'clamp(4px,1vh,8px)',lineHeight:1.4}}>{o.desc}</span>
+                  <span className="pick-card-paper" style={{clipPath:UNFAIR_TEAR,padding:pad,
+                    backgroundColor:DS.stockKraft,backgroundImage:sheet.paint,boxShadow:sheet.grime}}>
+                    {head}{blurb}
+                  </span>
+                </span>
+              ) : <>{head}{blurb}</>}
             </button>
           );
         })}

@@ -44,9 +44,10 @@ evaluator to make that true: it always read rank and value only.
   a `useState`.
 - **Zero runtime dependencies beyond React.** No animation library, no UI kit,
   no state library. Animation is CSS keyframes plus hand-rolled timers.
-- Vitest for tests. **105 tests** (75 until 2026-09-18, when the HARD
-  brain brought 19 of its own in `src/game/brain.test.js` and the reducer
-  gained 11 for UNFAIR's rules, her full-pile scrap and the deck refresh)
+- Vitest for tests. **111 tests** (75 until 2026-09-18, when the HARD
+  brain brought 19 of its own in `src/game/brain.test.js`, the reducer
+  gained 11 for UNFAIR's rules, her full-pile scrap and the deck refresh,
+  and `src/game/stats.test.js` added 6 for the unlock and the preview link)
   cover the engine, the reducer, the brain, the Ace
   attack's motion math (`src/components/throwMotion.test.js`: seven added
   with The Throw on 2026-09-16, then two on 2026-09-17 for her counter and
@@ -156,7 +157,7 @@ trusting anything on it, and do not kill it — it may be another session's.
 Every harness below takes `PORT=5194`.
 
 ```bash
-npm test          # vitest, 105 tests, runs in about a second
+npm test          # vitest, 111 tests, runs in about a second
 npm run build     # production bundle into dist/
 npm run fonts     # re-vendor public/fonts + rewrite index.html's @font-face
 npm run fonts:check   # exit 1 if either has drifted from upstream Google
@@ -479,12 +480,39 @@ looks broken locally, it is not a missing-secret problem.
   `signalsSecond` (`nextPhaseAfterTrade` sends every hand to
   `signal-player`; the scrap turns still alternate with the dealer),
   `tiesToHer` (`scoreSmallHand` and `scoreScrapsOutcome`; the reveal's
-  verdict reads TIE. SHE WINS so two visibly equal hands explain
-  themselves) and `herPick` (ATTACK opens with HER two cards already
+  verdict reads SHE WINS TIES., Stan's headline, so two visibly equal
+  hands state the rule rather than just the result) and `herPick` (ATTACK opens with HER two cards already
   picked, `cheapestTwo`, and the pile cannot be clicked). The picker names
   three of them; the fourth is told on the Ace alert, whose second
   paragraph swaps from the counter rule to it under UNFAIR, because a
   landscape phone has no room for a third.
+- **On the picker UNFAIR is a sheet of HER paper, not a third box**
+  (Stan, 2026-09-18: "a unique visual treatment"). NORMAL and HARD are the
+  interface talking; UNFAIR is her: a strip of `stockKraft`, torn, stained
+  and creased by the Scraps cards' own generator (`scrapLook`, exported for
+  this one caller), lying 1.4 degrees out of true, the word in ink, and an
+  Ace tucked under its corner because starting with one is the first thing
+  the mode does. Three things to know before touching it. Its outline
+  (`tornStrip` in `MenuScreens.jsx`) is written in PIXELS through `calc()`,
+  so the teeth are the same size at 620px and 327px with nothing measured.
+  The tilt and the shadow are on an inner wrapper, never the button,
+  because the button's entrance ends on `transform: none` and an entrance
+  must end on the resting style; and the shadow is a `drop-shadow`, which
+  traces the tear and the Ace where a `box-shadow` would draw a rectangle.
+  Its glow is a second drop-shadow in hex-with-alpha at both ends (the
+  `color-mix` interpolation bug), and its debut animation fills
+  `backwards`, not `both`, or its last frame would outrank the hover rule
+  for the rest of that visit. **The word stays in Fjalla.** It is a card
+  and Rye is tempting, but `theme.js` keeps a closed list of Rye's
+  consumers; only the Ace under the corner, a real card rank, is Rye.
+- **A preview link can open already unlocked, and the live site ignores
+  it.** `?unfair=unlocked` (UNFAIR open, entrance still to play, replayed
+  on every load of that link), `?unfair=open` (entrance already seen) and
+  `?unfair=locked`. `applyPreviewUnlock` in `stats.js`, called once from
+  `App.jsx`; it returns at once on `scraps.games` and `www.scraps.games`,
+  which `stats.test.js` holds, so the mode cannot be unlocked from the
+  address bar in production. It exists because Stan reviews on a preview,
+  often on his phone, where there is no console to paste into.
 - **The discards go back under the deck when it runs low, and the old
   HARD is why this never came up.** She scrapped four cards a round and a
   round ended with fourteen in the deck. The brain scraps thirteen, as a
