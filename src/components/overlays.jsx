@@ -250,11 +250,14 @@ export function AceCounterModal({ onCounter, onAllow, targets, afterCounter = fa
       <div style={{background:DS.duskMid,border:`3px solid ${DS.ember}`,
         borderRadius:16,padding:CARD_PAD,maxWidth:560,width:'100%',textAlign:'center',
         boxShadow:`0 0 40px ${DS.ember}66`}}>
-        {/* 9vw keeps "SHE PLAYS AN ACE." on one line down to a 320px
-            screen; it reaches its full 36 at 400. */}
+        {/* Sentence case (Stan, 2026-09-19); it was set in capitals. The
+            re-counter's headline shares this slot, so it went with it:
+            one in capitals beside one not would read as a mistake. 9vw
+            keeps the line whole down to a 320px screen (capitals were the
+            wider case, so this only got easier); full 36 at 400. */}
         <div style={{fontFamily:F.display,fontSize:'clamp(28px,9vw,36px)',color:DS.ember,
           letterSpacing:'0.06em',lineHeight:1.15,marginBottom:12}}>
-          {afterCounter ? 'SHE HAD ANOTHER ACE.' : 'SHE PLAYS AN ACE.'}
+          {afterCounter ? 'She had another Ace.' : 'She plays an Ace.'}
         </div>
         <p style={{fontFamily:F.ui,color:DS.slateLight,fontSize:17,lineHeight:1.5,marginBottom:16}}>
           She plans to remove these cards from your Scraps:

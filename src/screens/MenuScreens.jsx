@@ -298,10 +298,9 @@ export function DifficultyPicker({ onChoose, onBack = null }) {
               <span className={o.debut ? 'pick-debut-word' : undefined}
                 style={{fontFamily:F.display,fontSize:'clamp(30px,min(7vw,5.6vh),54px)',
                 color: ink || o.tone,letterSpacing:'0.06em',lineHeight:1}}>{o.label}</span>
-              {/* The record. 13px slate until 2026-09-18, which Stan could
-                  not read, and his Mac's scaled resolution draws a CSS
-                  pixel LARGER than most screens do, so it was smaller
-                  still for everyone else. BEST +N went the same day: the
+              {/* The record. 13px slate until 2026-09-18 and too small to
+                  read comfortably at any display scaling, so smaller still
+                  on a default one (Stan's call). BEST +N went the same day: the
                   margin is still recorded (stats.js), nothing shows it. */}
               {rec && (rec.w > 0 || rec.l > 0) && (
                 <span style={{fontFamily:F.mono,color: ink || DS.slateLight,fontWeight: ink ? 600 : 500,
